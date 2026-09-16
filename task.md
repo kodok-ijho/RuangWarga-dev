@@ -398,12 +398,12 @@ publik, tidak ada regresi fitur existing.
   (Spec §2.1.4). Pertahankan `is_tenant_admin()` sebagai alias yang memanggil
   `is_tenant_owner()` secara internal, supaya policy lama yang belum sempat di-refactor
   tidak langsung rusak.
-- [ ] **T12.7** -- Refactor SATU PER SATU setiap RLS policy yang memakai
+- [x] **T12.7** -- Refactor SATU PER SATU setiap RLS policy yang memakai
   `role = 'admin'`/`'bendahara'`/`'pengurus'` menjadi memakai `has_permission()` sesuai
   pemetaan permission di Spec §2.1.5. Jalankan test suite (145+ test existing) setelah
   SETIAP tabel selesai di-refactor, bukan menunggu semua tabel selesai -- supaya regresi
   gampang dilacak ke commit spesifik.
-- [ ] **T12.8** -- Tambahkan `OR is_platform_admin()` di setiap RLS policy tenant sesuai
+- [x] **T12.8** -- Tambahkan `OR is_platform_admin()` di setiap RLS policy tenant sesuai
   FR-40 (kemungkinan besar policy ini sudah ada dari Phase 1 T1.7, T12.8 memverifikasi
   ulang dan melengkapi yang terlewat).
 - [ ] **T12.9** -- Buat halaman `ManageRoles.jsx` dan `AssignMemberRole.jsx` (Spec §7.4).
