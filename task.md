@@ -391,7 +391,7 @@ publik, tidak ada regresi fitur existing.
   setiap tenant yang sudah ada, buat 2 `tenant_roles` bawaan ("Admin" dengan semua
   permission, "Warga/Anggota" tanpa permission), lalu untuk role kustom lama (`bendahara`,
   `pengurus`) buat `tenant_roles` baru sesuai pemetaan di Spec §2.1.5 tabel migrasi.
-- [ ] **T12.5** -- Isi `tenant_role_id` pada setiap baris `tenant_members` existing sesuai
+- [x] **T12.5** -- Isi `tenant_role_id` pada setiap baris `tenant_members` existing sesuai
   pemetaan `role` lama -> `tenant_role_id` baru (Spec §2.1.5), dan set `is_owner = true`
   untuk baris yang `user_id`-nya cocok dengan `tenants.owner_id`.
 - [ ] **T12.6** -- Buat fungsi helper baru `has_permission()` dan `is_tenant_owner()`
