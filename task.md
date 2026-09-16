@@ -387,7 +387,7 @@ publik, tidak ada regresi fitur existing.
 - [x] **T12.3** -- Buat migration ALTER `tenant_members`: tambah kolom `tenant_role_id`
   dan `is_owner`, JANGAN langsung `DROP COLUMN role` di migration yang sama -- pertahankan
   kolom `role` lama untuk sementara agar rollback tetap mungkin selama masa transisi.
-- [ ] **T12.4** -- Tulis migration data (data migration, bukan schema migration): untuk
+- [x] **T12.4** -- Tulis migration data (data migration, bukan schema migration): untuk
   setiap tenant yang sudah ada, buat 2 `tenant_roles` bawaan ("Admin" dengan semua
   permission, "Warga/Anggota" tanpa permission), lalu untuk role kustom lama (`bendahara`,
   `pengurus`) buat `tenant_roles` baru sesuai pemetaan di Spec §2.1.5 tabel migrasi.
