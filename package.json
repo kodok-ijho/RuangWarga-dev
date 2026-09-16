@@ -1,6 +1,6 @@
 {
-  "name": "portal-palm-village",
-  "version": "1.4.3",
+  "name": "ruang-warga",
+  "version": "1.0.1",
   "private": true,
   "scripts": {
     "dev": "npm --prefix client run dev",

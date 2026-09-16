@@ -1,6 +1,6 @@
 {
-  "name": "palm-village-portal",
-  "version": "1.4.3",
+  "name": "ruangwarga",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "scripts": {
