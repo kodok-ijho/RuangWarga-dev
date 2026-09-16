@@ -381,7 +381,7 @@ publik, tidak ada regresi fitur existing.
   ada di `main` saat ini yang mereferensikan `tenant_members.role` atau nilai
   `'admin'`/`'bendahara'`/`'pengurus'`/`'anggota'` secara eksplisit. Buat daftar lengkap
   file yang terdampak sebelum mulai mengubah apapun (checklist referensi).
-- [ ] **T12.2** -- Buat migration SQL baru (JANGAN edit migration lama yang sudah jalan di
+- [x] **T12.2** -- Buat migration SQL baru (JANGAN edit migration lama yang sudah jalan di
   production): tabel `permissions` (seed 10 permission dari Spec §2.1.1), `tenant_roles`,
   `tenant_role_permissions`.
 - [ ] **T12.3** -- Buat migration ALTER `tenant_members`: tambah kolom `tenant_role_id`
