@@ -377,7 +377,7 @@ publik, tidak ada regresi fitur existing.
 > RT/RW dipaksakan ke semua vertikal) dianggap cacat desain yang harus dibereskan sebelum
 > ada user sungguhan, bukan item "nice to have" untuk v1.1.
 
-- [ ] **T12.1** -- Baca ulang seluruh migration SQL, RLS policy, dan kode frontend yang
+- [x] **T12.1** -- Baca ulang seluruh migration SQL, RLS policy, dan kode frontend yang
   ada di `main` saat ini yang mereferensikan `tenant_members.role` atau nilai
   `'admin'`/`'bendahara'`/`'pengurus'`/`'anggota'` secara eksplisit. Buat daftar lengkap
   file yang terdampak sebelum mulai mengubah apapun (checklist referensi).
