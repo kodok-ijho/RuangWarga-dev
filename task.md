@@ -394,7 +394,7 @@ publik, tidak ada regresi fitur existing.
 - [x] **T12.5** -- Isi `tenant_role_id` pada setiap baris `tenant_members` existing sesuai
   pemetaan `role` lama -> `tenant_role_id` baru (Spec §2.1.5), dan set `is_owner = true`
   untuk baris yang `user_id`-nya cocok dengan `tenants.owner_id`.
-- [ ] **T12.6** -- Buat fungsi helper baru `has_permission()` dan `is_tenant_owner()`
+- [x] **T12.6** -- Buat fungsi helper baru `has_permission()` dan `is_tenant_owner()`
   (Spec §2.1.4). Pertahankan `is_tenant_admin()` sebagai alias yang memanggil
   `is_tenant_owner()` secara internal, supaya policy lama yang belum sempat di-refactor
   tidak langsung rusak.
