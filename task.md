@@ -406,7 +406,7 @@ publik, tidak ada regresi fitur existing.
 - [x] **T12.8** -- Tambahkan `OR is_platform_admin()` di setiap RLS policy tenant sesuai
   FR-40 (kemungkinan besar policy ini sudah ada dari Phase 1 T1.7, T12.8 memverifikasi
   ulang dan melengkapi yang terlewat).
-- [ ] **T12.9** -- Buat halaman `ManageRoles.jsx` dan `AssignMemberRole.jsx` (Spec §7.4).
+- [x] **T12.9** -- Buat halaman `ManageRoles.jsx` dan `AssignMemberRole.jsx` (Spec §7.4).
 - [ ] **T12.10** -- Update seluruh komponen frontend yang menampilkan/membandingkan
   `member.role` (badge role, dropdown assign role, guard routing berbasis role) untuk
   memakai `tenant_role_id` + query permission, bukan string role tetap.

@@ -63,6 +63,8 @@ const RoomListingDirectory = lazy(() => import('./pages/public/RoomListingDirect
 const RoomListingDetail = lazy(() => import('./pages/public/RoomListingDetail'));
 const UmkmListingDirectory = lazy(() => import('./pages/public/UmkmListingDirectory'));
 const UmkmListingDetail = lazy(() => import('./pages/public/UmkmListingDetail'));
+const ManageRoles = lazy(() => import('./pages/roles/ManageRoles'));
+const AssignMemberRole = lazy(() => import('./pages/roles/AssignMemberRole'));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center py-20">
@@ -282,6 +284,22 @@ export default function App() {
                   element={
                     <Suspense fallback={<PageLoader />}>
                       <TenantDashboard />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/t/:tenantId/roles"
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <ManageRoles />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/t/:tenantId/members/:id/role"
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <AssignMemberRole />
                     </Suspense>
                   }
                 />
