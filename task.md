@@ -384,7 +384,7 @@ publik, tidak ada regresi fitur existing.
 - [x] **T12.2** -- Buat migration SQL baru (JANGAN edit migration lama yang sudah jalan di
   production): tabel `permissions` (seed 10 permission dari Spec §2.1.1), `tenant_roles`,
   `tenant_role_permissions`.
-- [ ] **T12.3** -- Buat migration ALTER `tenant_members`: tambah kolom `tenant_role_id`
+- [x] **T12.3** -- Buat migration ALTER `tenant_members`: tambah kolom `tenant_role_id`
   dan `is_owner`, JANGAN langsung `DROP COLUMN role` di migration yang sama -- pertahankan
   kolom `role` lama untuk sementara agar rollback tetap mungkin selama masa transisi.
 - [ ] **T12.4** -- Tulis migration data (data migration, bukan schema migration): untuk
