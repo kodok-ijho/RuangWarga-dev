@@ -35,6 +35,9 @@ export default function TenantDashboard() {
     subscriptionStatus,
     userRole,
     isTenantAdmin,
+    isOwner,
+    activeRoleName,
+    hasPermission,
   } = useTenant();
 
   const template = useTenantTemplate();
@@ -110,7 +113,15 @@ export default function TenantDashboard() {
   const units = dashData?.units || { total: 0, occupied: 0, vacant: 0 };
   const members = dashData?.members || { total: 0 };
 
-  const isStaff = isTenantAdmin || userRole === 'bendahara' || userRole === 'pengurus';
+  const canManageRoles = isOwner || hasPermission('manage_tenant_users');
+  const isStaff =
+    isOwner ||
+    isTenantAdmin ||
+    ['admin', 'bendahara', 'pengurus'].includes(userRole) ||
+    hasPermission('view_reports') ||
+    hasPermission('manage_members') ||
+    hasPermission('manage_billing_cash') ||
+    hasPermission('manage_billing_transfer');
 
   return (
     <div className="min-h-screen bg-[#071f13] text-white py-8 px-4 sm:px-6 lg:px-8">
@@ -147,7 +158,7 @@ export default function TenantDashboard() {
                 </h1>
                 <p className="text-xs text-forest-300 mt-1">
                   Tenant ID: <span className="font-mono text-forest-400">{tenantId}</span> &bull; Peran Anda:{' '}
-                  <strong className="text-gold-400 capitalize">{userRole}</strong>
+                  <strong className="text-gold-400 capitalize">{activeRoleName || userRole}</strong>
                 </p>
               </div>
             </div>
@@ -161,6 +172,17 @@ export default function TenantDashboard() {
               >
                 <AiOutlineReload className={`text-base ${isLoading ? 'animate-spin' : ''}`} />
               </button>
+
+              {canManageRoles && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/t/${tenantId}/roles`)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 text-xs font-semibold border border-purple-500/40 transition-colors"
+                >
+                  <AiOutlineTeam className="text-sm" />
+                  <span>Kelola Role & Akses</span>
+                </button>
+              )}
 
               {isTenantAdmin && (
                 <button

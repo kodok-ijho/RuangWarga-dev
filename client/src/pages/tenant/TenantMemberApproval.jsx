@@ -19,6 +19,7 @@ import {
   approveTenantMember,
   rejectTenantMember,
   fetchTenantUnits,
+  fetchTenantRoles,
 } from '../../services/tenantOperationalService';
 import SubscriptionGateButton from '../../components/SubscriptionGateButton';
 
@@ -30,12 +31,14 @@ export default function TenantMemberApproval() {
 
   const [pendingList, setPendingList] = useState([]);
   const [unitsList, setUnitsList] = useState([]);
+  const [rolesList, setRolesList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
 
   // Modal approve state
   const [selectedMember, setSelectedMember] = useState(null);
   const [selectedRole, setSelectedRole] = useState('anggota');
+  const [selectedRoleId, setSelectedRoleId] = useState('');
   const [selectedUnitId, setSelectedUnitId] = useState('');
   const [selectedOccupancy, setSelectedOccupancy] = useState('owner_occupied');
 
@@ -50,12 +53,14 @@ export default function TenantMemberApproval() {
     if (!tenantId) return;
     setLoading(true);
     try {
-      const [members, units] = await Promise.all([
+      const [members, units, roles] = await Promise.all([
         fetchPendingTenantMembers(tenantId),
         fetchTenantUnits(tenantId),
+        fetchTenantRoles(tenantId).catch(() => []),
       ]);
       setPendingList(members || []);
       setUnitsList(units || []);
+      setRolesList(roles || []);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('[TenantMemberApproval] load error:', err);
@@ -73,6 +78,11 @@ export default function TenantMemberApproval() {
     guardAction(() => {
       setSelectedMember(member);
       setSelectedRole(member.role || 'anggota');
+      // Default to member's tenant_role_id or base role
+      const defaultRole = rolesList.find((r) => r.id === member.tenant_role_id) ||
+        rolesList.find((r) => r.is_base_role) ||
+        rolesList[0];
+      setSelectedRoleId(defaultRole?.id || '');
       setSelectedUnitId(member.unit_id ? String(member.unit_id) : '');
       setSelectedOccupancy(member.occupancy_status || 'owner_occupied');
     });
@@ -85,6 +95,7 @@ export default function TenantMemberApproval() {
     try {
       await approveTenantMember(selectedMember.id, {
         role: selectedRole,
+        tenantRoleId: selectedRoleId || null,
         unitId: selectedUnitId ? Number(selectedUnitId) : null,
         occupancyStatus: selectedOccupancy,
       });
@@ -292,18 +303,39 @@ export default function TenantMemberApproval() {
 
                 <div>
                   <label className="block text-xs font-semibold text-forest-200 mb-1.5">
-                    Peran / Hak Akses
+                    Peran / Hak Akses (RBAC)
                   </label>
-                  <select
-                    value={selectedRole}
-                    onChange={(e) => setSelectedRole(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-forest-950 border border-forest-700 text-white text-xs focus:outline-none"
-                  >
-                    <option value="anggota">Warga / Anggota Biasa</option>
-                    <option value="pengurus">Pengurus Lingkungan</option>
-                    <option value="bendahara">Bendahara</option>
-                    <option value="admin">Administrator</option>
-                  </select>
+                  {rolesList.length > 0 ? (
+                    <select
+                      value={selectedRoleId}
+                      onChange={(e) => {
+                        const rId = e.target.value;
+                        setSelectedRoleId(rId);
+                        const found = rolesList.find((r) => r.id === rId);
+                        if (found) {
+                          setSelectedRole(found.is_owner_role ? 'admin' : found.name.toLowerCase());
+                        }
+                      }}
+                      className="w-full px-3 py-2.5 rounded-xl bg-forest-950 border border-forest-700 text-white text-xs focus:outline-none"
+                    >
+                      {rolesList.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name} {r.is_owner_role ? '(Admin / Pemilik)' : r.is_base_role ? '(Standar Anggota)' : '(Kustom)'}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <select
+                      value={selectedRole}
+                      onChange={(e) => setSelectedRole(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-forest-950 border border-forest-700 text-white text-xs focus:outline-none"
+                    >
+                      <option value="anggota">Warga / Anggota Biasa</option>
+                      <option value="pengurus">Pengurus Lingkungan</option>
+                      <option value="bendahara">Bendahara</option>
+                      <option value="admin">Administrator</option>
+                    </select>
+                  )}
                 </div>
               </div>
 

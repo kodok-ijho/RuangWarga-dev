@@ -140,7 +140,7 @@ export default function MyTenants() {
                             <span className="text-xs text-forest-300 font-semibold">{template.name}</span>
                             <span className="text-forest-600">&bull;</span>
                             <span className="text-xs text-gold-400 font-medium capitalize">
-                              Peran: {tenant.role || (isOwner ? 'Admin' : 'Anggota')}
+                              Peran: {tenant.role_name || (tenant.is_owner ? 'Admin' : (tenant.role || (isOwner ? 'Admin' : 'Anggota')))}
                             </span>
                           </div>
                         </div>

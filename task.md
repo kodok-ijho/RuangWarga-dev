@@ -407,7 +407,7 @@ publik, tidak ada regresi fitur existing.
   FR-40 (kemungkinan besar policy ini sudah ada dari Phase 1 T1.7, T12.8 memverifikasi
   ulang dan melengkapi yang terlewat).
 - [x] **T12.9** -- Buat halaman `ManageRoles.jsx` dan `AssignMemberRole.jsx` (Spec §7.4).
-- [ ] **T12.10** -- Update seluruh komponen frontend yang menampilkan/membandingkan
+- [x] **T12.10** -- Update seluruh komponen frontend yang menampilkan/membandingkan
   `member.role` (badge role, dropdown assign role, guard routing berbasis role) untuk
   memakai `tenant_role_id` + query permission, bukan string role tetap.
 - [ ] **T12.11** -- Setelah T12.7 selesai untuk SEMUA tabel dan regression penuh lulus,

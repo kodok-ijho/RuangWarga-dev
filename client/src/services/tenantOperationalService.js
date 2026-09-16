@@ -333,12 +333,20 @@ export async function fetchPendingTenantMembers(tenantId) {
       full_name,
       phone,
       role,
+      tenant_role_id,
+      is_owner,
       status,
       occupancy_status,
       created_at,
       tenant_units:unit_id (
         id,
         label
+      ),
+      tenant_roles:tenant_role_id (
+        id,
+        name,
+        is_owner_role,
+        is_base_role
       )
     `)
     .eq('tenant_id', tenantId)
@@ -378,6 +386,8 @@ export async function fetchTenantMembers(tenantId, opts = {}) {
       full_name,
       phone,
       role,
+      tenant_role_id,
+      is_owner,
       status,
       occupancy_status,
       created_at,
@@ -385,6 +395,12 @@ export async function fetchTenantMembers(tenantId, opts = {}) {
         id,
         label,
         metadata
+      ),
+      tenant_roles:tenant_role_id (
+        id,
+        name,
+        is_owner_role,
+        is_base_role
       )
     `)
     .eq('tenant_id', tenantId);
@@ -406,7 +422,7 @@ export async function fetchTenantMembers(tenantId, opts = {}) {
 /**
  * Menyetujui pendaftaran anggota tenant
  */
-export async function approveTenantMember(memberId, { role = 'anggota', unitId, occupancyStatus }) {
+export async function approveTenantMember(memberId, { role = 'anggota', tenantRoleId, unitId, occupancyStatus } = {}) {
   if (!memberId) throw new Error('Member ID wajib disertakan.');
 
   const updateData = {
@@ -415,6 +431,9 @@ export async function approveTenantMember(memberId, { role = 'anggota', unitId, 
     updated_at: new Date().toISOString(),
   };
 
+  if (tenantRoleId) {
+    updateData.tenant_role_id = tenantRoleId;
+  }
   if (unitId !== undefined) updateData.unit_id = unitId ? Number(unitId) : null;
   if (occupancyStatus !== undefined) updateData.occupancy_status = occupancyStatus;
 

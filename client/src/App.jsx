@@ -72,6 +72,8 @@ const PageLoader = () => (
   </div>
 );
 
+import { useTenant } from './hooks/useTenant';
+
 /**
  * RoleGuard — renders children only if user has one of the allowed roles.
  * Otherwise redirects to home page.
@@ -81,6 +83,24 @@ function RoleGuard({ allowed, canAccess, children }) {
   if (!role || (canAccess ? !canAccess(role) : !allowed.includes(role))) {
     return <Navigate to="/" replace />;
   }
+  return children;
+}
+
+/**
+ * TenantPermissionGuard — memastikan user memiliki permission tertentu atau merupakan Owner / Platform Admin.
+ */
+function TenantPermissionGuard({ permission, children }) {
+  const { isOwner, isPlatformAdmin, hasPermission, loading } = useTenant();
+
+  if (loading) {
+    return <PageLoader />;
+  }
+
+  const allowed = isPlatformAdmin || isOwner || (hasPermission && hasPermission(permission));
+  if (!allowed) {
+    return <Navigate to="/" replace />;
+  }
+
   return children;
 }
 
@@ -291,7 +311,9 @@ export default function App() {
                   path="/t/:tenantId/roles"
                   element={
                     <Suspense fallback={<PageLoader />}>
-                      <ManageRoles />
+                      <TenantPermissionGuard permission="manage_tenant_users">
+                        <ManageRoles />
+                      </TenantPermissionGuard>
                     </Suspense>
                   }
                 />
@@ -299,7 +321,9 @@ export default function App() {
                   path="/t/:tenantId/members/:id/role"
                   element={
                     <Suspense fallback={<PageLoader />}>
-                      <AssignMemberRole />
+                      <TenantPermissionGuard permission="manage_tenant_users">
+                        <AssignMemberRole />
+                      </TenantPermissionGuard>
                     </Suspense>
                   }
                 />

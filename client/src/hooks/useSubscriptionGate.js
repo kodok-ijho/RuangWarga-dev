@@ -15,12 +15,31 @@ import { useTenant } from './useTenant';
  */
 export function useSubscriptionGate(options = {}) {
   const navigate = useNavigate();
-  const { activeTenant, activeTenantId, subscriptionStatus, isTenantAdmin, userRole } = useTenant();
+  const {
+    activeTenant,
+    activeTenantId,
+    subscriptionStatus,
+    isTenantAdmin,
+    userRole,
+    isOwner,
+    hasPermission,
+  } = useTenant();
 
   const isReadOnly = subscriptionStatus === 'read_only';
   const canTransact = !isReadOnly;
 
-  const isStaff = ['admin', 'bendahara', 'pengurus'].includes(userRole);
+  const hasStaffPermission = hasPermission
+    ? hasPermission('manage_settings') ||
+      hasPermission('manage_members') ||
+      hasPermission('manage_billing_cash') ||
+      hasPermission('manage_billing_transfer') ||
+      hasPermission('manage_expenses') ||
+      hasPermission('generate_billing') ||
+      hasPermission('run_special_action') ||
+      hasPermission('manage_tenant_users')
+    : false;
+
+  const isStaff = isOwner || isTenantAdmin || ['admin', 'bendahara', 'pengurus'].includes(userRole) || hasStaffPermission;
 
   const actionName = options.actionName || 'Aksi ini';
 

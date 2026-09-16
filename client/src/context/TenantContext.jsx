@@ -7,6 +7,19 @@ export const TenantContext = createContext(null);
 const ACTIVE_TENANT_KEY = 'pv_active_tenant_id';
 const IS_DEMO = import.meta.env.VITE_DEMO_MODE === 'true';
 
+export const ALL_PLATFORM_PERMISSIONS = [
+  'manage_billing_cash',
+  'manage_billing_transfer',
+  'generate_billing',
+  'manage_members',
+  'manage_settings',
+  'manage_expenses',
+  'view_reports',
+  'run_special_action',
+  'post_listing',
+  'manage_tenant_users',
+];
+
 // Mock tenants untuk mode demo (mewakili 4 vertikal)
 export const DEMO_TENANTS = [
   {
@@ -14,6 +27,9 @@ export const DEMO_TENANTS = [
     name: 'Palm Village RT 05',
     type: 'rt_rw',
     role: 'admin',
+    is_owner: true,
+    role_name: 'Admin',
+    permissions: ALL_PLATFORM_PERMISSIONS,
     owner_id: 'demo-admin',
     subscription: {
       id: 'sub-demo-rtrw',
@@ -29,6 +45,9 @@ export const DEMO_TENANTS = [
     name: 'Kos Melati Harmoni',
     type: 'kos',
     role: 'admin',
+    is_owner: true,
+    role_name: 'Admin',
+    permissions: ALL_PLATFORM_PERMISSIONS,
     owner_id: 'demo-admin',
     subscription: {
       id: 'sub-demo-kos',
@@ -44,6 +63,9 @@ export const DEMO_TENANTS = [
     name: 'Arisan Mawar Berkah',
     type: 'arisan',
     role: 'admin',
+    is_owner: true,
+    role_name: 'Admin',
+    permissions: ALL_PLATFORM_PERMISSIONS,
     owner_id: 'demo-admin',
     subscription: {
       id: 'sub-demo-arisan',
@@ -59,6 +81,9 @@ export const DEMO_TENANTS = [
     name: 'Kelas Belajar Mandiri',
     type: 'kelas',
     role: 'admin',
+    is_owner: true,
+    role_name: 'Admin',
+    permissions: ALL_PLATFORM_PERMISSIONS,
     owner_id: 'demo-admin',
     subscription: {
       id: 'sub-demo-kelas',
@@ -70,6 +95,7 @@ export const DEMO_TENANTS = [
     },
   },
 ];
+
 
 export function TenantProvider({ children }) {
   const { user, profile, isAuthenticated, loading: authLoading } = useAuth();
@@ -153,6 +179,17 @@ export function TenantProvider({ children }) {
           tenant_id,
           role,
           status,
+          tenant_role_id,
+          is_owner,
+          tenant_roles:tenant_role_id (
+            id,
+            name,
+            is_owner_role,
+            is_base_role,
+            tenant_role_permissions (
+              permission_key
+            )
+          ),
           tenants:tenant_id (
             id,
             name,
@@ -192,6 +229,9 @@ export function TenantProvider({ children }) {
         tenantMap.set(t.id, {
           ...t,
           role: 'admin', // Owner selalu bertindak sebagai admin
+          is_owner: true,
+          role_name: 'Admin',
+          permissions: ALL_PLATFORM_PERMISSIONS,
         });
       });
 
@@ -199,9 +239,24 @@ export function TenantProvider({ children }) {
       (memberRows || []).forEach((m) => {
         if (m.tenants) {
           const existing = tenantMap.get(m.tenant_id);
+          const isOwner = Boolean(
+            m.is_owner ||
+            m.tenants.owner_id === currentUserId ||
+            existing?.is_owner
+          );
+          const roleName = isOwner
+            ? 'Admin'
+            : (m.tenant_roles?.name || (m.role ? (m.role.charAt(0).toUpperCase() + m.role.slice(1)) : 'Anggota'));
+          const rawPerms = m.tenant_roles?.tenant_role_permissions?.map((p) => p.permission_key) || [];
+          const perms = isOwner ? ALL_PLATFORM_PERMISSIONS : rawPerms;
+
           tenantMap.set(m.tenant_id, {
             ...m.tenants,
-            role: existing?.role === 'admin' ? 'admin' : m.role,
+            role: isOwner ? 'admin' : (m.role || 'anggota'),
+            tenant_role_id: m.tenant_role_id,
+            is_owner: isOwner,
+            role_name: roleName,
+            permissions: perms,
           });
         }
       });
@@ -268,7 +323,30 @@ export function TenantProvider({ children }) {
   const subscription = activeTenant?.subscription || null;
   const subscriptionStatus = subscription?.status || 'read_only';
   const userRole = activeTenant?.role || 'anggota';
-  const isTenantAdmin = userRole === 'admin' || activeTenant?.owner_id === (user?.id || profile?.id);
+
+  const isOwner = Boolean(
+    activeTenant?.is_owner ||
+    activeTenant?.owner_id === (user?.id || profile?.id)
+  );
+  const isTenantAdmin = isOwner || userRole === 'admin';
+
+  const activeRoleName = activeTenant?.role_name || (
+    isOwner
+      ? 'Admin'
+      : (activeTenant?.role ? activeTenant.role.charAt(0).toUpperCase() + activeTenant.role.slice(1) : 'Anggota')
+  );
+
+  const permissions = useMemo(() => {
+    if (isPlatformAdmin || isOwner) {
+      return ALL_PLATFORM_PERMISSIONS;
+    }
+    return activeTenant?.permissions || [];
+  }, [isPlatformAdmin, isOwner, activeTenant?.permissions]);
+
+  const hasPermission = useCallback((key) => {
+    if (isPlatformAdmin || isOwner) return true;
+    return permissions.includes(key);
+  }, [isPlatformAdmin, isOwner, permissions]);
 
   // Buat tenant baru (Demo mode & Supabase mode) sesuai T2.4
   const createTenant = useCallback(async ({ name, type }) => {
@@ -284,6 +362,9 @@ export function TenantProvider({ children }) {
         type,
         owner_id: currentUserId,
         role: 'admin',
+        is_owner: true,
+        role_name: 'Admin',
+        permissions: ALL_PLATFORM_PERMISSIONS,
         subscription: {
           id: `sub-demo-${Date.now()}`,
           status: 'trial',
@@ -328,6 +409,10 @@ export function TenantProvider({ children }) {
     userTenants,
     isTenantAdmin,
     isPlatformAdmin,
+    isOwner,
+    activeRoleName,
+    permissions,
+    hasPermission,
     loading: loading || authLoading,
     error,
 

@@ -578,7 +578,7 @@ function AuthenticatedWorkspaceHub() {
                         <p className="text-[11px] text-forest-300">
                           Peran Anda:{' '}
                           <strong className="text-gold-300 capitalize">
-                            {t.role || (isOwner ? 'Admin' : 'Anggota')}
+                            {t.role_name || (t.is_owner ? 'Admin' : (t.role || (isOwner ? 'Admin' : 'Anggota')))}
                           </strong>
                         </p>
                       </div>

@@ -305,6 +305,7 @@ export function roleLabel(role, tenantType = 'rt_rw') {
 }
 
 export function roleColor(role) {
+  const normalized = String(role || '').toLowerCase();
   const map = {
     admin: 'bg-purple-100 text-purple-700 border-purple-200',
     admin_viewer: 'bg-slate-100 text-slate-700 border-slate-200',
@@ -313,7 +314,7 @@ export function roleColor(role) {
     warga: 'bg-forest-100 text-forest-700 border-forest-200',
     anggota: 'bg-forest-100 text-forest-700 border-forest-200',
   };
-  return map[role] || 'bg-gray-100 text-gray-500 border-gray-200';
+  return map[normalized] || 'bg-amber-100 text-amber-800 border-amber-200';
 }
 
 // ── OCCUPANCY STATUS ─────────────────────────────────────────────
