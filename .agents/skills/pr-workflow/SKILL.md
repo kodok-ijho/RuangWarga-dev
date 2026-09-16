@@ -11,8 +11,8 @@ description: >-
 ## Prinsip Utama
 - **1 Task = 1 Commit / PR terpisah** agar mudah di-review dan di-revert jika terjadi kendala.
 - **Jangan ubah file di luar scope task aktif.**
-- **Commit message & PR description selalu dalam Bahasa Indonesia.**
-- **Repository target:** `https://github.com/kodok-ijho/RuangWarga-dev` (remote: `dev`).
+- **Repository target:** `https://github.com/kodok-ijho/RuangWarga-dev` (remote: `origin` / `dev`).
+- **PERINGATAN KERAS:** JANGAN PERNAH push atau buat Pull Request ke `kodok-ijho/PortalWarga`. PortalWarga adalah repository asal yang bersifat read-only.
 
 ---
 
@@ -109,7 +109,11 @@ Singkat dan jelas mengenai apa yang dilakukan pada task ini.
    ```
 
 5. **Buat Pull Request:**
-   - Gunakan GitHub MCP tool `create_pull_request` dengan target `base: main` dan `head: feat/TX.Y-deskripsi`.
+   - Gunakan GitHub MCP tool `create_pull_request` dengan:
+     - `owner: "kodok-ijho"`
+     - `repo: "RuangWarga-dev"` (WAJIB `RuangWarga-dev`, jangan pernah `PortalWarga`!)
+     - `base: "main"`
+     - `head: "feat/TX.Y-deskripsi"`
    - Atau sampaikan ringkasan ke user untuk review.
 
 6. **Tandai Task Selesai di `task.md`:**

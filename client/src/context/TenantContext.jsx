@@ -177,7 +177,6 @@ export function TenantProvider({ children }) {
         .from('tenant_members')
         .select(`
           tenant_id,
-          role,
           status,
           tenant_role_id,
           is_owner,
@@ -246,13 +245,17 @@ export function TenantProvider({ children }) {
           );
           const roleName = isOwner
             ? 'Admin'
-            : (m.tenant_roles?.name || (m.role ? (m.role.charAt(0).toUpperCase() + m.role.slice(1)) : 'Anggota'));
+            : (m.tenant_roles?.name || 'Anggota');
           const rawPerms = m.tenant_roles?.tenant_role_permissions?.map((p) => p.permission_key) || [];
           const perms = isOwner ? ALL_PLATFORM_PERMISSIONS : rawPerms;
 
+          const legacyRoleAlias = isOwner
+            ? 'admin'
+            : (m.tenant_roles?.is_owner_role ? 'admin' : (m.tenant_roles?.is_base_role ? 'anggota' : (m.tenant_roles?.name?.toLowerCase() || 'anggota')));
+
           tenantMap.set(m.tenant_id, {
             ...m.tenants,
-            role: isOwner ? 'admin' : (m.role || 'anggota'),
+            role: legacyRoleAlias,
             tenant_role_id: m.tenant_role_id,
             is_owner: isOwner,
             role_name: roleName,

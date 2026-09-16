@@ -46,15 +46,13 @@ export default function AssignMemberRole() {
       const target = (membersList || []).find((m) => String(m.id) === String(memberId));
       if (target) {
         setMember(target);
-        // Tetapkan selectedRoleId berdasarkan role id saat ini atau cari berdasarkan role string legacy
-        let currentRoleId = target.tenant_role_id;
-        if (!currentRoleId && target.role) {
-          const matched = (rolesList || []).find(
-            (r) => r.name.toLowerCase() === target.role.toLowerCase() ||
-                   (target.role === 'admin' && r.is_owner_role) ||
-                   (target.role === 'anggota' && r.is_base_role)
-          );
-          if (matched) currentRoleId = matched.id;
+        // Tetapkan selectedRoleId berdasarkan role id saat ini atau fallback role bawaan
+        let currentRoleId = target.tenant_role_id || target.tenant_roles?.id;
+        if (!currentRoleId) {
+          const defaultRole = target.is_owner
+            ? (rolesList || []).find((r) => r.is_owner_role)
+            : (rolesList || []).find((r) => r.is_base_role);
+          if (defaultRole) currentRoleId = defaultRole.id;
         }
         setSelectedRoleId(currentRoleId || (rolesList[0]?.id || ''));
       }
