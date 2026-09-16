@@ -18,7 +18,7 @@ import { TENANT_TYPE_OPTIONS } from './onboarding/ChooseTenantType';
 import { getTenantTemplate } from '../config/tenantTemplates';
 import pkg from '../../package.json';
 
-const APP_VERSION = `v${pkg.version || '1.4.3'}`;
+const APP_VERSION = `v${pkg.version || '1.0.1'}`;
 
 const STATUS_BADGES = {
   active: {
