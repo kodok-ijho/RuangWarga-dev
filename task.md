@@ -413,7 +413,7 @@ publik, tidak ada regresi fitur existing.
 - [x] **T12.11** -- Setelah T12.7 selesai untuk SEMUA tabel dan regression penuh lulus,
   baru buat migration terpisah untuk `DROP COLUMN role` dari `tenant_members` dan hapus
   fungsi alias `is_tenant_admin()`.
-- [ ] **T12.12** -- Regression test menyeluruh: ulangi seluruh skenario T11.1-T11.3 (4
+- [x] **T12.12** -- Regression test menyeluruh: ulangi seluruh skenario T11.1-T11.3 (4
   vertikal, fondasi platform, Modul Listing) dengan RBAC v2 aktif, PLUS skenario baru:
   - Admin membuat custom role baru dengan kombinasi permission custom
   - Admin meng-assign 1 orang yang sama sebagai Pengelola di 2 tenant berbeda miliknya
