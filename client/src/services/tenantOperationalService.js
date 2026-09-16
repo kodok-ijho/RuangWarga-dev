@@ -260,7 +260,6 @@ export async function requestJoinTenant({ tenantId, userId, unitId, fullName, ph
     full_name: fullName.trim(),
     phone: phone ? phone.trim() : null,
     occupancy_status: occupancyStatus || 'owner_occupied',
-    role: 'anggota',
     status: 'pending',
   };
 
@@ -332,7 +331,6 @@ export async function fetchPendingTenantMembers(tenantId) {
       unit_id,
       full_name,
       phone,
-      role,
       tenant_role_id,
       is_owner,
       status,
@@ -385,7 +383,6 @@ export async function fetchTenantMembers(tenantId, opts = {}) {
       unit_id,
       full_name,
       phone,
-      role,
       tenant_role_id,
       is_owner,
       status,
@@ -427,7 +424,6 @@ export async function approveTenantMember(memberId, { role = 'anggota', tenantRo
 
   const updateData = {
     status: 'approved',
-    role: role || 'anggota',
     updated_at: new Date().toISOString(),
   };
 
@@ -682,7 +678,7 @@ export async function generateTenantBillingItems(tenantId, { period, dry_run = f
   } else {
     const { data: members, error: memErr } = await supabase
       .from('tenant_members')
-      .select('id, unit_id, full_name, role, status')
+      .select('id, unit_id, full_name, status, tenant_role_id')
       .eq('tenant_id', tenantId)
       .eq('status', 'approved')
       .not('unit_id', 'is', null);
@@ -1160,7 +1156,7 @@ export async function fetchTenantBillMatrix(tenantId, year = 2026, opts = {}) {
   // 3. Ambil approved members
   const { data: members } = await supabase
     .from('tenant_members')
-    .select('id, unit_id, full_name, phone, occupancy_status, role')
+    .select('id, unit_id, full_name, phone, occupancy_status, tenant_role_id')
     .eq('tenant_id', tenantId)
     .eq('status', 'approved');
 
@@ -1292,7 +1288,7 @@ export async function fetchTenantPayments(tenantId, opts = {}) {
         id,
         full_name,
         phone,
-        role,
+        tenant_role_id,
         occupancy_status
       )
     `)

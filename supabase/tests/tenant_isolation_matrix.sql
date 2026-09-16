@@ -96,8 +96,8 @@ BEGIN
 
   -- 1.3 Verifikasi tenant_members owner sebagai admin approved
   SELECT * INTO v_member_rec FROM public.tenant_members WHERE tenant_id = v_tenant_a AND user_id = v_owner_a;
-  IF v_member_rec.id IS NULL OR v_member_rec.role <> 'admin' OR v_member_rec.status <> 'approved' THEN
-    RAISE EXCEPTION 'TEST 1.3 GAGAL: Owner Tenant A tidak terdaftar sebagai admin approved';
+  IF v_member_rec.id IS NULL OR v_member_rec.is_owner IS NOT TRUE OR v_member_rec.status <> 'approved' THEN
+    RAISE EXCEPTION 'TEST 1.3 GAGAL: Owner Tenant A tidak terdaftar sebagai owner approved';
   END IF;
 
   RAISE NOTICE '>> PASSED: Test 1 (Auto-provisioning trigger) Sukses!';
@@ -106,10 +106,10 @@ BEGIN
   -- SETUP DATA ANGGOTA & UNIT UNTUK PENGUJIAN ISOLASI
   -- ------------------------------------------------------------
   -- Daftarkan anggota biasa di masing-masing tenant
-  INSERT INTO public.tenant_members (tenant_id, user_id, full_name, role, status)
+  INSERT INTO public.tenant_members (tenant_id, user_id, full_name, status)
   VALUES
-    (v_tenant_a, v_member_a, 'Warga A', 'anggota', 'approved'),
-    (v_tenant_b, v_member_b, 'Penyewa B', 'anggota', 'approved');
+    (v_tenant_a, v_member_a, 'Warga A', 'approved'),
+    (v_tenant_b, v_member_b, 'Penyewa B', 'approved');
 
   -- Buat unit di Tenant A & Tenant B
   INSERT INTO public.tenant_units (tenant_id, label, status)

@@ -84,20 +84,20 @@ BEGIN
   SELECT id INTO v_tm_owner_a FROM public.tenant_members WHERE tenant_id = v_tenant_a AND user_id = v_owner_a;
 
   -- Tambah Member A & Member A2 di Tenant A
-  INSERT INTO public.tenant_members (tenant_id, user_id, full_name, role, status)
+  INSERT INTO public.tenant_members (tenant_id, user_id, full_name, status)
   VALUES
-    (v_tenant_a, v_member_a, 'Penyewa Kamar A', 'anggota', 'approved')
+    (v_tenant_a, v_member_a, 'Penyewa Kamar A', 'approved')
   RETURNING id INTO v_tm_member_a;
 
-  INSERT INTO public.tenant_members (tenant_id, user_id, full_name, role, status)
+  INSERT INTO public.tenant_members (tenant_id, user_id, full_name, status)
   VALUES
-    (v_tenant_a, v_member_a2, 'Penyewa Kamar A2', 'anggota', 'approved')
+    (v_tenant_a, v_member_a2, 'Penyewa Kamar A2', 'approved')
   RETURNING id INTO v_tm_member_a2;
 
   -- Tambah Member RO di Tenant RO
-  INSERT INTO public.tenant_members (tenant_id, user_id, full_name, role, status)
+  INSERT INTO public.tenant_members (tenant_id, user_id, full_name, status)
   VALUES
-    (v_tenant_ro, v_member_ro, 'Penyewa Macet', 'anggota', 'approved')
+    (v_tenant_ro, v_member_ro, 'Penyewa Macet', 'approved')
   RETURNING id INTO v_tm_member_ro;
 
   -- Set status subscription Tenant RO menjadi read_only

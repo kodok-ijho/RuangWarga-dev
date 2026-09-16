@@ -77,7 +77,7 @@ export default function TenantMemberApproval() {
   const openApproveModal = (member) => {
     guardAction(() => {
       setSelectedMember(member);
-      setSelectedRole(member.role || 'anggota');
+      setSelectedRole(member.tenant_roles?.name || 'Warga/Anggota');
       // Default to member's tenant_role_id or base role
       const defaultRole = rolesList.find((r) => r.id === member.tenant_role_id) ||
         rolesList.find((r) => r.is_base_role) ||
