@@ -754,15 +754,15 @@ export default function Reports() {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center p-20 space-y-4">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-forest-800 border-t-transparent"></div>
-        <p className="text-sm text-forest-600 font-medium">Memuat data laporan keuangan...</p>
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gold-500 border-t-transparent"></div>
+        <p className="text-xs text-slate-500 font-medium">Memuat data laporan keuangan...</p>
       </div>
     );
   }
 
   if (loadError) {
     return (
-      <div className="pv-card p-8 text-center space-y-4">
+      <div className="pv-card p-8 text-center space-y-4 border border-red-200 bg-red-50/50">
         <p className="text-sm text-red-600 font-semibold">{loadError}</p>
         <button onClick={loadData} className="pv-btn-primary mx-auto text-xs font-semibold px-4 py-2">
           <AiOutlineReload /> Coba Lagi
@@ -773,7 +773,7 @@ export default function Reports() {
 
   if (!report && reportType !== 'non_ipl') {
     return (
-      <div className="pv-card p-8 text-center text-forest-500 text-sm">
+      <div className="pv-card p-8 text-center text-slate-500 text-sm">
         Tidak ada data laporan keuangan untuk periode ini.
       </div>
     );
@@ -782,33 +782,33 @@ export default function Reports() {
   return (
     <div className="space-y-5">
       {/* Tab Selector */}
-      <div className="no-print flex flex-wrap border-b border-forest-100 mb-4 gap-1">
+      <div className="no-print flex flex-wrap border-b border-slate-200 mb-4 gap-1">
         <button
           onClick={() => setReportType('monthly')}
-          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-all ${
+          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
             reportType === 'monthly'
-              ? 'border-forest-800 text-forest-800'
-              : 'border-transparent text-forest-400 hover:text-forest-600'
+              ? 'border-forest-800 text-forest-900'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           📊 Laporan Kas & IPL
         </button>
         <button
           onClick={() => setReportType('non_ipl')}
-          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-all ${
+          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
             reportType === 'non_ipl'
-              ? 'border-forest-800 text-forest-800'
-              : 'border-transparent text-forest-400 hover:text-forest-600'
+              ? 'border-forest-800 text-forest-900'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           🏷️ Laporan Pemasukan Non-IPL & Donasi
         </button>
         <button
           onClick={() => setReportType('yearly')}
-          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-all ${
+          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
             reportType === 'yearly'
-              ? 'border-forest-800 text-forest-800'
-              : 'border-transparent text-forest-400 hover:text-forest-600'
+              ? 'border-forest-800 text-forest-900'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           📆 Laporan Tahunan (Juli - Juni)
@@ -818,15 +818,15 @@ export default function Reports() {
       {/* Header & filter */}
       <div className="no-print flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-forest-900">
+          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
             {reportType === 'non_ipl'
               ? 'Laporan Pemasukan Non-IPL & Donasi'
               : reportType === 'yearly'
               ? 'Laporan Keuangan Tahunan'
               : 'Laporan Keuangan Kas & IPL'}
           </h2>
-          <p className="text-sm text-forest-500">
-            Periode: {periodLabel}
+          <p className="text-xs text-slate-500 mt-0.5">
+            Periode: <span className="font-semibold text-slate-700">{periodLabel}</span>
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -834,7 +834,7 @@ export default function Reports() {
             <select
               value={month}
               onChange={(e) => setMonth(Number(e.target.value))}
-              className="pv-input w-auto text-sm"
+              className="pv-input w-auto text-xs py-1.5"
             >
               {availableMonths.map((m) => (
                 <option key={m} value={m}>{MONTHS_LONG[m - 1]}</option>
@@ -844,7 +844,7 @@ export default function Reports() {
           <select
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
-            className="pv-input w-auto text-sm"
+            className="pv-input w-auto text-xs py-1.5"
           >
             {years.map((y) => (
               <option key={y} value={y}>
@@ -871,7 +871,7 @@ export default function Reports() {
         <div className="space-y-5">
           {/* Summary Cards Non-IPL */}
           <div>
-            <h3 className="text-xs font-bold text-forest-600 uppercase tracking-wider mb-2">
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
               Ringkasan Pemasukan Non-IPL ({periodLabel})
             </h3>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -879,80 +879,80 @@ export default function Reports() {
                 label="Total Pemasukan Non-IPL"
                 value={formatRupiah(nonIplSummary.total)}
                 icon="💰"
-                color="bg-forest-800 text-gold-400 font-bold"
+                color="bg-white border border-slate-200 text-slate-900 shadow-xs"
               />
               <SummaryCard
                 label="Kas Umum (General)"
                 value={formatRupiah(nonIplSummary.generalTotal)}
                 icon="🏛️"
-                color="bg-blue-50 text-blue-800 border border-blue-200"
+                color="bg-white border border-slate-200 text-blue-700 shadow-xs"
               />
               <SummaryCard
                 label="Kegiatan / Event"
                 value={formatRupiah(nonIplSummary.eventTotal)}
                 icon="🎪"
-                color="bg-purple-50 text-purple-800 border border-purple-200"
+                color="bg-white border border-slate-200 text-purple-700 shadow-xs"
               />
               <SummaryCard
                 label="Total Transaksi"
                 value={`${nonIplSummary.count} Transaksi`}
                 icon="🧾"
-                color="bg-emerald-50 text-emerald-800 border border-emerald-200"
+                color="bg-white border border-slate-200 text-emerald-700 shadow-xs"
               />
             </div>
           </div>
 
           {/* Breakdown Metode Pembayaran */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="pv-card p-4 flex items-center justify-between bg-emerald-50/50 border border-emerald-100">
+            <div className="pv-card p-4 flex items-center justify-between border border-slate-200 bg-white shadow-xs">
               <div>
-                <p className="text-xs text-forest-600 font-medium">💳 QRIS (DOKU Production)</p>
-                <p className="text-base font-bold text-emerald-700 mt-1">{formatRupiah(nonIplSummary.qrisTotal)}</p>
+                <p className="text-xs text-slate-500 font-semibold">💳 QRIS (DOKU Production)</p>
+                <p className="text-base font-extrabold text-slate-900 mt-1">{formatRupiah(nonIplSummary.qrisTotal)}</p>
               </div>
-              <span className="pv-badge bg-emerald-100 text-emerald-800 text-xs">QRIS</span>
+              <span className="pv-badge bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">QRIS</span>
             </div>
-            <div className="pv-card p-4 flex items-center justify-between bg-blue-50/50 border border-blue-100">
+            <div className="pv-card p-4 flex items-center justify-between border border-slate-200 bg-white shadow-xs">
               <div>
-                <p className="text-xs text-forest-600 font-medium">🏦 Transfer Bank</p>
-                <p className="text-base font-bold text-blue-700 mt-1">{formatRupiah(nonIplSummary.transferTotal)}</p>
+                <p className="text-xs text-slate-500 font-semibold">🏦 Transfer Bank</p>
+                <p className="text-base font-extrabold text-slate-900 mt-1">{formatRupiah(nonIplSummary.transferTotal)}</p>
               </div>
-              <span className="pv-badge bg-blue-100 text-blue-800 text-xs">Transfer</span>
+              <span className="pv-badge bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold">Transfer</span>
             </div>
-            <div className="pv-card p-4 flex items-center justify-between bg-amber-50/50 border border-amber-100">
+            <div className="pv-card p-4 flex items-center justify-between border border-slate-200 bg-white shadow-xs">
               <div>
-                <p className="text-xs text-forest-600 font-medium">💵 Tunai / Kasir</p>
-                <p className="text-base font-bold text-amber-700 mt-1">{formatRupiah(nonIplSummary.cashTotal)}</p>
+                <p className="text-xs text-slate-500 font-semibold">💵 Tunai / Kasir</p>
+                <p className="text-base font-extrabold text-slate-900 mt-1">{formatRupiah(nonIplSummary.cashTotal)}</p>
               </div>
-              <span className="pv-badge bg-amber-100 text-amber-800 text-xs">Tunai</span>
+              <span className="pv-badge bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold">Tunai</span>
             </div>
           </div>
 
           {/* Visual Charts Non-IPL */}
           {nonIplSummary.count > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="pv-card p-5 lg:col-span-2">
-                <h3 className="text-sm font-semibold text-forest-800 mb-4">
+              <div className="pv-card p-5 lg:col-span-2 border border-slate-200 bg-white">
+                <h3 className="text-sm font-bold text-slate-900 mb-4">
                   Pemasukan per Kategori
                 </h3>
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={nonIplSummary.categoryChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#dde9e2" />
-                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#3d6e51' }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} />
                     <YAxis
-                      tick={{ fontSize: 10, fill: '#3d6e51' }}
+                      tick={{ fontSize: 10, fill: '#64748b' }}
                       tickFormatter={(v) => (v >= 1000000 ? `${(v / 1000000).toFixed(1)}jt` : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
                     />
                     <Tooltip
                       formatter={(v) => formatRupiah(v)}
-                      contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #dde9e2' }}
+                      contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
                     />
                     <Bar dataKey="value" name="Nominal (Rp)" fill="#1a3d2e" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
 
-              <div className="pv-card p-5">
-                <h3 className="text-sm font-semibold text-forest-800 mb-4">
+              <div className="pv-card p-5 border border-slate-200 bg-white">
+                <h3 className="text-sm font-bold text-slate-900 mb-4">
                   Distribusi Metode Bayar
                 </h3>
                 <ResponsiveContainer width="100%" height={260}>
@@ -968,14 +968,14 @@ export default function Reports() {
                       labelLine={false}
                     >
                       {nonIplSummary.methodPieData.map((entry, i) => (
-                        <PieCell key={i} fill={entry.color} />
+                        <PieCell key={`cell-${i}`} fill={['#1a3d2e', '#d4af37', '#3b82f6', '#10b981'][i % 4]} />
                       ))}
                     </Pie>
                     <Tooltip
                       formatter={(v) => formatRupiah(v)}
-                      contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                      contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
                     />
-                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -983,29 +983,29 @@ export default function Reports() {
           )}
 
           {/* Filter & Search Bar */}
-          <div className="pv-card p-4 no-print flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          <div className="pv-card p-4 no-print flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 border border-slate-200 bg-white">
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex rounded-lg border border-forest-200 overflow-hidden text-xs">
+              <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs">
                 <button
                   onClick={() => setNonIplScopeFilter('all')}
-                  className={`px-3 py-1.5 font-medium transition-colors ${
-                    nonIplScopeFilter === 'all' ? 'bg-forest-800 text-white' : 'bg-white text-forest-700 hover:bg-forest-50'
+                  className={`px-3 py-1.5 font-bold transition-colors ${
+                    nonIplScopeFilter === 'all' ? 'bg-forest-800 text-gold-400' : 'bg-white text-slate-700 hover:bg-slate-50'
                   }`}
                 >
                   Semua Lingkup
                 </button>
                 <button
                   onClick={() => setNonIplScopeFilter('general')}
-                  className={`px-3 py-1.5 font-medium transition-colors border-l border-forest-200 ${
-                    nonIplScopeFilter === 'general' ? 'bg-forest-800 text-white' : 'bg-white text-forest-700 hover:bg-forest-50'
+                  className={`px-3 py-1.5 font-bold transition-colors border-l border-slate-200 ${
+                    nonIplScopeFilter === 'general' ? 'bg-forest-800 text-gold-400' : 'bg-white text-slate-700 hover:bg-slate-50'
                   }`}
                 >
                   🏛️ Kas Umum
                 </button>
                 <button
                   onClick={() => setNonIplScopeFilter('event')}
-                  className={`px-3 py-1.5 font-medium transition-colors border-l border-forest-200 ${
-                    nonIplScopeFilter === 'event' ? 'bg-forest-800 text-white' : 'bg-white text-forest-700 hover:bg-forest-50'
+                  className={`px-3 py-1.5 font-bold transition-colors border-l border-slate-200 ${
+                    nonIplScopeFilter === 'event' ? 'bg-forest-800 text-gold-400' : 'bg-white text-slate-700 hover:bg-slate-50'
                   }`}
                 >
                   🎪 Event / Kegiatan
@@ -1016,7 +1016,7 @@ export default function Reports() {
                 <select
                   value={nonIplCategoryFilter}
                   onChange={(e) => setNonIplCategoryFilter(e.target.value)}
-                  className="pv-input w-auto text-xs py-1.5"
+                  className="pv-input w-auto text-xs py-1.5 border-slate-200"
                 >
                   <option value="all">Semua Kategori</option>
                   {nonIplCategories.map((c) => (
@@ -1027,58 +1027,58 @@ export default function Reports() {
             </div>
 
             <div className="relative">
-              <AiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-forest-400 text-sm" />
+              <AiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
               <input
                 type="text"
                 placeholder="Cari pembayar / keterangan / event..."
                 value={nonIplSearch}
                 onChange={(e) => setNonIplSearch(e.target.value)}
-                className="pv-input text-xs pl-8 py-1.5 w-full md:w-64"
+                className="pv-input text-xs pl-8 py-1.5 w-full md:w-64 border-slate-200"
               />
             </div>
           </div>
 
           {/* Tabel Rincian Non-IPL */}
-          <div className="pv-card overflow-hidden">
-            <div className="px-5 py-3 border-b border-forest-100 bg-forest-50 flex items-center justify-between">
+          <div className="pv-card overflow-hidden border border-slate-200">
+            <div className="px-5 py-3 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-semibold text-forest-800">
+                <h3 className="text-sm font-bold text-slate-900">
                   Rincian Transaksi Pemasukan Non-IPL & Donasi — {periodLabel}
                 </h3>
-                <p className="text-[11px] text-forest-500 mt-0.5">
+                <p className="text-[11px] text-slate-500 mt-0.5">
                   Daftar transaksi penerimaan di luar tagihan iuran IPL warga.
                 </p>
               </div>
-              <span className="text-xs text-forest-600 font-medium">
+              <span className="text-xs text-slate-600 font-semibold">
                 {filteredNonIplIncomes.length} Transaksi
               </span>
             </div>
 
             {filteredNonIplIncomes.length === 0 ? (
-              <div className="p-10 text-center text-forest-400 text-sm">
+              <div className="p-10 text-center text-slate-400 text-sm">
                 Belum ada transaksi pemasukan non-IPL yang sesuai dengan kriteria filter pada {periodLabel}.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-forest-100 bg-white">
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-forest-600 uppercase">Tgl Masuk</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-forest-600 uppercase">Lingkup / Event</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-forest-600 uppercase">Kategori</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-forest-600 uppercase">Sumber / Pembayar</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-forest-600 uppercase">Keterangan</th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold text-forest-600 uppercase">Metode</th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold text-forest-600 uppercase">Bukti</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-forest-600 uppercase">Jumlah</th>
+                  <thead className="bg-slate-100/90 border-b border-slate-200 text-xs uppercase text-slate-700 font-bold tracking-wider">
+                    <tr>
+                      <th className="px-4 py-3 text-left">Tgl Masuk</th>
+                      <th className="px-4 py-3 text-left">Lingkup / Event</th>
+                      <th className="px-4 py-3 text-left">Kategori</th>
+                      <th className="px-4 py-3 text-left">Sumber / Pembayar</th>
+                      <th className="px-4 py-3 text-left">Keterangan</th>
+                      <th className="px-4 py-3 text-center">Metode</th>
+                      <th className="px-4 py-3 text-center">Bukti</th>
+                      <th className="px-4 py-3 text-right">Jumlah</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-forest-100">
+                  <tbody className="divide-y divide-slate-100">
                     {filteredNonIplIncomes.map((item) => {
                       const attachmentUrl = getIncomeAttachmentUrl(item);
                       return (
-                        <tr key={item.id} className="hover:bg-forest-50">
-                          <td className="px-4 py-2.5 text-forest-600 text-xs whitespace-nowrap">
+                        <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="px-4 py-2.5 text-slate-600 text-xs whitespace-nowrap font-medium">
                             {formatDate(item.income_date || item.date)}
                           </td>
                           <td className="px-4 py-2.5 whitespace-nowrap">
@@ -1092,13 +1092,13 @@ export default function Reports() {
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-2.5 text-forest-800 font-medium">
+                          <td className="px-4 py-2.5 text-slate-900 font-bold">
                             {item.category || '-'}
                           </td>
-                          <td className="px-4 py-2.5 text-forest-700 font-medium">
+                          <td className="px-4 py-2.5 text-slate-900 font-semibold">
                             {item.source_name || '-'}
                           </td>
-                          <td className="px-4 py-2.5 text-forest-600 text-xs max-w-xs truncate">
+                          <td className="px-4 py-2.5 text-slate-500 text-xs max-w-xs truncate">
                             {item.description || '-'}
                           </td>
                           <td className="px-4 py-2.5 text-center whitespace-nowrap">
@@ -1111,16 +1111,16 @@ export default function Reports() {
                               <button
                                 type="button"
                                 onClick={() => setPreviewImage(attachmentUrl)}
-                                className="inline-flex items-center gap-1 text-xs text-forest-700 hover:text-gold-600 font-medium underline"
+                                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline font-semibold"
                                 title="Lihat Bukti Transfer"
                               >
                                 <AiOutlinePaperClip /> Foto
                               </button>
                             ) : (
-                              <span className="text-forest-300 text-xs">-</span>
+                              <span className="text-slate-400 text-xs">-</span>
                             )}
                           </td>
-                          <td className="px-4 py-2.5 text-right font-bold text-emerald-700 whitespace-nowrap">
+                          <td className="px-4 py-2.5 text-right font-extrabold text-emerald-700 whitespace-nowrap">
                             + {formatRupiah(item.amount)}
                           </td>
                         </tr>
@@ -1128,11 +1128,11 @@ export default function Reports() {
                     })}
                   </tbody>
                   <tfoot>
-                    <tr className="border-t-2 border-forest-200 bg-forest-50 font-semibold">
-                      <td colSpan={7} className="px-4 py-3 text-forest-800">
+                    <tr className="border-t-2 border-slate-200 bg-slate-50 font-bold">
+                      <td colSpan={7} className="px-4 py-3 text-slate-700 text-xs uppercase tracking-wider">
                         TOTAL PEMASUKAN NON-IPL TAMPIL
                       </td>
-                      <td className="px-4 py-3 text-right text-emerald-800 font-bold text-base whitespace-nowrap">
+                      <td className="px-4 py-3 text-right text-emerald-700 font-extrabold text-base whitespace-nowrap">
                         {formatRupiah(filteredNonIplIncomes.reduce((s, i) => s + Number(i.amount || 0), 0))}
                       </td>
                     </tr>
@@ -1148,45 +1148,45 @@ export default function Reports() {
         /* ─────────────────────────────────────────────────────────── */
         <>
           {report.billCount === 0 ? (
-            <div className="pv-card p-10 text-center text-forest-400 text-sm">
+            <div className="pv-card p-10 text-center text-slate-400 text-sm border border-slate-200">
               Tidak ada data tagihan untuk periode {periodLabel}.
             </div>
           ) : (
             <>
               {/* Section A: Alur Kas (Running Balance) */}
               <div>
-                <h3 className="text-xs font-bold text-forest-600 uppercase tracking-wider mb-2">Alur Kas (Running Balance)</h3>
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Alur Kas (Running Balance)</h3>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <SummaryCard label="Saldo Awal Kas" value={formatRupiah(openingBalance)} icon="🏦" color="bg-gold-50 text-gold-700 border border-gold-200" />
-                  <SummaryCard label="Pemasukan Kas (Total)" value={`+ ${formatRupiah(totalCashIn)}`} icon="💰" color="bg-emerald-50 text-emerald-700 border border-emerald-200" />
-                  <SummaryCard label="Pengeluaran Kas" value={`- ${formatRupiah(totalExpenses)}`} icon="💸" color="bg-red-50 text-red-700 border border-red-200" />
-                  <SummaryCard label="Saldo Akhir Kas" value={formatRupiah(closingBalance)} icon="📈" color="bg-forest-800 text-gold-400 font-bold" />
+                  <SummaryCard label="Saldo Awal Kas" value={formatRupiah(openingBalance)} icon="🏦" color="bg-white border border-slate-200 text-slate-900 shadow-xs" />
+                  <SummaryCard label="Pemasukan Kas (Total)" value={`+ ${formatRupiah(totalCashIn)}`} icon="💰" color="bg-white border border-slate-200 text-emerald-700 shadow-xs" />
+                  <SummaryCard label="Pengeluaran Kas" value={`- ${formatRupiah(totalExpenses)}`} icon="💸" color="bg-white border border-slate-200 text-red-600 shadow-xs" />
+                  <SummaryCard label="Saldo Akhir Kas" value={formatRupiah(closingBalance)} icon="📈" color="bg-forest-800 text-gold-400 font-extrabold shadow-sm" />
                 </div>
               </div>
 
               {hasFinanceBreakdown && (
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                  <SummaryCard label="Pemasukan IPL" value={formatRupiah(iplIncome)} icon="IPL" color="bg-emerald-50 text-emerald-700 border border-emerald-200" />
-                  <SummaryCard label="Non-IPL Umum" value={formatRupiah(nonIplGeneralIncome)} icon="UM" color="bg-blue-50 text-blue-700 border border-blue-200" />
-                  <SummaryCard label="Pemasukan Event" value={formatRupiah(eventIncome)} icon="EV" color="bg-purple-50 text-purple-700 border border-purple-200" />
-                  <SummaryCard label="Pengeluaran Event" value={formatRupiah(eventExpense)} icon="EX" color="bg-red-50 text-red-700 border border-red-200" />
+                  <SummaryCard label="Pemasukan IPL" value={formatRupiah(iplIncome)} icon="IPL" color="bg-white border border-slate-200 text-emerald-700 shadow-xs" />
+                  <SummaryCard label="Non-IPL Umum" value={formatRupiah(nonIplGeneralIncome)} icon="UM" color="bg-white border border-slate-200 text-blue-700 shadow-xs" />
+                  <SummaryCard label="Pemasukan Event" value={formatRupiah(eventIncome)} icon="EV" color="bg-white border border-slate-200 text-purple-700 shadow-xs" />
+                  <SummaryCard label="Pengeluaran Event" value={formatRupiah(eventExpense)} icon="EX" color="bg-white border border-slate-200 text-red-700 shadow-xs" />
                 </div>
               )}
 
               {/* Section B: Kinerja Tagihan IPL (Koleksi) */}
               <div>
-                <h3 className="text-xs font-bold text-forest-600 uppercase tracking-wider mb-2">Koleksi Tagihan IPL</h3>
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Koleksi Tagihan IPL</h3>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <SummaryCard label="Total Tagihan" value={formatRupiah(report.totalBilled)} icon="📋" color="bg-forest-100 text-forest-800 border border-forest-200" />
-                  <SummaryCard label="Terkumpul" value={formatRupiah(report.totalCollected)} icon="✅" color="bg-emerald-50 text-emerald-700 border border-emerald-200" />
-                  <SummaryCard label="Tunggakan" value={formatRupiah(report.totalOutstanding)} icon="⏳" color="bg-amber-50 text-amber-700 border border-amber-200" />
-                  <SummaryCard label="% Koleksi" value={`${report.collectionRate.toFixed(1)}%`} icon="📊" color="bg-blue-50 text-blue-700 border border-blue-200" />
+                  <SummaryCard label="Total Tagihan" value={formatRupiah(report.totalBilled)} icon="📋" color="bg-white border border-slate-200 text-slate-900 shadow-xs" />
+                  <SummaryCard label="Terkumpul" value={formatRupiah(report.totalCollected)} icon="✅" color="bg-white border border-slate-200 text-emerald-700 shadow-xs" />
+                  <SummaryCard label="Tunggakan" value={formatRupiah(report.totalOutstanding)} icon="⏳" color="bg-white border border-slate-200 text-amber-700 shadow-xs" />
+                  <SummaryCard label="% Koleksi" value={`${report.collectionRate.toFixed(1)}%`} icon="📊" color="bg-white border border-slate-200 text-blue-700 shadow-xs" />
                 </div>
               </div>
 
               {/* Grafik Tren Running Balance */}
-              <div className="pv-card p-5">
-                <h3 className="text-sm font-semibold text-forest-800 mb-4">
+              <div className="pv-card p-5 border border-slate-200 bg-white">
+                <h3 className="text-sm font-bold text-slate-900 mb-4">
                   Tren Arus Kas & Saldo Kumulatif (Sejak Jul 2026)
                 </h3>
                 <ResponsiveContainer width="100%" height={320}>
@@ -1205,15 +1205,15 @@ export default function Reports() {
                         <stop offset="95%" stopColor="#d4af37" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#dde9e2" />
-                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#3d6e51' }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} />
                     <YAxis 
-                      tick={{ fontSize: 10, fill: '#3d6e51' }} 
+                      tick={{ fontSize: 10, fill: '#64748b' }} 
                       tickFormatter={(v) => (v >= 1000000 ? `${(v / 1000000).toFixed(1)}jt` : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
                     />
                     <Tooltip 
                       formatter={(v) => formatRupiah(v)}
-                      contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #dde9e2' }}
+                      contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
                     />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
                     <Area type="monotone" dataKey="Pemasukan" stroke="#10b981" fillOpacity={1} fill="url(#colorIncome)" />
@@ -1226,21 +1226,21 @@ export default function Reports() {
               {/* Grafik Kinerja Lainnya */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* Bar chart per blok */}
-                <div className="pv-card p-5 lg:col-span-2">
-                  <h3 className="text-sm font-semibold text-forest-800 mb-4">
+                <div className="pv-card p-5 lg:col-span-2 border border-slate-200 bg-white">
+                  <h3 className="text-sm font-bold text-slate-900 mb-4">
                     Koleksi Tagihan per Blok
                   </h3>
                   <ResponsiveContainer width="100%" height={280}>
                     <BarChart data={blockData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#dde9e2" />
-                      <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#3d6e51' }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} />
                       <YAxis
-                        tick={{ fontSize: 10, fill: '#3d6e51' }}
+                        tick={{ fontSize: 10, fill: '#64748b' }}
                         tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
                       />
                       <Tooltip
                         formatter={(v) => formatRupiah(v)}
-                        contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #dde9e2' }}
+                        contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
                       />
                       <Legend wrapperStyle={{ fontSize: 12 }} />
                       <Bar dataKey="Terkumpul" fill="#1a3d2e" radius={[4, 4, 0, 0]} />
@@ -1250,8 +1250,8 @@ export default function Reports() {
                 </div>
 
                 {/* Pie chart lunas/belum */}
-                <div className="pv-card p-5">
-                  <h3 className="text-sm font-semibold text-forest-800 mb-4">
+                <div className="pv-card p-5 border border-slate-200 bg-white">
+                  <h3 className="text-sm font-bold text-slate-900 mb-4">
                     Status Pembayaran Tagihan IPL
                   </h3>
                   <ResponsiveContainer width="100%" height={280}>
@@ -1272,7 +1272,7 @@ export default function Reports() {
                       </Pie>
                       <Tooltip
                         formatter={(v, n) => [`${v} tagihan`, n]}
-                        contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                        contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
                       />
                       <Legend wrapperStyle={{ fontSize: 12 }} />
                     </PieChart>
@@ -1281,50 +1281,50 @@ export default function Reports() {
               </div>
 
               {/* Tabel Histori Running Balance Kumulatif */}
-              <div className="pv-card overflow-hidden">
-                <div className="px-5 py-3 border-b border-forest-100 bg-forest-50">
-                  <h3 className="text-sm font-semibold text-forest-800">
+              <div className="pv-card overflow-hidden border border-slate-200">
+                <div className="px-5 py-3 border-b border-slate-200 bg-slate-50/70">
+                  <h3 className="text-sm font-bold text-slate-900">
                     Histori Running Balance (Sejak Juli 2026)
                   </h3>
-                  <p className="text-[11px] text-forest-500 mt-0.5">
+                  <p className="text-[11px] text-slate-500 mt-0.5">
                     Perkembangan saldo kas dari bulan ke bulan secara runut. Saldo Akhir otomatis bergulir menjadi Saldo Awal bulan berikutnya.
                   </p>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-forest-100 bg-white">
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-forest-600 uppercase">Periode</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-forest-600 uppercase">Saldo Awal</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-forest-600 uppercase">Pemasukan (+)</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-forest-600 uppercase">Pengeluaran (-)</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-forest-600 uppercase">Saldo Akhir</th>
+                      <tr className="border-b border-slate-200 bg-slate-100/90 text-xs uppercase text-slate-700 font-bold tracking-wider">
+                        <th className="px-4 py-3 text-left">Periode</th>
+                        <th className="px-4 py-3 text-right">Saldo Awal</th>
+                        <th className="px-4 py-3 text-right">Pemasukan (+)</th>
+                        <th className="px-4 py-3 text-right">Pengeluaran (-)</th>
+                        <th className="px-4 py-3 text-right">Saldo Akhir</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-forest-100">
+                    <tbody className="divide-y divide-slate-100">
                       {runningChain.map((item) => {
                         const isSelectedMonth = item.year === year && item.month === month;
                         return (
                           <tr 
                             key={item.period} 
-                            className={`hover:bg-forest-50 transition-colors ${isSelectedMonth ? 'bg-gold-50/50 font-semibold' : ''}`}
+                            className={`hover:bg-slate-50/80 transition-colors ${isSelectedMonth ? 'bg-amber-50/40 font-bold' : ''}`}
                           >
-                            <td className="px-4 py-2.5 text-forest-700 whitespace-nowrap">
+                            <td className="px-4 py-2.5 text-slate-900 whitespace-nowrap">
                               {formatPeriodLabel(item.period)}
                               {isSelectedMonth && (
-                                <span className="ml-2 pv-badge bg-gold-500 text-forest-900 text-[9px]">Bulan Ini</span>
+                                <span className="ml-2 pv-badge bg-gold-500 text-forest-900 text-[9px] font-bold">Bulan Ini</span>
                               )}
                             </td>
-                            <td className="px-4 py-2.5 text-right text-forest-600 whitespace-nowrap">
+                            <td className="px-4 py-2.5 text-right text-slate-600 whitespace-nowrap font-medium">
                               {formatRupiah(item.openingBalance)}
                             </td>
-                            <td className="px-4 py-2.5 text-right text-emerald-600 whitespace-nowrap">
+                            <td className="px-4 py-2.5 text-right text-emerald-700 whitespace-nowrap font-extrabold">
                               + {formatRupiah(item.totalIncome)}
                             </td>
-                            <td className="px-4 py-2.5 text-right text-red-600 whitespace-nowrap">
+                            <td className="px-4 py-2.5 text-right text-red-600 whitespace-nowrap font-bold">
                               - {formatRupiah(item.totalExpense)}
                             </td>
-                            <td className={`px-4 py-2.5 text-right whitespace-nowrap ${item.closingBalance >= 0 ? 'text-forest-900' : 'text-red-700 font-bold'}`}>
+                            <td className={`px-4 py-2.5 text-right whitespace-nowrap font-extrabold ${item.closingBalance >= 0 ? 'text-slate-900' : 'text-red-600'}`}>
                               {formatRupiah(item.closingBalance)}
                             </td>
                           </tr>
@@ -1336,43 +1336,43 @@ export default function Reports() {
               </div>
 
               {/* ── Laporan B: Kas Masuk IPL (basis tanggal pembayaran) ── */}
-              <div className="pv-card overflow-hidden">
-                <div className="px-5 py-3.5 border-b border-forest-100 bg-forest-50 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+              <div className="pv-card overflow-hidden border border-slate-200">
+                <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50/70 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-sm font-semibold text-forest-800">
+                    <h3 className="text-sm font-bold text-slate-900">
                       Rincian Kas Masuk IPL — {periodLabel}
                     </h3>
-                    <p className="text-[11px] text-forest-500 mt-0.5">
+                    <p className="text-[11px] text-slate-500 mt-0.5">
                       Berdasarkan tanggal pembayaran, tanpa memandang periode tagihan IPL yang dilunasi. Klik judul kolom untuk mengurutkan.
                     </p>
                   </div>
                   <div className="flex items-center gap-2.5 self-end md:self-auto">
                     <div className="relative">
-                      <AiOutlineSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-forest-400 text-xs" />
+                      <AiOutlineSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
                       <input
                         type="text"
                         placeholder="Cari unit / penghuni / periode..."
                         value={cashSearch}
                         onChange={(e) => setCashSearch(e.target.value)}
-                        className="pv-input text-xs pl-7 pr-7 py-1.5 w-48 md:w-56"
+                        className="pv-input text-xs pl-7 pr-7 py-1.5 w-48 md:w-56 border-slate-200"
                       />
                       {cashSearch && (
                         <button
                           type="button"
                           onClick={() => setCashSearch('')}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-forest-400 hover:text-forest-700 text-xs"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-xs"
                         >
                           <AiOutlineClose />
                         </button>
                       )}
                     </div>
-                    <span className="pv-badge bg-emerald-100 text-emerald-800 text-xs whitespace-nowrap">
+                    <span className="pv-badge bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs whitespace-nowrap font-bold">
                       {sortedCashPayments.length} {cashSearch ? `dari ${cashPayments.length}` : ''} Transaksi
                     </span>
                   </div>
                 </div>
                 {sortedCashPayments.length === 0 ? (
-                  <div className="p-10 text-center text-forest-400 text-sm">
+                  <div className="p-10 text-center text-slate-400 text-sm">
                     {cashSearch
                       ? `Tidak ada transaksi pembayaran yang cocok dengan pencarian "${cashSearch}".`
                       : `Belum ada pembayaran IPL yang tercatat pada ${periodLabel}.`}
@@ -1381,10 +1381,10 @@ export default function Reports() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-forest-100 bg-white">
+                        <tr className="border-b border-slate-200 bg-slate-100/90 text-xs uppercase text-slate-700 font-bold tracking-wider">
                           <th
                             onClick={() => handleCashSort('paidAt')}
-                            className="px-4 py-3 text-left text-xs font-semibold text-forest-600 uppercase cursor-pointer select-none hover:bg-forest-100/60 transition-colors"
+                            className="px-4 py-3 text-left cursor-pointer select-none hover:bg-slate-200/60 transition-colors"
                             title="Urutkan berdasarkan Tanggal Bayar"
                           >
                             <div className="inline-flex items-center gap-1.5">
@@ -1392,13 +1392,13 @@ export default function Reports() {
                               {cashSortField === 'paidAt' ? (
                                 <span className="text-gold-600 font-bold">{cashSortOrder === 'asc' ? '▲' : '▼'}</span>
                               ) : (
-                                <span className="text-forest-300 text-[10px]">↕</span>
+                                <span className="text-slate-400 text-[10px]">↕</span>
                               )}
                             </div>
                           </th>
                           <th
                             onClick={() => handleCashSort('unit')}
-                            className="px-4 py-3 text-left text-xs font-semibold text-forest-600 uppercase cursor-pointer select-none hover:bg-forest-100/60 transition-colors"
+                            className="px-4 py-3 text-left cursor-pointer select-none hover:bg-slate-200/60 transition-colors"
                             title="Urutkan berdasarkan Blok / Nomor Unit"
                           >
                             <div className="inline-flex items-center gap-1.5">
@@ -1406,13 +1406,13 @@ export default function Reports() {
                               {cashSortField === 'unit' ? (
                                 <span className="text-gold-600 font-bold">{cashSortOrder === 'asc' ? '▲' : '▼'}</span>
                               ) : (
-                                <span className="text-forest-300 text-[10px]">↕</span>
+                                <span className="text-slate-400 text-[10px]">↕</span>
                               )}
                             </div>
                           </th>
                           <th
                             onClick={() => handleCashSort('residentName')}
-                            className="px-4 py-3 text-left text-xs font-semibold text-forest-600 uppercase cursor-pointer select-none hover:bg-forest-100/60 transition-colors"
+                            className="px-4 py-3 text-left cursor-pointer select-none hover:bg-slate-200/60 transition-colors"
                             title="Urutkan berdasarkan Nama Penghuni"
                           >
                             <div className="inline-flex items-center gap-1.5">
@@ -1420,13 +1420,13 @@ export default function Reports() {
                               {cashSortField === 'residentName' ? (
                                 <span className="text-gold-600 font-bold">{cashSortOrder === 'asc' ? '▲' : '▼'}</span>
                               ) : (
-                                <span className="text-forest-300 text-[10px]">↕</span>
+                                <span className="text-slate-400 text-[10px]">↕</span>
                               )}
                             </div>
                           </th>
                           <th
                             onClick={() => handleCashSort('period')}
-                            className="px-4 py-3 text-left text-xs font-semibold text-forest-600 uppercase cursor-pointer select-none hover:bg-forest-100/60 transition-colors"
+                            className="px-4 py-3 text-left cursor-pointer select-none hover:bg-slate-200/60 transition-colors"
                             title="Urutkan berdasarkan Periode IPL"
                           >
                             <div className="inline-flex items-center gap-1.5">
@@ -1434,13 +1434,13 @@ export default function Reports() {
                               {cashSortField === 'period' ? (
                                 <span className="text-gold-600 font-bold">{cashSortOrder === 'asc' ? '▲' : '▼'}</span>
                               ) : (
-                                <span className="text-forest-300 text-[10px]">↕</span>
+                                <span className="text-slate-400 text-[10px]">↕</span>
                               )}
                             </div>
                           </th>
                           <th
                             onClick={() => handleCashSort('amount')}
-                            className="px-4 py-3 text-right text-xs font-semibold text-forest-600 uppercase cursor-pointer select-none hover:bg-forest-100/60 transition-colors"
+                            className="px-4 py-3 text-right cursor-pointer select-none hover:bg-slate-200/60 transition-colors"
                             title="Urutkan berdasarkan Jumlah Nominal"
                           >
                             <div className="inline-flex items-center justify-end gap-1.5 w-full">
@@ -1448,13 +1448,13 @@ export default function Reports() {
                               {cashSortField === 'amount' ? (
                                 <span className="text-gold-600 font-bold">{cashSortOrder === 'asc' ? '▲' : '▼'}</span>
                               ) : (
-                                <span className="text-forest-300 text-[10px]">↕</span>
+                                <span className="text-slate-400 text-[10px]">↕</span>
                               )}
                             </div>
                           </th>
                           <th
                             onClick={() => handleCashSort('method')}
-                            className="px-4 py-3 text-center text-xs font-semibold text-forest-600 uppercase cursor-pointer select-none hover:bg-forest-100/60 transition-colors"
+                            className="px-4 py-3 text-center cursor-pointer select-none hover:bg-slate-200/60 transition-colors"
                             title="Urutkan berdasarkan Metode Pembayaran"
                           >
                             <div className="inline-flex items-center justify-center gap-1.5 w-full">
@@ -1462,24 +1462,24 @@ export default function Reports() {
                               {cashSortField === 'method' ? (
                                 <span className="text-gold-600 font-bold">{cashSortOrder === 'asc' ? '▲' : '▼'}</span>
                               ) : (
-                                <span className="text-forest-300 text-[10px]">↕</span>
+                                <span className="text-slate-400 text-[10px]">↕</span>
                               )}
                             </div>
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-forest-100">
+                      <tbody className="divide-y divide-slate-100">
                         {sortedCashPayments.map((p) => (
-                          <tr key={p.paymentId} className="hover:bg-forest-50">
-                            <td className="px-4 py-2.5 text-forest-600 text-xs whitespace-nowrap">
+                          <tr key={p.paymentId} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="px-4 py-2.5 text-slate-600 text-xs whitespace-nowrap font-medium">
                               {formatDate(p.paidAt)}
                             </td>
-                            <td className="px-4 py-2.5 font-medium text-forest-900 whitespace-nowrap">
+                            <td className="px-4 py-2.5 font-bold text-slate-900 whitespace-nowrap">
                               {p.block}/{p.unitNumber}
                             </td>
-                            <td className="px-4 py-2.5 text-forest-700">{p.residentName}</td>
-                            <td className="px-4 py-2.5 text-forest-600">{formatPeriodLabel(p.period)}</td>
-                            <td className="px-4 py-2.5 text-right text-forest-700 whitespace-nowrap font-medium">
+                            <td className="px-4 py-2.5 text-slate-900 font-semibold">{p.residentName}</td>
+                            <td className="px-4 py-2.5 text-slate-600 font-medium">{formatPeriodLabel(p.period)}</td>
+                            <td className="px-4 py-2.5 text-right text-emerald-700 whitespace-nowrap font-extrabold">
                               {formatRupiah(p.amount)}
                             </td>
                             <td className="px-4 py-2.5 text-center">
@@ -1491,14 +1491,14 @@ export default function Reports() {
                         ))}
                       </tbody>
                       <tfoot>
-                        <tr className="border-t-2 border-forest-200 bg-forest-50 font-semibold">
-                          <td colSpan={4} className="px-4 py-3 text-forest-800">
+                        <tr className="border-t-2 border-slate-200 bg-slate-50 font-bold">
+                          <td colSpan={4} className="px-4 py-3 text-slate-700 text-xs uppercase tracking-wider">
                             TOTAL KAS MASUK IPL {cashSearch ? '(HASIL FILTER)' : ''}
                           </td>
-                          <td className="px-4 py-3 text-right text-forest-900 font-bold">
+                          <td className="px-4 py-3 text-right text-emerald-700 font-extrabold">
                             {formatRupiah(sortedCashPayments.reduce((s, p) => s + Number(p.amount || 0), 0))}
                           </td>
-                          <td className="px-4 py-3 text-center text-forest-400 text-[11px] font-normal">
+                          <td className="px-4 py-3 text-center text-slate-500 text-[11px] font-normal">
                             {sortedCashPayments.length} transaksi
                           </td>
                         </tr>
@@ -1509,44 +1509,44 @@ export default function Reports() {
               </div>
 
               {/* ── Laporan C: Pemasukan Non-IPL (Donasi, Sewa, Kegiatan) ── */}
-              <div className="pv-card overflow-hidden">
-                <div className="px-5 py-3 border-b border-forest-100 bg-forest-50 flex items-center justify-between">
+              <div className="pv-card overflow-hidden border border-slate-200">
+                <div className="px-5 py-3 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-semibold text-forest-800">
+                    <h3 className="text-sm font-bold text-slate-900">
                       Rincian Pemasukan Non-IPL & Donasi — {periodLabel}
                     </h3>
-                    <p className="text-[11px] text-forest-500 mt-0.5">
+                    <p className="text-[11px] text-slate-500 mt-0.5">
                       Penerimaan kas umum dan kegiatan event di luar iuran bulanan warga.
                     </p>
                   </div>
                   <button
                     onClick={() => setReportType('non_ipl')}
-                    className="no-print text-xs font-semibold text-forest-700 hover:text-gold-600 underline"
+                    className="no-print text-xs font-semibold text-blue-600 hover:underline"
                   >
                     Buka Laporan Penuh Non-IPL →
                   </button>
                 </div>
                 {nonIplIncomes.length === 0 ? (
-                  <div className="p-8 text-center text-forest-400 text-sm">
+                  <div className="p-8 text-center text-slate-400 text-sm">
                     Belum ada pemasukan non-IPL yang tercatat pada {periodLabel}.
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-forest-100 bg-white">
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-forest-600 uppercase">Tgl Masuk</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-forest-600 uppercase">Lingkup</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-forest-600 uppercase">Kategori</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-forest-600 uppercase">Sumber / Pembayar</th>
-                          <th className="px-4 py-3 text-center text-xs font-semibold text-forest-600 uppercase">Metode</th>
-                          <th className="px-4 py-3 text-right text-xs font-semibold text-forest-600 uppercase">Jumlah</th>
+                        <tr className="border-b border-slate-200 bg-slate-100/90 text-xs uppercase text-slate-700 font-bold tracking-wider">
+                          <th className="px-4 py-3 text-left">Tgl Masuk</th>
+                          <th className="px-4 py-3 text-left">Lingkup</th>
+                          <th className="px-4 py-3 text-left">Kategori</th>
+                          <th className="px-4 py-3 text-left">Sumber / Pembayar</th>
+                          <th className="px-4 py-3 text-center">Metode</th>
+                          <th className="px-4 py-3 text-right">Jumlah</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-forest-100">
+                      <tbody className="divide-y divide-slate-100">
                         {nonIplIncomes.slice(0, 10).map((i) => (
-                          <tr key={i.id} className="hover:bg-forest-50">
-                            <td className="px-4 py-2.5 text-forest-600 text-xs whitespace-nowrap">
+                          <tr key={i.id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="px-4 py-2.5 text-slate-600 text-xs whitespace-nowrap font-medium">
                               {formatDate(i.income_date || i.date)}
                             </td>
                             <td className="px-4 py-2.5 text-xs whitespace-nowrap">
@@ -1560,10 +1560,10 @@ export default function Reports() {
                                 </span>
                               )}
                             </td>
-                            <td className="px-4 py-2.5 text-forest-800 font-medium">
+                            <td className="px-4 py-2.5 text-slate-900 font-bold">
                               {i.category || '-'}
                             </td>
-                            <td className="px-4 py-2.5 text-forest-700">
+                            <td className="px-4 py-2.5 text-slate-900 font-semibold">
                               {i.source_name || '-'}
                             </td>
                             <td className="px-4 py-2.5 text-center whitespace-nowrap">
@@ -1571,18 +1571,18 @@ export default function Reports() {
                                 {methodLabel(i.payment_method)}
                               </span>
                             </td>
-                            <td className="px-4 py-2.5 text-right font-semibold text-emerald-700 whitespace-nowrap">
+                            <td className="px-4 py-2.5 text-right font-extrabold text-emerald-700 whitespace-nowrap">
                               + {formatRupiah(i.amount)}
                             </td>
                           </tr>
                         ))}
                       </tbody>
                       <tfoot>
-                        <tr className="border-t-2 border-forest-200 bg-forest-50 font-semibold">
-                          <td colSpan={5} className="px-4 py-3 text-forest-800">
+                        <tr className="border-t-2 border-slate-200 bg-slate-50 font-bold">
+                          <td colSpan={5} className="px-4 py-3 text-slate-700 text-xs uppercase tracking-wider">
                             TOTAL PEMASUKAN NON-IPL
                           </td>
-                          <td className="px-4 py-3 text-right text-emerald-800 font-bold">
+                          <td className="px-4 py-3 text-right text-emerald-700 font-extrabold">
                             {formatRupiah(nonIplIncomes.reduce((s, i) => s + Number(i.amount || 0), 0))}
                           </td>
                         </tr>
@@ -1593,12 +1593,12 @@ export default function Reports() {
               </div>
 
               {/* ── Section Pengeluaran ── */}
-              <div className="pv-card p-5">
-                <h3 className="text-sm font-semibold text-forest-800 mb-4">
+              <div className="pv-card p-5 border border-slate-200 bg-white">
+                <h3 className="text-sm font-bold text-slate-900 mb-4">
                   Rincian Pengeluaran Kas — {periodLabel}
                 </h3>
                 {expenses.length === 0 ? (
-                  <p className="text-sm text-forest-400 text-center py-6">
+                  <p className="text-sm text-slate-400 text-center py-6">
                     Tidak ada pengeluaran tercatat pada periode ini.
                   </p>
                 ) : (
@@ -1608,19 +1608,19 @@ export default function Reports() {
                       return (
                       <div
                         key={exp.id}
-                        className="flex items-start justify-between gap-3 py-2 border-b border-forest-50 last:border-0"
+                        className="flex items-start justify-between gap-3 py-2.5 border-b border-slate-100 last:border-0 hover:bg-slate-50/50 rounded-lg px-2 transition-colors"
                       >
                         <div className="flex min-w-0 items-start gap-3">
                           <AttachmentThumbnail url={attachmentUrl} />
                           <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="pv-badge bg-forest-50 text-forest-600">{exp.category}</span>
-                            <span className="text-[11px] text-forest-400">{formatDate(exp.date)}</span>
+                            <span className="pv-badge bg-slate-100 text-slate-700 border border-slate-200 font-semibold">{exp.category}</span>
+                            <span className="text-[11px] text-slate-500 font-medium">{formatDate(exp.date)}</span>
                           </div>
-                            <p className="text-xs text-forest-600 mt-1 line-clamp-2">{exp.description}</p>
+                            <p className="text-xs text-slate-600 mt-1 line-clamp-2">{exp.description}</p>
                           </div>
                         </div>
-                        <span className="font-medium text-red-600 text-sm shrink-0">
+                        <span className="font-extrabold text-red-600 text-sm shrink-0">
                           − {formatRupiah(exp.amount)}
                         </span>
                       </div>
@@ -1631,50 +1631,50 @@ export default function Reports() {
               </div>
 
               {/* ── Neraca: Pemasukan vs Pengeluaran ── */}
-              <div className="pv-card overflow-hidden">
-                <div className="px-5 py-3 border-b border-forest-100 bg-forest-800">
-                  <h3 className="text-sm font-semibold text-gold-400">
+              <div className="pv-card overflow-hidden border border-slate-200 bg-white">
+                <div className="px-5 py-3.5 border-b border-slate-200 bg-white">
+                  <h3 className="text-sm font-bold text-slate-900">
                     Neraca Arus Kas — {periodLabel}
                   </h3>
                 </div>
                 <div className="p-5 space-y-3 text-sm">
-                  <div className="flex justify-between items-center py-2 border-b border-forest-50">
-                    <span className="text-forest-600 flex items-center gap-2">
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                    <span className="text-slate-600 flex items-center gap-2 font-medium">
                       <span className="h-2 w-2 rounded-full bg-amber-400"></span>
                       Saldo Awal Periode (Carry-forward)
                     </span>
-                    <span className="font-semibold text-forest-800">{formatRupiah(openingBalance)}</span>
+                    <span className="font-bold text-slate-900">{formatRupiah(openingBalance)}</span>
                   </div>
-                  <div className="flex justify-between items-center py-2 border-b border-forest-50">
-                    <span className="text-forest-600 flex items-center gap-2">
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                    <span className="text-slate-600 flex items-center gap-2 font-medium">
                       <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
                       Pemasukan IPL Periode Ini
                     </span>
-                    <span className="font-semibold text-emerald-600">+ {formatRupiah(cashPayments.reduce((s, p) => s + Number(p.amount || 0), 0) || iplIncome)}</span>
+                    <span className="font-bold text-emerald-700">+ {formatRupiah(cashPayments.reduce((s, p) => s + Number(p.amount || 0), 0) || iplIncome)}</span>
                   </div>
                   {nonIplIncomes.length > 0 && (
-                    <div className="flex justify-between items-center py-2 border-b border-forest-50">
-                      <span className="text-forest-600 flex items-center gap-2">
+                    <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                      <span className="text-slate-600 flex items-center gap-2 font-medium">
                         <span className="h-2 w-2 rounded-full bg-blue-500"></span>
                         Pemasukan Non-IPL & Donasi
                       </span>
-                      <span className="font-semibold text-blue-600">+ {formatRupiah(nonIplIncomes.reduce((s, i) => s + Number(i.amount || 0), 0))}</span>
+                      <span className="font-bold text-blue-700">+ {formatRupiah(nonIplIncomes.reduce((s, i) => s + Number(i.amount || 0), 0))}</span>
                     </div>
                   )}
-                  <div className="flex justify-between items-center py-2 border-b border-forest-50">
-                    <span className="text-forest-600 flex items-center gap-2">
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                    <span className="text-slate-600 flex items-center gap-2 font-medium">
                       <span className="h-2 w-2 rounded-full bg-red-500"></span>
                       Pengeluaran Kas Periode Ini
                     </span>
-                    <span className="font-semibold text-red-600">− {formatRupiah(totalExpenses)}</span>
+                    <span className="font-bold text-red-600">− {formatRupiah(totalExpenses)}</span>
                   </div>
-                  <div className="flex justify-between items-center py-3 mt-2 bg-forest-50 rounded-lg px-3">
-                    <span className="font-semibold text-forest-800">Saldo Akhir Periode</span>
-                    <span className={`font-bold text-base ${closingBalance >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                  <div className="flex justify-between items-center py-3 mt-2 bg-slate-50 border border-slate-200 rounded-xl px-4">
+                    <span className="font-bold text-slate-900">Saldo Akhir Periode</span>
+                    <span className={`font-extrabold text-base ${closingBalance >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
                       {formatRupiah(closingBalance)}
                     </span>
                   </div>
-                  <p className="text-[11px] text-forest-400 pt-1">
+                  <p className="text-[11px] text-slate-400 pt-1">
                     Laporan ini dihitung menggunakan basis kas masuk running balance (kumulatif), dimulai dari Juli 2026.
                   </p>
                 </div>

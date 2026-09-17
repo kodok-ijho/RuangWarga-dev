@@ -276,20 +276,20 @@ export default function Settings() {
   return (
     <div className="space-y-5 max-w-4xl">
       <div>
-        <h2 className="text-lg font-bold text-forest-900">Pengaturan IPL & Skema Biaya</h2>
-        <p className="text-sm text-forest-500">
+        <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Pengaturan IPL & Skema Biaya</h2>
+        <p className="text-xs text-slate-500 mt-0.5">
           Atur profil skema biaya IPL yang menempel pada unit rumah, tanggal jatuh tempo, dan denda keterlambatan.
         </p>
       </div>
 
       {!canEditBilling && !canEditSchema && (
-        <div className="pv-card p-3 bg-blue-50 border border-blue-200 text-blue-700 text-sm flex items-center gap-2">
+        <div className="pv-card p-3 bg-blue-50/60 border border-blue-200 text-blue-800 text-xs flex items-center gap-2 rounded-xl">
           <span>ℹ️</span>
           <span>Anda melihat pengaturan dalam mode read-only.</span>
         </div>
       )}
       {!canEdit && canEditSchema && !canEditBilling && (
-        <div className="pv-card p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm flex items-center gap-2">
+        <div className="pv-card p-3 bg-emerald-50/60 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2 rounded-xl">
           <span>ℹ️</span>
           <span>Sebagai <b>Bendahara</b>, Anda memiliki hak akses untuk menambah, mengedit, dan menghapus Profil Skema Biaya IPL.</span>
         </div>
@@ -297,34 +297,34 @@ export default function Settings() {
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* Ringkasan Skema & Jatuh Tempo */}
-        <div className="pv-card p-5">
-          <h3 className="text-sm font-semibold text-forest-800 mb-4">Ringkasan Skema Aktif & Jatuh Tempo</h3>
+        <div className="pv-card p-5 border border-slate-200 bg-white shadow-xs">
+          <h3 className="text-sm font-bold text-slate-900 mb-4">Ringkasan Skema Aktif & Jatuh Tempo</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-forest-700 mb-2">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
                 Profil Skema IPL Aktif
               </label>
               <div className="flex flex-wrap gap-2">
                 {schemas.map((s) => {
                   const total = computeSchemaAmount(s);
                   return (
-                    <div key={s.id} className="bg-forest-50 border border-forest-200 rounded-lg px-3 py-2 text-xs">
-                      <span className="font-bold text-forest-800 block">{s.name}</span>
-                      <span className="text-emerald-600 font-semibold">{formatRupiah(total)} / bln</span>
+                    <div key={s.id} className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs">
+                      <span className="font-bold text-slate-900 block">{s.name}</span>
+                      <span className="text-emerald-700 font-extrabold">{formatRupiah(total)} / bln</span>
                     </div>
                   );
                 })}
               </div>
-              <p className="text-[11px] text-forest-400 mt-2">
+              <p className="text-[11px] text-slate-400 mt-2">
                 Skema ini akan ditempelkan pada masing-masing unit di halaman Daftar Rumah.
               </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-forest-700 mb-1">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                 Tanggal Jatuh Tempo Bulanan
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-forest-400">Tgl</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Tgl</span>
                 <input
                   type="number"
                   value={dueDay}
@@ -332,10 +332,10 @@ export default function Settings() {
                   min="1"
                   max="28"
                   disabled={!canEdit}
-                  className="w-full rounded-lg border border-forest-200 bg-white disabled:bg-forest-50 pl-10 pr-3 py-2.5 text-sm text-forest-900 focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 outline-none transition-all"
+                  className="w-full rounded-lg border border-slate-200 bg-white disabled:bg-slate-50 pl-10 pr-3 py-2.5 text-sm font-bold text-slate-900 focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 outline-none transition-all"
                 />
               </div>
-              <p className="text-[11px] text-forest-400 mt-1">Berlaku untuk seluruh tagihan warga setiap bulan (tanggal 1-28).</p>
+              <p className="text-[11px] text-slate-400 mt-1">Berlaku untuk seluruh tagihan warga setiap bulan (tanggal 1-28).</p>
             </div>
           </div>
         </div>
@@ -344,8 +344,8 @@ export default function Settings() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-base font-bold text-forest-900">Profil Skema Biaya IPL</h3>
-              <p className="text-xs text-forest-500">
+              <h3 className="text-base font-extrabold text-slate-900 tracking-tight">Profil Skema Biaya IPL</h3>
+              <p className="text-xs text-slate-500">
                 Tentukan paket komponen biaya IPL (mis. Rumah Ditempati vs Rumah Kosong).
               </p>
             </div>
@@ -364,8 +364,8 @@ export default function Settings() {
             {schemas.map((schema) => {
               const schemaTotal = computeSchemaAmount(schema);
               return (
-                <div key={schema.id} className="pv-card p-5 border-l-4 border-l-gold-500 transition-all hover:shadow-md">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 pb-3 border-b border-forest-100">
+                <div key={schema.id} className="pv-card p-5 border border-slate-200 border-l-4 border-l-gold-500 bg-white shadow-xs hover:shadow-sm transition-all">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2">
                         <input
@@ -374,9 +374,9 @@ export default function Settings() {
                           onChange={(e) => handleSchemaChange(schema.id, 'name', e.target.value)}
                           placeholder="Nama Skema (mis. IPL Komplit)"
                           disabled={!canEditSchema}
-                          className="font-bold text-base text-forest-900 rounded-lg border border-forest-200 bg-white disabled:bg-transparent px-3 py-1 focus:border-gold-500 outline-none w-full max-w-sm"
+                          className="font-bold text-base text-slate-900 rounded-lg border border-slate-200 bg-white disabled:bg-transparent px-3 py-1.5 focus:border-gold-500 outline-none w-full max-w-sm"
                         />
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           {formatRupiah(schemaTotal)} / bulan
                         </span>
                       </div>
@@ -386,14 +386,14 @@ export default function Settings() {
                         onChange={(e) => handleSchemaChange(schema.id, 'description', e.target.value)}
                         placeholder="Deskripsi peruntukan skema..."
                         disabled={!canEditSchema}
-                        className="text-xs text-forest-500 rounded-lg border border-forest-100 bg-forest-50/50 disabled:bg-transparent px-3 py-1 focus:border-gold-500 outline-none w-full"
+                        className="text-xs text-slate-600 rounded-lg border border-slate-200 bg-white disabled:bg-transparent px-3 py-1.5 focus:border-gold-500 outline-none w-full"
                       />
                     </div>
                     {canEditSchema && schemas.length > 1 && (
                       <button
                         type="button"
                         onClick={() => handleRemoveSchema(schema.id)}
-                        className="self-start md:self-center px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors flex items-center gap-1"
+                        className="self-start md:self-center px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors flex items-center gap-1"
                       >
                         <AiOutlineDelete /> Hapus Skema
                       </button>
@@ -402,13 +402,13 @@ export default function Settings() {
 
                   {/* Komponen dalam skema */}
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs font-semibold text-forest-600 px-1">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-700 uppercase tracking-wider px-1">
                       <span>Rincian Komponen Biaya</span>
                       {canEditSchema && (
                         <button
                           type="button"
                           onClick={() => handleAddComponent(schema.id)}
-                          className="text-gold-600 hover:text-gold-700 font-bold flex items-center gap-1"
+                          className="text-gold-600 hover:text-gold-700 font-bold flex items-center gap-1 normal-case text-xs"
                         >
                           <AiOutlinePlus /> Tambah Komponen
                         </button>
@@ -416,21 +416,21 @@ export default function Settings() {
                     </div>
 
                     {schema.components.length === 0 ? (
-                      <p className="text-xs text-forest-400 py-2 italic">Belum ada komponen biaya dalam skema ini.</p>
+                      <p className="text-xs text-slate-400 py-2 italic">Belum ada komponen biaya dalam skema ini.</p>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {schema.components.map((comp, idx) => (
-                          <div key={idx} className="flex items-center gap-2 bg-forest-50/60 p-2 rounded-lg border border-forest-100">
+                          <div key={idx} className="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
                             <input
                               type="text"
                               value={comp.name}
                               onChange={(e) => handleComponentChange(schema.id, idx, 'name', e.target.value)}
                               placeholder="Nama Komponen"
                               disabled={!canEditSchema}
-                              className="flex-1 rounded border border-forest-200 bg-white disabled:bg-transparent px-2.5 py-1.5 text-xs text-forest-900 focus:border-gold-500 outline-none"
+                              className="flex-1 rounded border border-slate-200 bg-white disabled:bg-transparent px-2.5 py-1.5 text-xs font-semibold text-slate-900 focus:border-gold-500 outline-none"
                             />
                             <div className="relative w-32">
-                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-forest-400">Rp</span>
+                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] font-bold text-slate-400">Rp</span>
                               <input
                                 type="number"
                                 value={comp.amount}
@@ -438,14 +438,14 @@ export default function Settings() {
                                 min="0"
                                 step="1000"
                                 disabled={!canEditSchema}
-                                className="w-full rounded border border-forest-200 bg-white disabled:bg-transparent pl-7 pr-2 py-1.5 text-xs text-forest-900 focus:border-gold-500 outline-none"
+                                className="w-full rounded border border-slate-200 bg-white disabled:bg-transparent pl-7 pr-2 py-1.5 text-xs font-bold text-slate-900 focus:border-gold-500 outline-none"
                               />
                             </div>
                             {canEditSchema && (
                               <button
                                 type="button"
                                 onClick={() => handleRemoveComponent(schema.id, idx)}
-                                className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                                 aria-label="Hapus komponen"
                               >
                                 <AiOutlineDelete size={14} />
@@ -462,46 +462,46 @@ export default function Settings() {
           </div>
         </div>
 
-        <div className="pv-card p-5">
+        <div className="pv-card p-5 border border-slate-200 bg-white shadow-xs">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="max-w-2xl">
-              <h3 className="text-sm font-semibold text-forest-800">QRIS & Provider</h3>
-              <p className="mt-1 text-[11px] text-forest-500">
+              <h3 className="text-sm font-bold text-slate-900">QRIS & Provider</h3>
+              <p className="mt-1 text-[11px] text-slate-500">
                 Aktifkan QRIS untuk warga, pengurus, bendahara, dan admin. Provider aktif: DOKU Production.
               </p>
             </div>
-            <div className="flex items-center gap-2 rounded-lg border border-forest-200 bg-forest-50 px-3 py-2 text-xs text-forest-600">
+            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700 font-semibold">
               <span className={`inline-flex h-2.5 w-2.5 rounded-full ${qrisEnabled ? 'bg-emerald-500' : 'bg-rose-400'}`} />
               <span>{qrisEnabled ? 'QRIS aktif' : 'QRIS nonaktif'}</span>
             </div>
           </div>
           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-            <label className="flex items-center justify-between gap-4 rounded-lg border border-forest-200 bg-white px-4 py-3">
+            <label className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-4 py-3 cursor-pointer hover:bg-slate-50/50 transition-colors">
               <span>
-                <span className="block text-sm font-medium text-forest-800">Aktifkan QRIS</span>
-                <span className="block text-[11px] text-forest-500">Jika dimatikan, opsi QRIS disembunyikan dan request ditolak backend.</span>
+                <span className="block text-sm font-semibold text-slate-900">Aktifkan QRIS</span>
+                <span className="block text-[11px] text-slate-500">Jika dimatikan, opsi QRIS disembunyikan dan request ditolak backend.</span>
               </span>
               <input
                 type="checkbox"
                 checked={qrisEnabled}
                 onChange={(e) => setQrisEnabled(e.target.checked)}
                 disabled={!canEdit}
-                className="h-5 w-5 accent-gold-500"
+                className="h-5 w-5 accent-gold-500 cursor-pointer"
               />
             </label>
 
             <div>
-              <label className="block text-sm font-medium text-forest-700 mb-1">Provider QRIS</label>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Provider QRIS</label>
               <select
                 value={qrisProvider}
                 onChange={(e) => setQrisProvider(e.target.value)}
                 disabled={!canEdit}
-                className="w-full rounded-lg border border-forest-200 bg-white px-3 py-2 text-sm text-forest-700 outline-none focus:border-gold-500 disabled:bg-forest-50"
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-gold-500 disabled:bg-slate-50 font-semibold"
               >
                 <option value="midtrans">Midtrans</option>
                 <option value="doku">DOKU</option>
               </select>
-              <p className="mt-1 text-[11px] text-forest-400">
+              <p className="mt-1 text-[11px] text-slate-400">
                 Aktif saat ini: {getQrisProviderLabel(qrisProvider)}.
               </p>
             </div>
@@ -511,17 +511,17 @@ export default function Settings() {
         {/* Penerima Tagihan & Denda */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Penerima Tagihan */}
-          <div className="pv-card p-5">
-            <h3 className="text-sm font-semibold text-forest-800 mb-1">Penerima Tagihan IPL</h3>
-            <p className="text-[11px] text-forest-400 mb-4">
+          <div className="pv-card p-5 border border-slate-200 bg-white shadow-xs">
+            <h3 className="text-sm font-bold text-slate-900 mb-1">Penerima Tagihan IPL</h3>
+            <p className="text-[11px] text-slate-400 mb-4">
               Tentukan ke siapa tagihan IPL ditujukan untuk seluruh unit.
             </p>
             <div className="space-y-2">
               <label
-                className={`flex items-start gap-2.5 p-3 rounded-lg border ${!canEdit ? 'cursor-not-allowed bg-forest-50/50' : 'cursor-pointer'} transition-colors ${
+                className={`flex items-start gap-2.5 p-3 rounded-lg border ${!canEdit ? 'cursor-not-allowed bg-slate-50' : 'cursor-pointer'} transition-colors ${
                   billRecipient === 'occupant'
-                    ? 'border-gold-400 bg-gold-50'
-                    : 'border-forest-200 hover:bg-forest-50'
+                    ? 'border-gold-400 bg-gold-50/50'
+                    : 'border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 <input
@@ -533,17 +533,17 @@ export default function Settings() {
                   className="mt-1 accent-gold-500"
                 />
                 <div>
-                  <p className="text-sm font-medium text-forest-800">Penghuni (Occupant)</p>
-                  <p className="text-[11px] text-forest-500">
+                  <p className="text-sm font-semibold text-slate-900">Penghuni (Occupant)</p>
+                  <p className="text-[11px] text-slate-500">
                     Tagihan ke yang tinggal di unit — penyewa bila ada, kalau kosong fallback ke pemilik.
                   </p>
                 </div>
               </label>
               <label
-                className={`flex items-start gap-2.5 p-3 rounded-lg border ${!canEdit ? 'cursor-not-allowed bg-forest-50/50' : 'cursor-pointer'} transition-colors ${
+                className={`flex items-start gap-2.5 p-3 rounded-lg border ${!canEdit ? 'cursor-not-allowed bg-slate-50' : 'cursor-pointer'} transition-colors ${
                   billRecipient === 'owner'
-                    ? 'border-gold-400 bg-gold-50'
-                    : 'border-forest-200 hover:bg-forest-50'
+                    ? 'border-gold-400 bg-gold-50/50'
+                    : 'border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 <input
@@ -555,8 +555,8 @@ export default function Settings() {
                   className="mt-1 accent-gold-500"
                 />
                 <div>
-                  <p className="text-sm font-medium text-forest-800">Pemilik (Owner)</p>
-                  <p className="text-[11px] text-forest-500">
+                  <p className="text-sm font-semibold text-slate-900">Pemilik (Owner)</p>
+                  <p className="text-[11px] text-slate-500">
                     Tagihan selalu ke pemilik unit, terlepas siapa yang menempati.
                   </p>
                 </div>
@@ -565,9 +565,9 @@ export default function Settings() {
           </div>
 
           {/* Denda */}
-          <div className="pv-card p-5">
+          <div className="pv-card p-5 border border-slate-200 bg-white shadow-xs">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-forest-800">Denda Keterlambatan</h3>
+              <h3 className="text-sm font-bold text-slate-900">Denda Keterlambatan</h3>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
@@ -576,26 +576,26 @@ export default function Settings() {
                   disabled={!canEditBilling}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-forest-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gold-500"></div>
+                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gold-500"></div>
               </label>
             </div>
 
             {lateFeeEnabled ? (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-forest-700 mb-1">Jenis Denda</label>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Jenis Denda</label>
                   <select
                     value={lateFeeType}
                     onChange={(e) => setLateFeeType(e.target.value)}
                     disabled={!canEditBilling}
-                    className="w-full rounded-lg border border-forest-200 bg-white disabled:bg-forest-50 px-3 py-2 text-sm text-forest-700 focus:border-gold-500 outline-none"
+                    className="w-full rounded-lg border border-slate-200 bg-white disabled:bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-gold-500 outline-none font-semibold"
                   >
                     <option value="percent">Persentase (%)</option>
                     <option value="fixed">Nominal Tetap (Rp)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-forest-700 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                     Nilai Denda {lateFeeType === 'percent' ? '(%)' : '(Rp)'}
                   </label>
                   <input
@@ -605,17 +605,17 @@ export default function Settings() {
                     min="0"
                     step={lateFeeType === 'percent' ? '0.5' : '1000'}
                     disabled={!canEditBilling}
-                    className="w-full rounded-lg border border-forest-200 bg-white disabled:bg-forest-50 px-3 py-2 text-sm text-forest-900 focus:border-gold-500 outline-none transition-all"
+                    className="w-full rounded-lg border border-slate-200 bg-white disabled:bg-slate-50 px-3 py-2 text-sm font-bold text-slate-900 focus:border-gold-500 outline-none transition-all"
                   />
                   {lateFeeType === 'percent' && (
-                    <p className="text-[11px] text-forest-400 mt-1">
+                    <p className="text-[11px] text-slate-400 mt-1">
                       Contoh: 5% denda keterlambatan atas tagihan jatuh tempo.
                     </p>
                   )}
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-forest-400 py-4 italic">Denda keterlambatan saat ini dinonaktifkan.</p>
+              <p className="text-xs text-slate-400 py-4 italic">Denda keterlambatan saat ini dinonaktifkan.</p>
             )}
           </div>
         </div>
@@ -626,7 +626,7 @@ export default function Settings() {
             <button
               type="submit"
               disabled={isSaving}
-              className="pv-btn-primary px-6 py-3 text-sm font-bold shadow-lg shadow-gold-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="pv-btn-primary px-6 py-3 text-sm font-bold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <AiOutlineSave size={18} /> {isSaving ? 'Menyimpan...' : 'Simpan Perubahan Pengaturan'}
             </button>
@@ -645,9 +645,9 @@ export default function Settings() {
 
       {/* Generasi Tagihan Bulanan (Staff Only - Bendahara & Admin) */}
       {isBendaharaOrAbove(role) && canWrite && (
-        <div className="pv-card p-6 mt-8 border-t-4 border-t-forest-800">
-          <h3 className="text-base font-bold text-forest-900 mb-1">Generasi Tagihan IPL Massal</h3>
-          <p className="text-xs text-forest-500 mb-5">
+        <div className="pv-card p-6 mt-8 border border-slate-200 border-t-4 border-t-forest-800 bg-white shadow-xs">
+          <h3 className="text-base font-extrabold text-slate-900 tracking-tight mb-1">Generasi Tagihan IPL Massal</h3>
+          <p className="text-xs text-slate-500 mb-5">
             Jalankan pembuatan tagihan IPL massal secara otomatis untuk seluruh unit rumah pada periode tertentu.
           </p>
 
@@ -667,7 +667,7 @@ function PaymentSmokeTestPanel({ session, value, onChange, onRefresh }) {
   const statusStyles = {
     pass: 'bg-emerald-50 border-emerald-200 text-emerald-700',
     fail: 'bg-red-50 border-red-200 text-red-700',
-    never: 'bg-forest-50 border-forest-200 text-forest-500',
+    never: 'bg-slate-50 border-slate-200 text-slate-500',
   };
 
   const updateField = (field, nextValue) => {
@@ -726,65 +726,65 @@ function PaymentSmokeTestPanel({ session, value, onChange, onRefresh }) {
     : 'Belum pernah dijalankan';
 
   return (
-    <section className="pv-card p-5 border-t-4 border-t-gold-500" aria-labelledby="payment-smoke-test-title">
+    <section className="pv-card p-5 border border-slate-200 border-t-4 border-t-gold-500 bg-white shadow-xs" aria-labelledby="payment-smoke-test-title">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
             <AiOutlineClockCircle className="text-gold-600" size={20} />
-            <h3 id="payment-smoke-test-title" className="text-base font-bold text-forest-900">
+            <h3 id="payment-smoke-test-title" className="text-base font-extrabold text-slate-900 tracking-tight">
               Smoke Test Pembayaran Transfer
             </h3>
           </div>
-          <p className="mt-1 text-xs text-forest-500">
+          <p className="mt-1 text-xs text-slate-500">
             Memeriksa Supabase serta proses upload, permission, dan cleanup bukti bayar di Google Drive.
           </p>
         </div>
-        <div className={`inline-flex min-h-9 items-center gap-2 self-start rounded border px-3 py-2 text-xs font-semibold ${statusStyles[lastRun.status] || statusStyles.never}`}>
+        <div className={`inline-flex min-h-9 items-center gap-2 self-start rounded-lg border px-3 py-1.5 text-xs font-bold ${statusStyles[lastRun.status] || statusStyles.never}`}>
           {lastRun.status === 'pass' ? <AiOutlineCheckCircle size={16} /> : lastRun.status === 'fail' ? <AiOutlineCloseCircle size={16} /> : <AiOutlineClockCircle size={16} />}
           {lastRun.status === 'pass' ? 'Terakhir PASS' : lastRun.status === 'fail' ? 'Terakhir FAIL' : 'Belum Dijalankan'}
         </div>
       </div>
 
       <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-        <label className="flex min-h-16 items-center justify-between gap-4 rounded border border-forest-200 bg-forest-50/50 px-4 py-3">
+        <label className="flex min-h-16 items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50/70 px-4 py-3 cursor-pointer hover:bg-slate-100/60 transition-colors">
           <span>
-            <span className="block text-sm font-semibold text-forest-800">Jalankan Otomatis</span>
-            <span className="block text-[11px] text-forest-500">Workflow tetap berjalan saat portal ditutup.</span>
+            <span className="block text-sm font-semibold text-slate-900">Jalankan Otomatis</span>
+            <span className="block text-[11px] text-slate-500">Workflow tetap berjalan saat portal ditutup.</span>
           </span>
           <input
             type="checkbox"
             checked={value.enabled}
             onChange={(event) => updateField('enabled', event.target.checked)}
-            className="h-5 w-5 accent-gold-500"
+            className="h-5 w-5 accent-gold-500 cursor-pointer"
           />
         </label>
 
         <div>
-          <label className="mb-1 block text-xs font-semibold text-forest-700" htmlFor="smoke-test-email">
+          <label className="mb-1 block text-xs font-bold text-slate-700 uppercase tracking-wider" htmlFor="smoke-test-email">
             Email Saat Gagal
           </label>
           <div className="relative">
-            <AiOutlineMail className="absolute left-3 top-1/2 -translate-y-1/2 text-forest-400" />
+            <AiOutlineMail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               id="smoke-test-email"
               type="email"
               value={value.notification_email}
               onChange={(event) => updateField('notification_email', event.target.value)}
-              className="w-full rounded border border-forest-200 bg-white py-2.5 pl-9 pr-3 text-sm text-forest-900 outline-none focus:border-gold-500"
+              className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-900 outline-none focus:border-gold-500 font-medium"
               placeholder="nama@gmail.com"
             />
           </div>
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-semibold text-forest-700" htmlFor="smoke-test-frequency">
+          <label className="mb-1 block text-xs font-bold text-slate-700 uppercase tracking-wider" htmlFor="smoke-test-frequency">
             Frekuensi
           </label>
           <select
             id="smoke-test-frequency"
             value={value.frequency}
             onChange={(event) => updateField('frequency', event.target.value)}
-            className="w-full rounded border border-forest-200 bg-white px-3 py-2.5 text-sm text-forest-800 outline-none focus:border-gold-500"
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 outline-none focus:border-gold-500"
           >
             <option value="every_6_hours">Setiap 6 jam</option>
             <option value="daily">Setiap hari</option>
@@ -793,7 +793,7 @@ function PaymentSmokeTestPanel({ session, value, onChange, onRefresh }) {
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-semibold text-forest-700" htmlFor="smoke-test-hour">
+          <label className="mb-1 block text-xs font-bold text-slate-700 uppercase tracking-wider" htmlFor="smoke-test-hour">
             Jam Eksekusi ({value.timezone})
           </label>
           <select
@@ -801,7 +801,7 @@ function PaymentSmokeTestPanel({ session, value, onChange, onRefresh }) {
             value={value.run_hour}
             onChange={(event) => updateField('run_hour', Number(event.target.value))}
             disabled={value.frequency === 'every_6_hours'}
-            className="w-full rounded border border-forest-200 bg-white px-3 py-2.5 text-sm text-forest-800 outline-none focus:border-gold-500 disabled:bg-forest-50 disabled:text-forest-400"
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 outline-none focus:border-gold-500 disabled:bg-slate-50 disabled:text-slate-400"
           >
             {Array.from({ length: 24 }, (_, hour) => (
               <option key={hour} value={hour}>{String(hour).padStart(2, '0')}:00</option>
@@ -810,20 +810,20 @@ function PaymentSmokeTestPanel({ session, value, onChange, onRefresh }) {
         </div>
       </div>
 
-      <label className="mt-4 flex items-center gap-2 text-xs text-forest-600">
+      <label className="mt-4 flex items-center gap-2 text-xs text-slate-600 font-medium cursor-pointer">
         <input
           type="checkbox"
           checked={value.notify_recovery}
           onChange={(event) => updateField('notify_recovery', event.target.checked)}
-          className="h-4 w-4 accent-gold-500"
+          className="h-4 w-4 accent-gold-500 cursor-pointer"
         />
         Kirim email pemulihan ketika hasil kembali PASS setelah sebelumnya gagal.
       </label>
 
-      <div className="mt-5 border-t border-forest-100 pt-4">
+      <div className="mt-5 border-t border-slate-200 pt-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-xs text-forest-500">
-            <span className="font-semibold text-forest-700">Eksekusi terakhir:</span> {finishedAt}
+          <div className="text-xs text-slate-500">
+            <span className="font-bold text-slate-700">Eksekusi terakhir:</span> {finishedAt}
             {lastRun.duration_ms != null && <span> ({lastRun.duration_ms} ms)</span>}
           </div>
           <div className="flex flex-wrap gap-2">
@@ -831,7 +831,7 @@ function PaymentSmokeTestPanel({ session, value, onChange, onRefresh }) {
               type="button"
               onClick={handleRunNow}
               disabled={isRunning || isSaving}
-              className="inline-flex min-h-10 items-center gap-2 rounded border border-forest-300 bg-white px-4 py-2 text-xs font-semibold text-forest-700 transition-colors hover:bg-forest-50 disabled:opacity-50"
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50 shadow-2xs"
             >
               <AiOutlinePlayCircle size={17} />
               {isRunning ? 'Menjalankan...' : 'Jalankan Sekarang'}
@@ -840,7 +840,7 @@ function PaymentSmokeTestPanel({ session, value, onChange, onRefresh }) {
               type="button"
               onClick={handleSave}
               disabled={isRunning || isSaving}
-              className="pv-btn-primary min-h-10 px-4 py-2 text-xs disabled:opacity-50"
+              className="pv-btn-primary min-h-10 px-4 py-2 text-xs font-bold disabled:opacity-50 shadow-xs"
             >
               <AiOutlineSave size={16} />
               {isSaving ? 'Menyimpan...' : 'Simpan Jadwal'}
@@ -851,15 +851,15 @@ function PaymentSmokeTestPanel({ session, value, onChange, onRefresh }) {
         {Array.isArray(lastRun.checks) && lastRun.checks.length > 0 && (
           <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {lastRun.checks.map((check) => (
-              <div key={check.key} className="flex min-h-14 items-start gap-2 rounded border border-forest-100 bg-forest-50/50 p-3">
+              <div key={check.key} className="flex min-h-14 items-start gap-2.5 rounded-lg border border-slate-200 bg-slate-50/70 p-3">
                 {check.status === 'pass' ? (
                   <AiOutlineCheckCircle className="mt-0.5 shrink-0 text-emerald-600" size={16} />
                 ) : (
                   <AiOutlineCloseCircle className="mt-0.5 shrink-0 text-red-600" size={16} />
                 )}
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-forest-800">{check.label}</p>
-                  <p className="mt-0.5 break-words text-[11px] text-forest-500">{check.message}</p>
+                  <p className="text-xs font-bold text-slate-900">{check.label}</p>
+                  <p className="mt-0.5 break-words text-[11px] text-slate-500">{check.message}</p>
                 </div>
               </div>
             ))}
@@ -907,7 +907,7 @@ function BillingGenerator({ session }) {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row items-end gap-3 max-w-md">
         <div className="flex-1">
-          <label className="block text-xs font-semibold text-forest-700 mb-1">Pilih Periode Tagihan</label>
+          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Pilih Periode Tagihan</label>
           <input
             type="month"
             value={period}
@@ -915,61 +915,61 @@ function BillingGenerator({ session }) {
               setPeriod(e.target.value);
               setResult(null);
             }}
-            className="w-full rounded-lg border border-forest-200 bg-white px-3 py-2 text-sm text-forest-900 focus:border-gold-500 outline-none"
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 focus:border-gold-500 outline-none"
           />
         </div>
         <button
           type="button"
           disabled={loading || !period}
           onClick={() => handleRun(true)}
-          className="px-4 py-2 bg-forest-50 hover:bg-forest-100 border border-forest-200 text-forest-700 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+          className="px-4 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 text-xs font-bold rounded-lg transition-colors disabled:opacity-50 shadow-2xs"
         >
           Cek Preview (Dry Run)
         </button>
       </div>
 
       {loading && (
-        <div className="text-xs text-forest-500 py-2 flex items-center gap-2">
-          <div className="h-4 w-4 border-2 border-forest-200 border-t-gold-500 rounded-full animate-spin" />
+        <div className="text-xs text-slate-500 py-2 flex items-center gap-2">
+          <div className="h-4 w-4 border-2 border-slate-200 border-t-gold-500 rounded-full animate-spin" />
           <span>Sedang memproses...</span>
         </div>
       )}
 
       {result && (
-        <div className="bg-forest-50/50 rounded-lg border border-forest-100 p-4 space-y-3">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-            <div className="bg-white p-2 rounded border border-forest-100">
-              <span className="block text-[10px] uppercase text-forest-400 font-bold">Periode</span>
-              <span className="text-sm font-bold text-forest-800">{result.period}</span>
+        <div className="bg-slate-50/70 rounded-xl border border-slate-200 p-4 space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+              <span className="block text-[10px] uppercase text-slate-400 font-bold">Periode</span>
+              <span className="text-sm font-bold text-slate-900">{result.period}</span>
             </div>
-            <div className="bg-white p-2 rounded border border-forest-100">
-              <span className="block text-[10px] uppercase text-forest-400 font-bold">Siap Dibuat</span>
-              <span className="text-sm font-bold text-emerald-600">{result.total_preview ?? result.generated_count} unit</span>
+            <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+              <span className="block text-[10px] uppercase text-slate-400 font-bold">Siap Dibuat</span>
+              <span className="text-sm font-extrabold text-emerald-700">{result.total_preview ?? result.generated_count} unit</span>
             </div>
-            <div className="bg-white p-2 rounded border border-forest-100">
-              <span className="block text-[10px] uppercase text-forest-400 font-bold">Dilewati</span>
-              <span className="text-sm font-bold text-amber-600">{result.skipped_count} unit</span>
+            <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+              <span className="block text-[10px] uppercase text-slate-400 font-bold">Dilewati</span>
+              <span className="text-sm font-extrabold text-amber-700">{result.skipped_count} unit</span>
             </div>
-            <div className="bg-white p-2 rounded border border-forest-100">
-              <span className="block text-[10px] uppercase text-forest-400 font-bold">Total Nominal</span>
-              <span className="text-sm font-bold text-forest-800">
+            <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+              <span className="block text-[10px] uppercase text-slate-400 font-bold">Total Nominal</span>
+              <span className="text-sm font-extrabold text-slate-900">
                 {formatRupiah((result.preview || []).reduce((sum, b) => sum + b.amount, 0))}
               </span>
             </div>
           </div>
 
           {result.skipped_count > 0 && (
-            <div className="text-[11px] text-amber-600 bg-amber-50 rounded p-2 border border-amber-100">
+            <div className="text-[11px] text-amber-800 bg-amber-50 rounded-lg p-2.5 border border-amber-200 font-medium">
               💡 {result.skipped_count} unit tidak digenerate karena sudah memiliki tagihan untuk periode ini.
             </div>
           )}
 
-          <div className="max-h-48 overflow-y-auto border border-forest-100 rounded bg-white text-xs divide-y divide-forest-50">
+          <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg bg-white text-xs divide-y divide-slate-100">
             {(result.preview || []).map((b, idx) => (
-              <div key={idx} className="p-2 flex justify-between items-center hover:bg-forest-50/30">
-                <span className="font-semibold text-forest-800">{b.unit_info || `Unit ID: ${b.unit_id}`}</span>
-                <span className="text-forest-500">{b.resident_name || 'Kosong'}</span>
-                <span className="font-bold text-emerald-600">{formatRupiah(b.amount)}</span>
+              <div key={idx} className="p-2.5 flex justify-between items-center hover:bg-slate-50/60">
+                <span className="font-bold text-slate-900">{b.unit_info || `Unit ID: ${b.unit_id}`}</span>
+                <span className="text-slate-500 font-medium">{b.resident_name || 'Kosong'}</span>
+                <span className="font-extrabold text-emerald-700">{formatRupiah(b.amount)}</span>
               </div>
             ))}
           </div>
@@ -979,7 +979,7 @@ function BillingGenerator({ session }) {
               type="button"
               disabled={loading || (result.total_preview ?? 0) === 0}
               onClick={() => handleRun(false)}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-lg shadow transition-colors disabled:opacity-50"
+              className="pv-btn-primary px-5 py-2.5 text-xs font-bold shadow-xs disabled:opacity-50"
             >
               🚀 Konfirmasi & Buat Tagihan Sekarang
             </button>
