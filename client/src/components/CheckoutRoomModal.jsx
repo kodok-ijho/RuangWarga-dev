@@ -106,9 +106,9 @@ export default function CheckoutRoomModal({
             Memuat daftar kamar...
           </div>
         ) : occupiedUnits.length === 0 ? (
-          <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-center space-y-2">
+          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-center space-y-2">
             <p className="font-semibold text-sm">Tidak Ada Kamar Terisi</p>
-            <p className="text-[11px] text-amber-300/80">
+            <p className="text-[11px] text-amber-700">
               Seluruh kamar saat ini berstatus Kosong (Vacant) atau belum memiliki penyewa aktif.
             </p>
           </div>
@@ -116,8 +116,8 @@ export default function CheckoutRoomModal({
           <>
             {/* Pilihan Kamar Terisi */}
             <div>
-              <label className="block font-semibold text-forest-200 mb-1">
-                Pilih Kamar yang Ingin Dicheckout <span className="text-red-400">*</span>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Pilih Kamar yang Ingin Dicheckout <span className="text-red-500">*</span>
               </label>
               <select
                 value={selectedUnitId}
@@ -135,24 +135,24 @@ export default function CheckoutRoomModal({
 
             {/* Info Kontrak Kamar Terpilih */}
             {selectedUnit && (
-              <div className="p-3 bg-forest-950/80 border border-forest-800 rounded-xl space-y-1.5 text-[11px]">
-                <div className="flex justify-between text-forest-300">
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-1.5 text-[11px]">
+                <div className="flex justify-between text-slate-600">
                   <span>Nama Kamar:</span>
-                  <strong className="text-gold-300">{selectedUnit.label}</strong>
+                  <strong className="text-forest-900 font-bold">{selectedUnit.label}</strong>
                 </div>
                 {selectedUnit.metadata?.contract_start && (
-                  <div className="flex justify-between text-forest-300">
+                  <div className="flex justify-between text-slate-600">
                     <span>Masa Kontrak:</span>
-                    <span className="text-forest-100 font-medium">
+                    <span className="text-slate-900 font-medium">
                       {formatDate(selectedUnit.metadata.contract_start)} s/d{' '}
                       {formatDate(selectedUnit.metadata.contract_end)}
                     </span>
                   </div>
                 )}
                 {selectedUnit.metadata?.rent_price && (
-                  <div className="flex justify-between text-forest-300">
+                  <div className="flex justify-between text-slate-600">
                     <span>Tarif Sewa:</span>
-                    <span className="text-emerald-400 font-medium">
+                    <span className="text-emerald-700 font-semibold">
                       Rp {Number(selectedUnit.metadata.rent_price).toLocaleString('id-ID')} / bulan
                     </span>
                   </div>
@@ -162,8 +162,8 @@ export default function CheckoutRoomModal({
 
             {/* Tanggal Checkout */}
             <div>
-              <label className="block font-semibold text-forest-200 mb-1">
-                Tanggal Checkout <span className="text-red-400">*</span>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Tanggal Checkout <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
@@ -176,7 +176,7 @@ export default function CheckoutRoomModal({
 
             {/* Alasan Checkout */}
             <div>
-              <label className="block font-semibold text-forest-200 mb-1">
+              <label className="block font-semibold text-slate-700 mb-1">
                 Alasan Checkout / Catatan (Opsional)
               </label>
               <textarea
@@ -195,20 +195,20 @@ export default function CheckoutRoomModal({
                 id="cancelFutureBills"
                 checked={cancelFutureBills}
                 onChange={(e) => setCancelFutureBills(e.target.checked)}
-                className="mt-0.5 rounded border-forest-700 text-gold-500 focus:ring-gold-400"
+                className="mt-0.5 rounded border-slate-300 text-forest-800 focus:ring-forest-700"
               />
-              <label htmlFor="cancelFutureBills" className="text-[11px] text-forest-300 cursor-pointer">
+              <label htmlFor="cancelFutureBills" className="text-[11px] text-slate-600 cursor-pointer">
                 Batalkan otomatis tagihan sewa belum bayar untuk periode setelah tanggal checkout.
               </label>
             </div>
 
             {/* Peringatan Dampak Checkout */}
-            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-[11px] leading-relaxed">
+            <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800 text-[11px] leading-relaxed">
               ⚠️ <strong>Dampak Checkout:</strong> Status kamar akan langsung kembali menjadi <strong>Kosong (Vacant)</strong>. Otomatisasi generate tagihan sewa bulanan untuk kamar ini akan dihentikan sampai ada kontrak baru.
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-forest-800">
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
               <button
                 type="button"
                 onClick={onClose}
@@ -220,7 +220,7 @@ export default function CheckoutRoomModal({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="pv-btn bg-amber-600 hover:bg-amber-500 text-forest-950 font-bold px-4 py-2 rounded-lg text-xs flex items-center gap-1.5 shadow-md disabled:opacity-50"
+                className="pv-btn bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-xs disabled:opacity-50 transition-colors"
               >
                 <span>🚪</span>
                 <span>{isSubmitting ? 'Memproses...' : 'Konfirmasi Checkout'}</span>
