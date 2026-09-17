@@ -300,23 +300,25 @@ export default function Residents() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-forest-900">Daftar {template.memberLabel}</h2>
-          <p className="text-sm text-forest-500">{filtered.length} dari {profiles.length} {template.memberLabel.toLowerCase()}</p>
+          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Daftar {template.memberLabel}</h2>
+          <p className="text-xs text-slate-500 mt-0.5">{filtered.length} dari {profiles.length} {template.memberLabel.toLowerCase()}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {canManage && (
             <>
-              <button onClick={() => setModalUpload(true)} className="pv-btn-ghost text-xs">
+              <button onClick={() => setModalUpload(true)} className="pv-btn-ghost text-xs shadow-xs">
                 <AiOutlineUpload /> Upload CSV
               </button>
-              <button onClick={() => setModalAddEdit('add')} className="pv-btn-primary text-xs">
+              <button onClick={() => setModalAddEdit('add')} className="pv-btn-primary text-xs shadow-xs">
                 <AiOutlinePlus /> Tambah {template.memberLabel}
               </button>
             </>
           )}
-          {canManage && <button onClick={handleExportCSV} className="pv-btn-ghost text-xs">
-            <AiOutlineDownload /> Export
-          </button>}
+          {canManage && (
+            <button onClick={handleExportCSV} className="pv-btn-ghost text-xs shadow-xs">
+              <AiOutlineDownload /> Export
+            </button>
+          )}
         </div>
       </div>
 
@@ -324,7 +326,7 @@ export default function Residents() {
       <div data-tour="residents-filters" className="pv-card p-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-forest-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
             </svg>
             <input
@@ -332,13 +334,13 @@ export default function Residents() {
               placeholder="Cari nama, email, telepon..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-forest-200 bg-white pl-9 pr-3 py-2.5 text-sm text-forest-900 placeholder:text-forest-400 focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 outline-none"
+              className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-gold-500 focus:ring-2 focus:ring-gold-400/20 outline-none transition"
             />
           </div>
           <select
             value={filterBlock}
             onChange={(e) => setFilterBlock(e.target.value)}
-            className="rounded-lg border border-forest-200 bg-white px-3 py-2.5 text-sm text-forest-700 focus:border-gold-500 outline-none"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-gold-500 focus:ring-2 focus:ring-gold-400/20 outline-none transition font-medium"
           >
             <option value="">Semua Blok</option>
             {blocks.map((b) => <option key={b} value={b}>Blok {b}</option>)}
@@ -346,7 +348,7 @@ export default function Residents() {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="rounded-lg border border-forest-200 bg-white px-3 py-2.5 text-sm text-forest-700 focus:border-gold-500 outline-none"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-gold-500 focus:ring-2 focus:ring-gold-400/20 outline-none transition font-medium"
           >
             <option value="">Semua Status</option>
             <option value="active">Aktif</option>
@@ -355,7 +357,7 @@ export default function Residents() {
           <select
             value={filterOccupancy}
             onChange={(e) => setFilterOccupancy(e.target.value)}
-            className="rounded-lg border border-forest-200 bg-white px-3 py-2.5 text-sm text-forest-700 focus:border-gold-500 outline-none"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-gold-500 focus:ring-2 focus:ring-gold-400/20 outline-none transition font-medium"
           >
             <option value="">Semua Status Tinggal</option>
             {Object.entries(OCCUPANCY_STATUS).map(([key, label]) => (
@@ -370,21 +372,21 @@ export default function Residents() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-forest-100 bg-forest-800 text-left">
-                <th className="px-4 py-3 text-xs font-semibold text-gold-400 uppercase tracking-wide">Nama</th>
-                <th className="px-4 py-3 text-xs font-semibold text-gold-400 uppercase tracking-wide">{template.unitLabel}</th>
-                <th className="px-4 py-3 text-xs font-semibold text-gold-400 uppercase tracking-wide hidden sm:table-cell">Telepon</th>
-                <th className="px-4 py-3 text-xs font-semibold text-gold-400 uppercase tracking-wide">Status</th>
-                <th className="px-4 py-3 text-xs font-semibold text-gold-400 uppercase tracking-wide hidden lg:table-cell">{template.contractLabel || 'Status Tinggal'}</th>
-                <th className="px-4 py-3 text-xs font-semibold text-gold-400 uppercase tracking-wide hidden lg:table-cell">Pemilik</th>
-                <th className="px-4 py-3 text-xs font-semibold text-gold-400 uppercase tracking-wide hidden md:table-cell">Role</th>
+              <tr className="border-b border-slate-200 bg-slate-100/90 text-left">
+                <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider">Nama</th>
+                <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider">{template.unitLabel}</th>
+                <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider hidden sm:table-cell">Telepon</th>
+                <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider">Status</th>
+                <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider hidden lg:table-cell">{template.contractLabel || 'Status Tinggal'}</th>
+                <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider hidden lg:table-cell">Pemilik</th>
+                <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider hidden md:table-cell">Role</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-forest-100">
+            <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-10 text-center">
-                    <div className="flex justify-center items-center gap-2 text-forest-500 text-sm">
+                    <div className="flex justify-center items-center gap-2 text-slate-500 text-sm">
                       <svg className="animate-spin h-5 w-5 text-gold-500" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -395,7 +397,7 @@ export default function Residents() {
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-forest-400">
+                  <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
                     Tidak ada {template.memberLabel.toLowerCase()} yang cocok.
                   </td>
                 </tr>
@@ -406,32 +408,32 @@ export default function Residents() {
                     <tr
                        key={p.id}
                        onClick={() => setSelectedId(p.id)}
-                       className="hover:bg-forest-50 cursor-pointer transition-colors"
+                       className="hover:bg-slate-50/80 cursor-pointer transition-colors"
                      >
                        <td className="px-4 py-3">
                          <div className="flex items-center gap-2.5">
-                           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-forest-100 text-forest-700 font-semibold text-xs">
+                           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs">
                              {p.full_name.charAt(0)}
                            </span>
                            <div className="min-w-0">
-                             <p className="font-medium text-forest-900 truncate">{p.full_name}</p>
+                             <p className="font-semibold text-slate-900 truncate">{p.full_name}</p>
                              {p.email && p.email.includes('@warga.palmvillage.local') ? (
                               <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600">
                                 <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
                                 Akun Sementara (Belum Login)
                               </span>
                             ) : (
-                              <p className="text-[11px] text-forest-400 truncate">{p.email}</p>
+                              <p className="text-[11px] text-slate-400 truncate">{p.email}</p>
                             )}
                            </div>
                          </div>
                        </td>
-                       <td className="px-4 py-3 text-forest-700 font-medium">
+                       <td className="px-4 py-3 text-slate-800 font-medium">
                          {unit ? (unit.label || `${unit.block}/${unit.unit_number}`) : '—'}
                        </td>
-                       <td className="px-4 py-3 text-forest-500 hidden sm:table-cell">{p.phone || '—'}</td>
+                       <td className="px-4 py-3 text-slate-500 hidden sm:table-cell">{p.phone || '—'}</td>
                        <td className="px-4 py-3">
-                         <span className={`pv-badge ${p.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-500 border border-gray-200'}`}>
+                         <span className={`pv-badge ${p.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
                            {p.is_active ? 'Aktif' : 'Non-aktif'}
                          </span>
                        </td>
@@ -441,10 +443,10 @@ export default function Residents() {
                              {occupancyStatusLabel(p.occupancy_status, activeTenant?.type)}
                            </span>
                          ) : (
-                           <span className="text-forest-400 text-xs">—</span>
+                           <span className="text-slate-400 text-xs">—</span>
                          )}
                        </td>
-                       <td className="px-4 py-3 hidden lg:table-cell text-forest-700 text-xs">
+                       <td className="px-4 py-3 hidden lg:table-cell text-slate-700 text-xs font-medium">
                          {(() => {
                            if (!unit) return '—';
                            if (p.occupancy_status === 'tenant') {
@@ -452,7 +454,7 @@ export default function Residents() {
                              return owner ? owner.full_name : '—';
                            }
                            if (p.occupancy_status && p.occupancy_status.startsWith('owner_')) {
-                             return <span className="text-emerald-600 font-medium">Diri sendiri</span>;
+                             return <span className="text-emerald-700 font-semibold">Diri sendiri</span>;
                            }
                            return '—';
                            })()}
@@ -522,17 +524,17 @@ export default function Residents() {
     <Modal open onClose={onClose} title={`Detail ${template?.memberLabel || 'Penghuni'}`}>
       {/* Avatar */}
       <div className="flex items-center gap-4 mb-6">
-        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-forest-800 text-gold-400 font-bold text-xl">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-forest-800 border border-slate-200 font-extrabold text-xl shadow-xs">
           {profile.full_name.charAt(0)}
         </span>
         <div>
-          <h3 className="font-bold text-forest-900">{profile.full_name}</h3>
+          <h3 className="font-bold text-slate-900 text-base">{profile.full_name}</h3>
           {profile.email && profile.email.includes('@warga.palmvillage.local') ? (
-            <p className="text-xs font-medium text-amber-600">Akun Sementara (Belum Login Google)</p>
+            <p className="text-xs font-medium text-amber-600 mt-0.5">Akun Sementara (Belum Login Google)</p>
           ) : (
-            <p className="text-xs text-forest-500">{profile.email}</p>
+            <p className="text-xs text-slate-500 mt-0.5">{profile.email}</p>
           )}
-          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
             <span className={`pv-badge ${roleColor(profile.role)}`}>{roleLabel(profile.role, activeTenant?.type)}</span>
             {profile.occupancy_status && (
               <span className={`pv-badge ${occupancyStatusColor(profile.occupancy_status)}`}>
@@ -557,7 +559,7 @@ export default function Residents() {
         )}
       </div>
       {canManage && (
-        <div className="mt-6 pt-4 border-t border-forest-100 flex gap-2">
+        <div className="mt-6 pt-4 border-t border-slate-200 flex gap-2">
           <button onClick={onEdit} className="pv-btn-ghost flex-1 text-xs">
             <AiOutlineEdit /> Edit
           </button>
@@ -609,116 +611,120 @@ function ProfileFormModal({ profile, onSave, onClose, isSaving, units, currentUs
   return (
     <Modal open onClose={onClose} title={`${isEdit ? 'Edit' : 'Tambah'} ${template?.memberLabel || 'Warga'}`}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <fieldset disabled={isSaving} className="space-y-4 border-none p-0 m-0">
-          <Field label="Nama Lengkap" required>
-            <input
-              type="text"
-              value={form.full_name}
-              onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-              required
-              className="pv-input"
-              placeholder="Nama lengkap"
-            />
-          </Field>
-          <Field label="Email (Opsional)">
-            <input
-              type="email"
-              value={form.email.includes('@warga.palmvillage.local') ? '' : form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="pv-input"
-              placeholder="email@gmail.com (Boleh dikosongkan)"
-            />
-            <p className="mt-1 text-[11px] text-forest-400">
-              Boleh dikosongkan jika {template?.memberLabel?.toLowerCase() || 'warga'} belum mendaftar. Sistem otomatis membuat akun sementara yang terhubung saat login Google nanti.
-            </p>
-          </Field>
-          <Field label="Telepon">
-            <input
-              type="text"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              className="pv-input"
-              placeholder="08xx-xxxx-xxxx"
-            />
-          </Field>
-          <Field label={template?.unitLabel || 'Unit'}>
-            <select
-              value={form.unit_id}
-              onChange={(e) => setForm({ ...form, unit_id: e.target.value })}
-              className="pv-input"
-            >
-              <option value="">— Tidak ada {template?.unitLabel?.toLowerCase() || 'unit'} —</option>
-              {units.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.label || `Blok ${u.block} / ${u.unit_number}`}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label={template?.contractLabel || 'Status Tinggal'}>
-            <select
-              value={form.occupancy_status}
-              onChange={(e) => setForm({ ...form, occupancy_status: e.target.value })}
-              className="pv-input"
-            >
-              <option value="">— Tidak ada —</option>
-              {Object.entries(OCCUPANCY_STATUS).map(([key, label]) => (
-                <option key={key} value={key}>{occupancyStatusLabel(key, activeTenant?.type)}</option>
-              ))}
-            </select>
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Role">
-              <select
-                value={form.role}
-                onChange={(e) => setForm({ ...form, role: e.target.value })}
-                className="pv-input"
-              >
-                {(() => {
-                  const allowedRoles = currentUserRole === 'admin'
-                    ? ['warga', 'pengurus', 'bendahara', 'admin']
-                    : currentUserRole === 'bendahara'
-                    ? ['warga', 'bendahara']
-                    : ['warga', 'pengurus'];
-                  return allowedRoles.map((r) => (
-                    <option key={r} value={r}>{roleLabel(r, activeTenant?.type)}</option>
-                  ));
-                })()}
-              </select>
-            </Field>
-            <Field label="Status">
-              <select
-                value={form.is_active ? 'active' : 'inactive'}
-                onChange={(e) => setForm({ ...form, is_active: e.target.value === 'active' })}
-                className="pv-input"
-              >
-                <option value="active">Aktif</option>
-                <option value="inactive">Non-aktif</option>
-              </select>
-            </Field>
-          </div>
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={onClose} disabled={isSaving} className="pv-btn-ghost flex-1 text-sm">Batal</button>
-            <button type="submit" disabled={isSaving} className="pv-btn-primary flex-1 text-sm flex items-center justify-center gap-2">
-              {isSaving && (
-                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-              )}
-              {isSaving ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Tambah'}
-            </button>
-          </div>
-        </fieldset>
+        <Field label="Nama Lengkap" required>
+          <input
+            type="text"
+            value={form.full_name}
+            onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+            placeholder="Contoh: Budi Santoso"
+            className="pv-input"
+            required
+          />
+        </Field>
+
+        <Field label="Email Google (Login)">
+          <input
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            placeholder="budi@gmail.com (opsional)"
+            className="pv-input"
+          />
+          <p className="mt-1 text-[11px] text-slate-500">
+            {isEdit
+              ? 'Warga dapat login mandiri jika email cocok dengan akun Google-nya.'
+              : 'Kosongkan jika warga belum memiliki akun Google. Sistem akan membuat akun sementara.'}
+          </p>
+        </Field>
+
+        <Field label="Nomor Telepon / WhatsApp">
+          <input
+            type="tel"
+            value={form.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            placeholder="08123456789"
+            className="pv-input"
+          />
+        </Field>
+
+        <Field label={template?.unitLabel || 'Unit'}>
+          <select
+            value={form.unit_id}
+            onChange={(e) => setForm({ ...form, unit_id: e.target.value })}
+            className="pv-input font-medium"
+          >
+            <option value="">Belum Memiliki {template?.unitLabel || 'Unit'}</option>
+            {units.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.label || `${u.block}/${u.unit_number}`}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        {/* Status Tinggal / Hubungan Unit */}
+        <Field label={template?.contractLabel || 'Status Tinggal'}>
+          <select
+            value={form.occupancy_status}
+            onChange={(e) => setForm({ ...form, occupancy_status: e.target.value })}
+            className="pv-input font-medium"
+          >
+            <option value="">Pilih Status Tinggal</option>
+            {Object.entries(OCCUPANCY_STATUS).map(([k, v]) => (
+              <option key={k} value={k}>{v}</option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="Role Akses">
+          <select
+            value={form.role}
+            onChange={(e) => setForm({ ...form, role: e.target.value })}
+            className="pv-input font-medium"
+          >
+            {currentUserRole === 'admin' && (
+              <>
+                <option value="admin">Admin ({roleLabel('admin', activeTenant?.type)})</option>
+                <option value="bendahara">Bendahara</option>
+                <option value="pengurus">Pengurus ({roleLabel('pengurus', activeTenant?.type)})</option>
+              </>
+            )}
+            {currentUserRole === 'bendahara' && (
+              <>
+                <option value="bendahara">Bendahara</option>
+                <option value="pengurus">Pengurus ({roleLabel('pengurus', activeTenant?.type)})</option>
+              </>
+            )}
+            <option value={isKos || isKelas ? 'anggota' : 'warga'}>{template?.memberLabel || 'Warga'}</option>
+          </select>
+        </Field>
+
+        <div className="flex items-center gap-2 pt-1">
+          <input
+            type="checkbox"
+            id="is_active"
+            checked={form.is_active}
+            onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+            className="rounded border-slate-300 text-gold-500 focus:ring-gold-400 h-4 w-4"
+          />
+          <label htmlFor="is_active" className="text-sm text-slate-700 font-medium">Status Aktif</label>
+        </div>
+
+        <div className="flex gap-2 pt-2">
+          <button type="button" onClick={onClose} className="pv-btn-ghost flex-1 text-xs">Batal</button>
+          <button type="submit" disabled={isSaving} className="pv-btn-primary flex-1 text-xs">
+            {isSaving ? 'Menyimpan...' : 'Simpan'}
+          </button>
+        </div>
       </form>
     </Modal>
   );
 }
 
 function UploadCSVModal({ onImport, onClose, isSaving }) {
-  const [step, setStep] = useState(1); // 1=upload, 2=preview
-  const [parsedRows, setParsedRows] = useState([]);
+  const [step, setStep] = useState(1);
   const [mode, setMode] = useState('upsert');
+  const [parsedRows, setParsedRows] = useState([]);
   const [fileName, setFileName] = useState('');
 
   const handleFile = (file) => {
@@ -731,7 +737,6 @@ function UploadCSVModal({ onImport, onClose, isSaving }) {
         setParsedRows(results.data);
         setStep(2);
       },
-      error: () => alert('Gagal membaca CSV. Pastikan format benar.'),
     });
   };
 
@@ -753,7 +758,7 @@ function UploadCSVModal({ onImport, onClose, isSaving }) {
     <Modal open onClose={onClose} title="Upload Data Warga (CSV)" size="lg">
       {step === 1 && (
         <div className="space-y-4">
-          <p className="text-sm text-forest-600">
+          <p className="text-sm text-slate-600">
             Upload file CSV berisi data warga. Format kolom: <strong>Nama, Email, Telepon, Blok, Unit, Status, Role</strong>.
           </p>
 
@@ -762,9 +767,9 @@ function UploadCSVModal({ onImport, onClose, isSaving }) {
           </button>
 
           {/* Drop zone */}
-          <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-forest-200 rounded-xl py-10 cursor-pointer hover:border-gold-400 hover:bg-forest-50 transition-colors">
-            <AiOutlineUpload size={32} className="text-forest-400" />
-            <span className="text-sm text-forest-600">
+          <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-2xl py-10 cursor-pointer hover:border-gold-400 hover:bg-slate-50 transition-colors">
+            <AiOutlineUpload size={32} className="text-slate-400" />
+            <span className="text-sm text-slate-600 font-medium">
               {fileName ? fileName : 'Klik untuk pilih file CSV'}
             </span>
             <input
@@ -778,8 +783,8 @@ function UploadCSVModal({ onImport, onClose, isSaving }) {
 
           {/* Mode */}
           <div className="space-y-2">
-            <p className="text-sm font-medium text-forest-700">Mode Import</p>
-            <label className="flex items-start gap-2 p-3 rounded-lg border border-forest-200 cursor-pointer hover:bg-forest-50">
+            <p className="text-sm font-semibold text-slate-800">Mode Import</p>
+            <label className="flex items-start gap-2.5 p-3.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50 transition">
               <input
                 type="radio"
                 checked={mode === 'upsert'}
@@ -788,11 +793,11 @@ function UploadCSVModal({ onImport, onClose, isSaving }) {
                 className="mt-1 accent-gold-500"
               />
               <div>
-                <p className="text-sm font-medium text-forest-800">Upsert (Update & Insert)</p>
-                <p className="text-[11px] text-forest-500">Update warga yang sudah ada (match email), tambah yang baru. Data lama dipertahankan.</p>
+                <p className="text-sm font-semibold text-slate-800">Upsert (Update & Insert)</p>
+                <p className="text-[11px] text-slate-500">Update warga yang sudah ada (match email), tambah yang baru. Data lama dipertahankan.</p>
               </div>
             </label>
-            <label className="flex items-start gap-2 p-3 rounded-lg border border-forest-200 cursor-pointer hover:bg-forest-50">
+            <label className="flex items-start gap-2.5 p-3.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50 transition">
               <input
                 type="radio"
                 checked={mode === 'delete-insert'}
@@ -801,8 +806,8 @@ function UploadCSVModal({ onImport, onClose, isSaving }) {
                 className="mt-1 accent-gold-500"
               />
               <div>
-                <p className="text-sm font-medium text-forest-800">Delete & Insert</p>
-                <p className="text-[11px] text-forest-500">Hapus SEMUA warga, ganti dengan data CSV. Admin & Koordinator Palm Village dipertahankan.</p>
+                <p className="text-sm font-semibold text-slate-800">Delete & Insert</p>
+                <p className="text-[11px] text-slate-500">Hapus SEMUA warga, ganti dengan data CSV. Admin & Koordinator Palm Village dipertahankan.</p>
               </div>
             </label>
           </div>
@@ -812,36 +817,36 @@ function UploadCSVModal({ onImport, onClose, isSaving }) {
       {step === 2 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-forest-700">
+            <p className="text-sm text-slate-700">
               <strong>{parsedRows.length}</strong> baris terbaca dari <strong>{fileName}</strong>
             </p>
-            <span className="pv-badge bg-forest-100 text-forest-700">
+            <span className="pv-badge bg-slate-100 text-slate-700 border border-slate-200">
               Mode: {mode === 'upsert' ? 'Upsert' : 'Delete & Insert'}
             </span>
           </div>
 
           {/* Preview table */}
-          <div className="border border-forest-100 rounded-lg overflow-hidden max-h-60 overflow-y-auto">
+          <div className="border border-slate-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto">
             <table className="w-full text-xs">
-              <thead className="bg-forest-50 sticky top-0">
+              <thead className="bg-slate-100/90 border-b border-slate-200 sticky top-0">
                 <tr>
                   {Object.keys(parsedRows[0] || {}).map((h) => (
-                    <th key={h} className="px-3 py-2 text-left font-semibold text-forest-700">{h}</th>
+                    <th key={h} className="px-3 py-2 text-left font-bold text-slate-700">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100">
                 {parsedRows.slice(0, 50).map((row, i) => (
-                  <tr key={i} className="border-t border-forest-50">
+                  <tr key={i} className="hover:bg-slate-50/50">
                     {Object.values(row).map((v, j) => (
-                      <td key={j} className="px-3 py-1.5 text-forest-600">{v}</td>
+                      <td key={j} className="px-3 py-1.5 text-slate-600">{v}</td>
                     ))}
                   </tr>
                 ))}
               </tbody>
             </table>
             {parsedRows.length > 50 && (
-              <p className="text-center text-[11px] text-forest-400 py-2">
+              <p className="text-center text-[11px] text-slate-400 py-2">
                 ...dan {parsedRows.length - 50} baris lainnya
               </p>
             )}
@@ -872,8 +877,8 @@ function UploadCSVModal({ onImport, onClose, isSaving }) {
 function Row({ label, value }) {
   return (
     <div className="flex justify-between items-start gap-2">
-      <span className="text-forest-500 shrink-0">{label}</span>
-      <span className="text-forest-900 font-medium text-right">{value}</span>
+      <span className="text-slate-500 shrink-0 text-xs font-medium">{label}</span>
+      <span className="text-slate-900 font-semibold text-right text-xs">{value}</span>
     </div>
   );
 }
@@ -881,7 +886,7 @@ function Row({ label, value }) {
 function Field({ label, required, children }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-forest-700 mb-1">
+      <label className="block text-xs font-semibold text-slate-700 mb-1">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       {children}

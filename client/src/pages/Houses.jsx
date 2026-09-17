@@ -271,12 +271,12 @@ export default function Houses() {
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-bold text-forest-900">
+          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
             {canWrite
               ? `Manajemen ${template.unitPluralLabel} & Skema ${template.billLabel}`
               : `Daftar ${template.unitPluralLabel} ${template.communityLabel}`}
           </h2>
-          <p className="text-sm text-forest-500">
+          <p className="text-xs text-slate-500 mt-0.5">
             {canWrite
               ? `Rawat master data ${template.unitLabel.toLowerCase()} dan kelola profil skema biaya ${template.billLabel.toLowerCase()}.`
               : `Informasi direktori ${template.unitLabel.toLowerCase()}, status terisi, dan detail unit.`}
@@ -292,11 +292,11 @@ export default function Houses() {
       {isRtRw ? (
         <section className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
           <div data-tour="houses-mapsite" className="pv-card overflow-hidden">
-            <div className="border-b border-forest-100 bg-forest-800 px-4 py-3">
+            <div className="border-b border-slate-200 bg-white px-4 py-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-semibold text-white">Mapsite Palm Village</h3>
-                  <p className="text-[11px] text-forest-200">
+                  <h3 className="text-sm font-bold text-slate-900">Mapsite Palm Village</h3>
+                  <p className="text-[11px] text-slate-500">
                     Referensi visual blok CB1, CB2, CB3, CB4.
                   </p>
                 </div>
@@ -304,15 +304,15 @@ export default function Houses() {
                   <a
                     href="/Site Plan Update 2.pdf"
                     download="Site Plan Palm Village.pdf"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-gold-400/40 bg-gold-400/20 px-3 py-2 text-xs font-semibold text-gold-300 hover:bg-gold-400/30 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs transition-colors"
                     title="Unduh file Site Plan PDF"
                   >
-                    <AiOutlineDownload className="text-sm" /> Unduh PDF
+                    <AiOutlineDownload className="text-sm text-slate-500" /> Unduh PDF
                   </a>
                   <button
                     type="button"
                     onClick={openMapPreview}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-gold-300 hover:bg-white/15 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-forest-800 hover:bg-slate-50 shadow-xs transition-colors"
                   >
                     <AiOutlineEye /> Perbesar
                   </button>
@@ -323,7 +323,7 @@ export default function Houses() {
               <img
                 src="/Mapsite%20Palm%20Village.png"
                 alt="Mapsite Palm Village"
-                className="h-auto w-full rounded-lg border border-forest-100 object-contain"
+                className="h-auto w-full rounded-xl border border-slate-200 object-contain"
               />
             </div>
           </div>
@@ -348,22 +348,22 @@ export default function Houses() {
         <Modal open={isMapPreviewOpen} onClose={closeMapPreview} title="Mapsite Palm Village" size="xl">
           <div className="space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <p className="text-sm text-forest-500">
+              <p className="text-sm text-slate-500">
                 Preview peta perumahan untuk referensi blok dan posisi rumah.
               </p>
               <a
                 href="/Site Plan Update 2.pdf"
                 download="Site Plan Palm Village.pdf"
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-forest-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-forest-900 transition-colors shrink-0"
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-forest-800 px-3 py-1.5 text-xs font-semibold text-gold-400 hover:bg-forest-900 shadow-xs transition-colors shrink-0"
               >
                 <AiOutlineDownload className="text-sm" /> Unduh PDF Asli
               </a>
             </div>
-            <div className="max-h-[75vh] overflow-auto rounded-lg border border-forest-100 bg-forest-50/30 p-1">
+            <div className="max-h-[75vh] overflow-auto rounded-xl border border-slate-200 bg-slate-50/50 p-2">
               <img
                 src="/Mapsite%20Palm%20Village.png"
                 alt="Mapsite Palm Village versi besar"
-                className="w-full h-auto object-contain rounded"
+                className="w-full h-auto object-contain rounded-lg"
               />
             </div>
           </div>
@@ -373,7 +373,7 @@ export default function Houses() {
       <section className="pv-card p-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="relative">
-            <AiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-forest-400" />
+            <AiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={search}
@@ -410,21 +410,21 @@ export default function Houses() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-forest-100 bg-forest-800 text-left">
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gold-400">{template.unitLabel}</th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gold-400">Penanggung Jawab / Pemilik</th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gold-400">{template.memberLabel} Aktif</th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gold-400">Skema {template.billLabel}</th>
-                <th className="hidden px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gold-400 md:table-cell">Detail</th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gold-400">Status</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gold-400">Aksi</th>
+              <tr className="border-b border-slate-200 bg-slate-100/90 text-left">
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700">{template.unitLabel}</th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700">Penanggung Jawab / Pemilik</th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700">{template.memberLabel} Aktif</th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700">Skema {template.billLabel}</th>
+                <th className="hidden px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700 md:table-cell">Detail</th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700">Status</th>
+                <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-slate-700">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-forest-100">
+            <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-10 text-center">
-                    <div className="flex justify-center items-center gap-2 text-forest-500 text-sm">
+                    <div className="flex justify-center items-center gap-2 text-slate-500 text-sm">
                       <svg className="animate-spin h-5 w-5 text-gold-500" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -435,7 +435,7 @@ export default function Houses() {
                 </tr>
               ) : filteredUnits.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-forest-400">
+                  <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
                     Tidak ada {template.unitLabel.toLowerCase()} yang cocok.
                   </td>
                 </tr>
@@ -445,32 +445,32 @@ export default function Houses() {
                   const occupant = getUnitOccupant(unit.id);
                   const schema = getSchemaById(iplSchemas, unit.ipl_schema_id);
                   return (
-                    <tr key={unit.id} className="hover:bg-forest-50/80">
+                    <tr key={unit.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2.5">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-forest-800 text-gold-400">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-forest-800 border border-slate-200 shadow-xs font-bold">
                             <AiOutlineHome />
                           </span>
                           <div>
-                            <p className="font-semibold text-forest-900">
+                            <p className="font-bold text-slate-900">
                               {unit.block}/{unit.unit_number}
                             </p>
-                            <p className="text-[11px] text-forest-400">ID #{unit.id}</p>
+                            <p className="text-[11px] text-slate-400">ID #{unit.id}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-forest-700">
-                        {owner?.full_name || <span className="text-forest-400">Belum ada</span>}
+                      <td className="px-4 py-3 text-slate-800 font-medium">
+                        {owner?.full_name || <span className="text-slate-400">Belum ada</span>}
                       </td>
-                      <td className="px-4 py-3 text-forest-700">
-                        {occupant?.full_name || <span className="text-forest-400">{template.emptyUnitLabel}</span>}
+                      <td className="px-4 py-3 text-slate-800 font-medium">
+                        {occupant?.full_name || <span className="text-slate-400">{template.emptyUnitLabel}</span>}
                       </td>
                       <td className="px-4 py-3">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-forest-50 border border-forest-200 text-forest-800">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 border border-slate-200 text-slate-800">
                           {schema?.name || `${template.billLabel} Standar`}
                         </span>
                       </td>
-                      <td className="hidden px-4 py-3 text-forest-500 md:table-cell">
+                      <td className="hidden px-4 py-3 text-slate-500 md:table-cell">
                         Lt. {unit.floor || '-'} / {unit.size || 0}m2
                       </td>
                       <td className="px-4 py-3">
@@ -489,7 +489,7 @@ export default function Houses() {
                           <button
                             type="button"
                             onClick={() => setSelectedUnit(unit)}
-                            className="rounded-lg p-2 text-forest-500 hover:bg-forest-100 hover:text-forest-800"
+                            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-800 transition-colors"
                             aria-label={`Lihat detail ${template.unitLabel.toLowerCase()}`}
                           >
                             <AiOutlineEye />
@@ -499,7 +499,7 @@ export default function Houses() {
                               <button
                                 type="button"
                                 onClick={() => openEdit(unit)}
-                                className="rounded-lg p-2 text-forest-500 hover:bg-gold-50 hover:text-gold-700"
+                                className="rounded-lg p-2 text-slate-400 hover:bg-amber-50 hover:text-amber-700 transition-colors"
                                 aria-label={`Edit ${template.unitLabel.toLowerCase()}`}
                                 title={`Edit ${template.unitLabel}`}
                               >
@@ -508,7 +508,7 @@ export default function Houses() {
                               <button
                                 type="button"
                                 onClick={() => handleDelete(unit)}
-                                className="rounded-lg p-2 text-red-400 hover:bg-red-50 hover:text-red-600"
+                                className="rounded-lg p-2 text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
                                 aria-label={`Hapus atau nonaktifkan ${template.unitLabel.toLowerCase()}`}
                                 title={`Nonaktifkan ${template.unitLabel}`}
                               >
@@ -568,19 +568,19 @@ export default function Houses() {
 
 function StatCard({ label, value, tone }) {
   const tones = {
-    forest: 'bg-forest-800 text-gold-400',
+    forest: 'bg-slate-100 text-forest-800 border border-slate-200',
     green: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
     amber: 'bg-amber-50 text-amber-700 border border-amber-200',
-    gold: 'bg-gold-50 text-gold-700 border border-gold-200',
+    gold: 'bg-amber-50/80 text-amber-800 border border-amber-200',
   };
 
   return (
     <div className="pv-card p-4">
-      <div className={`inline-flex h-10 w-10 items-center justify-center rounded-lg ${tones[tone]}`}>
-        <AiOutlineHome />
+      <div className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${tones[tone]} shadow-xs`}>
+        <AiOutlineHome className="text-base" />
       </div>
-      <p className="mt-3 text-2xl font-bold text-forest-900">{value}</p>
-      <p className="text-xs text-forest-500">{label}</p>
+      <p className="mt-3 text-2xl font-extrabold text-slate-900 tracking-tight">{value}</p>
+      <p className="text-xs text-slate-500 font-medium mt-0.5">{label}</p>
     </div>
   );
 }
@@ -667,7 +667,7 @@ function UnitDetailModal({ unit, getUnitOwner, getUnitOccupant, profiles, iplSch
       )}
 
       {canWrite && (
-        <div className="mt-4 flex gap-2 border-t border-forest-100 pt-4">
+        <div className="mt-4 flex gap-2 border-t border-slate-200 pt-4">
           <button type="button" onClick={onEdit} className="pv-btn-ghost flex-1 text-xs">
             <AiOutlineEdit /> Edit
           </button>
@@ -757,13 +757,13 @@ function UnitFormModal({ unit, owners, canEditSchema, iplSchemas, template, acti
           </Field>
 
           {/* Pilihan Profil Skema Biaya */}
-          <div className="p-3 bg-forest-50/70 border border-forest-200 rounded-lg space-y-2">
+          <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
             <Field label={`Profil Skema Biaya ${template?.billLabel || 'IPL'}`}>
               <select
                 value={form.ipl_schema_id || 'schema-basic'}
                 onChange={(event) => updateField('ipl_schema_id', event.target.value)}
                 disabled={!canEditSchema}
-                className="pv-input disabled:bg-forest-100/60 disabled:text-forest-600 disabled:cursor-not-allowed font-semibold"
+                className="pv-input disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed font-semibold"
               >
                 {iplSchemas.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -773,18 +773,18 @@ function UnitFormModal({ unit, owners, canEditSchema, iplSchemas, template, acti
               </select>
             </Field>
             {!canEditSchema ? (
-              <p className="text-[11px] text-amber-700 bg-amber-50 p-2 rounded border border-amber-200 flex items-center gap-1.5">
+              <p className="text-[11px] text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200 flex items-center gap-1.5">
                 <span>🔒</span>
                 <span>Hak akses ubah skema {template?.billLabel || 'IPL'} dibatasi khusus untuk <b>Bendahara & Admin</b>.</span>
               </p>
             ) : (
-              <p className="text-[11px] text-forest-500">
+              <p className="text-[11px] text-slate-500">
                 Menentukan besaran tarif bulanan yang dibebankan kepada {template?.unitLabel?.toLowerCase() || 'unit'} ini.
               </p>
             )}
           </div>
 
-          <label className="flex items-start gap-3 rounded-lg border border-forest-200 p-3 text-sm hover:bg-forest-50 cursor-pointer">
+          <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-3.5 text-sm hover:bg-slate-50 cursor-pointer transition">
             <input
               type="checkbox"
               checked={Boolean(form.is_occupied)}
@@ -798,8 +798,8 @@ function UnitFormModal({ unit, owners, canEditSchema, iplSchemas, template, acti
               className="mt-1 accent-gold-500"
             />
             <span>
-              <span className="font-medium text-forest-800">{template?.unitLabel || 'Unit'} sedang terisi ({template?.occupiedUnitLabel || 'Terdaftar'})</span>
-              <span className="block text-xs text-forest-500">
+              <span className="font-semibold text-slate-800">{template?.unitLabel || 'Unit'} sedang terisi ({template?.occupiedUnitLabel || 'Terdaftar'})</span>
+              <span className="block text-xs text-slate-500 mt-0.5">
                 Matikan jika {template?.unitLabel?.toLowerCase() || 'unit'} kosong atau belum ada {template?.memberLabel?.toLowerCase() || 'anggota'}. {canEditSchema ? `Otomatis menyesuaikan skema ${template?.billLabel || 'IPL'} di atas.` : ''}
               </span>
             </span>
@@ -837,7 +837,7 @@ function UnitFormModal({ unit, owners, canEditSchema, iplSchemas, template, acti
 function Field({ label, required, children }) {
   return (
     <div>
-      <label className="mb-1 block text-sm font-medium text-forest-700">
+      <label className="mb-1 block text-xs font-semibold text-slate-700">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       {children}
@@ -848,8 +848,8 @@ function Field({ label, required, children }) {
 function InfoRow({ label, value }) {
   return (
     <div className="flex items-start justify-between gap-3">
-      <span className="shrink-0 text-forest-500">{label}</span>
-      <span className="text-right font-medium text-forest-900">{value}</span>
+      <span className="shrink-0 text-slate-500 text-xs font-medium">{label}</span>
+      <span className="text-right font-semibold text-slate-900 text-xs">{value}</span>
     </div>
   );
 }
