@@ -17,9 +17,9 @@ const TYPE_LABELS = {
 };
 
 const STATUS_STYLES = {
-  active: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-  trial: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-  read_only: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+  active: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+  trial: 'bg-amber-50 text-amber-800 border-amber-200',
+  read_only: 'bg-rose-50 text-rose-800 border-rose-200',
 };
 
 export default function TenantSwitcher({ isMobile = false }) {
@@ -56,12 +56,12 @@ export default function TenantSwitcher({ isMobile = false }) {
   // Jika hanya ada 1 tenant dan bukan mobile, tampilkan badge ringkas
   if (userTenants.length <= 1 && !isMobile) {
     return (
-      <div className="flex items-center gap-1.5 px-2.5 py-1 bg-forest-800/80 rounded-lg border border-forest-600/40 text-xs">
+      <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100/90 rounded-xl border border-slate-200 text-xs">
         <span className="text-sm">{typeIcon}</span>
-        <span className="font-semibold text-forest-100 max-w-[140px] truncate" title={activeTenant?.name}>
+        <span className="font-semibold text-slate-800 max-w-[140px] truncate" title={activeTenant?.name}>
           {activeTenant?.name || 'Komunitas Anda'}
         </span>
-        <span className={`text-[10px] px-1.5 py-0.2 rounded border font-medium uppercase ${statusStyle}`}>
+        <span className={`text-[10px] px-1.5 py-0.2 rounded-md border font-bold uppercase ${statusStyle}`}>
           {subscriptionStatus === 'trial' ? 'Trial' : subscriptionStatus === 'active' ? 'Aktif' : 'Read-Only'}
         </span>
       </div>
@@ -73,35 +73,35 @@ export default function TenantSwitcher({ isMobile = false }) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-all text-xs font-semibold ${
+        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border transition-all text-xs font-semibold ${
           isOpen
-            ? 'bg-forest-700 text-gold-300 border-gold-400/50 shadow'
-            : 'bg-forest-800/80 hover:bg-forest-700 text-forest-100 border-forest-600/50'
+            ? 'bg-slate-100 text-slate-900 border-slate-300 shadow-xs ring-2 ring-forest-800/10'
+            : 'bg-slate-100/80 hover:bg-slate-100 text-slate-800 border-slate-200'
         }`}
         title="Ganti Tenant / Layanan"
       >
         <span className="text-sm">{typeIcon}</span>
         <div className="text-left">
-          <p className="leading-tight max-w-[130px] truncate font-bold">
+          <p className="leading-tight max-w-[130px] truncate font-bold text-slate-900">
             {activeTenant?.name || 'Pilih Tenant'}
           </p>
-          <p className="text-[9px] text-forest-300 font-normal leading-none mt-0.5">
+          <p className="text-[9px] text-slate-500 font-normal leading-none mt-0.5">
             {typeLabel} &bull; <span className="capitalize">{subscriptionStatus}</span>
           </p>
         </div>
         {userTenants.length > 1 && (
-          <AiOutlineDown className={`text-[10px] ml-1 transition-transform ${isOpen ? 'rotate-180 text-gold-400' : 'text-forest-300'}`} />
+          <AiOutlineDown className={`text-[10px] ml-1 transition-transform ${isOpen ? 'rotate-180 text-forest-800' : 'text-slate-400'}`} />
         )}
       </button>
 
       {isOpen && userTenants.length > 1 && (
-        <div className="absolute left-0 mt-1.5 w-64 bg-forest-900 border border-forest-600 rounded-xl shadow-2xl overflow-hidden z-50 animate-fadeIn">
-          <div className="px-3 py-2 bg-forest-950/80 border-b border-forest-800 flex items-center justify-between text-[11px] text-forest-300 font-semibold uppercase tracking-wider">
+        <div className="absolute left-0 mt-1.5 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden z-50 animate-fadeIn">
+          <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[11px] text-slate-600 font-bold uppercase tracking-wider">
             <span>Daftar Layanan ({userTenants.length})</span>
-            <AiOutlineSwap className="text-xs text-gold-400" />
+            <AiOutlineSwap className="text-xs text-gold-600" />
           </div>
 
-          <div className="max-h-60 overflow-y-auto py-1 divide-y divide-forest-800/50">
+          <div className="max-h-60 overflow-y-auto py-1 divide-y divide-slate-100">
             {userTenants.map((tenant) => {
               const isSelected = tenant.id === activeTenantId;
               const itemType = tenant.type || 'rt_rw';
@@ -120,22 +120,22 @@ export default function TenantSwitcher({ isMobile = false }) {
                   }}
                   className={`w-full px-3 py-2.5 text-left flex items-start gap-2.5 transition-colors ${
                     isSelected
-                      ? 'bg-forest-800/90 text-gold-300 border-l-2 border-gold-500'
-                      : 'hover:bg-forest-800/50 text-forest-100'
+                      ? 'bg-forest-50/70 text-forest-950 border-l-2 border-gold-500 font-semibold'
+                      : 'hover:bg-slate-50 text-slate-700'
                   }`}
                 >
                   <span className="text-base mt-0.5">{itemIcon}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold truncate leading-tight">{tenant.name}</p>
+                    <p className="text-xs font-bold truncate leading-tight text-slate-900">{tenant.name}</p>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="text-[10px] text-forest-300">{itemLabel}</span>
-                      <span className="text-[9px] text-forest-500">&bull;</span>
-                      <span className={`text-[9px] px-1 py-0.2 rounded border uppercase font-semibold ${itemStatusStyle}`}>
+                      <span className="text-[10px] text-slate-500">{itemLabel}</span>
+                      <span className="text-[9px] text-slate-400">&bull;</span>
+                      <span className={`text-[9px] px-1 py-0.2 rounded border uppercase font-bold ${itemStatusStyle}`}>
                         {subStatus}
                       </span>
                     </div>
                   </div>
-                  {isSelected && <AiOutlineCheck className="text-gold-400 text-sm mt-1 shrink-0" />}
+                  {isSelected && <AiOutlineCheck className="text-forest-800 text-sm mt-1 shrink-0" />}
                 </button>
               );
             })}

@@ -9,7 +9,7 @@
     scroll-behavior: smooth;
   }
   body {
-    @apply bg-forest-50 text-forest-900 antialiased font-sans;
+    @apply bg-slate-50 text-slate-900 antialiased font-sans;
   }
 }
 
@@ -35,7 +35,7 @@
   }
 
   .pv-btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl text-forest-700 font-semibold px-4 py-2.5 text-sm transition-all hover:bg-forest-100 hover:text-forest-900 active:scale-[0.98];
+    @apply inline-flex items-center justify-center gap-2 rounded-xl text-slate-700 font-semibold px-4 py-2.5 text-sm transition-all hover:bg-slate-100 hover:text-slate-900 active:scale-[0.98];
   }
 
   .pv-btn-danger {
@@ -43,7 +43,7 @@
   }
 
   .pv-input {
-    @apply w-full rounded-xl border border-forest-200 bg-white px-3.5 py-2.5 text-sm text-forest-900 placeholder:text-forest-400 focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 outline-none transition-all;
+    @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 outline-none transition-all;
   }
 
   .pv-dialog-backdrop {
