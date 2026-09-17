@@ -12,9 +12,9 @@ export default function ProtectedLayout() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-forest-50">
-        <div className="h-10 w-10 rounded-full border-3 border-forest-200 border-t-gold-500 animate-spin" />
-        <p className="text-sm text-forest-500">Memuat...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-[#f8faf9]">
+        <div className="h-10 w-10 rounded-full border-3 border-slate-200 border-t-gold-500 animate-spin" />
+        <p className="text-sm text-slate-500">Memuat...</p>
       </div>
     );
   }
@@ -24,7 +24,7 @@ export default function ProtectedLayout() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-forest-50">
+    <div className="min-h-screen flex flex-col bg-[#f8faf9] text-slate-900">
       <Header />
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6">
         <Outlet />

@@ -752,28 +752,28 @@ export default function PaymentMatrix() {
       {/* Header & tahun */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-forest-900">Matriks Pembayaran {template.billLabel}</h2>
-          <p className="text-sm text-forest-500">
+          <h2 className="text-xl sm:text-2xl font-black text-forest-950 font-display">Matriks Pembayaran {template.billLabel}</h2>
+          <p className="text-xs sm:text-sm text-slate-500">
             {isStaff
               ? `Klik sel belum-bayar untuk memilih, lalu catat pembayaran tunai/transfer ${template.billLabel}.`
               : `Lihat status semua ${template.unitLabel.toLowerCase()}. ${template.paymentActionLabel} untuk ${template.unitLabel.toLowerCase()} Anda (baris disorot) secara berurutan — jika ada tunggakan tahun lalu, selesaikan dulu di tahun terkait.`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {isBendaharaOrAbove(role) && (
             <button
               onClick={handleCleanupAllData}
-              className="pv-btn bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-sm"
+              className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-semibold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-xs transition"
               title="Hapus semua transaksi & file bukti di Google Drive"
             >
               <span>🗑️</span>
-              <span>Reset & Hapus Semua Transaksi</span>
+              <span>Reset &amp; Hapus Semua Transaksi</span>
             </button>
           )}
           <select
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
-            className="pv-input w-auto"
+            className="pv-input w-auto font-semibold"
           >
             {years.map((y) => (
               <option key={y} value={y}>
@@ -782,14 +782,14 @@ export default function PaymentMatrix() {
             ))}
           </select>
           {canWrite && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {activeTenant?.type === 'kos' && (
                 <>
                   <button
                     type="button"
                     disabled={isAutoGenerating}
                     onClick={handleAutoGenerateBills}
-                    className="pv-btn bg-forest-700/90 hover:bg-forest-700 text-gold-300 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-sm border border-forest-600/80 disabled:opacity-50"
+                    className="bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 text-xs font-semibold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-xs transition disabled:opacity-50"
                     title="Generate otomatis tagihan sewa bulanan untuk kamar dengan kontrak aktif pada periode ini"
                   >
                     <span>⚡</span>
@@ -801,7 +801,7 @@ export default function PaymentMatrix() {
                       setCheckoutUnitId(null);
                       setIsCheckoutModalOpen(true);
                     }}
-                    className="pv-btn bg-amber-700/90 hover:bg-amber-600 text-amber-200 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-sm border border-amber-600/60"
+                    className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-semibold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-xs transition"
                     title="Checkout penyewa dari kamar dan hentikan tagihan sewa"
                   >
                     <span>🚪</span>
@@ -814,7 +814,7 @@ export default function PaymentMatrix() {
                   type="button"
                   disabled={isAutoGenerating}
                   onClick={handleAutoGenerateKelasBills}
-                  className="pv-btn bg-forest-700/90 hover:bg-forest-700 text-gold-300 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-sm border border-forest-600/80 disabled:opacity-50"
+                  className="bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 text-xs font-semibold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-xs transition disabled:opacity-50"
                   title="Generate otomatis tagihan SPP bulanan untuk seluruh siswa aktif pada periode ini"
                 >
                   <span>⚡</span>
@@ -824,7 +824,7 @@ export default function PaymentMatrix() {
               <button
                 type="button"
                 onClick={() => setIsCreateBillingOpen(true)}
-                className="pv-btn bg-forest-800 hover:bg-forest-700 text-gold-300 text-xs font-semibold px-3.5 py-2 rounded-lg flex items-center gap-1.5 shadow-sm border border-forest-700"
+                className="pv-btn-primary text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-xs"
               >
                 <span>+</span>
                 <span>{activeTenant?.type === 'kos' ? 'Kontrak & Tagihan Kamar' : `Buat Tagihan ${template.billLabel}`}</span>
@@ -835,7 +835,7 @@ export default function PaymentMatrix() {
       </div>
 
       {/* Legenda & Panduan */}
-      <div data-tour="matrix-pay-guide" className="flex flex-wrap items-center gap-4 text-xs text-forest-600 bg-white/70 p-3 rounded-xl border border-forest-100/80">
+      <div data-tour="matrix-pay-guide" className="flex flex-wrap items-center gap-4 text-xs text-slate-600 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-3 rounded bg-emerald-100 border border-emerald-300"></span> Lunas (nominal + tgl)
         </span>
@@ -852,7 +852,7 @@ export default function PaymentMatrix() {
           <span className="h-3 w-3 rounded bg-red-50 border border-red-300"></span> Terlambat / Ditolak
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded bg-gray-100 border border-gray-300"></span> Dibatalkan
+          <span className="h-3 w-3 rounded bg-slate-100 border border-slate-300"></span> Dibatalkan
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-3 rounded bg-forest-800 border border-forest-800"></span> Dipilih
@@ -860,25 +860,25 @@ export default function PaymentMatrix() {
       </div>
 
       {/* Matriks */}
-      <div data-tour="matrix-grid" className="pv-card relative z-0 overflow-hidden">
+      <div data-tour="matrix-grid" className="pv-card relative z-0 overflow-hidden border border-slate-200 shadow-card bg-white">
         <div className="overflow-x-auto">
           <table className="w-full text-xs table-fixed min-w-[960px] border-collapse">
             <thead>
-              <tr className="bg-forest-800">
-                <th className="sticky left-0 z-20 bg-forest-800 px-3 py-3 text-left text-[11px] font-semibold text-gold-400 uppercase tracking-wide w-[180px]">
+              <tr className="bg-slate-100/90 border-b border-slate-200">
+                <th className="sticky left-0 z-20 bg-slate-100 px-3.5 py-3 text-left text-[11px] font-bold text-slate-800 uppercase tracking-wide w-[180px] border-r border-slate-200">
                   {template.headerResidentUnit || `${template.unitLabel} / ${template.memberLabel}`}
                 </th>
                 {matrixMonths.map((m) => (
                   <th
                     key={m.period}
-                    className="px-1 py-3 text-center text-[11px] font-semibold text-gold-400 uppercase w-16"
+                    className="px-1 py-3 text-center text-[11px] font-bold text-slate-700 uppercase w-16"
                   >
                     {m.label}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-forest-100">
+            <tbody className="divide-y divide-slate-100">
               {matrix.length === 0 ? (
                 <tr>
                   <td colSpan={13} className="px-4 py-10 text-center text-forest-400">
@@ -911,29 +911,29 @@ export default function PaymentMatrix() {
                   // tipis untuk baris unit aktif.
                   const isActiveRow = activeUnitId !== null && row.unit.id === activeUnitId;
                   const rowBg = isActiveRow
-                    ? 'bg-gold-50/30 ring-1 ring-inset ring-gold-200'
+                    ? 'bg-gold-50/40 ring-1 ring-inset ring-gold-200'
                     : isLockedOtherUnit
                     ? 'opacity-50'
                     : isMyUnit
-                    ? 'bg-gold-50/40'
-                    : 'hover:bg-forest-50/50';
+                    ? 'bg-gold-50/50'
+                    : 'hover:bg-slate-50/80';
                   return (
                     <tr
                       key={row.unit.id}
                       data-tour={isMyUnit ? 'my-unit-row' : undefined}
                       className={rowBg}
                     >
-                      <td className={`sticky left-0 z-10 ${stickyBg} px-3 py-2 border-r border-forest-100`}>
-                        <p className={`font-medium ${isMyUnit ? 'text-gold-700' : 'text-forest-900'}`}>
+                      <td className={`sticky left-0 z-10 ${stickyBg} px-3 py-2 border-r border-slate-200`}>
+                        <p className={`font-bold text-xs ${isMyUnit ? 'text-forest-950' : 'text-slate-900'}`}>
                           {row.unit.label || `Blok ${row.unit.block}/${row.unit.unit_number}`}
                           {isMyUnit && (
-                            <span className="ml-1.5 pv-badge bg-gold-500 text-forest-900 text-[8px]">
+                            <span className="ml-1.5 pv-badge bg-gold-500 text-forest-950 text-[8px]">
                               {template.unitLabel} Saya
                             </span>
                           )}
                         </p>
                         <p
-                          className="text-[10px] leading-tight text-forest-500 max-w-[180px] break-words"
+                          className="text-[10px] leading-tight text-slate-500 max-w-[180px] break-words mt-0.5"
                           title={residentNames.join(' / ')}
                         >
                           {residentNames.length > 0 ? residentNames.join(' / ') : `— Belum Ada ${template.memberLabel} —`}
@@ -1250,10 +1250,10 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
   // Sel LUNAS / PENDING VERIF / REJECTED → tampilkan info & klik buka detail
   if (isPaid || isPendingVerif || isRejected) {
     const bgClass = isPaid
-      ? 'bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-700'
+      ? 'bg-emerald-50 border border-emerald-200/90 hover:bg-emerald-100 text-emerald-800'
       : isPendingVerif
-      ? 'bg-orange-100 border border-orange-400 hover:bg-orange-200 text-orange-800'
-      : 'bg-red-100 border border-red-400 hover:bg-red-200 text-red-800';
+      ? 'bg-amber-50 border border-amber-300 hover:bg-amber-100 text-amber-900'
+      : 'bg-rose-50 border border-rose-300 hover:bg-rose-100 text-rose-800';
     
     const label = isPaid
       ? 'Lunas'
@@ -1264,11 +1264,11 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
     return (
       <span
         onClick={onClick}
-        className={`block h-12 rounded ${bgClass} flex flex-col items-center justify-center px-0.5 cursor-pointer transition-colors`}
+        className={`block h-12 rounded-xl ${bgClass} flex flex-col items-center justify-center px-0.5 cursor-pointer transition-colors shadow-2xs`}
         title={`${billStatusLabel(status)} ${formatRupiah(bill.amount)}${payment ? ' · ' + formatDate(payment.paid_at) : ''}`}
       >
         <span className="text-[9px] font-bold leading-none">{formatShort(bill.amount)}</span>
-        <span className="text-[8px] leading-none mt-0.5 font-medium">
+        <span className="text-[8px] leading-none mt-0.5 font-semibold">
           {label}
         </span>
       </span>
@@ -1277,13 +1277,13 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
 
   // Sel CANCELLED / FAILED / EXPIRED → tampilkan status dan bisa diklik untuk bayar ulang
   if (isCancelled || isFailed || isExpired) {
-    const bgClass = 'bg-gray-100 border border-gray-300 hover:bg-gray-200 text-gray-500';
+    const bgClass = 'bg-slate-100/80 border border-slate-200 hover:bg-slate-200 text-slate-500';
     const label = isCancelled ? '↩ Batal' : isFailed ? '✕ Gagal' : '⏰ Expired';
 
     return (
       <span
         onClick={onClick}
-        className={`block h-12 rounded ${bgClass} flex flex-col items-center justify-center px-0.5 cursor-pointer transition-colors`}
+        className={`block h-12 rounded-xl ${bgClass} flex flex-col items-center justify-center px-0.5 cursor-pointer transition-colors`}
         title={`${billStatusLabel(status)} — klik untuk bayar ulang`}
       >
         <span className="text-[9px] font-bold leading-none">{formatShort(bill.amount)}</span>
@@ -1298,13 +1298,13 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
   if (isViewOnly) {
     const viewClass =
       isOverdue
-        ? 'bg-red-50 border-red-200'
+        ? 'bg-rose-50 border-rose-200 text-rose-700'
         : isPending
-        ? 'bg-amber-50 border-amber-200'
-        : 'bg-gray-50 border-gray-200';
+        ? 'bg-amber-50 border-amber-200 text-amber-700'
+        : 'bg-slate-50 border-slate-200 text-slate-400';
     return (
       <span
-        className={`block h-12 rounded border flex flex-col items-center justify-center ${viewClass}`}
+        className={`block h-12 rounded-xl border flex flex-col items-center justify-center ${viewClass}`}
         title={isOverdue ? 'Terlambat' : isPending ? 'Belum bayar' : ''}
       >
         <span className="text-[8px] mt-0.5 leading-none opacity-60">{formatShort(bill.amount)}</span>
@@ -1318,11 +1318,11 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
   if (isLockedOtherUnit) {
     return (
       <span
-        className="block h-12 rounded border border-gray-200 bg-gray-50 flex flex-col items-center justify-center cursor-not-allowed"
+        className="block h-12 rounded-xl border border-slate-200 bg-slate-50 flex flex-col items-center justify-center cursor-not-allowed"
         title="Selesaikan dulu transaksi unit aktif, atau kosongkan seleksi sebelum memilih unit lain."
       >
-        <span className="text-[10px] leading-none text-gray-400">🔒</span>
-        <span className="text-[8px] mt-0.5 leading-none text-gray-300">
+        <span className="text-[10px] leading-none text-slate-400">🔒</span>
+        <span className="text-[8px] mt-0.5 leading-none text-slate-400">
           {formatShort(bill.amount)}
         </span>
       </span>
@@ -1333,17 +1333,17 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
   // Semua sel belum-bayar BISA diklik. Aturan runut hanya divalidasi saat
   // klik (toast peringatan jika ada tunggakan sebelumnya), bukan diblokir.
   const classes = isSelected
-    ? 'bg-forest-800 text-white border-forest-800'
+    ? 'bg-forest-800 text-white border-forest-900 ring-2 ring-gold-400 shadow-sm font-bold'
     : isOverdue
-    ? 'bg-red-50 text-red-600 border-red-300 hover:bg-red-100 cursor-pointer'
+    ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 cursor-pointer'
     : isPending
-    ? 'bg-amber-50 text-amber-600 border-amber-300 hover:bg-amber-100 cursor-pointer'
-    : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100 cursor-pointer';
+    ? 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100 cursor-pointer'
+    : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 cursor-pointer';
 
   return (
     <span
       onClick={onClick}
-      className={`block h-12 rounded border flex flex-col items-center justify-center transition-colors ${classes}`}
+      className={`block h-12 rounded-xl border transition-all flex flex-col items-center justify-center px-0.5 ${classes}`}
       title={
         isStaff
           ? 'Klik untuk pilih (catat tunai/transfer)'
@@ -1436,22 +1436,22 @@ function ResidentPayModal({ bills, total, canUseQris, billLabel = 'IPL', onConfi
     <Modal open onClose={onClose} title={`Konfirmasi Pembayaran ${billLabel}`} size="md">
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Ringkasan tagihan */}
-        <div className="rounded-lg bg-forest-50 p-3 text-sm border border-forest-100 space-y-1">
-          <p className="text-forest-600 text-xs">
+        <div className="rounded-xl bg-slate-50 p-3.5 text-sm border border-slate-200 space-y-1.5">
+          <p className="text-slate-600 text-xs">
             {isMulti ? `${bills.length} tagihan ${billLabel}:` : `Tagihan ${billLabel}:`}
           </p>
           <div className="mt-1 space-y-1 max-h-28 overflow-y-auto">
             {bills.map((bill) => (
               <div key={bill.id} className="flex justify-between text-xs py-0.5">
-                <span className="font-medium text-forest-800">{formatPeriod(bill.period)}</span>
-                <span className="text-forest-700">{formatRupiah(bill.amount)}</span>
+                <span className="font-medium text-slate-800">{formatPeriod(bill.period)}</span>
+                <span className="text-slate-700">{formatRupiah(bill.amount)}</span>
               </div>
             ))}
           </div>
 
           {method === 'qris' && (
-            <div className="pt-2 border-t border-forest-200 space-y-1 text-xs">
-              <div className="flex justify-between text-forest-600">
+            <div className="pt-2 border-t border-slate-200 space-y-1 text-xs">
+              <div className="flex justify-between text-slate-600">
                 <span>Subtotal {billLabel}:</span>
                 <span>{formatRupiah(total)}</span>
               </div>
@@ -1462,11 +1462,11 @@ function ResidentPayModal({ bills, total, canUseQris, billLabel = 'IPL', onConfi
             </div>
           )}
 
-          <div className="mt-2 pt-2 border-t border-forest-200 flex justify-between items-center">
-            <span className="text-sm font-semibold text-forest-800">
+          <div className="mt-2 pt-2 border-t border-slate-200 flex justify-between items-center">
+            <span className="text-sm font-semibold text-slate-800">
               {method === 'qris' ? 'Total Pembayaran QRIS' : 'Total Tagihan'}
             </span>
-            <span className="text-lg font-bold text-forest-900">
+            <span className="text-lg font-bold text-slate-900">
               {formatRupiah(method === 'qris' ? totalWithQrisFee : total)}
             </span>
           </div>
@@ -1474,16 +1474,16 @@ function ResidentPayModal({ bills, total, canUseQris, billLabel = 'IPL', onConfi
 
         {/* Pilihan metode */}
         <div>
-          <label className="block text-sm font-medium text-forest-700 mb-1">Metode Pembayaran</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Metode Pembayaran</label>
           <div className={`grid ${canUseQris ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
             {canUseQris && (
               <button
                 type="button"
                 onClick={() => { setMethod('qris'); setUploadError(''); setReceiptFile(null); }}
-                className={`py-2.5 rounded-lg text-sm font-medium border transition-colors ${
+                className={`py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
                   method === 'qris'
-                    ? 'bg-forest-800 text-gold-400 border-forest-800'
-                    : 'bg-white text-forest-600 border-forest-200 hover:bg-forest-50'
+                    ? 'bg-forest-800 text-gold-400 border-forest-800 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 💳 QRIS (+0,7%)
@@ -1492,10 +1492,10 @@ function ResidentPayModal({ bills, total, canUseQris, billLabel = 'IPL', onConfi
             <button
               type="button"
               onClick={() => { setMethod('bank_transfer'); setUploadError(''); }}
-              className={`py-2.5 rounded-lg text-sm font-medium border transition-colors ${
+              className={`py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
                 method === 'bank_transfer'
-                  ? 'bg-forest-800 text-gold-400 border-forest-800'
-                  : 'bg-white text-forest-600 border-forest-200 hover:bg-forest-50'
+                  ? 'bg-forest-800 text-gold-400 border-forest-800 shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
               }`}
             >
               🏦 Transfer Bank
@@ -1506,26 +1506,26 @@ function ResidentPayModal({ bills, total, canUseQris, billLabel = 'IPL', onConfi
         {/* Transfer: wajib upload bukti */}
         {method === 'bank_transfer' && (
           <div data-tour="pay-transfer-guide">
-            <label className="block text-sm font-medium text-forest-700 mb-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
               Bukti Transfer <span className="text-red-500">*</span>
             </label>
-            <p className="text-[11px] text-forest-500 mb-2">
+            <p className="text-[11px] text-slate-500 mb-2">
               Transfer ke rekening pengurus, lalu unggah foto/screenshot bukti transfer dari bank/e-wallet.
               Pembayaran akan diverifikasi pengurus.
             </p>
-            <div className="rounded-lg border-2 border-dashed border-forest-200 bg-forest-50/50 p-4">
+            <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-4">
               <input
                 type="file"
                 accept="image/jpeg,image/png"
                 onChange={handleFile}
-                className="block w-full text-xs text-forest-600 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-forest-800 file:text-gold-400 hover:file:bg-forest-700"
+                className="block w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-forest-800 file:text-gold-400 hover:file:bg-forest-700 cursor-pointer"
               />
               {receiptFile && (
-                <p className="mt-2 text-[11px] text-emerald-700 flex items-center gap-1">
+                <p className="mt-2 text-[11px] text-emerald-700 flex items-center gap-1 font-medium">
                   ✓ {receiptFile.name} ({(receiptFile.size / 1024).toFixed(0)} KB)
                 </p>
               )}
-              <p className="mt-1.5 text-[10px] text-forest-400">
+              <p className="mt-1.5 text-[10px] text-slate-400">
                 Format: JPG atau PNG. Maks 2 MB.
               </p>
             </div>
@@ -1695,10 +1695,10 @@ function ManualPaymentModal({ bills, unit, role, canWrite, canUseQris, billLabel
       <button
         type="button"
         onClick={() => { setMethod(value); setUploadError(''); }}
-        className={`py-2.5 rounded-lg text-sm font-medium border transition-colors ${
+        className={`py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
           method === value
-            ? 'bg-forest-800 text-gold-400 border-forest-800'
-            : 'bg-white text-forest-600 border-forest-200 hover:bg-forest-50'
+            ? 'bg-forest-800 text-gold-400 border-forest-800 shadow-xs'
+            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
         }`}
       >
         {label}
@@ -1709,18 +1709,18 @@ function ManualPaymentModal({ bills, unit, role, canWrite, canUseQris, billLabel
   return (
     <Modal open onClose={onClose} title="Catat Pembayaran Bendahara" size="md">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="rounded-lg bg-forest-50 p-3 text-sm border border-forest-100 space-y-1">
+        <div className="rounded-xl bg-slate-50 p-3.5 text-sm border border-slate-200 space-y-1.5">
           {unitLabel && (
-            <p className="text-[11px] text-forest-500 mb-0.5">{unitLabel}</p>
+            <p className="text-[11px] text-slate-500 mb-0.5">{unitLabel}</p>
           )}
-          <p className="text-forest-600 text-xs">
+          <p className="text-slate-600 text-xs">
             {isMulti ? `${bills.length} tagihan ${billLabel}:` : `Tagihan ${billLabel}:`}
           </p>
           {/* Daftar periode terpilih (lintas tahun) */}
           <div className="mt-1 space-y-1 max-h-40 overflow-y-auto">
             {bills.map((bill) => (
               <div key={bill.id} className="flex items-center justify-between text-xs py-0.5 gap-2">
-                <span className="font-medium text-forest-800 flex-shrink-0">
+                <span className="font-medium text-slate-800 flex-shrink-0">
                   {formatPeriod(bill.period)}
                 </span>
                 {canEditNominal ? (
@@ -1730,23 +1730,23 @@ function ManualPaymentModal({ bills, unit, role, canWrite, canUseQris, billLabel
                     step="1"
                     value={customAmounts[bill.id] ?? ''}
                     onChange={(e) => handleAmountChange(bill.id, e.target.value)}
-                    className="w-28 rounded border border-gold-300 bg-gold-50 px-2 py-1 text-right text-xs font-medium text-forest-900 outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-400/30"
+                    className="w-28 rounded-lg border border-gold-300 bg-gold-50 px-2 py-1 text-right text-xs font-semibold text-slate-900 outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-400/30"
                   />
                 ) : (
-                  <span className="text-forest-700">{formatRupiah(Number(bill.amount || 0) + Number(bill.late_fee || 0))}</span>
+                  <span className="text-slate-700 font-medium">{formatRupiah(Number(bill.amount || 0) + Number(bill.late_fee || 0))}</span>
                 )}
               </div>
             ))}
           </div>
           {canEditNominal && (
-            <p className="mt-1 text-[10px] text-gold-700 italic">
+            <p className="mt-1 text-[10px] text-gold-700 italic font-medium">
               ✨ Nominal dapat diubah (khusus Admin/Bendahara)
             </p>
           )}
 
           {method === 'qris' && (
-            <div className="pt-2 border-t border-forest-200 space-y-1 text-xs">
-              <div className="flex justify-between text-forest-600">
+            <div className="pt-2 border-t border-slate-200 space-y-1 text-xs">
+              <div className="flex justify-between text-slate-600">
                 <span>Subtotal {billLabel}:</span>
                 <span>{formatRupiah(total)}</span>
               </div>
@@ -1757,11 +1757,11 @@ function ManualPaymentModal({ bills, unit, role, canWrite, canUseQris, billLabel
             </div>
           )}
 
-          <div className="mt-2 pt-2 border-t border-forest-200 flex justify-between items-center">
-            <span className="text-sm font-semibold text-forest-800">
+          <div className="mt-2 pt-2 border-t border-slate-200 flex justify-between items-center">
+            <span className="text-sm font-semibold text-slate-800">
               {method === 'qris' ? 'Total Pembayaran QRIS' : 'Total Tagihan'}
             </span>
-            <span className="text-lg font-bold text-forest-900">
+            <span className="text-lg font-bold text-slate-900">
               {formatRupiah(method === 'qris' ? totalWithQrisFee : total)}
             </span>
           </div>
@@ -1769,7 +1769,7 @@ function ManualPaymentModal({ bills, unit, role, canWrite, canUseQris, billLabel
 
         {/* Metode: Tunai / Transfer / QRIS */}
         <div>
-          <label className="block text-sm font-medium text-forest-700 mb-1">Metode Pembayaran</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Metode Pembayaran</label>
           <div className={`grid ${methodCount >= 3 ? 'grid-cols-3' : methodCount === 2 ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
             {canRecordCash && methodBtn('cash', '💵 Tunai')}
             {canRecordTransfer && methodBtn('bank_transfer', '🏦 Transfer')}
@@ -1778,7 +1778,7 @@ function ManualPaymentModal({ bills, unit, role, canWrite, canUseQris, billLabel
         </div>
 
         {method === 'qris' && (
-          <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 space-y-1">
+          <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-xs text-amber-900 space-y-1">
             <p className="font-semibold text-amber-950 flex items-center gap-1.5">
               <span>ℹ️</span> Biaya Layanan Administrasi QRIS (0,7%)
             </p>
@@ -1790,7 +1790,7 @@ function ManualPaymentModal({ bills, unit, role, canWrite, canUseQris, billLabel
 
         {method !== 'qris' && (
           <div>
-            <label className="block text-sm font-medium text-forest-700 mb-1">Tanggal Diterima</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Tanggal Diterima</label>
             <input
               type="date"
               value={paidAt}
@@ -1804,23 +1804,23 @@ function ManualPaymentModal({ bills, unit, role, canWrite, canUseQris, billLabel
         {/* Upload bukti wajib untuk Tunai & Transfer */}
         {needsReceipt && (
           <div>
-            <label className="block text-sm font-medium text-forest-700 mb-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
               {receiptLabel} <span className="text-red-500">*</span>
             </label>
-            <p className="text-[11px] text-forest-500 mb-2">{receiptHint}</p>
-            <div className="rounded-lg border-2 border-dashed border-forest-200 bg-forest-50/50 p-4">
+            <p className="text-[11px] text-slate-500 mb-2">{receiptHint}</p>
+            <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-4">
               <input
                 type="file"
                 accept="image/jpeg,image/png"
                 onChange={handleFile}
-                className="block w-full text-xs text-forest-600 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-forest-800 file:text-gold-400 hover:file:bg-forest-700"
+                className="block w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-forest-800 file:text-gold-400 hover:file:bg-forest-700 cursor-pointer"
               />
               {receiptFile && (
-                <p className="mt-2 text-[11px] text-emerald-700 flex items-center gap-1">
+                <p className="mt-2 text-[11px] text-emerald-700 flex items-center gap-1 font-medium">
                   ✓ {receiptFile.name} ({(receiptFile.size / 1024).toFixed(0)} KB)
                 </p>
               )}
-              <p className="mt-1.5 text-[10px] text-forest-400">
+              <p className="mt-1.5 text-[10px] text-slate-400">
                 Format: JPG atau PNG. Maks 2 MB.
               </p>
             </div>
@@ -1831,7 +1831,7 @@ function ManualPaymentModal({ bills, unit, role, canWrite, canUseQris, billLabel
         )}
 
         {method === 'qris' && (
-          <div className="rounded-lg border border-gold-200 bg-gold-50 p-3 text-xs text-gold-800">
+          <div className="rounded-xl border border-gold-200 bg-gold-50/70 p-3 text-xs text-gold-900">
             QRIS akan dibuka otomatis. Pembayaran dicatat untuk unit yang dipilih dan dikonfirmasi otomatis.
           </div>
         )}
@@ -2419,16 +2419,16 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
             </div>
           </form>
         ) : isRevising ? (
-          <form onSubmit={submitRevision} className="space-y-3 bg-forest-50 p-3 rounded-lg border border-forest-200">
-            <h4 className="font-semibold text-xs text-forest-800 uppercase tracking-wide">Revisi Bukti Transfer</h4>
+          <form onSubmit={submitRevision} className="space-y-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+            <h4 className="font-semibold text-xs text-slate-800 uppercase tracking-wide">Revisi Bukti Transfer</h4>
             <div>
-              <label className="block text-xs font-medium text-forest-700 mb-1">File Bukti Baru</label>
-              <input type="file" accept="image/*,.pdf" onChange={handleFileChange} className="text-xs w-full" />
-              {newReceipt && <p className="text-[11px] text-emerald-600 mt-1">✓ File siap diunggah: {newReceipt.name}</p>}
-              {uploadError && <p className="text-[11px] text-red-500 mt-1">{uploadError}</p>}
+              <label className="block text-xs font-medium text-slate-700 mb-1">File Bukti Baru</label>
+              <input type="file" accept="image/*,.pdf" onChange={handleFileChange} className="text-xs w-full text-slate-600" />
+              {newReceipt && <p className="text-[11px] text-emerald-600 mt-1 font-medium">✓ File siap diunggah: {newReceipt.name}</p>}
+              {uploadError && <p className="text-[11px] text-red-500 mt-1">⚠️ {uploadError}</p>}
             </div>
             <div>
-              <label className="block text-xs font-medium text-forest-700 mb-1">Catatan Tambahan</label>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Catatan Tambahan</label>
               <input
                 type="text"
                 value={reviseNote}
@@ -2444,24 +2444,24 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
           </form>
         ) : (
           <>
-              <div className="grid grid-cols-2 gap-4 rounded-lg bg-forest-50 p-3">
+            <div className="grid grid-cols-2 gap-4 rounded-xl bg-slate-50 p-3.5 border border-slate-200">
               <div>
-                <p className="text-xs text-forest-500 font-medium">{template?.unitLabel || 'Rumah / Unit'}</p>
-                <p className="font-semibold text-forest-800">
+                <p className="text-xs text-slate-500 font-medium">{template?.unitLabel || 'Rumah / Unit'}</p>
+                <p className="font-semibold text-slate-900">
                   {targetUnit?.label || (targetUnit ? `${targetUnit.block} no ${targetUnit.unit_number}` : '-')}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-forest-500 font-medium">Periode {billLabel}</p>
-                <p className="font-semibold text-forest-800">{formatPeriod(resolvedBill.period)}</p>
+                <p className="text-xs text-slate-500 font-medium">Periode {billLabel}</p>
+                <p className="font-semibold text-slate-900">{formatPeriod(resolvedBill.period)}</p>
               </div>
               <div>
-                <p className="text-xs text-forest-500 font-medium">Jumlah Tagihan</p>
-                <p className="font-bold text-forest-900">{formatRupiah(resolvedBill.amount)}</p>
+                <p className="text-xs text-slate-500 font-medium">Jumlah Tagihan</p>
+                <p className="font-bold text-slate-900">{formatRupiah(resolvedBill.amount)}</p>
               </div>
               <div>
-                <p className="text-xs text-forest-500 font-medium">Tanggal Bayar</p>
-                <p className="font-semibold text-forest-800">{resolvedPaidAt ? formatDate(resolvedPaidAt) : '-'}</p>
+                <p className="text-xs text-slate-500 font-medium">Tanggal Bayar</p>
+                <p className="font-semibold text-slate-900">{resolvedPaidAt ? formatDate(resolvedPaidAt) : '-'}</p>
               </div>
             </div>
 
@@ -2478,29 +2478,29 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
             )}
 
             <div>
-              <p className="text-xs text-forest-500 font-medium mb-1">Metode Pembayaran</p>
-              <span className="pv-badge bg-forest-100 text-forest-700 font-medium">
+              <p className="text-xs text-slate-500 font-medium mb-1">Metode Pembayaran</p>
+              <span className="pv-badge bg-slate-100 text-slate-700 border border-slate-200 font-medium">
                 {paymentMethod === 'qris' ? '📱 QRIS' : paymentMethod === 'cash' ? '💵 Tunai' : '🏦 Transfer Bank'}
               </span>
             </div>
 
             {activePayment?.metadata?.recorded_by && (
               <div>
-                <p className="text-xs text-forest-500 font-medium mb-0.5">Dicatat Oleh</p>
-                <p className="text-forest-700 text-xs">{activePayment.metadata.recorded_by}</p>
+                <p className="text-xs text-slate-500 font-medium mb-0.5">Dicatat Oleh</p>
+                <p className="text-slate-700 text-xs font-medium">{activePayment.metadata.recorded_by}</p>
               </div>
             )}
 
             {activePayment?.metadata?.note && (
               <div>
-                <p className="text-xs text-forest-500 font-medium mb-0.5">Catatan</p>
-                <p className="text-forest-700 text-xs italic">"{activePayment.metadata.note}"</p>
+                <p className="text-xs text-slate-500 font-medium mb-0.5">Catatan</p>
+                <p className="text-slate-700 text-xs italic">"{activePayment.metadata.note}"</p>
               </div>
             )}
 
             {/* Lampiran Bukti Bayar */}
             <div>
-              <p className="text-xs text-forest-500 font-medium mb-1.5">Bukti Bayar</p>
+              <p className="text-xs text-slate-500 font-medium mb-1.5">Bukti Bayar</p>
               {canViewReceipt ? (
                 hasProofFile ? (
                   <>
@@ -2508,10 +2508,10 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
                       <button
                         type="button"
                         onClick={() => setIsProofPreviewOpen(true)}
-                        className="group mb-2 block w-full overflow-hidden rounded-lg border border-forest-200 bg-forest-50 text-left transition-colors hover:border-gold-300 focus:outline-none focus:ring-2 focus:ring-gold-400/40"
+                        className="group mb-2 block w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-left transition-colors hover:border-gold-300 focus:outline-none focus:ring-2 focus:ring-gold-400/40"
                         aria-label="Perbesar bukti transfer"
                       >
-                        <div className="flex min-h-36 items-center justify-center bg-forest-100 p-2">
+                        <div className="flex min-h-36 items-center justify-center bg-slate-100 p-2">
                           <img
                             src={proofPreviewUrl}
                             alt={proofFileName || 'Bukti transfer'}
@@ -2520,8 +2520,8 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
                             onError={() => setProofPreviewError(true)}
                           />
                         </div>
-                        <div className="flex items-center justify-between gap-2 border-t border-forest-200 px-3 py-2">
-                          <span className="truncate text-xs font-medium text-forest-700">
+                        <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-3 py-2 bg-white">
+                          <span className="truncate text-xs font-medium text-slate-700">
                             {proofFileName || 'Bukti transfer'}
                           </span>
                           <span className="shrink-0 text-xs font-semibold text-gold-700">
@@ -2531,10 +2531,10 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
                       </button>
                     )}
                     {(!canPreviewProofImage || proofPreviewError) && (
-                  <div className="rounded-lg border border-forest-200 bg-white p-3 flex items-center justify-between gap-3">
+                  <div className="rounded-xl border border-slate-200 bg-white p-3 flex items-center justify-between gap-3 shadow-xs">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="text-xl">📎</span>
-                      <span className="truncate text-xs font-medium text-forest-700">
+                      <span className="truncate text-xs font-medium text-slate-700">
                         {proofFileName || 'Bukti Lampiran'}
                       </span>
                     </div>
@@ -2556,10 +2556,10 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
                     )}
                   </>
                 ) : (
-                  <p className="text-xs text-forest-400 italic">{missingProofText}</p>
+                  <p className="text-xs text-slate-400 italic">{missingProofText}</p>
                 )
               ) : (
-                <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-red-700 text-xs flex items-center gap-2">
+                <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-red-700 text-xs flex items-center gap-2">
                   <span>🔒</span>
                   <span>Anda tidak memiliki izin untuk melihat bukti pembayaran unit lain.</span>
                 </div>
@@ -2591,13 +2591,13 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
             </button>
           )}
           {(resolvedBill.status === 'paid' || payment?.status === 'verified' || payment?.status === 'completed') && (
-            <div className="grid grid-cols-2 gap-2 pb-1 border-b border-forest-100">
+            <div className="grid grid-cols-2 gap-2 pb-1 border-b border-slate-200">
               <button
                 type="button"
                 onClick={() => {
                   downloadDigitalReceipt({ bill: resolvedBill, unit: targetUnit });
                 }}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-forest-300 bg-white px-3 py-2 text-xs font-semibold text-forest-800 shadow-sm hover:bg-forest-50 transition-colors"
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-xs hover:bg-slate-50 transition-colors"
               >
                 📥 Download Kuitansi
               </button>

@@ -265,7 +265,7 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-forest-800 border-b border-forest-700/60 sticky top-0 z-50 shadow-lg">
+    <header className="bg-white/95 border-b border-slate-200 sticky top-0 z-50 backdrop-blur-md shadow-xs">
       <div className="max-w-6xl mx-auto px-4 flex items-center justify-between h-16">
         {/* Kiri: Brand Logo */}
         <div className="flex items-center gap-3">
@@ -273,26 +273,26 @@ export default function Header() {
             <img
               src="/logo.png"
               alt="Logo"
-              className="h-10 w-auto rounded-lg object-cover ring-2 ring-gold-500/30 group-hover:ring-gold-400 transition"
+              className="h-10 w-auto rounded-xl object-cover ring-2 ring-forest-800/10 group-hover:ring-forest-800/30 shadow-xs transition"
             />
             <div>
-              <h1 className="text-sm md:text-base font-bold text-white leading-none tracking-wide flex items-center gap-1.5 font-display">
+              <h1 className="text-sm md:text-base font-extrabold text-forest-950 leading-none tracking-wide flex items-center gap-1.5 font-display">
                 {activeTenant?.name || 'RuangWarga'}
-                <span className="inline-flex items-center rounded bg-gold-500/20 text-gold-300 px-1.5 py-0.5 text-[10px] font-mono font-bold border border-gold-400/30">
+                <span className="inline-flex items-center rounded-md bg-slate-100 text-slate-700 px-1.5 py-0.5 text-[10px] font-mono font-bold border border-slate-200">
                   {APP_VERSION}
                 </span>
                 {IS_DEMO_MODE && (
-                  <span className="bg-amber-400/90 text-forest-900 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider scale-90 origin-left">
+                  <span className="bg-amber-100 text-amber-900 border border-amber-300 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
                     Demo
                   </span>
                 )}
                 {isReadOnly && (
-                  <span className="bg-amber-400 text-forest-950 text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider shadow-sm flex items-center gap-0.5">
+                  <span className="bg-rose-50 text-rose-800 border border-rose-200 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs flex items-center gap-0.5">
                     <span>👁️</span> View Only
                   </span>
                 )}
               </h1>
-              <p className="text-[10px] text-forest-300 leading-tight tracking-wider uppercase mt-0.5">
+              <p className="text-[10px] text-slate-500 leading-tight tracking-wider uppercase mt-0.5 font-medium">
                 {activeTenant?.type ? template?.communityLabel || 'Komunitas' : 'Platform Multi-Tenant'}
               </p>
             </div>
@@ -321,10 +321,10 @@ export default function Header() {
                     to={group.to}
                     end={group.end}
                     className={({ isActive }) =>
-                      `flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all ${
+                      `flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition-all ${
                         isActive
-                          ? 'bg-forest-700/60 text-gold-400 shadow-inner'
-                          : 'text-forest-200 hover:text-white hover:bg-forest-700/30'
+                          ? 'bg-forest-50 text-forest-900 border border-forest-200/80 font-bold shadow-xs'
+                          : 'text-slate-600 hover:text-forest-950 hover:bg-slate-100'
                       }`
                     }
                   >
@@ -340,30 +340,30 @@ export default function Header() {
                     type="button"
                     data-tour={group.key === 'keuangan' ? 'nav-payment-matrix' : undefined}
                     onClick={() => handleDropdownToggle(group.key)}
-                    className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all outline-none ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition-all outline-none ${
                       isGroupActive || isOpen
-                        ? 'bg-forest-700/60 text-gold-400'
-                        : 'text-forest-200 hover:text-white hover:bg-forest-700/30'
+                        ? 'bg-forest-50 text-forest-900 border border-forest-200/80 font-bold shadow-xs'
+                        : 'text-slate-600 hover:text-forest-950 hover:bg-slate-100'
                     }`}
                   >
                     <Icon className="text-sm" />
                     <span>{group.label}</span>
                     {group.badgeCount > 0 && (
-                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white shadow animate-pulse">
+                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white shadow">
                         {group.badgeCount}
                       </span>
                     )}
                     <AiOutlineDown
                       className={`text-[10px] transition-transform duration-200 ${
-                        isOpen ? 'rotate-180 text-gold-400' : 'opacity-70'
+                        isOpen ? 'rotate-180 text-forest-800' : 'opacity-70'
                       }`}
                     />
                   </button>
 
                   {/* Dropdown Menu Overlay */}
                   {isOpen && (
-                    <div className="absolute top-[calc(100%-8px)] left-0 w-72 bg-[#082315] border border-forest-700/70 rounded-xl shadow-2xl py-2 mt-1 z-[100] animate-fadeIn">
-                      <div className="px-4 py-1 text-[9px] font-bold uppercase tracking-wider text-forest-400 border-b border-forest-800/80 pb-1.5 mb-1.5">
+                    <div className="absolute top-[calc(100%-8px)] left-0 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 mt-1 z-[100] animate-fadeIn">
+                      <div className="px-4 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1.5 mb-1.5">
                         {group.label}
                       </div>
                       <div className="space-y-0.5">
@@ -375,13 +375,13 @@ export default function Header() {
                               key={item.to}
                               to={item.to}
                               data-tour={item.to === '/payment-matrix' ? 'nav-payment-matrix' : undefined}
-                              className={`flex items-start gap-3 px-4 py-2.5 transition-colors hover:bg-forest-800 ${
+                              className={`flex items-start gap-3 px-4 py-2.5 transition-colors ${
                                 isItemActive
-                                  ? 'bg-forest-800 text-gold-400 border-l-2 border-gold-500'
-                                  : 'text-forest-200'
+                                  ? 'bg-forest-50 text-forest-950 border-l-2 border-gold-500 font-semibold'
+                                  : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
                               }`}
                             >
-                              <ItemIcon className="text-base mt-0.5 shrink-0" />
+                              <ItemIcon className="text-base mt-0.5 shrink-0 text-slate-500" />
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between gap-2">
                                   <span className="text-xs font-semibold">{item.label}</span>
@@ -392,7 +392,7 @@ export default function Header() {
                                   )}
                                 </div>
                                 {item.desc && (
-                                  <p className="text-[10px] text-forest-400 leading-tight mt-0.5 truncate">
+                                  <p className="text-[10px] text-slate-400 leading-tight mt-0.5 truncate">
                                     {item.desc}
                                   </p>
                                 )}
@@ -417,10 +417,10 @@ export default function Header() {
               <button
                 type="button"
                 onClick={() => handleStartCurrentPageTour()}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gold-500/10 hover:bg-gold-500/20 text-gold-300 text-xs font-bold border border-gold-500/30 transition-all hover:scale-105"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold border border-amber-200 transition-all hover:scale-105"
                 title="Panduan Interaktif Halaman Ini"
               >
-                <AiOutlineBulb className="text-base text-gold-400" />
+                <AiOutlineBulb className="text-base text-amber-600" />
                 <span className="hidden lg:inline">Panduan</span>
               </button>
 
@@ -429,7 +429,7 @@ export default function Header() {
                 href="https://drive.google.com/drive/folders/1-CIioJe6MkyBUeepB9I9yBSjsiR1h5HY"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600/90 hover:bg-red-600 text-white text-xs font-bold border border-red-400/40 shadow-xs transition-all hover:scale-105"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold border border-red-200 shadow-xs transition-all hover:scale-105"
                 title="Dokumentasi Kegiatan 17 Agustus Palm Village (Google Drive)"
               >
                 <span>🇮🇩</span>
@@ -441,10 +441,10 @@ export default function Header() {
               {isPlatformAdmin && (
                 <NavLink
                   to="/platform"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-bold border border-amber-500/40 shadow-xs transition-all hover:scale-105"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold border border-amber-300 shadow-xs transition-all hover:scale-105"
                   title="Buka Platform Owner Dashboard"
                 >
-                  <AiOutlineSafetyCertificate className="text-sm" />
+                  <AiOutlineSafetyCertificate className="text-sm text-amber-600" />
                   <span className="hidden xl:inline">Platform</span>
                 </NavLink>
               )}
@@ -455,25 +455,25 @@ export default function Header() {
                   data-tour="user-profile-button"
                   onClick={openProfileModal}
                   disabled={!canWrite}
-                  className="text-right flex items-center gap-2 hover:bg-forest-700/40 p-1.5 rounded-lg transition-colors group text-left border border-transparent hover:border-gold-500/30"
+                  className="text-right flex items-center gap-2 hover:bg-slate-100 p-1.5 rounded-xl transition-colors group text-left border border-slate-200"
                   title={canWrite ? 'Klik untuk Edit Profil / No. HP' : 'Akun read-only'}
                 >
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-forest-700 border border-gold-400/50 flex items-center justify-center text-xs font-bold text-gold-300">
+                    <div className="w-7 h-7 rounded-full bg-forest-800 border border-forest-900 flex items-center justify-center text-xs font-bold text-white">
                       {profile.full_name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className="text-xs font-semibold text-white leading-tight group-hover:text-gold-400 transition-colors">{profile.full_name}</p>
-                      <p className="text-[10px] text-gold-400 font-medium uppercase tracking-wider">{roleLabel(role, activeTenant?.type)}</p>
+                      <p className="text-xs font-bold text-slate-900 leading-tight group-hover:text-forest-900 transition-colors">{profile.full_name}</p>
+                      <p className="text-[10px] text-gold-700 font-semibold uppercase tracking-wider">{roleLabel(role, activeTenant?.type)}</p>
                     </div>
                   </div>
-                  <AiOutlineEdit className="text-forest-300 group-hover:text-gold-400 transition-colors text-sm ml-1" />
+                  <AiOutlineEdit className="text-slate-400 group-hover:text-forest-800 transition-colors text-sm ml-1" />
                 </button>
               )}
               <button
                 type="button"
                 onClick={() => signOut()}
-                className="inline-flex items-center justify-center p-2 rounded-lg text-forest-300 hover:text-white hover:bg-forest-700/40 transition-colors"
+                className="inline-flex items-center justify-center p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors"
                 title="Keluar"
               >
                 <AiOutlineLogout className="text-lg" />
@@ -488,7 +488,7 @@ export default function Header() {
             <button
               type="button"
               onClick={() => handleStartCurrentPageTour()}
-              className="p-2 rounded-lg text-gold-400 hover:bg-forest-750 transition-colors"
+              className="p-2 rounded-xl text-amber-700 hover:bg-amber-50 transition-colors"
               title="Panduan Halaman Ini"
             >
               <AiOutlineBulb className="text-xl" />
@@ -496,11 +496,11 @@ export default function Header() {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
-              className="p-2 rounded-lg text-forest-200 hover:text-white hover:bg-forest-750 transition-colors relative"
+              className="p-2 rounded-xl text-slate-700 hover:text-forest-950 hover:bg-slate-100 transition-colors relative"
             >
               <AiOutlineMenu className="text-xl" />
               {(pendingRegCount + pendingPayCount) > 0 && (
-                <span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-forest-800 animate-ping"></span>
+                <span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white animate-ping"></span>
               )}
             </button>
           </div>
@@ -510,19 +510,19 @@ export default function Header() {
       {/* Laci Menu Mobile (100% Solid & Opaque via createPortal di atas segalanya) */}
       {mobileMenuOpen &&
         createPortal(
-          <div className="fixed inset-0 z-[99999] flex flex-col w-screen h-screen bg-[#0a2f1d] text-white overflow-hidden md:hidden animate-fadeIn">
+          <div className="fixed inset-0 z-[99999] flex flex-col w-screen h-screen bg-slate-50 text-slate-900 overflow-hidden md:hidden animate-fadeIn">
             {/* Topbar Mobile Menu */}
-            <div className="flex items-center justify-between p-4 border-b border-forest-800 shrink-0 bg-[#0a2f1d]">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200 shrink-0 bg-white shadow-xs">
               <div className="flex items-center gap-2.5">
-                <img src="/logo.png" alt="Logo" className="h-8 w-auto rounded ring-1 ring-gold-500/40" />
+                <img src="/logo.png" alt="Logo" className="h-8 w-auto rounded-xl ring-2 ring-forest-800/10" />
                 <div>
-                  <h2 className="text-sm font-bold text-white font-display">Palm Village</h2>
-                  <p className="text-[10px] text-forest-300 uppercase tracking-wider">Portal Warga</p>
+                  <h2 className="text-sm font-extrabold text-forest-950 font-display">RuangWarga</h2>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Platform Komunitas</p>
                 </div>
               </div>
               <button
                 onClick={() => setMobileMenuOpen(false)}
-                className="p-2 text-forest-300 hover:text-white hover:bg-forest-800 rounded-lg transition-colors"
+                className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
               >
                 <AiOutlineClose className="text-xl" />
               </button>
@@ -532,23 +532,23 @@ export default function Header() {
             {profile && (
               <div
                 data-tour="user-profile-button"
-                className="p-4 bg-[#082315] border-b border-forest-800 shrink-0 flex items-center justify-between"
+                className="p-4 bg-white border-b border-slate-200 shrink-0 flex items-center justify-between"
               >
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-full bg-forest-800 border border-gold-400/50 flex items-center justify-center text-sm font-bold text-gold-300">
+                  <div className="w-10 h-10 rounded-full bg-forest-800 border border-forest-900 flex items-center justify-center text-sm font-bold text-white shadow-xs">
                     {profile.full_name?.charAt(0).toUpperCase() || 'W'}
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-white">{profile.full_name}</p>
-                    <p className="text-xs text-gold-400 mt-0.5">{roleLabel(role, activeTenant?.type)}</p>
-                    {profile.phone && <p className="text-[11px] text-forest-300 mt-0.5">📞 {profile.phone}</p>}
+                    <p className="text-sm font-bold text-slate-900">{profile.full_name}</p>
+                    <p className="text-xs text-gold-700 font-semibold mt-0.5">{roleLabel(role, activeTenant?.type)}</p>
+                    {profile.phone && <p className="text-[11px] text-slate-500 mt-0.5">📞 {profile.phone}</p>}
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={openProfileModal}
                   disabled={!canWrite}
-                  className="flex items-center gap-1.5 bg-forest-800 hover:bg-forest-700 text-gold-400 px-3 py-1.5 rounded-xl text-xs font-semibold border border-forest-700 transition-colors shadow disabled:opacity-50"
+                  className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 transition-colors shadow-xs disabled:opacity-50"
                 >
                   <AiOutlineEdit /> Edit
                 </button>
@@ -556,8 +556,8 @@ export default function Header() {
             )}
 
             {/* Tenant Switcher Mobile */}
-            <div className="p-3 bg-[#082315] border-b border-forest-800 shrink-0">
-              <p className="text-[10px] text-forest-400 uppercase tracking-wider font-semibold mb-1.5 px-1">Layanan Aktif</p>
+            <div className="p-3 bg-slate-50 border-b border-slate-200 shrink-0">
+              <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-1.5 px-1">Layanan Aktif</p>
               <TenantSwitcher isMobile={true} />
             </div>
 
@@ -569,32 +569,32 @@ export default function Header() {
                   setMobileMenuOpen(false);
                   handleStartCurrentPageTour();
                 }}
-                className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold rounded-xl bg-gold-500/10 text-gold-300 border border-gold-500/30 hover:bg-gold-500/20 transition-all shadow-xs"
+                className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold rounded-xl bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition-all shadow-xs"
               >
-                <AiOutlineBulb className="text-base text-gold-400" /> Panduan Halaman Ini
+                <AiOutlineBulb className="text-base text-amber-600" /> Panduan Halaman Ini
               </button>
             </div>
 
             {/* Shortcut Layanan & Onboarding Mobile */}
-            <div className="p-3 mx-3 mt-3 rounded-xl bg-forest-900 border border-gold-500/30 shadow-sm flex items-center justify-between gap-2">
+            <div className="p-3 mx-3 mt-3 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5 min-w-0">
                 <span className="text-xl">🏢</span>
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-white truncate">Layanan &amp; Komunitas</p>
-                  <p className="text-[10px] text-forest-300 truncate">Kelola atau buat tenant baru</p>
+                  <p className="text-xs font-bold text-slate-900 truncate">Layanan &amp; Komunitas</p>
+                  <p className="text-[10px] text-slate-500 truncate">Kelola atau buat tenant baru</p>
                 </div>
               </div>
               <Link
                 to="/account/tenants"
                 onClick={() => setMobileMenuOpen(false)}
-                className="px-2.5 py-1.5 bg-gold-500 hover:bg-gold-400 text-forest-950 text-[11px] font-bold rounded-lg shadow-xs flex-shrink-0"
+                className="pv-btn-primary text-[11px] px-3 py-1.5 rounded-lg flex-shrink-0"
               >
                 Layanan ↗
               </Link>
             </div>
 
             {/* Menu List */}
-            <div className="flex-1 overflow-y-auto py-4 px-3 space-y-4 bg-[#0a2f1d]">
+            <div className="flex-1 overflow-y-auto py-4 px-3 space-y-4 bg-slate-50">
               {navGroups.map((group) => {
                 const Icon = group.icon;
                 if (group.to) {
@@ -606,11 +606,13 @@ export default function Header() {
                       onClick={() => setMobileMenuOpen(false)}
                       className={({ isActive }) =>
                         `flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-semibold rounded-xl transition-all ${
-                          isActive ? 'bg-forest-800 text-gold-400 shadow-inner' : 'text-forest-200 hover:bg-forest-800/50'
+                          isActive
+                            ? 'bg-forest-50 text-forest-950 border border-forest-200/80 font-bold shadow-xs'
+                            : 'text-slate-700 hover:bg-slate-100'
                         }`
                       }
                     >
-                      <Icon className="text-lg" />
+                      <Icon className="text-lg text-slate-500" />
                       <span>{group.label}</span>
                     </NavLink>
                   );
@@ -618,7 +620,7 @@ export default function Header() {
 
                 return (
                   <div key={group.key} className="space-y-1">
-                    <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-forest-400 flex items-center justify-between">
+                    <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
                       <span>{group.label}</span>
                       {group.badgeCount > 0 && (
                         <span className="bg-red-500 text-white rounded-full px-1.5 py-0.5 text-[9px] font-bold">
@@ -626,7 +628,7 @@ export default function Header() {
                         </span>
                       )}
                     </div>
-                    <div className="space-y-1 pl-2 border-l border-forest-800">
+                    <div className="space-y-1 pl-2 border-l border-slate-200">
                       {group.items.map((item) => {
                         const ItemIcon = item.icon;
                         const isItemActive = location.pathname === item.to;
@@ -636,10 +638,12 @@ export default function Header() {
                             to={item.to}
                             onClick={() => setMobileMenuOpen(false)}
                             className={`flex items-center gap-3 px-3 py-2.5 text-xs font-medium rounded-xl transition-all ${
-                              isItemActive ? 'bg-forest-800 text-gold-400 shadow-inner' : 'text-forest-200 hover:bg-forest-800/30'
+                              isItemActive
+                                ? 'bg-forest-50 text-forest-950 border-l-2 border-gold-500 font-bold shadow-xs'
+                                : 'text-slate-700 hover:bg-slate-100'
                             }`}
                           >
-                            <ItemIcon className="text-base shrink-0" />
+                            <ItemIcon className="text-base shrink-0 text-slate-400" />
                             <span className="flex-1">{item.label}</span>
                             {item.badge > 0 && (
                               <span className="bg-red-500 text-white rounded-full px-1 text-[9px] font-bold">
@@ -656,13 +660,13 @@ export default function Header() {
             </div>
 
             {/* Logout Mobile */}
-            <div className="p-4 border-t border-forest-800 bg-[#082315] shrink-0">
+            <div className="p-4 border-t border-slate-200 bg-white shrink-0">
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
                   signOut();
                 }}
-                className="w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold rounded-xl bg-red-900/50 text-red-200 border border-red-800/50 hover:bg-red-800 hover:text-white transition-all shadow-md"
+                className="w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold rounded-xl bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-all shadow-xs"
               >
                 <AiOutlineLogout className="text-lg" /> Keluar Akun
               </button>
@@ -674,37 +678,37 @@ export default function Header() {
       {/* Modal Edit Detail Profil Warga via createPortal */}
       {profileModalOpen &&
         createPortal(
-          <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
-            <div className="bg-[#0b2819] border border-forest-700/80 rounded-2xl max-w-md w-full p-6 shadow-2xl text-white">
-              <div className="flex items-center justify-between border-b border-forest-800 pb-3 mb-4">
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl text-slate-900">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-forest-800 border border-gold-400/50 flex items-center justify-center text-sm font-bold text-gold-300">
+                  <div className="w-9 h-9 rounded-full bg-forest-800 text-white flex items-center justify-center text-sm font-bold shadow-xs">
                     {profile?.full_name?.charAt(0).toUpperCase() || 'W'}
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-gold-400">Profil User Warga</h3>
-                    <p className="text-[11px] text-forest-300">Detail akun & data kontak terdaftar</p>
+                    <h3 className="text-base font-extrabold text-forest-950 font-display">Profil User Warga</h3>
+                    <p className="text-[11px] text-slate-500">Detail akun &amp; data kontak terdaftar</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setProfileModalOpen(false)}
-                  className="text-forest-400 hover:text-white p-1 rounded-lg hover:bg-forest-800 transition-colors"
+                  className="text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-100 transition-colors"
                 >
                   <AiOutlineClose className="text-lg" />
                 </button>
               </div>
 
               {/* Status & Identitas Terdaftar */}
-              <div className="mb-4 p-3 rounded-xl bg-forest-900/80 border border-forest-700/60 grid grid-cols-2 gap-2 text-xs">
+              <div className="mb-4 p-3 rounded-2xl bg-slate-50 border border-slate-200 grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <span className="text-[10px] font-semibold text-forest-400 uppercase tracking-wider block">Role Akun</span>
-                  <span className="font-bold text-gold-300 inline-flex items-center gap-1 mt-0.5">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Role Akun</span>
+                  <span className="font-bold text-slate-800 inline-flex items-center gap-1 mt-0.5">
                     🏛️ {roleLabel(role, activeTenant?.type)}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-semibold text-forest-400 uppercase tracking-wider block">Status {template.memberLabel}</span>
-                  <span className="font-semibold text-emerald-300 inline-flex items-center gap-1 mt-0.5">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Status {template.memberLabel}</span>
+                  <span className="font-bold text-emerald-700 inline-flex items-center gap-1 mt-0.5">
                     ✅ Terdaftar Aktif
                   </span>
                 </div>
@@ -712,22 +716,22 @@ export default function Header() {
 
               <form onSubmit={handleProfileSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-forest-300 mb-1 uppercase tracking-wider">
+                  <label className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider">
                     Akun Google / Email (JWT Auth)
                   </label>
                   <input
                     type="email"
                     disabled
                     value={profile?.email || ''}
-                    className="w-full rounded-xl bg-forest-950 border border-forest-800 px-3 py-2 text-xs text-forest-400 cursor-not-allowed"
+                    className="w-full rounded-xl bg-slate-100 border border-slate-200 px-3.5 py-2.5 text-xs text-slate-500 cursor-not-allowed"
                   />
-                  <p className="text-[10px] text-forest-400 mt-1">
+                  <p className="text-[10px] text-slate-400 mt-1">
                     🔒 Email terikat secara permanen pada autentikasi Google.
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-forest-200 mb-1 uppercase tracking-wider">
+                  <label className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider">
                     Nama Lengkap Warga
                   </label>
                   <input
@@ -736,12 +740,12 @@ export default function Header() {
                     onChange={(e) => setEditName(e.target.value)}
                     placeholder="Nama Lengkap Sesuai KTP"
                     required
-                    className="w-full rounded-xl bg-forest-800 border border-forest-700 px-3.5 py-2 text-sm text-white placeholder-forest-400 focus:border-gold-500 focus:outline-none"
+                    className="pv-input"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-forest-200 mb-1 uppercase tracking-wider">
+                  <label className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider">
                     Nomor WhatsApp / HP
                   </label>
                   <input
@@ -749,24 +753,24 @@ export default function Header() {
                     value={editPhone}
                     onChange={(e) => setEditPhone(e.target.value)}
                     placeholder="Contoh: 0812-3456-7890"
-                    className="w-full rounded-xl bg-forest-800 border border-forest-700 px-3.5 py-2 text-sm text-white placeholder-forest-400 focus:border-gold-500 focus:outline-none"
+                    className="pv-input"
                   />
-                  <p className="text-[11px] text-forest-400 mt-1">
-                    💡 Digunakan oleh pengurus & bendahara untuk notifikasi tagihan IPL.
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    💡 Digunakan oleh pengurus &amp; bendahara untuk notifikasi tagihan IPL.
                   </p>
                 </div>
 
-                <div className="pt-2 flex items-center justify-end gap-3 border-t border-forest-800/80 mt-6">
+                <div className="pt-2 flex items-center justify-end gap-3 border-t border-slate-100 mt-6">
                   <button
                     type="button"
                     onClick={() => setProfileModalOpen(false)}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold text-forest-300 hover:text-white hover:bg-forest-800 transition-colors"
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-xl text-xs font-bold bg-gold-500 text-forest-950 hover:bg-gold-400 shadow-lg shadow-gold-500/20 transition-all"
+                    className="pv-btn-primary text-xs px-5 py-2.5"
                   >
                     Simpan Profil
                   </button>
