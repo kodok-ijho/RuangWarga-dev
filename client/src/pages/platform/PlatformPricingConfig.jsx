@@ -206,15 +206,15 @@ export default function PlatformPricingConfig() {
   return (
     <div className="space-y-10">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-forest-800">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-slate-200">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xl">💰</span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-display">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-display">
               Konfigurasi Harga &amp; Periode
             </h1>
           </div>
-          <p className="text-xs sm:text-sm text-forest-300">
+          <p className="text-xs sm:text-sm text-slate-600">
             Atur skema tarif berlangganan platform berbasis blok kapasitas unit dan diskon durasi komitmen (FR-7 s/d FR-11).
           </p>
         </div>
@@ -223,7 +223,7 @@ export default function PlatformPricingConfig() {
           type="button"
           onClick={fetchData}
           disabled={loading}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-forest-800 hover:bg-forest-700 text-forest-200 hover:text-white text-xs font-semibold border border-forest-700 transition-colors self-start sm:self-auto"
+          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 text-xs font-semibold border border-slate-200 shadow-xs transition-colors self-start sm:self-auto"
         >
           <AiOutlineReload className={loading ? 'animate-spin' : ''} />
           <span>Muat Ulang</span>
@@ -231,12 +231,12 @@ export default function PlatformPricingConfig() {
       </div>
 
       {/* Info Banner */}
-      <div className="p-4 rounded-2xl bg-forest-950/70 border border-forest-800 flex items-start gap-3 text-xs text-forest-300 leading-relaxed">
-        <AiOutlineInfoCircle className="text-lg text-gold-400 shrink-0 mt-0.5" />
+      <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 flex items-start gap-3 text-xs text-amber-900 leading-relaxed shadow-xs">
+        <AiOutlineInfoCircle className="text-lg text-amber-600 shrink-0 mt-0.5" />
         <div>
-          <strong className="text-white">Prinsip Penetapan Tarif:</strong> Nilai <code>price_per_block</code> di bawah
+          <strong className="text-slate-900">Prinsip Penetapan Tarif:</strong> Nilai <code>price_per_block</code> di bawah
           adalah tarif dasar (base price) per bulan. User yang memilih komitmen tahunan (12 bulan) mendapatkan diskon{' '}
-          <strong className="text-gold-300">{annualDiscount}%</strong>, sehingga tarif efektif per bulannya lebih hemat.
+          <strong className="text-amber-800">{annualDiscount}%</strong>, sehingga tarif efektif per bulannya lebih hemat.
           Tarif blok kecil (5 unit) memiliki unit cost ~40% lebih tinggi dibandingkan blok 10 unit untuk mendorong adopsi paket efisien.
         </div>
       </div>
@@ -245,22 +245,22 @@ export default function PlatformPricingConfig() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <AiOutlineDollarCircle className="text-gold-400 text-xl" />
-            <h2 className="text-lg font-bold text-white font-display">Matriks Harga Blok Kapasitas (Block Pricing)</h2>
+            <AiOutlineDollarCircle className="text-amber-500 text-xl" />
+            <h2 className="text-lg font-bold text-slate-900 font-display">Matriks Harga Blok Kapasitas (Block Pricing)</h2>
           </div>
-          <span className="text-xs text-forest-400">Total {pricingList.length} Entri Tarif</span>
+          <span className="text-xs text-slate-500">Total {pricingList.length} Entri Tarif</span>
         </div>
 
-        <div className="bg-forest-900/60 border border-forest-800 rounded-2xl overflow-hidden shadow-xl">
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
           {loading ? (
             <div className="flex items-center justify-center py-16">
-              <div className="h-8 w-8 rounded-full border-2 border-forest-600 border-t-gold-500 animate-spin" />
+              <div className="h-8 w-8 rounded-full border-2 border-forest-700 border-t-gold-500 animate-spin" />
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-forest-950/80 border-b border-forest-800 text-forest-400 uppercase tracking-wider font-semibold">
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase tracking-wider font-semibold text-[11px]">
                     <th className="py-3.5 px-4">Tipe Layanan</th>
                     <th className="py-3.5 px-4">Ukuran Blok</th>
                     <th className="py-3.5 px-4">Base Price / Bulan</th>
@@ -270,7 +270,7 @@ export default function PlatformPricingConfig() {
                     <th className="py-3.5 px-4 text-right">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-forest-800/60">
+                <tbody className="divide-y divide-slate-100">
                   {pricingList.map((item) => {
                     const tmpl = getTenantTemplate(item.tenant_type);
                     const isEditing = editingPricingId === item.id;
@@ -279,14 +279,14 @@ export default function PlatformPricingConfig() {
                     const annualTotal = discountedMonthly * 12;
 
                     return (
-                      <tr key={item.id} className="hover:bg-forest-800/30 transition-colors">
+                      <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
                         {/* Tenant Type */}
                         <td className="py-3.5 px-4">
                           <div className="flex items-center gap-2">
                             <span className="text-base">{tmpl.icon}</span>
                             <div>
-                              <div className="font-bold text-white text-xs">{tmpl.name}</div>
-                              <span className="font-mono text-[10px] text-forest-400">{item.tenant_type}</span>
+                              <div className="font-bold text-slate-900 text-xs">{tmpl.name}</div>
+                              <span className="font-mono text-[10px] text-slate-400">{item.tenant_type}</span>
                             </div>
                           </div>
                         </td>
@@ -296,8 +296,8 @@ export default function PlatformPricingConfig() {
                           <span
                             className={`inline-block px-2.5 py-1 rounded-md text-[11px] font-bold ${
                               item.block_size === 10
-                                ? 'bg-gold-500/20 text-gold-300 border border-gold-500/40'
-                                : 'bg-forest-800 text-forest-300 border border-forest-700'
+                                ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                : 'bg-slate-100 text-slate-700 border border-slate-200'
                             }`}
                           >
                             {item.block_size} {tmpl.unitLabel}
@@ -308,18 +308,18 @@ export default function PlatformPricingConfig() {
                         <td className="py-3.5 px-4">
                           {isEditing ? (
                             <div className="flex items-center gap-1.5">
-                              <span className="text-forest-400 text-xs">Rp</span>
+                              <span className="text-slate-400 text-xs">Rp</span>
                               <input
                                 type="number"
                                 value={editPriceValue}
                                 onChange={(e) => setEditPriceValue(e.target.value)}
-                                className="w-28 px-2 py-1 bg-forest-950 border border-gold-500 rounded text-xs text-white focus:outline-none"
+                                className="w-28 px-2.5 py-1 bg-white border border-forest-800 rounded text-xs text-slate-900 focus:outline-none shadow-xs"
                                 step="250"
                                 min="0"
                               />
                             </div>
                           ) : (
-                            <span className="font-semibold text-white font-mono text-xs">
+                            <span className="font-semibold text-slate-900 font-mono text-xs">
                               Rp {Number(item.price_per_block).toLocaleString('id-ID')}
                             </span>
                           )}
@@ -327,15 +327,15 @@ export default function PlatformPricingConfig() {
 
                         {/* Effective Monthly Price */}
                         <td className="py-3.5 px-4">
-                          <span className="text-emerald-400 font-bold font-mono text-xs">
+                          <span className="text-emerald-700 font-bold font-mono text-xs">
                             Rp {Math.round(discountedMonthly).toLocaleString('id-ID')}
-                            <span className="text-[10px] text-forest-400 font-normal">/bln</span>
+                            <span className="text-[10px] text-slate-400 font-normal">/bln</span>
                           </span>
                         </td>
 
                         {/* Annual Total */}
                         <td className="py-3.5 px-4">
-                          <span className="text-forest-200 font-semibold font-mono text-xs">
+                          <span className="text-slate-700 font-semibold font-mono text-xs">
                             Rp {Math.round(annualTotal).toLocaleString('id-ID')}
                           </span>
                         </td>
@@ -343,21 +343,21 @@ export default function PlatformPricingConfig() {
                         {/* Active Status */}
                         <td className="py-3.5 px-4">
                           {isEditing ? (
-                            <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-forest-300">
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-slate-700">
                               <input
                                 type="checkbox"
                                 checked={editPricingActive}
                                 onChange={(e) => setEditPricingActive(e.target.checked)}
-                                className="rounded bg-forest-950 border-forest-700 text-gold-500 focus:ring-0"
+                                className="rounded border-slate-300 text-forest-800 focus:ring-forest-800"
                               />
                               <span>Aktif</span>
                             </label>
                           ) : (
                             <span
-                              className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                              className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
                                 item.is_active
-                                  ? 'bg-emerald-500/20 text-emerald-300'
-                                  : 'bg-rose-500/20 text-rose-300'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-rose-50 text-rose-700 border-rose-200'
                               }`}
                             >
                               {item.is_active ? 'Aktif' : 'Non-Aktif'}
@@ -373,7 +373,7 @@ export default function PlatformPricingConfig() {
                                 type="button"
                                 onClick={() => handleSavePricing(item)}
                                 disabled={saving}
-                                className="p-1.5 rounded-lg bg-gold-500 hover:bg-gold-400 text-forest-950 font-bold text-xs"
+                                className="p-1.5 rounded-lg bg-forest-800 hover:bg-forest-900 text-gold-400 font-bold text-xs shadow-xs"
                                 title="Simpan Perubahan"
                               >
                                 <AiOutlineSave className="text-base" />
@@ -382,7 +382,7 @@ export default function PlatformPricingConfig() {
                                 type="button"
                                 onClick={handleCancelEditPricing}
                                 disabled={saving}
-                                className="p-1.5 rounded-lg bg-forest-800 hover:bg-forest-700 text-forest-300 text-xs"
+                                className="p-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 text-xs shadow-xs"
                                 title="Batal"
                               >
                                 <AiOutlineClose className="text-base" />
@@ -392,7 +392,7 @@ export default function PlatformPricingConfig() {
                             <button
                               type="button"
                               onClick={() => handleStartEditPricing(item)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-forest-800 hover:bg-forest-700 text-forest-200 text-xs transition-colors border border-forest-700"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 text-xs transition-colors border border-slate-200 shadow-xs font-semibold"
                             >
                               <AiOutlineEdit />
                               <span>Edit</span>
@@ -413,10 +413,10 @@ export default function PlatformPricingConfig() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <AiOutlinePercentage className="text-amber-400 text-xl" />
-            <h2 className="text-lg font-bold text-white font-display">Opsi Periode Langganan &amp; Diskon (Subscription Periods)</h2>
+            <AiOutlinePercentage className="text-amber-500 text-xl" />
+            <h2 className="text-lg font-bold text-slate-900 font-display">Opsi Periode Langganan &amp; Diskon (Subscription Periods)</h2>
           </div>
-          <span className="text-xs text-forest-400">{periodsList.length} Periode Didukung</span>
+          <span className="text-xs text-slate-500">{periodsList.length} Periode Didukung</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -426,60 +426,64 @@ export default function PlatformPricingConfig() {
             return (
               <div
                 key={period.id}
-                className={`bg-forest-900/60 border rounded-2xl p-5 flex flex-col justify-between transition-all ${
-                  isEditing ? 'border-gold-500 bg-forest-800/80 shadow-xl' : 'border-forest-800 hover:border-forest-700'
+                className={`bg-white border rounded-2xl p-5 flex flex-col justify-between transition-all shadow-xs ${
+                  isEditing
+                    ? 'border-2 border-forest-800 ring-4 ring-forest-800/10 shadow-sm'
+                    : 'border-slate-200 hover:border-slate-300'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-bold text-white font-display">
+                    <span className="text-sm font-bold text-slate-900 font-display">
                       Paket {period.duration_months} Bulan
                     </span>
                     <span
-                      className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
-                        period.is_active ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'
+                      className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase border ${
+                        period.is_active
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-rose-50 text-rose-700 border-rose-200'
                       }`}
                     >
                       {period.is_active ? 'Aktif' : 'Non-Aktif'}
                     </span>
                   </div>
 
-                  <p className="text-xs text-forest-300 mb-4">
+                  <p className="text-xs text-slate-600 mb-4">
                     Komitmen perpanjangan tagihan setiap {period.duration_months} bulan sekali.
                   </p>
 
-                  <div className="p-3 bg-forest-950/80 rounded-xl border border-forest-800 space-y-2">
+                  <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-forest-400">Besar Diskon:</span>
+                      <span className="text-slate-500">Besar Diskon:</span>
                       {isEditing ? (
                         <div className="flex items-center gap-1">
                           <input
                             type="number"
                             value={editDiscountValue}
                             onChange={(e) => setEditDiscountValue(e.target.value)}
-                            className="w-16 px-2 py-0.5 bg-forest-900 border border-gold-500 rounded text-xs text-white focus:outline-none text-right font-bold"
+                            className="w-16 px-2 py-0.5 bg-white border border-forest-800 rounded text-xs text-slate-900 focus:outline-none text-right font-bold shadow-xs"
                             step="1"
                             min="0"
                             max="100"
                           />
-                          <span className="text-gold-400 font-bold">%</span>
+                          <span className="text-amber-800 font-bold">%</span>
                         </div>
                       ) : (
-                        <span className="text-base font-extrabold text-gold-300 font-mono">
+                        <span className="text-base font-extrabold text-amber-800 font-mono">
                           {Number(period.discount_percent)}%
                         </span>
                       )}
                     </div>
 
                     {isEditing && (
-                      <div className="pt-2 border-t border-forest-800 flex items-center justify-between text-xs">
-                        <span className="text-forest-400">Status Aktif:</span>
-                        <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-forest-300">
+                      <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
+                        <span className="text-slate-500">Status Aktif:</span>
+                        <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-slate-700">
                           <input
                             type="checkbox"
                             checked={editPeriodActive}
                             onChange={(e) => setEditPeriodActive(e.target.checked)}
-                            className="rounded bg-forest-950 border-forest-700 text-gold-500 focus:ring-0"
+                            className="rounded border-slate-300 text-forest-800 focus:ring-forest-800"
                           />
                           <span>Aktif</span>
                         </label>
@@ -488,14 +492,14 @@ export default function PlatformPricingConfig() {
                   </div>
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-forest-800 flex items-center justify-end gap-2">
+                <div className="pt-4 mt-4 border-t border-slate-200 flex items-center justify-end gap-2">
                   {isEditing ? (
                     <>
                       <button
                         type="button"
                         onClick={handleCancelEditPeriod}
                         disabled={saving}
-                        className="px-3 py-1.5 rounded-lg bg-forest-800 hover:bg-forest-700 text-forest-300 text-xs"
+                        className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 text-xs shadow-xs"
                       >
                         Batal
                       </button>
@@ -503,7 +507,7 @@ export default function PlatformPricingConfig() {
                         type="button"
                         onClick={() => handleSavePeriod(period)}
                         disabled={saving}
-                        className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-gold-500 hover:bg-gold-400 text-forest-950 font-bold text-xs shadow"
+                        className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-forest-800 hover:bg-forest-900 text-gold-400 font-bold text-xs shadow-xs"
                       >
                         <AiOutlineSave />
                         <span>Simpan</span>
@@ -513,7 +517,7 @@ export default function PlatformPricingConfig() {
                     <button
                       type="button"
                       onClick={() => handleStartEditPeriod(period)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-forest-800 hover:bg-forest-700 text-forest-200 text-xs transition-colors border border-forest-700"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 text-xs transition-colors border border-slate-200 shadow-xs font-semibold"
                     >
                       <AiOutlineEdit />
                       <span>Ubah Diskon</span>
