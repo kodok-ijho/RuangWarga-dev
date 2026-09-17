@@ -14,12 +14,12 @@
 }
 
 @layer components {
-  /* Kartu standar */
+  /* Kartu standar (Modern Light Canvas) */
   .pv-card {
-    @apply rounded-2xl bg-white border border-forest-100/90 shadow-card transition-all;
+    @apply rounded-2xl bg-white border border-slate-200/90 shadow-card transition-all;
   }
 
-  /* Kartu dark mode (tema Forest) */
+  /* Kartu dark mode (opsional aksen gelap) */
   .pv-card-dark {
     @apply rounded-2xl bg-[#091e13]/85 border border-forest-800/90 shadow-lg backdrop-blur-sm transition-all;
   }
