@@ -150,27 +150,27 @@ export default function ManageRoles() {
   };
 
   return (
-    <div className="min-h-screen bg-forest-950 text-white p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-slate-50 text-slate-900 p-4 sm:p-6 lg:p-8">
       <div className="max-w-5xl mx-auto space-y-6">
         {/* Header Navigasi */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
               to={`/t/${tenantId}/dashboard`}
-              className="p-2 rounded-xl bg-forest-900 border border-forest-800 hover:bg-forest-800 text-forest-200 transition-colors"
+              className="p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 shadow-xs transition-colors"
               title="Kembali ke Dashboard"
             >
               <AiOutlineArrowLeft className="w-5 h-5" />
             </Link>
             <div>
               <div className="flex items-center gap-2">
-                <AiOutlineSafetyCertificate className="text-gold-400 text-xl" />
-                <h1 className="text-xl sm:text-2xl font-bold font-display text-white">
-                  Kelola Role & Hak Akses (RBAC v2)
+                <AiOutlineSafetyCertificate className="text-forest-800 text-xl" />
+                <h1 className="text-xl sm:text-2xl font-extrabold font-display text-slate-900">
+                  Kelola Role &amp; Hak Akses (RBAC v2)
                 </h1>
               </div>
-              <p className="text-xs text-forest-300 mt-0.5">
-                Konfigurasi peran dan wewenang berjenjang untuk staf & pengelola komunitas
+              <p className="text-xs text-slate-500 mt-0.5">
+                Konfigurasi peran dan wewenang berjenjang untuk staf &amp; pengelola komunitas
               </p>
             </div>
           </div>
@@ -180,7 +180,7 @@ export default function ManageRoles() {
               type="button"
               onClick={openCreateModal}
               disabled={isReadOnly || !canManage}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 disabled:opacity-50 text-forest-950 text-xs font-bold shadow-lg transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-900 disabled:opacity-50 text-gold-400 text-xs font-bold shadow-xs transition-all"
             >
               <AiOutlinePlus className="text-sm" />
               <span>Tambah Role Baru</span>
@@ -189,23 +189,23 @@ export default function ManageRoles() {
         </div>
 
         {/* Info Banner */}
-        <div className="p-4 rounded-2xl bg-forest-900/80 border border-forest-800 flex items-start gap-3 text-xs text-forest-200 leading-relaxed">
-          <AiOutlineLock className="text-gold-400 text-base flex-shrink-0 mt-0.5" />
+        <div className="p-4 rounded-2xl bg-blue-50/80 border border-blue-200 flex items-start gap-3 text-xs text-slate-700 leading-relaxed shadow-xs">
+          <AiOutlineLock className="text-blue-700 text-base flex-shrink-0 mt-0.5" />
           <div>
-            <strong className="text-gold-300">Model Hak Akses 4 Tingkat Bersarang:</strong> Super Admin ⊃ Admin (Pemilik) ⊃ Pengelola (Staf) ⊃ Warga/Anggota.
-            Role bawaan <span className="text-white font-semibold">Admin</span> dan <span className="text-white font-semibold">Warga/Anggota</span> bersifat permanen dan tidak dapat dihapus. Anda dapat membuat role kustom baru untuk mendelegasikan wewenang spesifik ke pengelola.
+            <strong className="text-blue-900">Model Hak Akses 4 Tingkat Bersarang:</strong> Super Admin &sup3; Admin (Pemilik) &sup3; Pengelola (Staf) &sup3; Warga/Anggota.
+            Role bawaan <span className="text-slate-900 font-semibold">Admin</span> dan <span className="text-slate-900 font-semibold">Warga/Anggota</span> bersifat permanen dan tidak dapat dihapus. Anda dapat membuat role kustom baru untuk mendelegasikan wewenang spesifik ke pengelola.
           </div>
         </div>
 
         {/* Daftar Role */}
         <div className="space-y-4">
           {loading ? (
-            <div className="py-16 text-center text-forest-300 text-xs">
-              <div className="h-7 w-7 rounded-full border-2 border-forest-700 border-t-gold-400 animate-spin mx-auto mb-3" />
+            <div className="py-16 text-center text-slate-500 text-xs">
+              <div className="h-7 w-7 rounded-full border-2 border-slate-300 border-t-forest-800 animate-spin mx-auto mb-3" />
               Memuat konfigurasi role...
             </div>
           ) : roles.length === 0 ? (
-            <div className="py-16 text-center text-forest-400 text-xs bg-forest-900/50 rounded-2xl border border-forest-850">
+            <div className="py-16 text-center text-slate-500 text-xs bg-white rounded-2xl border border-slate-200 shadow-xs">
               Belum ada role yang terdaftar.
             </div>
           ) : (
@@ -216,25 +216,25 @@ export default function ManageRoles() {
               return (
                 <div
                   key={role.id}
-                  className="p-5 rounded-2xl bg-forest-900 border border-forest-800 hover:border-forest-700 transition-colors space-y-3"
+                  className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 transition-colors space-y-3 shadow-xs"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
-                      <h3 className="text-base font-bold text-white font-display">
+                      <h3 className="text-base font-bold text-slate-900 font-display">
                         {role.name}
                       </h3>
                       {role.is_owner_role && (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
                           Role Pemilik (Bawaan)
                         </span>
                       )}
                       {role.is_base_role && (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-forest-800 text-forest-300 border border-forest-700">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
                           Role Dasar (Bawaan)
                         </span>
                       )}
                       {!isImmutable && (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                           Custom Role
                         </span>
                       )}
@@ -247,7 +247,7 @@ export default function ManageRoles() {
                             type="button"
                             onClick={() => openEditModal(role)}
                             disabled={isReadOnly || !canManage}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-forest-800 hover:bg-forest-700 disabled:opacity-50 text-forest-200 text-xs font-semibold transition-colors"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 disabled:opacity-50 text-slate-700 hover:text-slate-900 border border-slate-200 text-xs font-semibold transition-colors shadow-xs"
                           >
                             <AiOutlineEdit />
                             <span>Edit</span>
@@ -256,7 +256,7 @@ export default function ManageRoles() {
                             type="button"
                             onClick={() => handleDeleteRole(role)}
                             disabled={isReadOnly || !canManage}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-950/50 hover:bg-rose-900/60 disabled:opacity-50 text-rose-300 border border-rose-800/40 text-xs font-semibold transition-colors"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white hover:bg-rose-50 disabled:opacity-50 text-rose-600 hover:text-rose-700 border border-slate-200 text-xs font-semibold transition-colors shadow-xs"
                           >
                             <AiOutlineDelete />
                             <span>Hapus</span>
@@ -264,7 +264,7 @@ export default function ManageRoles() {
                         </>
                       )}
                       {isImmutable && (
-                        <span className="text-[11px] text-forest-400 italic">
+                        <span className="text-[11px] text-slate-400 italic">
                           Terkunci oleh sistem
                         </span>
                       )}
@@ -272,12 +272,12 @@ export default function ManageRoles() {
                   </div>
 
                   {/* Ringkasan Permissions */}
-                  <div className="pt-2 border-t border-forest-850">
-                    <div className="text-[11px] font-semibold text-forest-300 mb-2">
+                  <div className="pt-2 border-t border-slate-200">
+                    <div className="text-[11px] font-semibold text-slate-600 mb-2">
                       Hak Akses Terdaftar ({permCount} dari {PLATFORM_PERMISSIONS.length}):
                     </div>
                     {permCount === 0 ? (
-                      <p className="text-xs text-forest-400 italic">
+                      <p className="text-xs text-slate-400 italic">
                         Tidak memiliki hak akses staff/operasional (hanya melihat data miliknya sendiri).
                       </p>
                     ) : (
@@ -285,10 +285,10 @@ export default function ManageRoles() {
                         {PLATFORM_PERMISSIONS.filter((p) => (role.permissions || []).includes(p.key)).map((p) => (
                           <span
                             key={p.key}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-forest-950 border border-forest-800 text-[11px] text-forest-200"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-[11px] text-slate-700 shadow-xs"
                             title={p.description}
                           >
-                            <AiOutlineCheck className="text-emerald-400 text-xs" />
+                            <AiOutlineCheck className="text-emerald-600 text-xs" />
                             <span>{p.label}</span>
                           </span>
                         ))}
@@ -303,20 +303,20 @@ export default function ManageRoles() {
 
         {/* Modal Buat / Edit Role */}
         {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-            <div className="bg-forest-900 border border-forest-750 rounded-3xl p-6 sm:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl space-y-5 animate-in fade-in zoom-in-95">
               <div>
-                <h3 className="text-lg font-bold text-white font-display">
+                <h3 className="text-lg font-bold text-slate-900 font-display">
                   {editingRole ? `Edit Role: ${editingRole.name}` : 'Buat Role Kustom Baru'}
                 </h3>
-                <p className="text-xs text-forest-300 mt-0.5">
+                <p className="text-xs text-slate-500 mt-0.5">
                   Tentukan nama role dan pilih izin akses yang diberikan kepada pemegang peran ini.
                 </p>
               </div>
 
               <form onSubmit={handleSaveRole} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-forest-200 mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     Nama Role / Jabatan
                   </label>
                   <input
@@ -325,28 +325,28 @@ export default function ManageRoles() {
                     value={roleName}
                     onChange={(e) => setRoleName(e.target.value)}
                     placeholder="Contoh: Bendahara Kos, Koordinator Lapangan, Sekretaris"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-forest-950 border border-forest-700 text-white text-xs placeholder:text-forest-500 focus:outline-none focus:border-gold-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs placeholder:text-slate-400 focus:outline-none focus:border-forest-800 shadow-xs"
                   />
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-semibold text-forest-200">
+                    <label className="text-xs font-semibold text-slate-700">
                       Pilih Permission ({selectedPermissions.length} dipilih)
                     </label>
                     <div className="flex items-center gap-2 text-[11px]">
                       <button
                         type="button"
                         onClick={selectAllPermissions}
-                        className="text-gold-400 hover:text-gold-300 font-medium underline"
+                        className="text-forest-800 hover:text-forest-900 font-bold underline"
                       >
                         Pilih Semua
                       </button>
-                      <span className="text-forest-600">|</span>
+                      <span className="text-slate-300">|</span>
                       <button
                         type="button"
                         onClick={clearAllPermissions}
-                        className="text-forest-400 hover:text-forest-300 font-medium underline"
+                        className="text-slate-500 hover:text-slate-700 font-medium underline"
                       >
                         Kosongkan
                       </button>
@@ -359,21 +359,21 @@ export default function ManageRoles() {
                       return (
                         <label
                           key={perm.key}
-                          className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                          className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all shadow-xs ${
                             isSelected
-                              ? 'bg-forest-950 border-gold-500/60 text-white'
-                              : 'bg-forest-950/50 border-forest-800 text-forest-300 hover:border-forest-700'
+                              ? 'bg-forest-50/80 border-forest-300 text-forest-950 ring-1 ring-forest-800/10'
+                              : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300'
                           }`}
                         >
                           <input
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => togglePermission(perm.key)}
-                            className="mt-0.5 rounded border-forest-700 text-gold-500 focus:ring-0 focus:ring-offset-0 bg-forest-900"
+                            className="mt-0.5 rounded border-slate-300 text-forest-800 focus:ring-0 focus:ring-offset-0 bg-white"
                           />
                           <div className="space-y-0.5">
                             <p className="text-xs font-bold leading-tight">{perm.label}</p>
-                            <p className="text-[10px] text-forest-400 leading-normal">{perm.description}</p>
+                            <p className="text-[10px] text-slate-500 leading-normal">{perm.description}</p>
                           </div>
                         </label>
                       );
@@ -381,19 +381,19 @@ export default function ManageRoles() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-forest-800">
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
                   <button
                     type="button"
                     onClick={() => setShowModal(false)}
                     disabled={submitting}
-                    className="px-4 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-700 text-forest-200 text-xs font-semibold transition-colors"
+                    className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-200 shadow-xs transition-colors"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
                     disabled={submitting || isReadOnly}
-                    className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 disabled:opacity-50 text-forest-950 text-xs font-bold transition-all shadow-md"
+                    className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-900 disabled:opacity-50 text-gold-400 text-xs font-bold transition-all shadow-xs"
                   >
                     {submitting ? 'Menyimpan...' : 'Simpan Role'}
                   </button>

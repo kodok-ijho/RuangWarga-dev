@@ -329,9 +329,9 @@ function GuestLandingView() {
             </Link>
             <Link
               to="/listing"
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-forest-950/80 hover:bg-forest-950 text-forest-100 hover:text-white border border-forest-700/80 font-bold text-xs transition"
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-200 font-bold text-xs transition shadow-xs"
             >
-              <AiOutlineShop className="text-sm text-gold-400" />
+              <AiOutlineShop className="text-sm text-forest-800" />
               <span>Lihat Listing Publik</span>
             </Link>
           </div>
