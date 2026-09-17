@@ -353,10 +353,10 @@ export default function NonIplIncomes() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-forest-900">
+          <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
             {isWarga ? 'Pembayaran & Donasi Non-IPL' : 'Pemasukan Non-IPL & Event'}
           </h1>
-          <p className="text-sm text-forest-500">
+          <p className="text-xs text-slate-500 mt-0.5">
             {isWarga
               ? 'Kirim kontribusi, donasi komplek, atau iuran partisipasi event melalui Transfer Bank atau QRIS.'
               : 'Kelola pemasukan kas umum, kegiatan event, serta verifikasi bukti pembayaran transfer/QRIS warga.'}
@@ -366,16 +366,16 @@ export default function NonIplIncomes() {
 
       {/* Form Section */}
       <div className="pv-card overflow-hidden">
-        <div className="bg-forest-800 px-5 py-3 text-white flex justify-between items-center">
+        <div className="bg-white border-b border-slate-200 px-5 py-3.5 flex justify-between items-center">
           <div>
-            <h2 className="text-base font-bold text-gold-400">
+            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               {editingId
-                ? 'Edit Data Pemasukan'
+                ? '✏️ Edit Data Pemasukan'
                 : isWarga
                 ? '📝 Formulir Pembayaran / Donasi Warga'
                 : '💰 Pencatatan Kas Masuk (Staff / Pengurus)'}
             </h2>
-            <p className="text-xs text-forest-200">
+            <p className="text-xs text-slate-500 mt-0.5">
               {isWarga
                 ? 'Pilih tujuan pembayaran, metode (Transfer/QRIS), dan sertakan bukti transfer untuk diverifikasi pengurus.'
                 : 'Catat penerimaan kas tunai, bank, QRIS, atau donasi langsung.'}
@@ -384,7 +384,7 @@ export default function NonIplIncomes() {
           {editingId && (
             <button
               type="button"
-              className="text-xs bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 rounded"
+              className="text-xs font-semibold bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-lg transition-colors"
               onClick={() => {
                 setEditingId(null);
                 setForm({
@@ -401,7 +401,7 @@ export default function NonIplIncomes() {
         </div>
 
         <form className="grid gap-4 p-5 md:grid-cols-2" onSubmit={submit}>
-          <label className="text-sm font-medium text-forest-700">
+          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
             Tanggal Pembayaran *
             <input
               className="pv-input mt-1"
@@ -412,10 +412,10 @@ export default function NonIplIncomes() {
             />
           </label>
 
-          <label className="text-sm font-medium text-forest-700">
+          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
             Tujuan Pembayaran (Scope) *
             <select
-              className="pv-input mt-1"
+              className="pv-input mt-1 font-semibold"
               value={form.scope}
               onChange={(e) => setForm({ ...form, scope: e.target.value, event_id: '' })}
             >
@@ -425,7 +425,7 @@ export default function NonIplIncomes() {
           </label>
 
           {form.scope === 'event' && (
-            <label className="text-sm font-medium text-forest-700 md:col-span-2">
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider md:col-span-2">
               Pilih Event / Kegiatan *
               <select
                 className="pv-input mt-1"
@@ -443,7 +443,7 @@ export default function NonIplIncomes() {
             </label>
           )}
 
-          <label className="text-sm font-medium text-forest-700">
+          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
             Kategori Pembayaran *
             <input
               className="pv-input mt-1"
@@ -454,7 +454,7 @@ export default function NonIplIncomes() {
             />
           </label>
 
-          <label className="text-sm font-medium text-forest-700">
+          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
             Nama Pembayar / Sumber *
             <input
               className="pv-input mt-1"
@@ -465,10 +465,10 @@ export default function NonIplIncomes() {
             />
           </label>
 
-          <label className="text-sm font-medium text-forest-700">
+          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
             Nominal Pembayaran (Rp) *
             <input
-              className="pv-input mt-1"
+              className="pv-input mt-1 font-bold text-slate-900"
               type="number"
               min="1"
               step="1"
@@ -480,7 +480,7 @@ export default function NonIplIncomes() {
           </label>
 
           {/* Metode Pembayaran: Warga restricted to Transfer & QRIS */}
-          <label className="text-sm font-medium text-forest-700">
+          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
             Metode Pembayaran *
             <select
               className="pv-input mt-1 font-semibold"
@@ -496,7 +496,7 @@ export default function NonIplIncomes() {
 
           {/* Detail Instruksi Metode untuk Warga */}
           {form.payment_method === 'bank_transfer' && (
-            <div className="md:col-span-2 rounded-xl bg-blue-50/70 p-4 border border-blue-200">
+            <div className="md:col-span-2 rounded-xl bg-blue-50/60 p-4 border border-blue-200">
               <h4 className="text-xs font-bold uppercase tracking-wide text-blue-900 mb-1">
                 🏦 Instruksi Transfer Rekening Pengurus
               </h4>
@@ -504,16 +504,16 @@ export default function NonIplIncomes() {
                 Silakan transfer ke rekening kas Palm Village:
                 <span className="block font-semibold mt-1">Bank BCA: 123-456-7890 (a/n Paguyuban Palm Village)</span>
               </p>
-              <label className="block text-xs font-medium text-blue-900 mt-2">
+              <label className="block text-xs font-bold text-blue-900 mt-2 uppercase tracking-wider">
                 Upload Foto / Screenshot Bukti Transfer <span className="text-red-500">*</span>
                 <input
-                  className="pv-input mt-1 text-xs bg-white"
+                  className="pv-input mt-1 text-xs bg-white border-blue-200"
                   type="file"
                   accept="image/jpeg,image/png"
                   onChange={(e) => setFile(e.target.files?.[0] || null)}
                   required={!editingId}
                 />
-                <span className="text-[11px] text-blue-600">Format: JPG, PNG. Maksimal 2MB.</span>
+                <span className="text-[11px] text-blue-600 font-normal normal-case block mt-0.5">Format: JPG, PNG. Maksimal 2MB.</span>
               </label>
             </div>
           )}
@@ -523,7 +523,7 @@ export default function NonIplIncomes() {
             const nonIplFee = Math.ceil(nonIplAmount * 0.007);
             const nonIplTotal = nonIplAmount + nonIplFee;
             return (
-              <div className="md:col-span-2 rounded-xl bg-purple-50/70 p-4 border border-purple-200 space-y-2.5">
+              <div className="md:col-span-2 rounded-xl bg-purple-50/50 p-4 border border-purple-200 space-y-2.5">
                 <h4 className="text-xs font-bold uppercase tracking-wide text-purple-900 flex items-center gap-1.5">
                   <span>📱</span> Pembayaran QRIS Resmi Palm Village (+0,7%)
                 </h4>
@@ -532,30 +532,30 @@ export default function NonIplIncomes() {
                 </p>
 
                 {nonIplAmount > 0 && (
-                  <div className="rounded-lg bg-white/90 border border-purple-200 p-3 text-xs text-purple-950 space-y-1 shadow-sm">
-                    <div className="flex justify-between text-forest-700">
+                  <div className="rounded-lg bg-white border border-purple-200 p-3 text-xs text-slate-800 space-y-1 shadow-xs">
+                    <div className="flex justify-between text-slate-600">
                       <span>Nominal Dasar:</span>
-                      <span>{formatRupiah(nonIplAmount)}</span>
+                      <span className="font-semibold text-slate-900">{formatRupiah(nonIplAmount)}</span>
                     </div>
-                    <div className="flex justify-between text-amber-800 font-medium">
+                    <div className="flex justify-between text-amber-700 font-medium">
                       <span>Biaya Layanan QRIS (0,7%):</span>
                       <span>+ {formatRupiah(nonIplFee)}</span>
                     </div>
-                    <div className="flex justify-between pt-1 border-t border-purple-100 font-bold text-forest-900">
+                    <div className="flex justify-between pt-1 border-t border-slate-200 font-bold text-slate-900">
                       <span>Total Pembayaran QRIS:</span>
-                      <span className="text-emerald-800 text-sm">{formatRupiah(nonIplTotal)}</span>
+                      <span className="text-emerald-700 text-sm">{formatRupiah(nonIplTotal)}</span>
                     </div>
                   </div>
                 )}
 
-                <div className="rounded-lg bg-amber-50 border border-amber-300 p-2.5 text-[11px] text-amber-900 leading-relaxed">
+                <div className="rounded-lg bg-amber-50 border border-amber-200 p-2.5 text-[11px] text-amber-900 leading-relaxed">
                   <strong>ℹ️ Disclaimer Biaya QRIS:</strong> Sesuai regulasi Bank Indonesia (MDR QRIS), transaksi QRIS dikenakan biaya administrasi <strong>0,7% {nonIplAmount > 0 ? `(${formatRupiah(nonIplFee)})` : ''}</strong> yang dibebankan kepada pembayar.
                 </div>
               </div>
             );
           })()}
 
-          <label className="text-sm font-medium text-forest-700 md:col-span-2">
+          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider md:col-span-2">
             Keterangan / Catatan *
             <textarea
               className="pv-input mt-1"
@@ -595,13 +595,13 @@ export default function NonIplIncomes() {
       {/* Tabs & Table Section */}
       <div className="pv-card overflow-hidden">
         {/* Status Tab Bar */}
-        <div className="border-b border-forest-100 bg-forest-50/50 px-5 pt-3 flex flex-wrap gap-2">
+        <div className="border-b border-slate-200 bg-slate-50/70 px-5 pt-3 flex flex-wrap items-center gap-2">
           <button
             type="button"
-            className={`pb-3 px-3 text-sm font-semibold border-b-2 transition-colors ${
+            className={`pb-3 px-3 text-xs font-bold border-b-2 transition-colors ${
               activeTab === 'all'
                 ? 'border-forest-800 text-forest-900'
-                : 'border-transparent text-forest-500 hover:text-forest-800'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
             onClick={() => setActiveTab('all')}
           >
@@ -609,26 +609,26 @@ export default function NonIplIncomes() {
           </button>
           <button
             type="button"
-            className={`pb-3 px-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
+            className={`pb-3 px-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
               activeTab === 'pending_verification'
                 ? 'border-amber-600 text-amber-900'
-                : 'border-transparent text-amber-700 hover:text-amber-900'
+                : 'border-transparent text-slate-500 hover:text-amber-700'
             }`}
             onClick={() => setActiveTab('pending_verification')}
           >
             <span>⏳ Menunggu Verifikasi</span>
             {pendingCount > 0 && (
-              <span className="rounded-full bg-amber-500 text-white text-[11px] px-2 py-0.2 font-bold">
+              <span className="rounded-full bg-amber-500 text-white text-[10px] px-1.5 py-0.5 font-bold">
                 {pendingCount}
               </span>
             )}
           </button>
           <button
             type="button"
-            className={`pb-3 px-3 text-sm font-semibold border-b-2 transition-colors ${
+            className={`pb-3 px-3 text-xs font-bold border-b-2 transition-colors ${
               activeTab === 'verified'
                 ? 'border-emerald-600 text-emerald-900'
-                : 'border-transparent text-emerald-700 hover:text-emerald-900'
+                : 'border-transparent text-slate-500 hover:text-emerald-700'
             }`}
             onClick={() => setActiveTab('verified')}
           >
@@ -636,10 +636,10 @@ export default function NonIplIncomes() {
           </button>
           <button
             type="button"
-            className={`pb-3 px-3 text-sm font-semibold border-b-2 transition-colors ${
+            className={`pb-3 px-3 text-xs font-bold border-b-2 transition-colors ${
               activeTab === 'rejected'
                 ? 'border-red-600 text-red-900'
-                : 'border-transparent text-red-700 hover:text-red-900'
+                : 'border-transparent text-slate-500 hover:text-red-700'
             }`}
             onClick={() => setActiveTab('rejected')}
           >
@@ -649,7 +649,7 @@ export default function NonIplIncomes() {
           {/* Scope Filters on the Right */}
           <div className="ml-auto flex items-center gap-2 pb-2">
             <select
-              className="pv-input py-1 text-xs"
+              className="pv-input py-1 text-xs border-slate-200"
               value={filterScope}
               onChange={(e) => {
                 setFilterScope(e.target.value);
@@ -662,7 +662,7 @@ export default function NonIplIncomes() {
             </select>
             {filterScope === 'event' && (
               <select
-                className="pv-input py-1 text-xs max-w-[180px]"
+                className="pv-input py-1 text-xs max-w-[180px] border-slate-200"
                 value={filterEventId}
                 onChange={(e) => setFilterEventId(e.target.value)}
               >
@@ -679,19 +679,19 @@ export default function NonIplIncomes() {
 
         {/* Table Content */}
         {loading ? (
-          <div className="p-12 flex flex-col items-center justify-center text-sm text-forest-500">
+          <div className="p-12 flex flex-col items-center justify-center text-sm text-slate-500">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-gold-500 border-t-transparent mb-4"></div>
             Memuat daftar transaksi non-IPL...
           </div>
         ) : filteredRows.length === 0 ? (
-          <div className="p-12 text-center text-sm text-forest-500">
+          <div className="p-12 text-center text-sm text-slate-500">
             <div className="text-4xl mb-2 opacity-50">📋</div>
             Tidak ada transaksi non-IPL untuk filter ini.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-forest-50 text-xs uppercase text-forest-600 font-semibold">
+              <thead className="bg-slate-100/90 border-b border-slate-200 text-xs uppercase text-slate-700 font-bold tracking-wider">
                 <tr>
                   <th className="px-5 py-3">Tanggal</th>
                   <th className="px-5 py-3">Tujuan & Kategori</th>
@@ -702,29 +702,29 @@ export default function NonIplIncomes() {
                   <th className="px-5 py-3 text-center">Aksi / Verifikasi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-forest-100">
+              <tbody className="divide-y divide-slate-100">
                 {filteredRows.map((row) => {
                   const isRowPending = row.status === 'pending_verification';
                   const canVerifyRow = isStaff || (row.scope === 'event' && manageableEventIds.has(row.event_id));
 
                   return (
-                    <tr key={row.id} className={isRowPending ? 'bg-amber-50/30' : ''}>
-                      <td className="px-5 py-3 whitespace-nowrap text-forest-700">
+                    <tr key={row.id} className={`hover:bg-slate-50/80 transition-colors ${isRowPending ? 'bg-amber-50/40' : ''}`}>
+                      <td className="px-5 py-3 whitespace-nowrap text-slate-600 font-medium text-xs">
                         {formatDate(row.income_date)}
                       </td>
                       <td className="px-5 py-3">
-                        <div className="text-xs font-semibold text-forest-500 uppercase">
+                        <div className="text-[11px] font-bold text-slate-500 uppercase">
                           {row.scope === 'event' ? `🎪 ${getEventName(row.event_id)}` : '🏡 Kas Umum'}
                         </div>
-                        <div className="font-semibold text-forest-900">{row.category}</div>
-                        <p className="text-xs text-forest-500 line-clamp-1">{row.description}</p>
+                        <div className="font-bold text-slate-900">{row.category}</div>
+                        <p className="text-xs text-slate-500 line-clamp-1">{row.description}</p>
                         {row.rejection_reason && (
                           <p className="text-xs text-red-600 mt-1 font-medium">
                             ⚠️ Alasan ditolak: {row.rejection_reason}
                           </p>
                         )}
                       </td>
-                      <td className="px-5 py-3 font-medium text-forest-800">
+                      <td className="px-5 py-3 font-semibold text-slate-900">
                         {row.source_name}
                       </td>
                       <td className="px-5 py-3">
@@ -733,7 +733,7 @@ export default function NonIplIncomes() {
                       <td className="px-5 py-3">
                         {getStatusBadge(row.status)}
                       </td>
-                      <td className="px-5 py-3 text-right font-bold text-emerald-700 whitespace-nowrap">
+                      <td className="px-5 py-3 text-right font-extrabold text-emerald-700 whitespace-nowrap">
                         {formatRupiah(row.amount)}
                       </td>
                       <td className="px-5 py-3 text-center whitespace-nowrap">
@@ -742,14 +742,14 @@ export default function NonIplIncomes() {
                           {row.receipt_file_url ? (
                             <button
                               type="button"
-                              className="pv-btn-ghost py-1 px-2 text-xs flex items-center gap-1 text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200"
+                              className="pv-btn-ghost py-1 px-2.5 text-xs flex items-center gap-1 text-blue-700 bg-blue-50/80 hover:bg-blue-100 border border-blue-200 rounded-lg shadow-2xs font-semibold"
                               onClick={() => setPreviewImage(row.receipt_file_url)}
                               title="Lihat Bukti Transfer"
                             >
                               <AiOutlineEye /> Bukti
                             </button>
                           ) : (
-                            <span className="text-[11px] text-forest-400 italic">Tanpa bukti</span>
+                            <span className="text-[11px] text-slate-400 italic">Tanpa bukti</span>
                           )}
 
                           {/* Action Buttons for Staff / Event Treasurer on Pending Rows */}
@@ -757,7 +757,7 @@ export default function NonIplIncomes() {
                             <>
                               <button
                                 type="button"
-                                className="py-1 px-2 text-xs font-semibold rounded bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 shadow-sm"
+                                className="py-1 px-2.5 text-xs font-bold rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white flex items-center gap-1 shadow-xs transition-colors"
                                 onClick={() => handleApprove(row)}
                                 title="Setujui dan Verifikasi"
                               >
@@ -765,7 +765,7 @@ export default function NonIplIncomes() {
                               </button>
                               <button
                                 type="button"
-                                className="py-1 px-2 text-xs font-semibold rounded bg-red-600 hover:bg-red-700 text-white flex items-center gap-1 shadow-sm"
+                                className="py-1 px-2.5 text-xs font-bold rounded-lg bg-red-600 hover:bg-red-700 text-white flex items-center gap-1 shadow-xs transition-colors"
                                 onClick={() => {
                                   setRejectingItem(row);
                                   setRejectionReason('');
@@ -779,10 +779,10 @@ export default function NonIplIncomes() {
 
                           {/* Edit / Delete for Authorized Staff */}
                           {canVerifyRow && (
-                            <div className="flex items-center gap-1 ml-1 border-l border-forest-200 pl-2">
+                            <div className="flex items-center gap-2 ml-1 border-l border-slate-200 pl-2">
                               <button
                                 type="button"
-                                className="text-xs text-blue-600 hover:underline"
+                                className="text-xs font-semibold text-blue-600 hover:underline"
                                 onClick={() => {
                                   setEditingId(row.id);
                                   setForm({
@@ -803,7 +803,7 @@ export default function NonIplIncomes() {
                               </button>
                               <button
                                 type="button"
-                                className="text-xs text-red-600 hover:underline"
+                                className="text-xs font-semibold text-red-600 hover:underline"
                                 onClick={() => remove(row.id)}
                               >
                                 Hapus
@@ -816,12 +816,12 @@ export default function NonIplIncomes() {
                   );
                 })}
               </tbody>
-              <tfoot className="bg-forest-50/80 border-t border-forest-200 font-bold">
+              <tfoot className="bg-slate-50 border-t border-slate-200 font-bold text-slate-900">
                 <tr>
-                  <td colSpan="5" className="px-5 py-3 text-right text-forest-800">
+                  <td colSpan="5" className="px-5 py-3 text-right text-slate-700 text-xs uppercase tracking-wider">
                     Total Pemasukan Terverifikasi:
                   </td>
-                  <td className="px-5 py-3 text-right text-base text-emerald-800">
+                  <td className="px-5 py-3 text-right text-sm font-extrabold text-emerald-700">
                     {formatRupiah(totalAmount)}
                   </td>
                   <td />
@@ -835,22 +835,22 @@ export default function NonIplIncomes() {
       {/* Modal Preview Bukti Transfer */}
       {previewImage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="relative max-w-2xl w-full rounded-2xl bg-white p-4 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-forest-100">
-              <h3 className="font-bold text-forest-900">Lampiran Bukti Transfer</h3>
+          <div className="relative max-w-2xl w-full rounded-2xl bg-white p-4 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <h3 className="font-bold text-slate-900 text-sm">Lampiran Bukti Transfer</h3>
               <button
                 type="button"
-                className="text-forest-400 hover:text-forest-700 text-lg font-bold"
+                className="text-slate-400 hover:text-slate-700 text-lg font-bold"
                 onClick={() => setPreviewImage(null)}
               >
                 ✕
               </button>
             </div>
-            <div className="mt-3 flex items-center justify-center bg-forest-50 rounded-xl p-2 max-h-[70vh] overflow-auto">
+            <div className="mt-3 flex items-center justify-center bg-slate-100 rounded-xl p-2 max-h-[70vh] overflow-auto">
               <img
                 src={previewImage}
                 alt="Bukti Transfer"
-                className="max-h-[65vh] w-auto object-contain rounded-lg shadow-sm"
+                className="max-h-[65vh] w-auto object-contain rounded-lg shadow-xs"
               />
             </div>
             <div className="mt-4 flex justify-end gap-2">
@@ -877,18 +877,18 @@ export default function NonIplIncomes() {
       {/* Modal Alasan Penolakan */}
       {rejectingItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="max-w-md w-full rounded-2xl bg-white p-5 shadow-2xl">
-            <h3 className="font-bold text-forest-900 text-base">Tolak Pembayaran Non-IPL</h3>
-            <p className="text-xs text-forest-500 mt-1">
+          <div className="max-w-md w-full rounded-2xl bg-white p-5 shadow-2xl border border-slate-200">
+            <h3 className="font-bold text-slate-900 text-sm">Tolak Pembayaran Non-IPL</h3>
+            <p className="text-xs text-slate-500 mt-1">
               Masukkan alasan penolakan untuk transaksi sebesar{' '}
-              <span className="font-semibold text-forest-800">
+              <span className="font-bold text-slate-900">
                 {formatRupiah(rejectingItem.amount)}
               </span>{' '}
-              dari {rejectingItem.source_name}.
+              dari <span className="font-bold text-slate-900">{rejectingItem.source_name}</span>.
             </p>
             <form onSubmit={handleRejectSubmit} className="mt-4 space-y-3">
               <textarea
-                className="pv-input"
+                className="pv-input text-xs"
                 rows="3"
                 placeholder="Contoh: Bukti transfer tidak jelas / nominal tidak sesuai rekening koran."
                 value={rejectionReason}
@@ -905,7 +905,7 @@ export default function NonIplIncomes() {
                 </button>
                 <button
                   type="submit"
-                  className="bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg text-xs"
+                  className="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-lg text-xs transition-colors shadow-xs"
                 >
                   Konfirmasi Tolak
                 </button>

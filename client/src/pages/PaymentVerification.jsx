@@ -472,7 +472,7 @@ export default function PaymentVerification() {
           </p>
         </div>
         {pendingPayments.length > 0 && (
-          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-orange-100 px-3 py-1.5 text-xs font-semibold text-orange-800 sm:text-sm">
+          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1.5 text-xs font-semibold text-amber-800 sm:text-sm">
             <AiOutlineClockCircle />
             {pendingPayments.length} Menunggu
           </span>
@@ -481,7 +481,7 @@ export default function PaymentVerification() {
 
       {/* Read-Only Subscription Banner */}
       {subReadOnly && (
-        <div className="rounded-lg bg-amber-50 border border-amber-200 p-3.5 text-sm text-amber-900 flex items-center gap-3">
+        <div className="rounded-xl bg-amber-50 border border-amber-200 p-3.5 text-sm text-amber-900 flex items-center gap-3">
           <span className="text-xl">⚠️</span>
           <div>
             <p className="font-semibold text-amber-900">Mode Read-Only Aktif</p>
@@ -493,7 +493,7 @@ export default function PaymentVerification() {
       )}
 
       {/* Tabs */}
-      <div className="grid grid-cols-3 gap-1 rounded-lg bg-forest-100 p-1">
+      <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 border border-slate-200 shadow-inner">
         {TABS.map((tab) => {
           const TabIcon = tab.key === 'pending'
             ? AiOutlineClockCircle
@@ -510,18 +510,18 @@ export default function PaymentVerification() {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`relative flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-2 text-[11px] transition-all sm:flex-row sm:gap-1.5 sm:py-2.5 sm:text-sm ${
+              className={`relative flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-2 text-[11px] transition-all sm:flex-row sm:gap-1.5 sm:py-2.5 sm:text-sm ${
                 activeTab === tab.key
-                  ? 'bg-forest-800 text-gold-400 font-semibold shadow-sm'
-                  : 'text-forest-600 hover:text-forest-800'
+                  ? 'bg-white text-slate-900 font-bold shadow-xs border border-slate-200/80'
+                  : 'text-slate-600 hover:text-slate-900 font-medium'
               }`}
             >
               <TabIcon className="text-base sm:text-sm" aria-hidden="true" />
               <span className="truncate sm:hidden">{tab.key === 'verified' ? 'Selesai' : tab.label}</span>
               <span className="hidden truncate sm:inline">{tab.label}</span>
               {count > 0 && (
-                <span className={`absolute right-1 top-1 min-w-4 rounded-full px-1 py-0.5 text-center text-[9px] font-bold sm:static sm:ml-1 sm:px-1.5 sm:text-[10px] ${
-                  activeTab === tab.key ? 'bg-gold-500 text-forest-900' : 'bg-forest-200 text-forest-600'
+                <span className={`absolute right-1 top-1 min-w-4 rounded-full px-1.5 py-0.5 text-center text-[9px] font-bold sm:static sm:ml-1 sm:text-[10px] ${
+                  activeTab === tab.key ? 'bg-forest-800 text-gold-400' : 'bg-slate-200 text-slate-700'
                 }`}>
                   {count}
                 </span>
@@ -573,14 +573,14 @@ export default function PaymentVerification() {
                       <StatusIcon aria-hidden="true" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="break-words font-semibold text-forest-900">
+                      <h3 className="break-words font-bold text-slate-900">
                         {resident?.full_name || 'Tidak diketahui'}
                       </h3>
-                      <p className="mt-0.5 text-xs leading-5 text-forest-500">
+                      <p className="mt-0.5 text-xs leading-5 text-slate-500">
                         {unit ? `Blok ${unit.block}/${unit.unit_number}` : '-'} · <strong>{formatPeriod(period)}</strong>
                       </p>
-                      <p className="text-sm font-semibold text-forest-800">{formatRupiah(payment.amount)}</p>
-                      <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-xs leading-5 text-forest-400 sm:flex sm:flex-wrap">
+                      <p className="text-sm font-extrabold text-slate-900">{formatRupiah(payment.amount)}</p>
+                      <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-xs leading-5 text-slate-400 sm:flex sm:flex-wrap">
                         <span>{payment.method === 'cash' ? '💵 Tunai' : '🏦 Transfer Bank'}</span>
                         <span>📅 {formatDate(payment.paid_at)}</span>
                         {(payment.proof_file_url || payment.receipt_file) && (
@@ -594,20 +594,20 @@ export default function PaymentVerification() {
                                 alert(`Mengunduh file: ${payment.receipt_file}`);
                               }
                             }}
-                            className="col-span-2 flex min-w-0 items-center gap-1 text-gold-600 hover:underline"
+                            className="col-span-2 flex min-w-0 items-center gap-1 text-gold-700 font-semibold hover:underline"
                           >
                             <span className="truncate">📎 {payment.proof_file_name || payment.receipt_file || 'Bukti pembayaran'}</span>
                           </a>
                         )}
                       </div>
                       {payment.metadata?.note && (
-                        <p className="mt-1 break-words text-xs leading-5 text-forest-400 italic">"{payment.metadata.note}"</p>
+                        <p className="mt-1 break-words text-xs leading-5 text-slate-500 italic">"{payment.metadata.note}"</p>
                       )}
                       {payment.rejection_reason && (
-                        <p className="text-xs text-red-500 mt-1">Alasan: {payment.rejection_reason}</p>
+                        <p className="text-xs text-red-600 mt-1 font-medium">Alasan: {payment.rejection_reason}</p>
                       )}
                       {payment.verified_by && (
-                        <p className="text-xs text-emerald-600 mt-1">Diverifikasi oleh: {payment.verified_by}</p>
+                        <p className="text-xs text-emerald-700 mt-1 font-medium">Diverifikasi oleh: {payment.verified_by}</p>
                       )}
                     </div>
                   </div>
@@ -618,14 +618,14 @@ export default function PaymentVerification() {
                         <button
                           onClick={() => handleVerify(payment)}
                           disabled={Boolean(activeActionId) || !canWrite}
-                          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+                          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-60 shadow-xs"
                         >
                           <AiOutlineCheck /> Verifikasi
                         </button>
                         <button
                           onClick={() => openRejectModal(payment)}
                           disabled={Boolean(activeActionId) || !canWrite}
-                          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 disabled:opacity-60"
+                          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60 shadow-xs"
                         >
                           <AiOutlineClose /> Tolak
                         </button>
@@ -634,7 +634,7 @@ export default function PaymentVerification() {
                     <button
                       disabled={Boolean(activeActionId)}
                       onClick={() => openDetail(payment)}
-                      className="col-span-2 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-forest-200 bg-forest-50 px-3 py-2 text-xs font-medium text-forest-600 transition-colors hover:bg-forest-100 disabled:opacity-60 sm:col-span-1"
+                      className="col-span-2 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 shadow-xs disabled:opacity-60 sm:col-span-1"
                     >
                       <AiOutlineEye /> Detail
                     </button>
@@ -650,49 +650,49 @@ export default function PaymentVerification() {
       {modalMode === 'detail' && selectedPayment && (
         <div className="pv-dialog-backdrop">
           <div className="pv-dialog-panel">
-            <h2 className="text-lg font-bold text-forest-900 mb-4">Detail Pembayaran</h2>
+            <h2 className="text-lg font-extrabold text-slate-900 mb-4 tracking-tight">Detail Pembayaran</h2>
 
             <div className="space-y-3 text-sm">
               <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-start gap-3">
-                <span className="text-forest-500">Warga</span>
-                <span className="min-w-0 break-words text-right font-medium text-forest-900">
+                <span className="text-slate-500 text-xs font-medium">Warga</span>
+                <span className="min-w-0 break-words text-right font-semibold text-slate-900 text-xs">
                   {(selectedPayment._profile || getResident(selectedPayment.resident_id))?.full_name || '-'}
                 </span>
               </div>
               <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-start gap-3">
-                <span className="text-forest-500">Nomor Unit</span>
-                <span className="min-w-0 break-words text-right font-medium text-forest-900">
+                <span className="text-slate-500 text-xs font-medium">Nomor Unit</span>
+                <span className="min-w-0 break-words text-right font-semibold text-slate-900 text-xs">
                   {selectedUnit ? `Blok ${selectedUnit.block}/${selectedUnit.unit_number}` : '-'}
                 </span>
               </div>
               <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-start gap-3">
-                <span className="text-forest-500">Periode</span>
-                <span className="min-w-0 break-words text-right font-medium text-forest-900">
+                <span className="text-slate-500 text-xs font-medium">Periode</span>
+                <span className="min-w-0 break-words text-right font-semibold text-slate-900 text-xs">
                   {formatPeriod(selectedPayment.period || selectedPayment._bill?.period || getBillPeriod(selectedPayment))}
                 </span>
               </div>
               <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-start gap-3">
-                <span className="text-forest-500">Jumlah</span>
-                <span className="min-w-0 break-words text-right font-bold text-forest-900">{formatRupiah(selectedPayment.amount)}</span>
+                <span className="text-slate-500 text-xs font-medium">Jumlah</span>
+                <span className="min-w-0 break-words text-right font-extrabold text-slate-900 text-sm">{formatRupiah(selectedPayment.amount)}</span>
               </div>
               <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-start gap-3">
-                <span className="text-forest-500">Metode</span>
-                <span className="min-w-0 break-words text-right font-medium">
+                <span className="text-slate-500 text-xs font-medium">Metode</span>
+                <span className="min-w-0 break-words text-right font-semibold text-slate-900 text-xs">
                   {selectedPayment.method === 'cash' ? '💵 Tunai' : selectedPayment.method === 'qris' ? '📱 QRIS' : '🏦 Transfer Bank'}
                 </span>
               </div>
               <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-start gap-3">
-                <span className="text-forest-500">Tanggal Bayar</span>
-                <span className="min-w-0 break-words text-right font-medium">{formatDate(selectedPayment.paid_at)}</span>
+                <span className="text-slate-500 text-xs font-medium">Tanggal Bayar</span>
+                <span className="min-w-0 break-words text-right font-semibold text-slate-900 text-xs">{formatDate(selectedPayment.paid_at)}</span>
               </div>
               <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-start gap-3">
-                <span className="text-forest-500">Status</span>
+                <span className="text-slate-500 text-xs font-medium">Status</span>
                 <span className={`pv-badge min-w-0 justify-self-end text-right ${
                   selectedPayment.status === 'pending_verification'
-                    ? 'bg-orange-50 text-orange-700 border-orange-200'
+                    ? 'bg-amber-50 text-amber-800 border-amber-200'
                     : selectedPayment.status === 'verified'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-red-50 text-red-700 border-red-200'
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                    : 'bg-rose-50 text-rose-800 border-rose-200'
                 }`}>
                   {selectedPayment.status === 'pending_verification'
                     ? '⏳ Menunggu Verifikasi'
@@ -704,23 +704,23 @@ export default function PaymentVerification() {
 
               {/* Receipt preview link */}
               {selectedReceiptPreviewUrl && isImageReceipt(selectedPayment) && !receiptPreviewError && (
-                <div className="mt-4 overflow-hidden rounded-lg border border-forest-200 bg-forest-50">
-                  <p className="border-b border-forest-200 px-3 py-2 text-xs font-semibold text-forest-700">
+                <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                  <p className="border-b border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800">
                     Preview Bukti Transfer
                   </p>
-                  <div className="flex min-h-40 items-center justify-center bg-forest-100 p-2 sm:min-h-52">
+                  <div className="flex min-h-40 items-center justify-center bg-slate-100 p-2 sm:min-h-52">
                     <img
                       src={selectedReceiptPreviewUrl}
                       alt={`Preview ${selectedPayment.proof_file_name || 'bukti transfer'}`}
-                      className="max-h-64 w-full rounded-md object-contain sm:max-h-80"
+                      className="max-h-64 w-full rounded-lg object-contain sm:max-h-80"
                       onError={() => setReceiptPreviewError(true)}
                     />
                   </div>
                 </div>
               )}
               {(selectedPayment.proof_file_url || selectedPayment.receipt_file) && (
-                <div className="mt-4 p-3 rounded-lg bg-forest-50 border border-forest-200">
-                  <p className="text-xs font-medium text-forest-700 mb-2">📎 Bukti Transfer</p>
+                <div className="mt-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <p className="text-xs font-semibold text-slate-700 mb-2">📎 Bukti Transfer</p>
                   <a
                     href={selectedPayment.proof_file_url || '#'}
                     target="_blank"
@@ -731,23 +731,23 @@ export default function PaymentVerification() {
                         alert(`Mengunduh file: ${selectedPayment.receipt_file}`);
                       }
                     }}
-                    className="block p-3 rounded-lg border border-forest-200 bg-white hover:bg-forest-50 transition-colors"
+                    className="block p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors shadow-xs"
                   >
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="text-lg">🖼️</span>
-                        <span className="truncate text-xs font-medium text-forest-700">
+                        <span className="truncate text-xs font-semibold text-slate-800">
                           {selectedPayment.proof_file_name || selectedPayment.receipt_file || 'Lihat Bukti Lampiran'}
                         </span>
                       </div>
-                      <span className="text-xs font-semibold text-gold-600 sm:flex-shrink-0">Buka Lampiran</span>
+                      <span className="text-xs font-semibold text-gold-700 sm:flex-shrink-0">Buka Lampiran</span>
                     </div>
                   </a>
                 </div>
               )}
 
               {selectedPayment.metadata?.note && (
-                <div className="mt-2 p-2 rounded bg-amber-50 border border-amber-100 text-xs text-amber-700">
+                <div className="mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
                   💬 Catatan: {selectedPayment.metadata.note}
                 </div>
               )}
@@ -755,14 +755,14 @@ export default function PaymentVerification() {
 
             <div className="flex flex-col gap-2 mt-6">
               {selectedPayment.status === 'verified' && IS_DEMO && (
-                <div className="grid grid-cols-1 gap-2 border-b border-forest-100 pb-2 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-2 border-b border-slate-200 pb-2 sm:grid-cols-2">
                   <button
                     onClick={() => {
                       const bill = mockIPLBills.find((b) => b.id === selectedPayment.bill_id) || { id: selectedPayment.bill_id, period: selectedPayment.period || '2026-01', amount: selectedPayment.amount };
                       const unit = getUnit(selectedPayment.unit_id || bill.unit_id);
                       downloadDigitalReceipt({ bill, unit });
                     }}
-                    className="inline-flex items-center justify-center gap-1 rounded-lg border border-forest-300 bg-white px-3 py-2 text-xs font-semibold text-forest-800 shadow-sm hover:bg-forest-50 transition-colors"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-xs hover:bg-slate-50 transition-colors"
                   >
                     📥 Download Kuitansi
                   </button>
@@ -871,11 +871,11 @@ export default function PaymentVerification() {
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-forest-700 mb-1">Metode Pembayaran *</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Metode Pembayaran *</label>
                   <select
                     value={paymentForm.method}
                     onChange={(e) => setPaymentForm((prev) => ({ ...prev, method: e.target.value }))}
-                    className="w-full rounded-lg border border-forest-200 bg-white px-3 py-2.5 text-sm text-forest-900 outline-none focus:border-gold-500"
+                    className="pv-input font-medium"
                   >
                     <option value="bank_transfer">Transfer Bank</option>
                     {showQrisOption && <option value="qris">QRIS</option>}
@@ -883,43 +883,43 @@ export default function PaymentVerification() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-forest-700 mb-1">Tanggal Bayar *</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Tanggal Bayar *</label>
                   <input
                     type="date"
                     required
                     value={paymentForm.paid_at}
                     onChange={(e) => setPaymentForm((prev) => ({ ...prev, paid_at: e.target.value }))}
-                    className="w-full rounded-lg border border-forest-200 bg-white px-3 py-2.5 text-sm text-forest-900 outline-none focus:border-gold-500"
+                    className="pv-input"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-forest-700 mb-1">Catatan</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Catatan</label>
                 <textarea
                   rows={3}
                   value={paymentForm.note}
                   onChange={(e) => setPaymentForm((prev) => ({ ...prev, note: e.target.value }))}
-                  className="w-full rounded-lg border border-forest-200 bg-white px-3 py-2.5 text-sm text-forest-900 outline-none focus:border-gold-500"
+                  className="pv-input"
                   placeholder="Catatan pembayaran..."
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-forest-700 mb-1">Upload Ulang Bukti Pembayaran</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Upload Ulang Bukti Pembayaran</label>
                 <input
                   type="file"
                   accept="image/*,.pdf"
                   onChange={(e) => setPaymentForm((prev) => ({ ...prev, file: e.target.files?.[0] || null }))}
-                  className="block w-full rounded-lg border border-forest-200 bg-white px-3 py-2 text-sm text-forest-700 file:mr-3 file:rounded file:border-0 file:bg-forest-100 file:px-2 file:py-1 file:text-xs file:font-medium"
+                  className="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-forest-800 file:text-gold-400 file:px-3 file:py-1.5 file:text-xs file:font-semibold cursor-pointer"
                 />
                 {selectedPayment.proof_file_name && !paymentForm.file && (
-                  <p className="mt-1 text-xs text-forest-400">Bukti saat ini: {selectedPayment.proof_file_name}</p>
+                  <p className="mt-1 text-xs text-slate-400">Bukti saat ini: {selectedPayment.proof_file_name}</p>
                 )}
               </div>
               <div className="mt-6 flex flex-col gap-2 sm:flex-row">
                 <button
                   type="submit"
                   disabled={Boolean(activeActionId)}
-                  className="pv-btn-primary flex-1 rounded-lg py-2.5 text-sm disabled:opacity-60"
+                  className="pv-btn-primary flex-1 rounded-xl py-2.5 text-xs font-semibold disabled:opacity-60 shadow-xs"
                 >
                   {activeActionId === selectedPayment.id ? 'Menyimpan...' : 'Simpan Perubahan'}
                 </button>
@@ -927,7 +927,7 @@ export default function PaymentVerification() {
                   type="button"
                   onClick={() => setModalMode('detail')}
                   disabled={Boolean(activeActionId)}
-                  className="pv-btn-ghost rounded-lg px-4 py-2.5 text-sm"
+                  className="pv-btn-ghost rounded-xl px-4 py-2.5 text-xs shadow-xs"
                 >
                   Batal
                 </button>

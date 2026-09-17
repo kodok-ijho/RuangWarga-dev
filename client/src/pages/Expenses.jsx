@@ -213,13 +213,13 @@ export default function Expenses() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-forest-900">Pengeluaran Kas {currentTenant?.name || 'Komunitas'}</h2>
-          <p className="text-sm text-forest-500">
+          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Pengeluaran Kas {currentTenant?.name || 'Komunitas'}</h2>
+          <p className="text-xs text-slate-500 mt-0.5">
             {filtered.length} transaksi · Total {formatRupiah(totalAmount)}
           </p>
         </div>
         {canEdit && canWrite && (
-          <button onClick={() => setModalForm('add')} className="pv-btn-primary text-xs">
+          <button onClick={() => setModalForm('add')} className="pv-btn-primary text-xs shadow-xs">
             <AiOutlinePlus /> Catat Pengeluaran
           </button>
         )}
@@ -257,26 +257,26 @@ export default function Expenses() {
 
       {/* Daftar pengeluaran */}
       {filtered.length === 0 ? (
-        <div className="pv-card p-10 text-center text-forest-400 text-sm">
+        <div className="pv-card p-10 text-center text-slate-400 text-sm">
           Belum ada pengeluaran tercatat.
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {filtered.map((exp) => (
-            <div key={exp.id} className="pv-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div key={exp.id} className="pv-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-300 transition-colors">
               {/* Kiri */}
               <div className="flex items-start gap-3 flex-1 min-w-0">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-forest-100 text-forest-600 text-xs font-bold">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-forest-800 border border-slate-200 text-xs font-extrabold shadow-xs">
                   {(exp.category || '').charAt(0)}
                 </span>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-medium text-forest-900 text-sm">{exp.category}</p>
-                    <span className="pv-badge bg-gold-50 text-gold-700">{exp.scope === 'event' ? 'Event' : 'Umum'}</span>
-                    <span className="pv-badge bg-forest-50 text-forest-600">{formatDate(exp.date || exp.expense_date)}</span>
+                    <p className="font-bold text-slate-900 text-sm">{exp.category}</p>
+                    <span className="pv-badge bg-amber-50 text-amber-800 border border-amber-200 font-medium">{exp.scope === 'event' ? 'Event' : 'Umum'}</span>
+                    <span className="pv-badge bg-slate-100 text-slate-700 border border-slate-200 font-medium">{formatDate(exp.date || exp.expense_date)}</span>
                   </div>
-                  <p className="text-xs text-forest-500 mt-0.5 line-clamp-1">{exp.description}</p>
-                  <p className="text-[10px] text-forest-400 mt-0.5">Oleh: {exp.recorded_by}</p>
+                  <p className="text-xs text-slate-600 mt-1 line-clamp-1">{exp.description}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Oleh: {exp.recorded_by}</p>
                 </div>
               </div>
 
@@ -285,25 +285,25 @@ export default function Expenses() {
                 {exp.receipt_file && (
                   <button
                     onClick={() => { setReceiptImageError(false); setViewReceipt(exp); }}
-                    className="p-2 text-forest-500 hover:text-forest-800 hover:bg-forest-50 rounded-lg transition-colors"
+                    className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
                     title="Lihat bukti"
                   >
                     <AiOutlinePaperClip />
                   </button>
                 )}
-                <p className="font-bold text-forest-900 text-sm">{formatRupiah(exp.amount)}</p>
+                <p className="font-extrabold text-slate-900 text-sm">{formatRupiah(exp.amount)}</p>
                 {canEdit && canWrite && ((exp.scope || 'general') === 'event' ? manageableEventIds.has(exp.event_id) : canEditGeneral) && (
                   <div className="flex gap-1">
                     <button
                       onClick={() => setModalForm(exp)}
-                      className="p-2 text-forest-500 hover:text-forest-800 hover:bg-forest-50 rounded-lg transition-colors"
+                      className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
                       title="Edit"
                     >
                       <AiOutlineEdit />
                     </button>
                     <button
                       onClick={() => handleDelete(exp)}
-                      className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
                       title="Hapus"
                     >
                       <AiOutlineDelete />
@@ -334,11 +334,11 @@ export default function Expenses() {
       {viewReceipt && (
         <Modal open onClose={() => { setViewReceipt(null); setReceiptImageError(false); }} title="Bukti Pembayaran" size="md">
           <div className="space-y-3">
-            <p className="text-sm text-forest-600">
-              <strong className="text-forest-900">{viewReceipt.category}</strong> · {formatDate(viewReceipt.date)}
+            <p className="text-sm text-slate-600">
+              <strong className="text-slate-900 font-bold">{viewReceipt.category}</strong> · {formatDate(viewReceipt.date)}
             </p>
-            <p className="text-lg font-bold text-forest-900">{formatRupiah(viewReceipt.amount)}</p>
-            <p className="text-sm text-forest-600">{viewReceipt.description}</p>
+            <p className="text-xl font-extrabold text-slate-900">{formatRupiah(viewReceipt.amount)}</p>
+            <p className="text-sm text-slate-600">{viewReceipt.description}</p>
 
             {/* Tampilan link Google Drive or placeholder */}
             {viewReceipt.receipt_file && (viewReceipt.receipt_file.startsWith('http://') || viewReceipt.receipt_file.startsWith('https://')) ? (
@@ -347,12 +347,12 @@ export default function Expenses() {
                   const thumb = getGoogleDriveThumbnail(viewReceipt.receipt_file);
                   if (thumb && !receiptImageError) {
                     return (
-                      <div className="relative rounded-lg overflow-hidden border border-forest-100 bg-forest-50 flex items-center justify-center p-2 max-h-[360px]">
+                      <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center p-2 max-h-[360px]">
                         <img
                           src={thumb}
                           alt="Bukti Kwitansi"
                           referrerPolicy="no-referrer"
-                          className="object-contain max-h-[340px] w-full rounded-md shadow-sm"
+                          className="object-contain max-h-[340px] w-full rounded-lg shadow-xs"
                           onError={() => {
                             console.error('Failed to load image preview');
                             setReceiptImageError(true);
@@ -362,11 +362,11 @@ export default function Expenses() {
                     );
                   }
                   return (
-                    <div className="rounded-lg border border-forest-200 bg-forest-50 p-6 text-center space-y-2">
-                      <AiOutlinePaperClip size={36} className="mx-auto text-forest-600" />
-                      <p className="text-sm font-medium text-forest-800">Bukti Kwitansi Tersimpan di Google Drive</p>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center space-y-2">
+                      <AiOutlinePaperClip size={36} className="mx-auto text-slate-500" />
+                      <p className="text-sm font-semibold text-slate-800">Bukti Kwitansi Tersimpan di Google Drive</p>
                       {receiptImageError && (
-                        <p className="text-[11px] text-amber-600 font-medium">⚠️ Gagal memuat gambar preview secara langsung.</p>
+                        <p className="text-[11px] text-amber-700 font-medium">⚠️ Gagal memuat gambar preview secara langsung.</p>
                       )}
                     </div>
                   );
@@ -376,17 +376,17 @@ export default function Expenses() {
                     href={viewReceipt.receipt_file}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-lg bg-forest-800 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-forest-700 transition-colors w-full justify-center"
+                    className="inline-flex items-center gap-2 rounded-xl bg-forest-800 px-4 py-2.5 text-sm font-semibold text-gold-400 shadow-xs hover:bg-forest-900 transition-colors w-full justify-center"
                   >
                     👁️ Buka di Google Drive (Tab Baru)
                   </a>
                 </div>
               </div>
             ) : (
-              <div className="rounded-lg border-2 border-dashed border-forest-200 bg-forest-50 p-8 text-center">
-                <AiOutlinePaperClip size={32} className="mx-auto text-forest-400" />
-                <p className="text-sm font-medium text-forest-700 mt-2">{viewReceipt.receipt_file}</p>
-                <p className="text-[11px] text-forest-400 mt-1">
+              <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+                <AiOutlinePaperClip size={32} className="mx-auto text-slate-400" />
+                <p className="text-sm font-semibold text-slate-700 mt-2">{viewReceipt.receipt_file}</p>
+                <p className="text-[11px] text-slate-400 mt-1">
                   Preview file tidak tersedia di mode demo.
                 </p>
               </div>
@@ -560,12 +560,12 @@ function ExpenseFormModal({ expense, initialScope = 'general', eventOptions = []
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-forest-700 mb-1">
-            Bukti Pembayaran <span className="text-forest-400 font-normal">(opsional)</span>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">
+            Bukti Pembayaran <span className="text-slate-400 font-normal">(opsional)</span>
           </label>
-          <label className={`flex items-center gap-3 p-3 border-2 border-dashed border-forest-200 rounded-lg transition-colors ${isSaving ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-gold-400 hover:bg-forest-50'}`}>
-            <AiOutlinePaperClip size={20} className="text-forest-400 shrink-0" />
-            <span className="text-sm text-forest-600 flex-1 truncate">
+          <label className={`flex items-center gap-3 p-3.5 border-2 border-dashed border-slate-200 rounded-xl transition-colors ${isSaving ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-gold-400 hover:bg-slate-50'}`}>
+            <AiOutlinePaperClip size={20} className="text-slate-400 shrink-0" />
+            <span className="text-xs text-slate-600 flex-1 truncate font-medium">
               {fileName || 'Pilih file bukti (foto kwitansi, JPG/PNG, maks 2 MB)'}
             </span>
             <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={handleFile} disabled={isSaving} />
@@ -578,7 +578,7 @@ function ExpenseFormModal({ expense, initialScope = 'general', eventOptions = []
               type="button"
               onClick={() => { if (!isSaving) { setFileName(''); setForm({ ...form, receipt_file: '' }); } }}
               disabled={isSaving}
-              className={`text-[11px] mt-1 ${isSaving ? 'text-forest-300 cursor-not-allowed' : 'text-red-500 hover:text-red-700'}`}
+              className={`text-[11px] mt-1 ${isSaving ? 'text-slate-300 cursor-not-allowed' : 'text-red-500 hover:text-red-700 font-medium'}`}
             >
               Hapus file
             </button>
