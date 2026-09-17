@@ -146,49 +146,49 @@ export default function TenantMemberApproval() {
   };
 
   return (
-    <div className="min-h-screen bg-[#071f13] text-white py-10 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 text-slate-900 py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Top Breadcrumb */}
         <div>
           <Link
             to={`/t/${tenantId}/dashboard`}
-            className="inline-flex items-center gap-2 text-xs text-forest-400 hover:text-white transition-colors mb-3"
+            className="inline-flex items-center gap-2 text-xs text-slate-500 hover:text-slate-900 transition-colors mb-3"
           >
             <AiOutlineArrowLeft /> Kembali ke Dashboard
           </Link>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <span className="text-xs font-bold text-gold-400 uppercase tracking-wider block mb-1">
+              <span className="text-xs font-bold text-forest-800 uppercase tracking-wider block mb-1">
                 Manajemen Anggota Warga
               </span>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-display">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-display">
                 Persetujuan Pendaftaran Warga Baru
               </h1>
-              <p className="text-xs text-forest-300 mt-1">
-                Komunitas: <strong className="text-white">{activeTenant?.name || tenantId}</strong>
+              <p className="text-xs text-slate-500 mt-1">
+                Komunitas: <strong className="text-slate-800 font-semibold">{activeTenant?.name || tenantId}</strong>
               </p>
             </div>
-            <div className="text-xs text-forest-300 bg-forest-900/80 px-3 py-1.5 rounded-full border border-forest-800 w-fit">
+            <div className="text-xs text-slate-600 bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-xs w-fit">
               Menunggu Verifikasi:{' '}
-              <strong className="text-gold-300 font-mono">{pendingList.length}</strong> orang
+              <strong className="text-forest-800 font-mono font-bold">{pendingList.length}</strong> orang
             </div>
           </div>
         </div>
 
         {/* List Card */}
-        <div className="bg-forest-900/80 border border-forest-700/80 rounded-3xl p-6 sm:p-8 shadow-xl backdrop-blur-md">
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs">
           {loading ? (
-            <div className="py-16 text-center text-forest-300 text-xs flex items-center justify-center gap-2">
-              <AiOutlineLoading3Quarters className="animate-spin text-base text-gold-400" />
+            <div className="py-16 text-center text-slate-500 text-xs flex items-center justify-center gap-2">
+              <AiOutlineLoading3Quarters className="animate-spin text-base text-forest-800" />
               <span>Memuat daftar permohonan...</span>
             </div>
           ) : pendingList.length === 0 ? (
             <div className="py-16 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-forest-950 text-emerald-400 border border-forest-800 flex items-center justify-center mx-auto text-2xl">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center mx-auto text-2xl shadow-xs">
                 <AiOutlineCheckCircle />
               </div>
-              <h3 className="text-sm font-bold text-white">Tidak Ada Permohonan Pending</h3>
-              <p className="text-xs text-forest-400 max-w-sm mx-auto">
+              <h3 className="text-sm font-bold text-slate-900">Tidak Ada Permohonan Pending</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
                 Semua pendaftaran warga telah diproses. Bagikan tautan undangan komplek untuk mengajak warga lain bergabung.
               </p>
             </div>
@@ -201,26 +201,26 @@ export default function TenantMemberApproval() {
                 return (
                   <div
                     key={m.id}
-                    className="p-4 sm:p-5 rounded-2xl bg-forest-950 border border-forest-800 hover:border-forest-700 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                    className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 hover:border-slate-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs"
                   >
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white">{m.full_name}</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-gold-500/10 border border-gold-500/30 text-gold-300 font-semibold uppercase">
+                        <span className="text-sm font-bold text-slate-900">{m.full_name}</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-forest-50 border border-forest-200 text-forest-900 font-semibold uppercase">
                           {m.occupancy_status === 'tenant' ? 'Penyewa' : 'Pemilik'}
                         </span>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-forest-300">
-                        <span className="inline-flex items-center gap-1 text-emerald-300 font-semibold">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                        <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold">
                           <AiOutlineHome />
                           <span>{unitLabel}</span>
                         </span>
-                        <span className="inline-flex items-center gap-1 text-forest-400">
+                        <span className="inline-flex items-center gap-1 text-slate-500">
                           <AiOutlinePhone />
                           <span>{m.phone || '-'}</span>
                         </span>
-                        <span className="inline-flex items-center gap-1 text-forest-400">
+                        <span className="inline-flex items-center gap-1 text-slate-400">
                           <AiOutlineClockCircle />
                           <span>{formatRelativeTime(m.created_at)}</span>
                         </span>
@@ -231,7 +231,7 @@ export default function TenantMemberApproval() {
                       <SubscriptionGateButton
                         onClick={() => openApproveModal(m)}
                         disabled={isProcessing}
-                        className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-forest-950 text-xs font-bold transition-colors shadow-md disabled:opacity-50"
+                        className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 text-xs font-bold transition-colors shadow-xs disabled:opacity-50"
                       >
                         <AiOutlineCheck />
                         <span>Setujui</span>
@@ -240,7 +240,7 @@ export default function TenantMemberApproval() {
                       <SubscriptionGateButton
                         onClick={() => handleReject(m)}
                         disabled={isProcessing}
-                        className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-forest-900 hover:bg-rose-900/30 text-forest-300 hover:text-rose-300 border border-forest-800 text-xs font-semibold transition-colors disabled:opacity-50"
+                        className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 text-xs font-semibold transition-colors disabled:opacity-50 shadow-xs"
                       >
                         <AiOutlineClose />
                         <span>Tolak</span>
@@ -255,27 +255,27 @@ export default function TenantMemberApproval() {
 
         {/* Modal Konfirmasi Persetujuan */}
         {selectedMember && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <div className="bg-forest-900 border border-forest-700 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-xl space-y-5 animate-in fade-in zoom-in-95">
               <div>
-                <h3 className="text-lg font-bold text-white font-display">
+                <h3 className="text-lg font-bold text-slate-900 font-display">
                   Konfirmasi Persetujuan Warga
                 </h3>
-                <p className="text-xs text-forest-300 mt-0.5">
+                <p className="text-xs text-slate-500 mt-0.5">
                   Tetapkan nomor rumah dan peran untuk{' '}
-                  <strong className="text-gold-300">{selectedMember.full_name}</strong>.
+                  <strong className="text-forest-800 font-bold">{selectedMember.full_name}</strong>.
                 </p>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-forest-200 mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     Nomor Rumah / Unit Warga
                   </label>
                   <select
                     value={selectedUnitId}
                     onChange={(e) => setSelectedUnitId(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-forest-950 border border-forest-700 text-white text-xs focus:outline-none"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-forest-800 shadow-xs"
                   >
                     <option value="">-- Pilih Unit --</option>
                     {unitsList.map((u) => (
@@ -287,13 +287,13 @@ export default function TenantMemberApproval() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-forest-200 mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     Status Tinggal
                   </label>
                   <select
                     value={selectedOccupancy}
                     onChange={(e) => setSelectedOccupancy(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-forest-950 border border-forest-700 text-white text-xs focus:outline-none"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-forest-800 shadow-xs"
                   >
                     <option value="owner_occupied">Pemilik (Dihuni Sendiri)</option>
                     <option value="tenant">Penyewa / Kontrak</option>
@@ -302,7 +302,7 @@ export default function TenantMemberApproval() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-forest-200 mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     Peran / Hak Akses (RBAC)
                   </label>
                   {rolesList.length > 0 ? (
@@ -316,7 +316,7 @@ export default function TenantMemberApproval() {
                           setSelectedRole(found.is_owner_role ? 'admin' : found.name.toLowerCase());
                         }
                       }}
-                      className="w-full px-3 py-2.5 rounded-xl bg-forest-950 border border-forest-700 text-white text-xs focus:outline-none"
+                      className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-forest-800 shadow-xs"
                     >
                       {rolesList.map((r) => (
                         <option key={r.id} value={r.id}>
@@ -328,7 +328,7 @@ export default function TenantMemberApproval() {
                     <select
                       value={selectedRole}
                       onChange={(e) => setSelectedRole(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-forest-950 border border-forest-700 text-white text-xs focus:outline-none"
+                      className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-forest-800 shadow-xs"
                     >
                       <option value="anggota">Warga / Anggota Biasa</option>
                       <option value="pengurus">Pengurus Lingkungan</option>
@@ -339,18 +339,18 @@ export default function TenantMemberApproval() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-forest-800">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setSelectedMember(null)}
-                  className="px-4 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-700 text-forest-200 text-xs font-semibold transition-colors"
+                  className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-200 shadow-xs transition-colors"
                 >
                   Batal
                 </button>
                 <button
                   type="button"
                   onClick={handleConfirmApprove}
-                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-forest-950 text-xs font-bold transition-colors shadow-md"
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 text-xs font-bold transition-colors shadow-xs"
                 >
                   <AiOutlineCheck />
                   <span>Setujui Sekarang</span>

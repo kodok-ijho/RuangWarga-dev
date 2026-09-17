@@ -278,19 +278,19 @@ export default function ArisanRounds() {
   };
 
   return (
-    <div className="min-h-screen bg-[#071f13] text-white py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 text-slate-900 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Banner Langganan Read-Only jika aktif */}
         {isReadOnly && (
-          <div className="p-4 bg-rose-500/20 border border-rose-500/40 rounded-2xl flex items-center justify-between gap-3 text-xs text-rose-200">
+          <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center justify-between gap-3 text-xs text-rose-800 shadow-xs">
             <div className="flex items-center gap-2">
-              <AiOutlineWarning className="text-base text-rose-400 flex-shrink-0" />
+              <AiOutlineWarning className="text-base text-rose-600 flex-shrink-0" />
               <span>{bannerText || 'Layanan dalam mode Read-Only. Fitur pembuatan putaran dan pengocokan dibatasi.'}</span>
             </div>
             <button
               type="button"
               onClick={() => navigate('/account/subscription')}
-              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-[11px] whitespace-nowrap"
+              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-[11px] whitespace-nowrap shadow-xs"
             >
               Perpanjang
             </button>
@@ -298,15 +298,15 @@ export default function ArisanRounds() {
         )}
 
         {/* Top Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-forest-800">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-2xl">🎲</span>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-display">
-                Putaran & Pengocokan Arisan
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-display">
+                Putaran &amp; Pengocokan Arisan
               </h1>
             </div>
-            <p className="text-xs sm:text-sm text-forest-300">
+            <p className="text-xs sm:text-sm text-slate-600">
               Pantau jadwal putaran, progres pengumpulan iuran peserta, dan riwayat pemenang secara transparan.
             </p>
           </div>
@@ -315,7 +315,7 @@ export default function ArisanRounds() {
             <button
               type="button"
               onClick={loadData}
-              className="p-2.5 rounded-xl bg-forest-900 hover:bg-forest-800 text-forest-300 hover:text-white border border-forest-700 transition-colors"
+              className="p-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 transition-colors shadow-xs"
               title="Segarkan Data"
             >
               <AiOutlineReload className={loading ? 'animate-spin' : ''} />
@@ -327,7 +327,7 @@ export default function ArisanRounds() {
                   type="button"
                   disabled={isReadOnly}
                   onClick={() => setIsResetCycleModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-purple-900/60 hover:bg-purple-800 text-purple-200 hover:text-white border border-purple-700/60 font-semibold text-xs transition-colors disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 font-semibold text-xs transition-colors disabled:opacity-50 shadow-xs"
                   title="Mulai Siklus Baru Arisan (Reset Peserta)"
                 >
                   <AiOutlineReload />
@@ -338,7 +338,7 @@ export default function ArisanRounds() {
                   type="button"
                   disabled={isReadOnly}
                   onClick={handleOpenCreateModal}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-amber-500 hover:from-purple-500 hover:to-amber-400 text-white font-bold text-xs shadow-lg shadow-purple-950/40 transition-all hover:scale-105 disabled:opacity-50 disabled:pointer-events-none"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 font-bold text-xs shadow-xs transition-all disabled:opacity-50 disabled:pointer-events-none"
                 >
                   <AiOutlinePlus />
                   <span>+ Buat Putaran Baru</span>
@@ -350,16 +350,16 @@ export default function ArisanRounds() {
 
         {/* Banner Siklus Arisan Lengkap */}
         {participants.length > 0 && stats.totalWinners >= stats.totalParticipants && (
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-950/90 via-amber-950/40 to-forest-900/90 border border-gold-500/50 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="p-4 sm:p-5 rounded-2xl bg-purple-50 border border-purple-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center text-xl shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-800 border border-purple-200 flex items-center justify-center text-xl shrink-0">
                 🏆
               </div>
               <div>
-                <h4 className="text-sm font-bold text-white">
+                <h4 className="text-sm font-bold text-purple-900">
                   Siklus Putaran Arisan Telah Selesai 100%!
                 </h4>
-                <p className="text-xs text-forest-300">
+                <p className="text-xs text-purple-700">
                   Seluruh peserta ({stats.totalParticipants} slot) telah memenangkan undian. Pengurus dapat memulai siklus baru.
                 </p>
               </div>
@@ -370,7 +370,7 @@ export default function ArisanRounds() {
                 type="button"
                 disabled={isReadOnly}
                 onClick={() => setIsResetCycleModalOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-amber-500 hover:from-purple-500 hover:to-amber-400 text-white font-bold text-xs rounded-xl shadow-lg shrink-0 transition-all hover:scale-105 disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs rounded-xl shadow-xs shrink-0 transition-all disabled:opacity-50"
               >
                 <AiOutlineReload />
                 <span>Mulai Siklus Baru</span>
@@ -382,60 +382,60 @@ export default function ArisanRounds() {
         {/* 4 Kartu Metrik Ringkasan */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1: Putaran Aktif */}
-          <div className="p-4 bg-forest-900/60 border border-forest-800 rounded-2xl flex items-center gap-3 shadow-lg">
-            <div className="w-11 h-11 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center text-xl">
+          <div className="p-4 bg-white border border-slate-200 rounded-2xl flex items-center gap-3 shadow-xs">
+            <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center text-xl shadow-xs">
               <AiOutlineCalendar />
             </div>
             <div>
-              <span className="text-[10px] text-forest-400 uppercase font-bold block">
+              <span className="text-[10px] text-slate-500 uppercase font-bold block">
                 Putaran Berjalan
               </span>
-              <span className="text-base sm:text-lg font-bold text-white font-display">
+              <span className="text-base sm:text-lg font-extrabold text-slate-900 font-display">
                 {stats.activeRound ? `Putaran #${stats.activeRound.round_number}` : 'Semua Selesai'}
               </span>
             </div>
           </div>
 
           {/* Card 2: Status Pengocokan */}
-          <div className="p-4 bg-forest-900/60 border border-forest-800 rounded-2xl flex items-center gap-3 shadow-lg">
-            <div className="w-11 h-11 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/40 flex items-center justify-center text-xl">
+          <div className="p-4 bg-white border border-slate-200 rounded-2xl flex items-center gap-3 shadow-xs">
+            <div className="w-11 h-11 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 flex items-center justify-center text-xl shadow-xs">
               <AiOutlineTrophy />
             </div>
             <div>
-              <span className="text-[10px] text-forest-400 uppercase font-bold block">
+              <span className="text-[10px] text-slate-500 uppercase font-bold block">
                 Pemenang Terpilih
               </span>
-              <span className="text-base sm:text-lg font-bold text-white font-display">
+              <span className="text-base sm:text-lg font-extrabold text-slate-900 font-display">
                 {stats.drawnCount} Putaran
               </span>
             </div>
           </div>
 
           {/* Card 3: Progres Siklus Peserta */}
-          <div className="p-4 bg-forest-900/60 border border-forest-800 rounded-2xl flex items-center gap-3 shadow-lg">
-            <div className="w-11 h-11 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center text-xl">
+          <div className="p-4 bg-white border border-slate-200 rounded-2xl flex items-center gap-3 shadow-xs">
+            <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center text-xl shadow-xs">
               <AiOutlineTeam />
             </div>
             <div>
-              <span className="text-[10px] text-forest-400 uppercase font-bold block">
+              <span className="text-[10px] text-slate-500 uppercase font-bold block">
                 Giliran Pemenang
               </span>
-              <span className="text-base sm:text-lg font-bold text-white font-display">
+              <span className="text-base sm:text-lg font-extrabold text-slate-900 font-display">
                 {stats.totalWinners} / {stats.totalParticipants || activeTenant?.settings?.slot_count || 0} Slot
               </span>
             </div>
           </div>
 
           {/* Card 4: Total Hadiah per Putaran */}
-          <div className="p-4 bg-forest-900/60 border border-forest-800 rounded-2xl flex items-center gap-3 shadow-lg">
-            <div className="w-11 h-11 rounded-xl bg-gold-500/20 text-gold-400 border border-gold-500/40 flex items-center justify-center text-xl">
+          <div className="p-4 bg-white border border-slate-200 rounded-2xl flex items-center gap-3 shadow-xs">
+            <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center text-xl shadow-xs">
               <AiOutlineDollarCircle />
             </div>
             <div>
-              <span className="text-[10px] text-forest-400 uppercase font-bold block">
+              <span className="text-[10px] text-slate-500 uppercase font-bold block">
                 Total Hadiah / Putaran
               </span>
-              <span className="text-base sm:text-lg font-bold text-amber-300 font-display">
+              <span className="text-base sm:text-lg font-extrabold text-amber-800 font-display">
                 {formatRupiah(defaultPrizeAmount)}
               </span>
             </div>
@@ -454,10 +454,10 @@ export default function ArisanRounds() {
               key={tab.id}
               type="button"
               onClick={() => setFilterStatus(tab.id)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border shadow-xs ${
                 filterStatus === tab.id
-                  ? 'bg-purple-600/30 border-purple-400 text-purple-200 shadow'
-                  : 'bg-forest-900/60 border-forest-800 text-forest-400 hover:text-forest-200 hover:border-forest-700'
+                  ? 'bg-purple-50 border-purple-300 text-purple-800'
+                  : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300'
               }`}
             >
               {tab.label}
@@ -468,20 +468,20 @@ export default function ArisanRounds() {
         {/* Loading State */}
         {loading && (
           <div className="py-20 text-center">
-            <div className="h-8 w-8 rounded-full border-2 border-forest-700 border-t-purple-500 animate-spin mx-auto mb-3" />
-            <span className="text-xs text-forest-400">Memuat putaran arisan...</span>
+            <div className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-purple-700 animate-spin mx-auto mb-3" />
+            <span className="text-xs text-slate-500">Memuat putaran arisan...</span>
           </div>
         )}
 
         {/* Empty State */}
         {!loading && filteredRounds.length === 0 && (
-          <div className="p-10 bg-forest-900/40 border border-forest-800 rounded-3xl text-center max-w-md mx-auto space-y-4">
-            <div className="w-16 h-16 rounded-2xl bg-forest-800 text-forest-400 flex items-center justify-center text-3xl mx-auto">
+          <div className="p-10 bg-white border border-slate-200 rounded-3xl text-center max-w-md mx-auto space-y-4 shadow-xs">
+            <div className="w-16 h-16 rounded-2xl bg-purple-50 text-purple-700 border border-purple-200 flex items-center justify-center text-3xl mx-auto shadow-xs">
               🎲
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">Belum Ada Putaran Arisan</h3>
-              <p className="text-xs text-forest-300 mt-1">
+              <h3 className="text-base font-bold text-slate-900">Belum Ada Putaran Arisan</h3>
+              <p className="text-xs text-slate-500 mt-1">
                 {filterStatus === 'all'
                   ? 'Grup arisan belum memiliki putaran aktif. Buat putaran pertama untuk memulai pengumpulan iuran.'
                   : `Tidak ada putaran dengan status "${filterStatus}".`}
@@ -492,7 +492,7 @@ export default function ArisanRounds() {
                 type="button"
                 disabled={isReadOnly}
                 onClick={handleOpenCreateModal}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 font-bold text-xs shadow-xs transition-colors"
               >
                 <AiOutlinePlus />
                 <span>Buat Putaran Pertama</span>
@@ -513,22 +513,22 @@ export default function ArisanRounds() {
               return (
                 <div
                   key={round.id}
-                  className={`p-5 rounded-2xl border transition-all flex flex-col justify-between ${
+                  className={`p-5 rounded-2xl border transition-all flex flex-col justify-between shadow-xs ${
                     isDrawn
-                      ? 'bg-forest-900/50 border-forest-800/80 hover:border-purple-500/30'
+                      ? 'bg-white border-slate-200 hover:border-slate-300'
                       : isReadyToDraw
-                      ? 'bg-emerald-950/20 border-emerald-500/50 shadow-lg shadow-emerald-950/30'
-                      : 'bg-forest-900/70 border-forest-700 hover:border-forest-600'
+                      ? 'bg-emerald-50/40 border-emerald-300 ring-2 ring-emerald-500/10'
+                      : 'bg-white border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   <div className="space-y-4">
                     {/* Top Row: Round Number, Status Badge */}
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-1 rounded-lg bg-forest-950 border border-forest-700 text-purple-300 font-mono text-xs font-bold">
+                        <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-purple-700 font-mono text-xs font-bold">
                           Putaran #{round.round_number}
                         </span>
-                        <h3 className="text-sm font-bold text-white truncate">{round.period}</h3>
+                        <h3 className="text-sm font-bold text-slate-900 truncate">{round.period}</h3>
                       </div>
 
                       <span
@@ -540,22 +540,22 @@ export default function ArisanRounds() {
                     </div>
 
                     {/* Total Hadiah / Kas */}
-                    <div className="p-3 bg-forest-950/70 rounded-xl border border-forest-800/80 flex items-center justify-between">
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
                       <div>
-                        <span className="text-[10px] text-forest-400 block uppercase font-semibold">
+                        <span className="text-[10px] text-slate-500 block uppercase font-semibold">
                           Total Hadiah Putaran
                         </span>
-                        <span className="text-sm sm:text-base font-extrabold text-amber-300">
+                        <span className="text-sm sm:text-base font-extrabold text-amber-800">
                           {formatRupiah(round.total_pool_amount)}
                         </span>
                       </div>
 
                       {round.notes && (
                         <div className="text-right max-w-[50%]">
-                          <span className="text-[10px] text-forest-400 block uppercase font-semibold">
+                          <span className="text-[10px] text-slate-500 block uppercase font-semibold">
                             Catatan
                           </span>
-                          <span className="text-xs text-forest-300 truncate block">
+                          <span className="text-xs text-slate-700 truncate block font-medium">
                             {round.notes}
                           </span>
                         </div>
@@ -564,25 +564,25 @@ export default function ArisanRounds() {
 
                     {/* Rincian Pemenang jika status Drawn */}
                     {isDrawn && (
-                      <div className="p-3 bg-purple-950/30 rounded-xl border border-purple-800/50 flex items-center justify-between gap-3">
+                      <div className="p-3 bg-purple-50/60 rounded-xl border border-purple-200 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center text-sm">
+                          <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-800 border border-amber-200 flex items-center justify-center text-sm shadow-xs">
                             🏆
                           </div>
                           <div>
-                            <span className="text-[10px] text-purple-300 block font-bold uppercase">
+                            <span className="text-[10px] text-purple-800 block font-bold uppercase">
                               Pemenang Terpilih
                             </span>
-                            <span className="text-xs font-bold text-white">
+                            <span className="text-xs font-bold text-slate-900">
                               {round.winner?.full_name || 'Anggota Arisan'}
                             </span>
                           </div>
                         </div>
 
                         {round.drawn_at && (
-                          <div className="text-right text-[11px] text-forest-400">
+                          <div className="text-right text-[11px] text-slate-500">
                             <span>Dikocok pada: </span>
-                            <span className="font-semibold text-forest-200">
+                            <span className="font-semibold text-slate-800">
                               {new Date(round.drawn_at).toLocaleDateString('id-ID', {
                                 day: 'numeric',
                                 month: 'short',
@@ -596,12 +596,12 @@ export default function ArisanRounds() {
                   </div>
 
                   {/* Tombol Aksi Bawah */}
-                  <div className="pt-4 mt-4 border-t border-forest-800/80 flex flex-wrap items-center justify-between gap-2">
+                  <div className="pt-4 mt-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => handleOpenRoundBills(round)}
-                        className="px-3 py-2 rounded-xl bg-forest-950 hover:bg-forest-800 text-purple-300 hover:text-white text-xs font-semibold border border-forest-800 transition-colors flex items-center gap-1.5"
+                        className="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-purple-700 hover:text-purple-800 text-xs font-semibold border border-slate-200 transition-colors flex items-center gap-1.5 shadow-xs"
                       >
                         <AiOutlineTeam />
                         <span>Iuran Peserta</span>
@@ -612,7 +612,7 @@ export default function ArisanRounds() {
                           type="button"
                           disabled={generatingBills || isReadOnly}
                           onClick={() => handleGenerateBills(round)}
-                          className="px-3 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-semibold border border-amber-500/40 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                          className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-semibold border border-amber-200 transition-colors flex items-center gap-1.5 disabled:opacity-50 shadow-xs"
                           title="Terbitkan tagihan iuran untuk seluruh peserta yang belum memiliki tagihan pada putaran ini"
                         >
                           <span>⚡ Terbitkan Iuran</span>
@@ -626,7 +626,7 @@ export default function ArisanRounds() {
                           type="button"
                           disabled={isReadOnly}
                           onClick={() => navigate(`/t/${tenantId}/arisan/draw?roundId=${round.id}`)}
-                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow flex items-center gap-1.5 animate-pulse disabled:opacity-50"
+                          className="px-4 py-2 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50"
                         >
                           <span>🎲 Kocok Sekarang</span>
                           <AiOutlineArrowRight />
@@ -637,7 +637,7 @@ export default function ArisanRounds() {
                         <button
                           type="button"
                           onClick={() => navigate(`/t/${tenantId}/arisan/draw?roundId=${round.id}`)}
-                          className="px-3.5 py-2 rounded-xl bg-emerald-700/80 hover:bg-emerald-600 text-white text-xs font-bold transition-colors flex items-center gap-1.5"
+                          className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors flex items-center gap-1.5 shadow-xs"
                         >
                           <span>🎲 Ruang Kocok</span>
                           <AiOutlineArrowRight />
@@ -648,7 +648,7 @@ export default function ArisanRounds() {
                         <button
                           type="button"
                           onClick={() => navigate(`/t/${tenantId}/arisan/draw?roundId=${round.id}`)}
-                          className="px-3.5 py-2 rounded-xl bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold transition-colors flex items-center gap-1.5"
+                          className="px-3.5 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold transition-colors flex items-center gap-1.5 shadow-xs"
                         >
                           <span>Ruang Kocok</span>
                           <AiOutlineArrowRight />
@@ -659,7 +659,7 @@ export default function ArisanRounds() {
                         <button
                           type="button"
                           onClick={() => navigate(`/t/${tenantId}/arisan/draw?roundId=${round.id}`)}
-                          className="px-3.5 py-2 rounded-xl bg-amber-600/30 hover:bg-amber-600/50 text-amber-300 hover:text-white border border-amber-500/40 text-xs font-bold transition-colors flex items-center gap-1.5"
+                          className="px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold transition-colors flex items-center gap-1.5 shadow-xs"
                         >
                           <span>🏆 Hasil Undian</span>
                           <AiOutlineArrowRight />
@@ -681,21 +681,21 @@ export default function ArisanRounds() {
         >
           <form onSubmit={handleCreateRound} className="space-y-4 text-xs">
             <div className="space-y-1">
-              <label className="font-bold text-forest-200 block">Nama / Periode Putaran</label>
+              <label className="font-bold text-slate-700 block">Nama / Periode Putaran</label>
               <input
                 type="text"
                 required
                 value={newRoundPeriod}
                 onChange={(e) => setNewRoundPeriod(e.target.value)}
                 placeholder="Contoh: Putaran 2 - November 2026"
-                className="w-full bg-forest-950 border border-forest-700 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-400"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-forest-800 shadow-xs"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="font-bold text-forest-200 block">Total Hadiah Putaran (Target Kas)</label>
+              <label className="font-bold text-slate-700 block">Total Hadiah Putaran (Target Kas)</label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-forest-400 font-bold">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold">
                   Rp
                 </span>
                 <input
@@ -705,34 +705,34 @@ export default function ArisanRounds() {
                   step={50000}
                   value={newRoundPool}
                   onChange={(e) => setNewRoundPool(e.target.value)}
-                  className="w-full bg-forest-950 border border-forest-700 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white font-bold focus:outline-none focus:border-purple-400"
+                  className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-xs text-slate-900 font-bold focus:outline-none focus:border-forest-800 shadow-xs"
                 />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="font-bold text-forest-200 block">Catatan Tambahan (Opsional)</label>
+              <label className="font-bold text-slate-700 block">Catatan Tambahan (Opsional)</label>
               <textarea
                 rows={2}
                 value={newRoundNotes}
                 onChange={(e) => setNewRoundNotes(e.target.value)}
                 placeholder="Catatan jadwal kumpul arisan atau lokasi pertemuan..."
-                className="w-full bg-forest-950 border border-forest-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-400"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-forest-800 shadow-xs"
               />
             </div>
 
-            <div className="pt-3 border-t border-forest-800 flex items-center justify-end gap-2">
+            <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(false)}
-                className="px-4 py-2 rounded-xl bg-forest-800 hover:bg-forest-700 text-forest-200 font-bold text-xs"
+                className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs border border-slate-200 shadow-xs"
               >
                 Batal
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow transition-colors disabled:opacity-50"
+                className="px-5 py-2 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 font-bold text-xs shadow-xs transition-colors disabled:opacity-50"
               >
                 {submitting ? 'Menyimpan...' : 'Simpan Putaran'}
               </button>
@@ -748,20 +748,20 @@ export default function ArisanRounds() {
         >
           <div className="space-y-4 text-xs">
             {/* Header Summary */}
-            <div className="p-3 bg-forest-950/80 rounded-xl border border-forest-800 flex items-center justify-between">
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between shadow-xs">
               <div>
-                <span className="text-forest-400 block text-[10px] uppercase font-bold">
+                <span className="text-slate-500 block text-[10px] uppercase font-bold">
                   Status Pengumpulan Iuran
                 </span>
-                <span className="text-sm font-bold text-white">
+                <span className="text-sm font-bold text-slate-900">
                   {roundBills.filter((b) => b.status === 'paid').length} / {roundBills.length} Peserta Lunas
                 </span>
               </div>
               <div className="text-right">
-                <span className="text-forest-400 block text-[10px] uppercase font-bold">
+                <span className="text-slate-500 block text-[10px] uppercase font-bold">
                   Target Kas Putaran
                 </span>
-                <span className="text-sm font-bold text-amber-300">
+                <span className="text-sm font-extrabold text-amber-800">
                   {formatRupiah(selectedRoundForBills?.total_pool_amount)}
                 </span>
               </div>
@@ -769,8 +769,8 @@ export default function ArisanRounds() {
 
             {/* Loading */}
             {loadingRoundBills && (
-              <div className="py-8 text-center text-forest-400">
-                <div className="h-6 w-6 border-2 border-purple-500 border-t-transparent animate-spin rounded-full mx-auto mb-2" />
+              <div className="py-8 text-center text-slate-500">
+                <div className="h-6 w-6 border-2 border-purple-700 border-t-transparent animate-spin rounded-full mx-auto mb-2" />
                 <span>Memuat data iuran peserta...</span>
               </div>
             )}
@@ -778,7 +778,7 @@ export default function ArisanRounds() {
             {/* Empty Bills (Belum diterbitkan) */}
             {!loadingRoundBills && roundBills.length === 0 && (
               <div className="py-6 text-center space-y-3">
-                <p className="text-forest-300">
+                <p className="text-slate-600">
                   Tagihan iuran untuk putaran ini belum diterbitkan kepada peserta.
                 </p>
                 {isTenantAdmin && (
@@ -786,7 +786,7 @@ export default function ArisanRounds() {
                     type="button"
                     disabled={generatingBills || isReadOnly}
                     onClick={() => handleGenerateBills(selectedRoundForBills)}
-                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-amber-500 hover:from-purple-500 hover:to-amber-400 text-white font-bold rounded-xl shadow text-xs inline-flex items-center gap-1.5"
+                    className="px-4 py-2 bg-forest-800 hover:bg-forest-900 text-gold-400 font-bold rounded-xl shadow-xs text-xs inline-flex items-center gap-1.5"
                   >
                     <span>⚡ Terbitkan Tagihan Iuran Sekarang</span>
                   </button>
@@ -805,18 +805,18 @@ export default function ArisanRounds() {
                   return (
                     <div
                       key={bill.id}
-                      className="p-3 bg-forest-950/70 border border-forest-800 rounded-xl flex items-center justify-between gap-3"
+                      className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-3 shadow-xs"
                     >
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-white text-xs">{memberName}</span>
+                          <span className="font-bold text-slate-900 text-xs">{memberName}</span>
                           {slotLabel && (
-                            <span className="text-[10px] px-1.5 py-0.5 bg-purple-950 text-purple-300 rounded border border-purple-800">
+                            <span className="text-[10px] px-1.5 py-0.5 bg-purple-50 text-purple-700 rounded border border-purple-200 font-medium">
                               {slotLabel}
                             </span>
                           )}
                         </div>
-                        <span className="text-[11px] text-forest-400 block mt-0.5">
+                        <span className="text-[11px] text-slate-500 block mt-0.5">
                           Nominal: {formatRupiah(bill.amount)}
                         </span>
                       </div>
@@ -825,8 +825,8 @@ export default function ArisanRounds() {
                         <span
                           className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                             isPaid
-                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                              : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              : 'bg-rose-50 text-rose-800 border-rose-200'
                           }`}
                         >
                           {isPaid ? 'Lunas' : 'Belum Bayar'}
@@ -837,7 +837,7 @@ export default function ArisanRounds() {
                             type="button"
                             disabled={markingPaidId === bill.id || isReadOnly}
                             onClick={() => handleMarkPaid(bill.id)}
-                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-[10px] transition-colors shadow disabled:opacity-50"
+                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[10px] transition-colors shadow-xs disabled:opacity-50"
                             title="Tandai pembayaran tunai/transfer telah diterima"
                           >
                             {markingPaidId === bill.id ? 'Memproses...' : 'Tandai Lunas'}
@@ -851,14 +851,14 @@ export default function ArisanRounds() {
             )}
 
             {/* Footer Modal */}
-            <div className="pt-3 border-t border-forest-800 flex items-center justify-between">
-              <span className="text-[11px] text-forest-400">
+            <div className="pt-3 border-t border-slate-200 flex items-center justify-between">
+              <span className="text-[11px] text-slate-500">
                 Pengocokan siap dilakukan jika seluruh peserta telah lunas.
               </span>
               <button
                 type="button"
                 onClick={() => setSelectedRoundForBills(null)}
-                className="px-4 py-1.5 bg-forest-800 hover:bg-forest-700 text-forest-200 font-bold rounded-xl text-xs"
+                className="px-4 py-1.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-xl text-xs border border-slate-200 shadow-xs"
               >
                 Tutup
               </button>
@@ -875,9 +875,9 @@ export default function ArisanRounds() {
             maxWidth="max-w-md"
           >
             <div className="p-4 space-y-4 text-left">
-              <div className="p-3.5 bg-purple-950/40 border border-purple-800 rounded-xl text-xs text-purple-200 leading-relaxed">
-                <p className="font-semibold text-white mb-1.5">Penjelasan &amp; Dampak Tindakan:</p>
-                <ul className="list-disc list-inside space-y-1 text-forest-300">
+              <div className="p-3.5 bg-purple-50 border border-purple-200 rounded-xl text-xs text-purple-900 leading-relaxed shadow-xs">
+                <p className="font-bold text-purple-950 mb-1.5">Penjelasan &amp; Dampak Tindakan:</p>
+                <ul className="list-disc list-inside space-y-1 text-purple-800">
                   <li>
                     Status kemenangan seluruh peserta (<strong>{participants.length} anggota</strong>) akan direset kembali menjadi <strong>Belum Menang</strong>.
                   </li>
@@ -889,8 +889,8 @@ export default function ArisanRounds() {
               </div>
 
               {stats.totalWinners < stats.totalParticipants && (
-                <div className="p-3 bg-amber-500/20 border border-amber-500/40 rounded-xl text-xs text-amber-300 flex items-start gap-2">
-                  <AiOutlineWarning className="text-lg shrink-0 mt-0.5" />
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2 shadow-xs">
+                  <AiOutlineWarning className="text-lg shrink-0 mt-0.5 text-amber-600" />
                   <span>
                     Masih terdapat <strong>{stats.totalParticipants - stats.totalWinners} peserta</strong> yang belum memenangkan undian pada siklus ini. Reset sekarang akan menjalankan force-reset.
                   </span>
@@ -902,7 +902,7 @@ export default function ArisanRounds() {
                   type="button"
                   disabled={resettingCycle}
                   onClick={() => setIsResetCycleModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-forest-900 hover:bg-forest-800 text-forest-300 hover:text-white text-xs font-semibold transition-colors disabled:opacity-50"
+                  className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-200 shadow-xs transition-colors disabled:opacity-50"
                 >
                   Batal
                 </button>
@@ -910,7 +910,7 @@ export default function ArisanRounds() {
                   type="button"
                   disabled={resettingCycle || isReadOnly}
                   onClick={() => handleConfirmResetCycle(stats.totalWinners < stats.totalParticipants)}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-amber-500 hover:from-purple-500 hover:to-amber-400 text-white text-xs font-bold shadow-lg transition-all disabled:opacity-50 flex items-center gap-2"
+                  className="px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold shadow-xs transition-all disabled:opacity-50 flex items-center gap-2"
                 >
                   {resettingCycle ? (
                     <>
