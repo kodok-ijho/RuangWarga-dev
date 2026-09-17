@@ -19,17 +19,17 @@ const STATUS_CONFIG = {
   all: { label: 'Semua Status' },
   active: {
     label: 'Aktif',
-    style: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+    style: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     icon: <AiOutlineCheckCircle />,
   },
   trial: {
     label: 'Trial',
-    style: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+    style: 'bg-amber-50 text-amber-800 border-amber-200',
     icon: <AiOutlineClockCircle />,
   },
   read_only: {
     label: 'Read-Only',
-    style: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
+    style: 'bg-rose-50 text-rose-700 border-rose-200',
     icon: <AiOutlineWarning />,
   },
 };
@@ -205,15 +205,15 @@ export default function PlatformTenantList() {
   return (
     <div className="space-y-6">
       {/* Header section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-forest-800">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-slate-200">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xl">🏢</span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-display">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-display">
               Manajemen Seluruh Tenant
             </h1>
           </div>
-          <p className="text-xs sm:text-sm text-forest-300">
+          <p className="text-xs sm:text-sm text-slate-600">
             Pantau semua komunitas, komplek RT/RW, kos-kosan, arisan, dan kelas yang aktif di platform RuangWarga.
           </p>
         </div>
@@ -222,7 +222,7 @@ export default function PlatformTenantList() {
           type="button"
           onClick={fetchTenants}
           disabled={loading}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-forest-800 hover:bg-forest-700 text-forest-200 hover:text-white text-xs font-semibold border border-forest-700 transition-colors self-start sm:self-auto"
+          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 text-xs font-semibold border border-slate-200 shadow-xs transition-colors self-start sm:self-auto"
         >
           <AiOutlineReload className={loading ? 'animate-spin' : ''} />
           <span>Segarkan Data</span>
@@ -231,54 +231,54 @@ export default function PlatformTenantList() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-forest-900/70 border border-forest-800 rounded-2xl p-4 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-forest-400">Total Tenant</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Tenant</span>
             <span className="text-lg">🌐</span>
           </div>
-          <p className="text-2xl font-bold text-white font-display mt-2">{stats.total}</p>
-          <span className="text-[10px] text-forest-400 mt-1 block">Layanan terdaftar di platform</span>
+          <p className="text-2xl font-bold text-slate-900 font-display mt-2">{stats.total}</p>
+          <span className="text-[10px] text-slate-400 mt-1 block">Layanan terdaftar di platform</span>
         </div>
 
-        <div className="bg-forest-900/70 border border-emerald-900/40 rounded-2xl p-4 shadow-sm">
+        <div className="bg-white border border-emerald-200 rounded-2xl p-5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-emerald-400">Aktif Berlangganan</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Aktif Berlangganan</span>
             <span className="text-lg">💎</span>
           </div>
-          <p className="text-2xl font-bold text-emerald-300 font-display mt-2">{stats.active}</p>
-          <span className="text-[10px] text-forest-400 mt-1 block">Membayar &amp; memiliki akses penuh</span>
+          <p className="text-2xl font-bold text-emerald-700 font-display mt-2">{stats.active}</p>
+          <span className="text-[10px] text-slate-400 mt-1 block">Membayar &amp; memiliki akses penuh</span>
         </div>
 
-        <div className="bg-forest-900/70 border border-amber-900/40 rounded-2xl p-4 shadow-sm">
+        <div className="bg-white border border-amber-200 rounded-2xl p-5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-amber-400">Masa Percobaan (Trial)</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-amber-800">Masa Percobaan (Trial)</span>
             <span className="text-lg">⏳</span>
           </div>
-          <p className="text-2xl font-bold text-amber-300 font-display mt-2">{stats.trial}</p>
-          <span className="text-[10px] text-forest-400 mt-1 block">Masa trial 15 hari gratis</span>
+          <p className="text-2xl font-bold text-amber-800 font-display mt-2">{stats.trial}</p>
+          <span className="text-[10px] text-slate-400 mt-1 block">Masa trial 15 hari gratis</span>
         </div>
 
-        <div className="bg-forest-900/70 border border-rose-900/40 rounded-2xl p-4 shadow-sm">
+        <div className="bg-white border border-rose-200 rounded-2xl p-5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-rose-400">Read-Only</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-rose-700">Read-Only</span>
             <span className="text-lg">🔒</span>
           </div>
-          <p className="text-2xl font-bold text-rose-300 font-display mt-2">{stats.readOnly}</p>
-          <span className="text-[10px] text-forest-400 mt-1 block">Trial habis / belum perpanjang</span>
+          <p className="text-2xl font-bold text-rose-700 font-display mt-2">{stats.readOnly}</p>
+          <span className="text-[10px] text-slate-400 mt-1 block">Trial habis / belum perpanjang</span>
         </div>
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="bg-forest-900/80 border border-forest-800 rounded-2xl p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         {/* Search */}
         <div className="relative flex-1">
-          <AiOutlineSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-forest-400 text-sm" />
+          <AiOutlineSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Cari tenant berdasarkan nama atau ID..."
-            className="w-full pl-9 pr-4 py-2 bg-forest-950/80 border border-forest-700 rounded-xl text-xs text-white placeholder-forest-500 focus:outline-none focus:border-gold-500"
+            className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-forest-800 focus:bg-white shadow-xs"
           />
         </div>
 
@@ -288,7 +288,7 @@ export default function PlatformTenantList() {
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="px-3 py-2 bg-forest-950/80 border border-forest-700 rounded-xl text-xs text-forest-200 focus:outline-none focus:border-gold-500"
+            className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:border-forest-800 focus:bg-white shadow-xs"
           >
             {Object.entries(TYPE_CONFIG).map(([key, cfg]) => (
               <option key={key} value={key}>
@@ -302,7 +302,7 @@ export default function PlatformTenantList() {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 bg-forest-950/80 border border-forest-700 rounded-xl text-xs text-forest-200 focus:outline-none focus:border-gold-500"
+            className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:border-forest-800 focus:bg-white shadow-xs"
           >
             {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
               <option key={key} value={key}>
@@ -315,28 +315,28 @@ export default function PlatformTenantList() {
 
       {/* Error Message */}
       {error && (
-        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
           <strong>Terjadi Kesalahan:</strong> {error}
         </div>
       )}
 
       {/* Table / List */}
-      <div className="bg-forest-900/60 border border-forest-800 rounded-2xl overflow-hidden shadow-xl">
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="h-8 w-8 rounded-full border-2 border-forest-600 border-t-gold-500 animate-spin" />
+            <div className="h-8 w-8 rounded-full border-2 border-forest-700 border-t-gold-500 animate-spin" />
           </div>
         ) : filteredTenants.length === 0 ? (
-          <div className="py-16 text-center text-forest-400">
-            <AiOutlineAppstore className="text-4xl mx-auto mb-2 text-forest-600" />
-            <p className="text-sm font-semibold text-forest-300">Tidak ada tenant yang cocok</p>
-            <p className="text-xs text-forest-500 mt-1">Coba sesuaikan kata kunci pencarian atau filter status.</p>
+          <div className="py-16 text-center text-slate-400">
+            <AiOutlineAppstore className="text-4xl mx-auto mb-2 text-slate-300" />
+            <p className="text-sm font-semibold text-slate-700">Tidak ada tenant yang cocok</p>
+            <p className="text-xs text-slate-500 mt-1">Coba sesuaikan kata kunci pencarian atau filter status.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-forest-950/80 border-b border-forest-800 text-forest-400 uppercase tracking-wider font-semibold">
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase tracking-wider font-semibold text-[11px]">
                   <th className="py-3.5 px-4">Nama Layanan / Tenant</th>
                   <th className="py-3.5 px-4">Tipe Vertikal</th>
                   <th className="py-3.5 px-4">Status Langganan</th>
@@ -345,7 +345,7 @@ export default function PlatformTenantList() {
                   <th className="py-3.5 px-4 text-right">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-forest-800/60">
+              <tbody className="divide-y divide-slate-100">
                 {filteredTenants.map((item) => {
                   const tmpl = getTenantTemplate(item.type);
                   const st = item.subscription?.status || 'trial';
@@ -368,16 +368,16 @@ export default function PlatformTenantList() {
                   }
 
                   return (
-                    <tr key={item.id} className="hover:bg-forest-800/40 transition-colors">
+                    <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
                       {/* Name & ID */}
                       <td className="py-3.5 px-4">
-                        <div className="font-bold text-white text-sm font-display">{item.name}</div>
-                        <div className="font-mono text-[10px] text-forest-500">{item.id}</div>
+                        <div className="font-bold text-slate-900 text-sm font-display">{item.name}</div>
+                        <div className="font-mono text-[10px] text-slate-400">{item.id}</div>
                       </td>
 
                       {/* Type */}
                       <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-forest-950 border border-forest-700 text-forest-200 text-[11px] font-semibold">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-[11px] font-semibold">
                           <span>{tmpl.icon}</span>
                           <span>{tmpl.name}</span>
                         </span>
@@ -394,7 +394,7 @@ export default function PlatformTenantList() {
                       </td>
 
                       {/* Created At */}
-                      <td className="py-3.5 px-4 text-forest-300">
+                      <td className="py-3.5 px-4 text-slate-600">
                         {item.created_at
                           ? new Date(item.created_at).toLocaleDateString('id-ID', {
                               day: 'numeric',
@@ -409,10 +409,10 @@ export default function PlatformTenantList() {
                         <span
                           className={`text-xs font-medium ${
                             st === 'active'
-                              ? 'text-emerald-300'
+                              ? 'text-emerald-700 font-semibold'
                               : st === 'trial'
-                              ? 'text-amber-300'
-                              : 'text-rose-300'
+                              ? 'text-amber-800 font-semibold'
+                              : 'text-rose-700 font-semibold'
                           }`}
                         >
                           {timeDesc}
@@ -424,7 +424,7 @@ export default function PlatformTenantList() {
                         <button
                           type="button"
                           onClick={() => handleOpenTenant(item.id)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-forest-800 hover:bg-gold-500 hover:text-forest-950 text-white font-semibold text-xs transition-all border border-forest-700 hover:border-gold-500"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-forest-800 hover:bg-forest-900 text-white font-semibold text-xs transition-all shadow-xs"
                           title="Buka dashboard operasional tenant ini"
                         >
                           <span>Buka</span>
