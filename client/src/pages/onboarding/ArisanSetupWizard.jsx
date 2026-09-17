@@ -358,8 +358,8 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
 
   if (loadingInitial) {
     return (
-      <div className="min-h-screen bg-[#071f13] flex items-center justify-center p-4">
-        <div className="text-center text-forest-300 animate-pulse text-sm">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="text-center text-slate-600 animate-pulse text-sm">
           Menyiapkan formulir inisiasi grup arisan...
         </div>
       </div>
@@ -371,50 +371,50 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
     const inviteUrl = `${window.location.origin}/join/${generatedInviteCode}`;
 
     return (
-      <div className="min-h-screen bg-[#071f13] text-white py-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
-        <div className="max-w-xl w-full bg-forest-900/90 border border-purple-500/40 rounded-3xl p-8 shadow-2xl backdrop-blur-md text-center space-y-6">
-          <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-purple-600/30 to-amber-500/20 text-purple-300 border border-purple-500/50 flex items-center justify-center mx-auto text-4xl shadow-inner shadow-purple-900/40">
+      <div className="min-h-screen bg-slate-50 text-slate-900 py-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+        <div className="max-w-xl w-full bg-white border border-slate-200 rounded-3xl p-8 sm:p-10 shadow-xs text-center space-y-6">
+          <div className="w-20 h-20 rounded-3xl bg-purple-50 text-purple-700 border border-purple-200 flex items-center justify-center mx-auto text-4xl shadow-xs">
             🎲
           </div>
 
           <div>
-            <span className="text-xs font-bold text-purple-400 uppercase tracking-widest block mb-1">
+            <span className="text-xs font-bold text-purple-700 uppercase tracking-widest block mb-1">
               Grup Arisan Siap Dimulai!
             </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-white font-display">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-display">
               {groupName}
             </h2>
-            <p className="text-xs sm:text-sm text-forest-300 mt-2 max-w-md mx-auto">
+            <p className="text-xs sm:text-sm text-slate-600 mt-2 max-w-md mx-auto">
               Inisiasi grup arisan selesai. Bagikan tautan undangan ini kepada seluruh peserta agar
               mereka dapat memantau setoran dan jadwal pengocokan secara transparan.
             </p>
           </div>
 
           {/* Kartu Ringkasan Aturan Arisan */}
-          <div className="p-4 bg-forest-950/80 rounded-2xl border border-forest-800 text-left space-y-3 text-xs">
-            <div className="flex items-center justify-between border-b border-forest-800 pb-2">
-              <span className="text-forest-400">Total Slot Undian:</span>
-              <span className="font-bold text-white">{slotList.length} Peserta / Slot</span>
+          <div className="p-4 sm:p-5 bg-slate-50 rounded-2xl border border-slate-200 text-left space-y-3 text-xs">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+              <span className="text-slate-500">Total Slot Undian:</span>
+              <span className="font-bold text-slate-900">{slotList.length} Peserta / Slot</span>
             </div>
-            <div className="flex items-center justify-between border-b border-forest-800 pb-2">
-              <span className="text-forest-400">Iuran per Putaran:</span>
-              <span className="font-bold text-purple-300">{formatRupiah(contributionAmount)}</span>
+            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+              <span className="text-slate-500">Iuran per Putaran:</span>
+              <span className="font-bold text-purple-700">{formatRupiah(contributionAmount)}</span>
             </div>
-            <div className="flex items-center justify-between border-b border-forest-800 pb-2">
-              <span className="text-forest-400">Hadiah Pemenang:</span>
-              <span className="font-extrabold text-amber-400 text-sm">{formatRupiah(totalPrizePerRound)}</span>
+            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+              <span className="text-slate-500">Hadiah Pemenang:</span>
+              <span className="font-extrabold text-amber-800 text-sm">{formatRupiah(totalPrizePerRound)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-forest-400">Jadwal Pengocokan:</span>
-              <span className="font-semibold text-forest-200 capitalize">
+              <span className="text-slate-500">Jadwal Pengocokan:</span>
+              <span className="font-semibold text-slate-800 capitalize">
                 {drawFrequency === 'weekly' ? 'Setiap Minggu' : `Bulanan (Tanggal ${drawDay})`}
               </span>
             </div>
           </div>
 
           {/* Kotak Tautan Undangan */}
-          <div className="p-4 bg-purple-950/30 rounded-2xl border border-purple-800/60 text-left space-y-2">
-            <label className="text-[11px] font-bold text-purple-300 uppercase tracking-wider block">
+          <div className="p-4 sm:p-5 bg-purple-50/50 rounded-2xl border border-purple-200 text-left space-y-2">
+            <label className="text-[11px] font-bold text-purple-800 uppercase tracking-wider block">
               Tautan Undangan Peserta (Invite Link)
             </label>
             <div className="flex items-center gap-2">
@@ -422,12 +422,12 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
                 type="text"
                 readOnly
                 value={inviteUrl}
-                className="flex-1 bg-forest-950/90 border border-forest-700 rounded-xl px-3 py-2 text-xs text-forest-200 font-mono select-all focus:outline-none"
+                className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-mono select-all focus:outline-none shadow-xs"
               />
               <button
                 type="button"
                 onClick={handleCopyInviteLink}
-                className="px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shadow"
+                className="px-3 py-2 bg-purple-700 hover:bg-purple-800 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shadow-xs"
               >
                 {copiedCode ? <AiOutlineCheck /> : <AiOutlineCopy />}
                 <span>{copiedCode ? 'Disalin' : 'Salin'}</span>
@@ -439,7 +439,7 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
           <button
             type="button"
             onClick={handleCopyWhatsAppBroadcast}
-            className="w-full py-3 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs shadow-lg transition-all flex items-center justify-center gap-2"
+            className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2"
           >
             {copiedWaMessage ? <AiOutlineCheck /> : <AiOutlineUsergroupAdd className="text-base" />}
             <span>{copiedWaMessage ? 'Teks WhatsApp Siap Dikirim!' : 'Salin Format Undangan WhatsApp Grup'}</span>
@@ -450,7 +450,7 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
             <button
               type="button"
               onClick={() => navigate(`/t/${tenantId}/dashboard`)}
-              className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-purple-600 to-amber-500 hover:from-purple-500 hover:to-amber-400 text-white font-extrabold text-sm shadow-xl transition-all hover:scale-[1.02]"
+              className="w-full py-3.5 px-6 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 font-extrabold text-sm shadow-xs transition-all"
             >
               Masuk ke Dashboard Arisan Sekarang &rarr;
             </button>
@@ -461,127 +461,125 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
   }
 
   return (
-    <div className="min-h-screen bg-[#071f13] text-white py-10 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 text-slate-900 py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-8">
         {/* Top Breadcrumb & Title */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-500/40 text-purple-300 text-xs font-bold uppercase tracking-wider">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-50 border border-purple-200 text-purple-700 text-xs font-bold uppercase tracking-wider">
             <span>🎲</span>
             <span>Setup Inisiasi Grup Arisan</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-display">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-display">
             Pengaturan Awal Arisan Digital
           </h1>
-          <p className="text-xs sm:text-sm text-forest-300 max-w-lg mx-auto">
+          <p className="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto">
             Lengkapi profil grup, tetapkan slot peserta, dan tentukan nominal iuran serta jadwal
             kocok undian yang transparan.
           </p>
         </div>
 
         {/* Stepper Progress Bar */}
-        <div className="bg-forest-900/70 border border-forest-800 rounded-2xl p-4 shadow-xl">
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
           <div className="flex items-center justify-between">
             {/* Step 1 */}
             <div className="flex items-center gap-3">
               <div
-                className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs border ${
+                className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs border transition-all ${
                   currentStep === 1
-                    ? 'bg-purple-600 border-purple-400 text-white shadow-lg shadow-purple-900/50'
+                    ? 'bg-purple-700 border-purple-700 text-white shadow-xs'
                     : currentStep > 1
-                    ? 'bg-forest-800 border-forest-600 text-purple-400'
-                    : 'bg-forest-950 border-forest-800 text-forest-500'
+                    ? 'bg-purple-50 border-purple-300 text-purple-700'
+                    : 'bg-slate-100 border-slate-200 text-slate-400'
                 }`}
               >
                 {currentStep > 1 ? <AiOutlineCheck /> : '1'}
               </div>
               <div className="hidden sm:block text-left">
-                <span className="text-[10px] uppercase font-bold text-forest-400 block leading-none">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block leading-none">
                   Langkah 1
                 </span>
-                <span className="text-xs font-semibold text-white">Identitas Grup</span>
+                <span className="text-xs font-semibold text-slate-800">Identitas Grup</span>
               </div>
             </div>
 
-            <div className={`flex-1 h-0.5 mx-3 sm:mx-6 ${currentStep > 1 ? 'bg-purple-500' : 'bg-forest-800'}`} />
+            <div className={`flex-1 h-0.5 mx-3 sm:mx-6 ${currentStep > 1 ? 'bg-purple-600' : 'bg-slate-200'}`} />
 
             {/* Step 2 */}
             <div className="flex items-center gap-3">
               <div
-                className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs border ${
+                className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs border transition-all ${
                   currentStep === 2
-                    ? 'bg-purple-600 border-purple-400 text-white shadow-lg shadow-purple-900/50'
+                    ? 'bg-purple-700 border-purple-700 text-white shadow-xs'
                     : currentStep > 2
-                    ? 'bg-forest-800 border-forest-600 text-purple-400'
-                    : 'bg-forest-950 border-forest-800 text-forest-500'
+                    ? 'bg-purple-50 border-purple-300 text-purple-700'
+                    : 'bg-slate-100 border-slate-200 text-slate-400'
                 }`}
               >
                 {currentStep > 2 ? <AiOutlineCheck /> : '2'}
               </div>
               <div className="hidden sm:block text-left">
-                <span className="text-[10px] uppercase font-bold text-forest-400 block leading-none">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block leading-none">
                   Langkah 2
                 </span>
-                <span className="text-xs font-semibold text-white">Slot Peserta</span>
+                <span className="text-xs font-semibold text-slate-800">Slot Peserta</span>
               </div>
             </div>
 
-            <div className={`flex-1 h-0.5 mx-3 sm:mx-6 ${currentStep > 2 ? 'bg-purple-500' : 'bg-forest-800'}`} />
+            <div className={`flex-1 h-0.5 mx-3 sm:mx-6 ${currentStep > 2 ? 'bg-purple-600' : 'bg-slate-200'}`} />
 
             {/* Step 3 */}
             <div className="flex items-center gap-3">
               <div
-                className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs border ${
+                className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs border transition-all ${
                   currentStep === 3
-                    ? 'bg-purple-600 border-purple-400 text-white shadow-lg shadow-purple-900/50'
-                    : 'bg-forest-950 border-forest-800 text-forest-500'
+                    ? 'bg-purple-700 border-purple-700 text-white shadow-xs'
+                    : 'bg-slate-100 border-slate-200 text-slate-400'
                 }`}
               >
                 3
               </div>
               <div className="hidden sm:block text-left">
-                <span className="text-[10px] uppercase font-bold text-forest-400 block leading-none">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block leading-none">
                   Langkah 3
                 </span>
-                <span className="text-xs font-semibold text-white">Iuran & Hadiah</span>
+                <span className="text-xs font-semibold text-slate-800">Iuran & Hadiah</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Content Box Per Step */}
-        <div className="bg-forest-900/60 border border-forest-700/80 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-sm">
-          {/* =========================================================================
-              STEP 1: IDENTITAS GRUP ARISAN
-             ========================================================================= */}
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs">
+          {/* STEP 1: IDENTITAS GRUP ARISAN */}
           {currentStep === 1 && (
-            <div className="space-y-6 animate-fadeIn">
-              <div className="border-b border-forest-800 pb-4">
-                <h2 className="text-lg font-bold text-white font-display flex items-center gap-2">
+            <div className="space-y-6">
+              <div className="border-b border-slate-200 pb-4">
+                <h2 className="text-lg font-bold text-slate-900 font-display flex items-center gap-2">
                   <span>✨</span>
                   <span>Informasi & Profil Grup Arisan</span>
                 </h2>
-                <p className="text-xs text-forest-300 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   Beri nama grup arisan Anda agar mudah dikenali oleh para anggota.
                 </p>
               </div>
 
               {/* Nama Grup Arisan */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-forest-200 block">
-                  Nama Grup Arisan <span className="text-amber-400">*</span>
+                <label className="text-xs font-bold text-slate-700 block">
+                  Nama Grup Arisan <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
                   placeholder="Contoh: Arisan Keluarga Besar Bani Sastro / Arisan Alumni 2012"
-                  className="w-full bg-forest-950/80 border border-forest-700 focus:border-purple-400 rounded-xl px-4 py-3 text-sm text-white placeholder-forest-500 focus:outline-none focus:ring-1 focus:ring-purple-400"
+                  className="w-full bg-white border border-slate-200 focus:border-purple-600 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none shadow-xs"
                 />
               </div>
 
               {/* Kategori Arisan */}
               <div className="space-y-2">
-                <label className="text-xs font-bold text-forest-200 block">
+                <label className="text-xs font-bold text-slate-700 block">
                   Kategori Grup
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -594,8 +592,8 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
                         onClick={() => setCategory(cat)}
                         className={`py-2 px-3 rounded-xl text-xs font-semibold border text-left transition-all ${
                           isSelected
-                            ? 'bg-purple-600/30 border-purple-400 text-purple-200 shadow'
-                            : 'bg-forest-950/60 border-forest-800 text-forest-400 hover:border-forest-600 hover:text-forest-200'
+                            ? 'bg-purple-50 border-purple-300 text-purple-800 font-bold shadow-xs'
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 shadow-xs'
                         }`}
                       >
                         {cat}
@@ -607,7 +605,7 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
 
               {/* Nomor Kontak WhatsApp Ketua / Admin */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-forest-200 block">
+                <label className="text-xs font-bold text-slate-700 block">
                   Nomor WhatsApp Pengelola / Admin
                 </label>
                 <input
@@ -615,16 +613,16 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
                   placeholder="Contoh: 081234567890"
-                  className="w-full bg-forest-950/80 border border-forest-700 focus:border-purple-400 rounded-xl px-4 py-3 text-sm text-white placeholder-forest-500 focus:outline-none focus:ring-1 focus:ring-purple-400"
+                  className="w-full bg-white border border-slate-200 focus:border-purple-600 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none shadow-xs"
                 />
-                <span className="text-[11px] text-forest-400 block">
+                <span className="text-[11px] text-slate-500 block">
                   Nomor ini digunakan jika anggota butuh konfirmasi transfer setoran manual.
                 </span>
               </div>
 
               {/* Peraturan / Catatan Arisan */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-forest-200 block">
+                <label className="text-xs font-bold text-slate-700 block">
                   Catatan / Kesepakatan Grup (Opsional)
                 </label>
                 <textarea
@@ -632,16 +630,16 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
                   value={arisanRules}
                   onChange={(e) => setArisanRules(e.target.value)}
                   placeholder="Tuliskan catatan penting arisan, misalnya batas transfer atau denda jika terlambat..."
-                  className="w-full bg-forest-950/80 border border-forest-700 focus:border-purple-400 rounded-xl px-4 py-2.5 text-xs text-white placeholder-forest-500 focus:outline-none focus:ring-1 focus:ring-purple-400"
+                  className="w-full bg-white border border-slate-200 focus:border-purple-600 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none shadow-xs"
                 />
               </div>
 
               {/* Action Buttons Step 1 */}
-              <div className="pt-4 border-t border-forest-800 flex justify-end">
+              <div className="pt-4 border-t border-slate-200 flex justify-end">
                 <button
                   type="button"
                   onClick={handleNextStep}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-900/30 transition-all hover:scale-105"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 font-bold text-xs shadow-xs transition-all"
                 >
                   <span>Lanjut: Konfigurasi Slot Peserta</span>
                   <AiOutlineArrowRight />
@@ -650,49 +648,47 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
             </div>
           )}
 
-          {/* =========================================================================
-              STEP 2: KONFIGURASI SLOT / PESERTA ARISAN
-             ========================================================================= */}
+          {/* STEP 2: KONFIGURASI SLOT / PESERTA ARISAN */}
           {currentStep === 2 && (
-            <div className="space-y-6 animate-fadeIn">
-              <div className="border-b border-forest-800 pb-4">
-                <h2 className="text-lg font-bold text-white font-display flex items-center gap-2">
+            <div className="space-y-6">
+              <div className="border-b border-slate-200 pb-4">
+                <h2 className="text-lg font-bold text-slate-900 font-display flex items-center gap-2">
                   <span>👥</span>
                   <span>Daftar Slot Undian Peserta</span>
                 </h2>
-                <p className="text-xs text-forest-300 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   Tentukan berapa jumlah slot/nama yang akan berputar dalam 1 siklus penuh arisan.
                 </p>
               </div>
 
               {/* Generator Slot Cepat */}
-              <div className="p-4 bg-forest-950/70 border border-forest-800 rounded-2xl space-y-3">
-                <div className="flex items-center gap-2 text-xs font-bold text-purple-300">
+              <div className="p-4 sm:p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-purple-700">
                   <AiOutlineUsergroupAdd className="text-base" />
                   <span>Generator Slot Cepat</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="text-[11px] text-forest-400 block mb-1">Prefix Label</label>
+                    <label className="text-[11px] font-semibold text-slate-600 block mb-1">Prefix Label</label>
                     <input
                       type="text"
                       value={slotPrefix}
                       onChange={(e) => setSlotPrefix(e.target.value)}
                       placeholder="Slot"
-                      className="w-full bg-forest-900 border border-forest-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-purple-600 shadow-xs"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[11px] text-forest-400 block mb-1">Jumlah Peserta/Slot</label>
+                    <label className="text-[11px] font-semibold text-slate-600 block mb-1">Jumlah Peserta/Slot</label>
                     <input
                       type="number"
                       min={2}
                       max={100}
                       value={slotCountInput}
                       onChange={(e) => setSlotCountInput(e.target.value)}
-                      className="w-full bg-forest-900 border border-forest-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none font-bold"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-purple-600 font-bold shadow-xs"
                     />
                   </div>
 
@@ -700,7 +696,7 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
                     <button
                       type="button"
                       onClick={handleGenerateSlots}
-                      className="w-full py-2 px-3 rounded-xl bg-purple-700 hover:bg-purple-600 text-white font-bold text-xs transition-colors"
+                      className="w-full py-2.5 px-3 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs transition-colors shadow-xs"
                     >
                       Terapkan Generator
                     </button>
@@ -715,12 +711,12 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
                   value={manualSlotLabel}
                   onChange={(e) => setManualSlotLabel(e.target.value)}
                   placeholder="Atau tambah nama slot manual (misal: Slot #11 / Bu Ani - Slot 2)..."
-                  className="flex-1 bg-forest-950/80 border border-forest-700 rounded-xl px-3 py-2 text-xs text-white placeholder-forest-500 focus:outline-none focus:border-purple-400"
+                  className="flex-1 bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-purple-600 shadow-xs"
                 />
                 <button
                   type="button"
                   onClick={handleAddSlotManual}
-                  className="px-4 py-2 rounded-xl bg-forest-800 hover:bg-forest-700 text-white font-bold text-xs transition-colors flex items-center gap-1.5"
+                  className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold text-xs transition-colors flex items-center gap-1.5 shadow-xs"
                 >
                   <AiOutlinePlus />
                   <span>Tambah</span>
@@ -730,10 +726,10 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
               {/* Rangkuman & Daftar Slot */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-forest-200">
-                    Total Slot Aktif: <span className="text-purple-300 font-extrabold">{slotList.length} Slot</span>
+                  <span className="font-bold text-slate-800">
+                    Total Slot Aktif: <span className="text-purple-700 font-extrabold">{slotList.length} Slot</span>
                   </span>
-                  <span className="text-forest-400 text-[11px]">
+                  <span className="text-slate-500 text-[11px]">
                     (Siklus arisan akan berjalan {slotList.length} putaran)
                   </span>
                 </div>
@@ -742,20 +738,20 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
                   {slotList.map((slot, index) => (
                     <div
                       key={slot.id}
-                      className="p-2.5 bg-forest-950/80 border border-forest-800 rounded-xl flex items-center justify-between group hover:border-purple-500/40 transition-all"
+                      className="p-2.5 bg-white border border-slate-200 rounded-xl flex items-center justify-between group hover:border-purple-300 transition-all shadow-xs"
                     >
                       <div className="truncate">
-                        <span className="text-[10px] text-purple-400 font-mono block leading-none">
+                        <span className="text-[10px] text-purple-700 font-mono block leading-none font-bold">
                           #{index + 1}
                         </span>
-                        <span className="text-xs font-semibold text-white truncate block">
+                        <span className="text-xs font-semibold text-slate-800 truncate block">
                           {slot.label}
                         </span>
                       </div>
                       <button
                         type="button"
                         onClick={() => handleRemoveSlot(slot.id)}
-                        className="text-forest-600 hover:text-rose-400 p-1 transition-colors"
+                        className="text-slate-400 hover:text-rose-600 p-1 transition-colors"
                         title="Hapus slot ini"
                       >
                         <AiOutlineDelete className="text-sm" />
@@ -766,11 +762,11 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
               </div>
 
               {/* Navigation Step 2 */}
-              <div className="pt-4 border-t border-forest-800 flex items-center justify-between">
+              <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
                 <button
                   type="button"
                   onClick={() => setCurrentStep(1)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-700 text-forest-200 text-xs font-bold transition-colors"
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold transition-colors shadow-xs"
                 >
                   <AiOutlineArrowLeft />
                   <span>Kembali</span>
@@ -779,7 +775,7 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
                 <button
                   type="button"
                   onClick={handleNextStep}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-900/30 transition-all hover:scale-105"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 font-bold text-xs shadow-xs transition-all"
                 >
                   <span>Lanjut: Iuran & Pengocokan</span>
                   <AiOutlineArrowRight />
@@ -788,28 +784,26 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
             </div>
           )}
 
-          {/* =========================================================================
-              STEP 3: IURAN KONTRIBUSI, REKENING & JADWAL KOCOK
-             ========================================================================= */}
+          {/* STEP 3: IURAN KONTRIBUSI, REKENING & JADWAL KOCOK */}
           {currentStep === 3 && (
-            <div className="space-y-6 animate-fadeIn">
-              <div className="border-b border-forest-800 pb-4">
-                <h2 className="text-lg font-bold text-white font-display flex items-center gap-2">
+            <div className="space-y-6">
+              <div className="border-b border-slate-200 pb-4">
+                <h2 className="text-lg font-bold text-slate-900 font-display flex items-center gap-2">
                   <span>💰</span>
                   <span>Nominal Iuran, Hadiah & Jadwal Pengocokan</span>
                 </h2>
-                <p className="text-xs text-forest-300 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   Atur besaran setoran tiap anggota per putaran dan rekening kas penampung.
                 </p>
               </div>
 
               {/* Nominal Iuran per Slot */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-forest-200 block">
-                  Besaran Iuran per Slot / Putaran <span className="text-amber-400">*</span>
+                <label className="text-xs font-bold text-slate-700 block">
+                  Besaran Iuran per Slot / Putaran <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-forest-400 text-xs font-bold">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 text-xs font-bold">
                     Rp
                   </div>
                   <input
@@ -818,16 +812,16 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
                     min={10000}
                     value={contributionAmount}
                     onChange={(e) => setContributionAmount(e.target.value)}
-                    className="w-full bg-forest-950/80 border border-forest-700 focus:border-purple-400 rounded-xl pl-10 pr-4 py-3 text-sm text-white font-bold placeholder-forest-500 focus:outline-none"
+                    className="w-full bg-white border border-slate-200 focus:border-purple-600 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 font-bold placeholder-slate-400 focus:outline-none shadow-xs"
                   />
                 </div>
-                <div className="flex gap-2 pt-1">
+                <div className="flex flex-wrap gap-2 pt-1">
                   {[100000, 250000, 500000, 1000000].map((preset) => (
                     <button
                       key={preset}
                       type="button"
                       onClick={() => setContributionAmount(preset)}
-                      className="px-2.5 py-1 rounded-lg bg-forest-950 border border-forest-800 hover:border-purple-500 text-[11px] text-forest-300 transition-colors"
+                      className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 hover:border-purple-300 text-[11px] text-slate-700 transition-colors font-semibold shadow-xs"
                     >
                       {formatRupiah(preset)}
                     </button>
@@ -836,27 +830,27 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
               </div>
 
               {/* CARD SIMULASI HADIAH PEMENANG */}
-              <div className="p-5 bg-gradient-to-r from-purple-950/60 to-forest-950/90 border border-purple-500/40 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
+              <div className="p-5 bg-purple-50/60 border border-purple-200 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
                 <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center text-2xl shadow-inner">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 border border-amber-200 flex items-center justify-center text-2xl shadow-xs">
                     <AiOutlineTrophy />
                   </div>
                   <div>
-                    <span className="text-[10px] uppercase font-bold text-amber-300 tracking-wider block">
+                    <span className="text-[10px] uppercase font-bold text-amber-800 tracking-wider block">
                       Total Uang yang Diterima Pemenang
                     </span>
-                    <span className="text-xl sm:text-2xl font-black text-white font-display">
+                    <span className="text-xl sm:text-2xl font-black text-slate-900 font-display">
                       {formatRupiah(totalPrizePerRound)}
                     </span>
-                    <span className="text-[11px] text-forest-400 block mt-0.5">
+                    <span className="text-[11px] text-slate-500 block mt-0.5">
                       (Dihitung dari {slotList.length} slot &times; {formatRupiah(contributionAmount)})
                     </span>
                   </div>
                 </div>
 
-                <div className="text-right sm:border-l sm:border-forest-800 sm:pl-4">
-                  <span className="text-[10px] text-forest-400 block">Durasi 1 Siklus Penuh:</span>
-                  <span className="text-xs font-bold text-purple-300">
+                <div className="text-right sm:border-l sm:border-purple-200 sm:pl-4">
+                  <span className="text-[10px] text-slate-500 block">Durasi 1 Siklus Penuh:</span>
+                  <span className="text-xs font-bold text-purple-700">
                     {slotList.length} Kali Pengocokan
                   </span>
                 </div>
@@ -865,13 +859,13 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
               {/* Frekuensi Pengocokan & Tanggal */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-forest-200 block">
+                  <label className="text-xs font-bold text-slate-700 block">
                     Frekuensi Kocok
                   </label>
                   <select
                     value={drawFrequency}
                     onChange={(e) => setDrawFrequency(e.target.value)}
-                    className="w-full bg-forest-950/80 border border-forest-700 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600 shadow-xs"
                   >
                     <option value="monthly">Bulanan (1 kali per bulan)</option>
                     <option value="biweekly">2 Mingguan (2 kali per bulan)</option>
@@ -880,14 +874,14 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-forest-200 block">
+                  <label className="text-xs font-bold text-slate-700 block">
                     {drawFrequency === 'weekly' ? 'Hari Pengocokan' : 'Tanggal Jatuh Tempo / Kocok'}
                   </label>
                   {drawFrequency === 'weekly' ? (
                     <select
                       value={drawDay}
                       onChange={(e) => setDrawDay(e.target.value)}
-                      className="w-full bg-forest-950/80 border border-forest-700 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600 shadow-xs"
                     >
                       <option value="1">Hari Senin</option>
                       <option value="3">Hari Rabu</option>
@@ -903,28 +897,28 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
                         max={28}
                         value={drawDay}
                         onChange={(e) => setDrawDay(e.target.value)}
-                        className="w-full bg-forest-950/80 border border-forest-700 rounded-xl px-3 py-2.5 text-xs text-white font-bold focus:outline-none"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-900 font-bold focus:outline-none focus:border-purple-600 shadow-xs"
                       />
-                      <span className="text-xs text-forest-400 whitespace-nowrap">Tiap bulan</span>
+                      <span className="text-xs text-slate-500 whitespace-nowrap">Tiap bulan</span>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Rekening Kas Penampung Arisan */}
-              <div className="p-4 bg-forest-950/60 border border-forest-800 rounded-2xl space-y-3">
-                <div className="flex items-center gap-2 text-xs font-bold text-forest-200">
-                  <AiOutlineBank className="text-sm text-purple-400" />
+              <div className="p-4 sm:p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                  <AiOutlineBank className="text-sm text-purple-700" />
                   <span>Rekening Kas Penampung Setoran (Opsional)</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="text-[11px] text-forest-400 block mb-1">Pilihan Bank / Dompet</label>
+                    <label className="text-[11px] font-semibold text-slate-600 block mb-1">Pilihan Bank / Dompet</label>
                     <select
                       value={bankName}
                       onChange={(e) => setBankName(e.target.value)}
-                      className="w-full bg-forest-900 border border-forest-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-purple-600 shadow-xs"
                     >
                       {BANK_OPTIONS.map((b) => (
                         <option key={b} value={b}>
@@ -935,35 +929,35 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
                   </div>
 
                   <div>
-                    <label className="text-[11px] text-forest-400 block mb-1">Nomor Rekening</label>
+                    <label className="text-[11px] font-semibold text-slate-600 block mb-1">Nomor Rekening</label>
                     <input
                       type="text"
                       value={bankAccountNo}
                       onChange={(e) => setBankAccountNo(e.target.value)}
                       placeholder="Contoh: 1234567890"
-                      className="w-full bg-forest-900 border border-forest-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-purple-600 shadow-xs"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[11px] text-forest-400 block mb-1">Atas Nama Pemilik</label>
+                    <label className="text-[11px] font-semibold text-slate-600 block mb-1">Atas Nama Pemilik</label>
                     <input
                       type="text"
                       value={bankAccountHolder}
                       onChange={(e) => setBankAccountHolder(e.target.value)}
                       placeholder="Contoh: Budi Santoso"
-                      className="w-full bg-forest-900 border border-forest-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-purple-600 shadow-xs"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Navigation Step 3 */}
-              <div className="pt-4 border-t border-forest-800 flex items-center justify-between">
+              <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
                 <button
                   type="button"
                   onClick={() => setCurrentStep(2)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-700 text-forest-200 text-xs font-bold transition-colors"
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold transition-colors shadow-xs"
                 >
                   <AiOutlineArrowLeft />
                   <span>Kembali</span>
@@ -973,7 +967,7 @@ _Pemenang dikocok otomatis secara digital & riwayat tersimpan transparan untuk s
                   type="button"
                   disabled={saving}
                   onClick={handleFinalizeSetup}
-                  className="inline-flex items-center gap-2 px-7 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-amber-500 hover:from-purple-500 hover:to-amber-400 text-white font-extrabold text-xs shadow-xl shadow-purple-950/50 transition-all hover:scale-105 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-7 py-3 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 font-extrabold text-xs shadow-xs transition-all disabled:opacity-50"
                 >
                   {saving ? (
                     <span>Menyimpan Inisiasi...</span>

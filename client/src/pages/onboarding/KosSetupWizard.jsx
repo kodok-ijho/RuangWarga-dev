@@ -348,8 +348,8 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
 
   if (loadingInitial) {
     return (
-      <div className="min-h-screen bg-[#071f13] flex items-center justify-center p-4">
-        <div className="text-center text-forest-300 animate-pulse text-sm">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="text-center text-slate-600 animate-pulse text-sm">
           Menyiapkan formulir inisiasi kos-kosan...
         </div>
       </div>
@@ -361,49 +361,49 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
     const inviteUrl = `${window.location.origin}/join/${generatedInviteCode}`;
 
     return (
-      <div className="min-h-screen bg-[#071f13] text-white py-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
-        <div className="max-w-xl w-full bg-forest-900/90 border border-gold-500/50 rounded-3xl p-8 shadow-2xl backdrop-blur-md text-center space-y-6">
-          <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-2xl flex items-center justify-center mx-auto text-3xl shadow-inner">
+      <div className="min-h-screen bg-slate-50 text-slate-900 py-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+        <div className="max-w-xl w-full bg-white border border-slate-200 rounded-3xl p-8 sm:p-10 shadow-xs text-center space-y-6">
+          <div className="w-16 h-16 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-2xl flex items-center justify-center mx-auto text-3xl shadow-xs">
             <AiOutlineCheckCircle />
           </div>
 
           <div>
-            <span className="text-xs uppercase font-bold tracking-widest text-gold-400">Setup Kos Selesai</span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-white mt-1 font-display">
+            <span className="text-xs uppercase font-bold tracking-widest text-forest-800">Setup Kos Selesai</span>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1 font-display">
               {kosName} Siap Beroperasi!
             </h2>
-            <p className="text-sm text-forest-200 mt-2">
-              Sebanyak <strong className="text-white">{roomList.length} kamar</strong> telah siap disewakan dengan tarif standar{' '}
-              <strong className="text-gold-300">{formatRupiah(defaultRentPrice)}/bulan</strong>.
+            <p className="text-sm text-slate-600 mt-2">
+              Sebanyak <strong className="text-slate-900">{roomList.length} kamar</strong> telah siap disewakan dengan tarif standar{' '}
+              <strong className="text-forest-900">{formatRupiah(defaultRentPrice)}/bulan</strong>.
             </p>
           </div>
 
           {/* Kotak Kode Undangan Penyewa */}
-          <div className="bg-forest-950/80 border border-forest-700 rounded-2xl p-5 text-left space-y-3">
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 text-left space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-forest-300 uppercase tracking-wider">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Kode Pendaftaran Calon Penyewa
               </span>
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">
+              <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200 font-bold">
                 Langsung Aktif
               </span>
             </div>
 
-            <div className="flex items-center justify-between gap-3 bg-forest-900/90 px-4 py-3 rounded-xl border border-forest-700">
-              <span className="font-mono text-lg sm:text-xl font-bold text-gold-300 tracking-wider">
+            <div className="flex items-center justify-between gap-3 bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-xs">
+              <span className="font-mono text-lg sm:text-xl font-bold text-forest-900 tracking-wider">
                 {generatedInviteCode}
               </span>
               <button
                 type="button"
                 onClick={handleCopyInviteLink}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gold-500 hover:bg-gold-400 text-forest-950 text-xs font-bold transition-all shadow-sm"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-forest-800 hover:bg-forest-900 text-gold-400 text-xs font-bold transition-all shadow-xs"
               >
                 {copiedCode ? <AiOutlineCheck /> : <AiOutlineCopy />}
                 <span>{copiedCode ? 'Tersalin' : 'Salin'}</span>
               </button>
             </div>
 
-            <p className="text-[11px] text-forest-400 leading-relaxed">
+            <p className="text-[11px] text-slate-500 leading-relaxed">
               Bagikan tautan atau kode ini ke calon penyewa agar mereka dapat mengisi formulir identitas dan memilih kamar yang diinginkan secara mandiri.
             </p>
           </div>
@@ -412,7 +412,7 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
           <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
             <Link
               to={`/t/${tenantId}/dashboard`}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-gold-500 to-gold-400 hover:from-gold-400 hover:to-gold-300 text-forest-950 text-sm font-bold shadow-lg transition-all"
+              className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 font-bold text-sm transition-colors shadow-xs"
             >
               <span>Masuk ke Dashboard Kos</span>
               <AiOutlineArrowRight />
@@ -424,137 +424,121 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
   }
 
   return (
-    <div className="min-h-screen bg-[#071f13] text-white py-10 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 text-slate-900 py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto space-y-8">
-        {/* Header Bar */}
-        <div className="bg-forest-900/80 border border-forest-700/80 rounded-2xl p-6 shadow-xl backdrop-blur-md">
+        {/* Top Breadcrumb & Title */}
+        <div>
+          <button
+            type="button"
+            onClick={() => navigate(`/t/${tenantId}/dashboard`)}
+            className="inline-flex items-center gap-2 text-xs text-slate-500 hover:text-slate-900 transition-colors mb-3"
+          >
+            <AiOutlineArrowLeft /> Kembali ke Dashboard
+          </button>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl p-2.5 bg-forest-950 rounded-xl border border-forest-700">🏢</span>
-              <div>
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-[11px] text-forest-300 font-semibold uppercase tracking-wider">
-                    Setup Wizard Vertikal
-                  </span>
-                  <span className="text-forest-600">&bull;</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold">
-                    Kos-kosan &amp; Kontrakan
-                  </span>
-                </div>
-                <h1 className="text-xl sm:text-2xl font-bold text-white font-display">
-                  Inisiasi Properti &amp; Kamar Kos
-                </h1>
-              </div>
+            <div>
+              <span className="text-xs font-bold text-forest-800 uppercase tracking-wider block mb-1">
+                Onboarding Vertikal Kos-Kosan
+              </span>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-display tracking-tight">
+                Inisiasi Properti &amp; Kamar Kos
+              </h1>
             </div>
-
-            <button
-              type="button"
-              onClick={() => navigate(`/t/${tenantId}/dashboard`)}
-              className="text-xs text-forest-300 hover:text-white inline-flex items-center gap-1 font-medium transition-colors self-start sm:self-auto"
-            >
-              <span>Lewati ke Dashboard</span>
-              <AiOutlineArrowRight />
-            </button>
-          </div>
-
-          {/* Stepper Wizard Progress */}
-          <div className="mt-8 pt-6 border-t border-forest-800">
-            <div className="grid grid-cols-4 gap-2 text-center">
-              {[
-                { step: 1, label: 'Identitas Kos', icon: AiOutlineHome },
-                { step: 2, label: 'Daftar Kamar', icon: AiOutlineAppstore },
-                { step: 3, label: 'Ketentuan Sewa', icon: AiOutlineDollarCircle },
-                { step: 4, label: 'Review & Selesai', icon: AiOutlineCheckCircle },
-              ].map((item) => {
-                const Icon = item.icon;
-                const isActive = currentStep === item.step;
-                const isPassed = currentStep > item.step;
-
-                return (
-                  <div
-                    key={item.step}
-                    onClick={() => {
-                      if (isPassed) setCurrentStep(item.step);
-                    }}
-                    className={`flex flex-col items-center gap-1.5 cursor-pointer ${
-                      isActive
-                        ? 'text-gold-400 font-bold'
-                        : isPassed
-                        ? 'text-emerald-400 font-medium'
-                        : 'text-forest-500'
-                    }`}
-                  >
-                    <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm border transition-all ${
-                        isActive
-                          ? 'bg-gold-500/20 border-gold-500 text-gold-300 shadow-md scale-105'
-                          : isPassed
-                          ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
-                          : 'bg-forest-950 border-forest-800 text-forest-600'
-                      }`}
-                    >
-                      {isPassed ? <AiOutlineCheck /> : <Icon />}
-                    </div>
-                    <span className="text-[11px] hidden sm:block">{item.label}</span>
-                  </div>
-                );
-              })}
+            <div className="text-xs text-slate-500 bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-xs w-fit">
+              Langkah <strong className="text-forest-800">{currentStep}</strong> dari 4
             </div>
           </div>
         </div>
 
+        {/* Stepper Wizard Progress */}
+        <div className="grid grid-cols-4 gap-2 sm:gap-4 pb-2 border-b border-slate-200">
+          {[
+            { step: 1, label: 'Identitas Kos', icon: AiOutlineHome },
+            { step: 2, label: 'Daftar Kamar', icon: AiOutlineAppstore },
+            { step: 3, label: 'Ketentuan Sewa', icon: AiOutlineDollarCircle },
+            { step: 4, label: 'Review & Selesai', icon: AiOutlineCheckCircle },
+          ].map((item) => {
+            const Icon = item.icon;
+            const isActive = currentStep === item.step;
+            const isPassed = currentStep > item.step;
+
+            return (
+              <button
+                key={item.step}
+                type="button"
+                onClick={() => {
+                  if (isPassed) setCurrentStep(item.step);
+                }}
+                className={`text-left p-2 sm:p-3 rounded-xl border transition-all ${
+                  isActive
+                    ? 'bg-forest-50 border-2 border-forest-800 text-forest-900 font-bold shadow-xs'
+                    : isPassed
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                    : 'bg-white border-slate-200 text-slate-400 hover:text-slate-600 shadow-xs'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1 text-sm sm:text-base">
+                  <Icon />
+                  <span className="text-xs font-semibold hidden sm:inline">Langkah {item.step}</span>
+                </div>
+                <p className="text-[11px] sm:text-xs truncate">{item.label}</p>
+              </button>
+            );
+          })}
+        </div>
+
         {/* STEP 1: Identitas & Lokasi Kos */}
         {currentStep === 1 && (
-          <div className="bg-forest-900/70 border border-forest-700/70 rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 animate-fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
             <div>
-              <h2 className="text-lg sm:text-xl font-bold text-white font-display">Langkah 1: Identitas Properti Kos</h2>
-              <p className="text-xs text-forest-300 mt-1">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 font-display">Langkah 1: Identitas Properti Kos</h2>
+              <p className="text-xs text-slate-500 mt-1">
                 Tentukan nama bangunan kos, alamat lengkap, dan kontak pengelola untuk komunikasi dengan calon penyewa.
               </p>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-forest-300 mb-1">
-                  Nama Kos-Kosan / Kontrakan <span className="text-rose-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Nama Kos-Kosan / Kontrakan <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={kosName}
                   onChange={(e) => setKosName(e.target.value)}
                   placeholder="Contoh: Kos Melati Harmoni / Paviliun 88"
-                  className="w-full bg-forest-950 border border-forest-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-forest-500 focus:outline-none focus:border-gold-500"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm focus:border-forest-800 focus:outline-none shadow-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-forest-300 mb-1">
-                  Alamat Lengkap Lokasi <span className="text-rose-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Alamat Lengkap Lokasi <span className="text-rose-500">*</span>
                 </label>
                 <textarea
                   rows={2}
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="Contoh: Jl. Melati Raya No. 12, Sleman, Yogyakarta"
-                  className="w-full bg-forest-950 border border-forest-700 rounded-xl px-4 py-2 text-sm text-white placeholder-forest-500 focus:outline-none focus:border-gold-500"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm focus:border-forest-800 focus:outline-none shadow-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-forest-300 mb-1">
-                  Nomor WhatsApp Pengelola / Penjaga <span className="text-rose-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Nomor WhatsApp Pengelola / Penjaga <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
                   placeholder="Contoh: 081234567890"
-                  className="w-full bg-forest-950 border border-forest-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-forest-500 focus:outline-none focus:border-gold-500"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm focus:border-forest-800 focus:outline-none shadow-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-forest-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Peraturan Umum Kos (Opsional)
                 </label>
                 <textarea
@@ -562,7 +546,7 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
                   value={kosRules}
                   onChange={(e) => setKosRules(e.target.value)}
                   placeholder="Contoh: Jam bertamu maksimal pukul 22.00, dilarang merokok di dalam kamar, menjaga kebersihan bersama."
-                  className="w-full bg-forest-950 border border-forest-700 rounded-xl px-4 py-2 text-sm text-white placeholder-forest-500 focus:outline-none focus:border-gold-500"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm focus:border-forest-800 focus:outline-none shadow-xs"
                 />
               </div>
             </div>
@@ -577,7 +561,7 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
                   }
                   setCurrentStep(2);
                 }}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-forest-950 text-xs font-bold transition-all shadow-md"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 text-xs font-bold transition-all shadow-xs"
               >
                 <span>Lanjut ke Daftar Kamar</span>
                 <AiOutlineArrowRight />
@@ -588,18 +572,18 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
 
         {/* STEP 2: Daftar & Konfigurasi Kamar */}
         {currentStep === 2 && (
-          <div className="bg-forest-900/70 border border-forest-700/70 rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 animate-fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
             <div>
-              <h2 className="text-lg sm:text-xl font-bold text-white font-display">Langkah 2: Konfigurasi Kamar Kos</h2>
-              <p className="text-xs text-forest-300 mt-1">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 font-display">Langkah 2: Konfigurasi Kamar Kos</h2>
+              <p className="text-xs text-slate-500 mt-1">
                 Generate daftar kamar otomatis atau tambahkan kamar satu per satu. Setiap kamar baru akan berstatus{' '}
-                <strong className="text-emerald-300">Vacant (Siap Sewa)</strong>.
+                <strong className="text-emerald-700">Vacant (Siap Sewa)</strong>.
               </p>
             </div>
 
             {/* Pemilihan Fasilitas Umum Bawaan */}
-            <div className="p-4 bg-forest-950/70 rounded-xl border border-forest-800 space-y-3">
-              <span className="text-xs font-bold text-forest-300 uppercase tracking-wider block">
+            <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
                 Fasilitas Standar Kamar
               </span>
               <div className="flex flex-wrap gap-2">
@@ -612,8 +596,8 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
                       onClick={() => handleToggleFacility(f)}
                       className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all ${
                         isSelected
-                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                          : 'bg-forest-900 text-forest-400 border-forest-800 hover:text-white'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold shadow-xs'
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 shadow-xs'
                       }`}
                     >
                       {isSelected ? '✓ ' : '+ '}
@@ -625,37 +609,37 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
             </div>
 
             {/* Generator Kamar Otomatis */}
-            <div className="p-4 bg-forest-950/70 rounded-xl border border-forest-800 space-y-4">
-              <span className="text-xs font-bold text-forest-300 uppercase tracking-wider block">
+            <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
                 Generator Kamar Cepat
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[11px] text-forest-400 mb-1">Prefix Kamar</label>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Prefix Kamar</label>
                   <input
                     type="text"
                     value={roomPrefix}
                     onChange={(e) => setRoomPrefix(e.target.value)}
                     placeholder="Kamar "
-                    className="w-full bg-forest-900 border border-forest-700 rounded-lg px-3 py-1.5 text-xs text-white"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:border-forest-800 focus:outline-none shadow-xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] text-forest-400 mb-1">Jumlah Kamar</label>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Jumlah Kamar</label>
                   <input
                     type="number"
                     min={1}
                     max={50}
                     value={roomCountInput}
                     onChange={(e) => setRoomCountInput(e.target.value)}
-                    className="w-full bg-forest-900 border border-forest-700 rounded-lg px-3 py-1.5 text-xs text-white"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:border-forest-800 focus:outline-none shadow-xs"
                   />
                 </div>
                 <div className="flex items-end">
                   <button
                     type="button"
                     onClick={handleGenerateRooms}
-                    className="w-full py-2 rounded-lg bg-forest-800 hover:bg-forest-700 text-gold-300 text-xs font-bold border border-forest-700 transition-colors"
+                    className="w-full py-2.5 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 text-xs font-bold transition-colors shadow-xs"
                   >
                     Generate Ulang
                   </button>
@@ -670,12 +654,12 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
                 value={manualRoomLabel}
                 onChange={(e) => setManualRoomLabel(e.target.value)}
                 placeholder="Tambah kamar manual (misal: Kamar VIP Depan)"
-                className="flex-1 bg-forest-950 border border-forest-700 rounded-xl px-3 py-2 text-xs text-white placeholder-forest-500"
+                className="flex-1 w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:border-forest-800 focus:outline-none shadow-xs"
               />
               <button
                 type="button"
                 onClick={handleAddRoomManual}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-forest-800 hover:bg-forest-700 text-xs font-bold text-white border border-forest-700 transition-colors"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 border border-slate-200 transition-colors shadow-xs"
               >
                 <AiOutlinePlus />
                 <span>Tambah Kamar</span>
@@ -684,7 +668,7 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
 
             {/* List Kamar */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-forest-400 px-1">
+              <div className="flex items-center justify-between text-xs text-slate-500 px-1">
                 <span>Daftar Kamar ({roomList.length} unit terdaftar)</span>
                 <span>Status Awal</span>
               </div>
@@ -692,11 +676,11 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
                 {roomList.map((r) => (
                   <div
                     key={r.id}
-                    className="p-3 rounded-xl bg-forest-950/80 border border-forest-800 flex items-center justify-between gap-2"
+                    className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between gap-2 shadow-xs"
                   >
                     <div>
-                      <strong className="text-xs text-white block">{r.label}</strong>
-                      <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 inline-block mt-0.5">
+                      <strong className="text-xs text-slate-900 block">{r.label}</strong>
+                      <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 inline-block mt-0.5 font-semibold">
                         Siap Huni (Vacant)
                       </span>
                     </div>
@@ -704,7 +688,7 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
                       type="button"
                       onClick={() => handleRemoveRoom(r.id)}
                       title="Hapus kamar"
-                      className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs transition-colors"
+                      className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs transition-colors"
                     >
                       <AiOutlineDelete />
                     </button>
@@ -713,11 +697,11 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
               </div>
             </div>
 
-            <div className="pt-4 flex justify-between">
+            <div className="pt-4 border-t border-slate-200 flex justify-between">
               <button
                 type="button"
                 onClick={() => setCurrentStep(1)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-700 text-forest-300 hover:text-white text-xs font-semibold transition-all"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold transition-all shadow-xs"
               >
                 <AiOutlineArrowLeft />
                 <span>Kembali</span>
@@ -731,7 +715,7 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
                   }
                   setCurrentStep(3);
                 }}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-forest-950 text-xs font-bold transition-all shadow-md"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 text-xs font-bold transition-all shadow-xs"
               >
                 <span>Lanjut ke Ketentuan Sewa</span>
                 <AiOutlineArrowRight />
@@ -742,18 +726,18 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
 
         {/* STEP 3: Tarif Sewa Default & Rekening Penagihan */}
         {currentStep === 3 && (
-          <div className="bg-forest-900/70 border border-forest-700/70 rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 animate-fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
             <div>
-              <h2 className="text-lg sm:text-xl font-bold text-white font-display">Langkah 3: Tarif Sewa &amp; Rekening Penagihan</h2>
-              <p className="text-xs text-forest-300 mt-1">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 font-display">Langkah 3: Tarif Sewa &amp; Rekening Penagihan</h2>
+              <p className="text-xs text-slate-500 mt-1">
                 Atur harga sewa standar per kamar, siklus tagihan, serta rekening bank tujuan pembayaran sewa penyewa.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-forest-300 mb-1">
-                  Harga Sewa Standar per Bulan (Rp) <span className="text-rose-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Harga Sewa Standar per Bulan (Rp) <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -761,21 +745,21 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
                   step={50000}
                   value={defaultRentPrice}
                   onChange={(e) => setDefaultRentPrice(Number(e.target.value))}
-                  className="w-full bg-forest-950 border border-forest-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-gold-500"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm focus:border-forest-800 focus:outline-none shadow-xs"
                 />
-                <span className="text-[11px] text-gold-400 mt-1 block">
+                <span className="text-[11px] text-forest-800 font-semibold mt-1 block">
                   {formatRupiah(defaultRentPrice)} / bulan
                 </span>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-forest-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Siklus Penagihan Default
                 </label>
                 <select
                   value={billingCycle}
                   onChange={(e) => setBillingCycle(e.target.value)}
-                  className="w-full bg-forest-950 border border-forest-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-gold-500"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm focus:border-forest-800 focus:outline-none shadow-xs"
                 >
                   <option value="monthly">Bulanan (Setiap Bulan)</option>
                   <option value="quarterly">3 Bulanan (Per Triwulan)</option>
@@ -785,13 +769,13 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-forest-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Tanggal Jatuh Tempo Penagihan
                 </label>
                 <select
                   value={dueDay}
                   onChange={(e) => setDueDay(Number(e.target.value))}
-                  className="w-full bg-forest-950 border border-forest-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-gold-500"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm focus:border-forest-800 focus:outline-none shadow-xs"
                 >
                   {[1, 5, 10, 15, 20, 25, 28].map((d) => (
                     <option key={d} value={d}>
@@ -802,7 +786,7 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-forest-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Nama Bank Penerima
                 </label>
                 <input
@@ -810,12 +794,12 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
                   value={bankName}
                   onChange={(e) => setBankName(e.target.value)}
                   placeholder="Contoh: BCA / Mandiri / BRI"
-                  className="w-full bg-forest-950 border border-forest-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-gold-500"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm focus:border-forest-800 focus:outline-none shadow-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-forest-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Nomor Rekening Bank
                 </label>
                 <input
@@ -823,12 +807,12 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
                   value={bankAccountNo}
                   onChange={(e) => setBankAccountNo(e.target.value)}
                   placeholder="Contoh: 8830123456"
-                  className="w-full bg-forest-950 border border-forest-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-gold-500"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm focus:border-forest-800 focus:outline-none shadow-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-forest-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Atas Nama Pemilik Rekening
                 </label>
                 <input
@@ -836,15 +820,15 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
                   value={bankAccountHolder}
                   onChange={(e) => setBankAccountHolder(e.target.value)}
                   placeholder="Contoh: Pengelola Kos Melati"
-                  className="w-full bg-forest-950 border border-forest-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-gold-500"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm focus:border-forest-800 focus:outline-none shadow-xs"
                 />
               </div>
             </div>
 
             {/* Biaya Tambahan Opsional */}
-            <div className="pt-4 border-t border-forest-800 space-y-3">
-              <span className="text-xs font-bold text-forest-300 uppercase tracking-wider block">
-                Biaya Tambahan Tambahan (Opsional)
+            <div className="pt-4 border-t border-slate-200 space-y-3">
+              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                Biaya Tambahan (Opsional)
               </span>
               <div className="flex flex-col sm:flex-row items-center gap-2">
                 <input
@@ -852,19 +836,19 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
                   value={newFeeName}
                   onChange={(e) => setNewFeeName(e.target.value)}
                   placeholder="Nama biaya (misal: Parkir Mobil, Laundry)"
-                  className="flex-1 bg-forest-950 border border-forest-700 rounded-xl px-3 py-2 text-xs text-white"
+                  className="flex-1 w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 placeholder-slate-400 focus:border-forest-800 focus:outline-none shadow-xs"
                 />
                 <input
                   type="number"
                   value={newFeeAmount}
                   onChange={(e) => setNewFeeAmount(e.target.value)}
                   placeholder="Nominal (Rp)"
-                  className="w-full sm:w-36 bg-forest-950 border border-forest-700 rounded-xl px-3 py-2 text-xs text-white"
+                  className="w-full sm:w-36 bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 placeholder-slate-400 focus:border-forest-800 focus:outline-none shadow-xs"
                 />
                 <button
                   type="button"
                   onClick={handleAddFee}
-                  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-forest-800 hover:bg-forest-700 text-xs font-bold text-white border border-forest-700"
+                  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 border border-slate-200 shadow-xs"
                 >
                   Tambah Biaya
                 </button>
@@ -875,15 +859,15 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
                   {additionalFees.map((f) => (
                     <div
                       key={f.id}
-                      className="p-2.5 rounded-xl bg-forest-950 border border-forest-800 flex items-center justify-between text-xs"
+                      className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs"
                     >
-                      <span className="text-white font-medium">{f.name}</span>
+                      <span className="text-slate-800 font-medium">{f.name}</span>
                       <div className="flex items-center gap-2">
-                        <span className="text-gold-300 font-bold">{formatRupiah(f.amount)}</span>
+                        <span className="text-forest-800 font-bold">{formatRupiah(f.amount)}</span>
                         <button
                           type="button"
                           onClick={() => handleRemoveFee(f.id)}
-                          className="text-rose-400 hover:text-rose-300"
+                          className="text-rose-500 hover:text-rose-700"
                         >
                           ✕
                         </button>
@@ -894,11 +878,11 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
               )}
             </div>
 
-            <div className="pt-4 flex justify-between">
+            <div className="pt-4 border-t border-slate-200 flex justify-between">
               <button
                 type="button"
                 onClick={() => setCurrentStep(2)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-700 text-forest-300 hover:text-white text-xs font-semibold transition-all"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold transition-all shadow-xs"
               >
                 <AiOutlineArrowLeft />
                 <span>Kembali</span>
@@ -912,7 +896,7 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
                   }
                   setCurrentStep(4);
                 }}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-forest-950 text-xs font-bold transition-all shadow-md"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 text-xs font-bold transition-all shadow-xs"
               >
                 <span>Lanjut ke Review</span>
                 <AiOutlineArrowRight />
@@ -923,52 +907,52 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
 
         {/* STEP 4: Review & Selesai */}
         {currentStep === 4 && (
-          <div className="bg-forest-900/70 border border-forest-700/70 rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 animate-fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
             <div>
-              <h2 className="text-lg sm:text-xl font-bold text-white font-display">Langkah 4: Tinjau &amp; Aktifkan Kos</h2>
-              <p className="text-xs text-forest-300 mt-1">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 font-display">Langkah 4: Tinjau &amp; Aktifkan Kos</h2>
+              <p className="text-xs text-slate-500 mt-1">
                 Periksa kembali data properti sebelum disimpan ke sistem SaaS RuangWarga.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Ringkasan Properti */}
-              <div className="p-4 bg-forest-950/80 rounded-2xl border border-forest-800 space-y-2">
-                <span className="text-[11px] font-bold text-gold-400 uppercase tracking-wider block">
+              <div className="p-4 sm:p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                <span className="text-[11px] font-bold text-forest-800 uppercase tracking-wider block">
                   Identitas Properti
                 </span>
                 <div>
-                  <span className="text-xs text-forest-400 block">Nama Kos:</span>
-                  <strong className="text-sm text-white">{kosName}</strong>
+                  <span className="text-xs text-slate-500 block">Nama Kos:</span>
+                  <strong className="text-sm text-slate-900">{kosName}</strong>
                 </div>
                 <div>
-                  <span className="text-xs text-forest-400 block">Alamat:</span>
-                  <span className="text-xs text-forest-200">{address || '-'}</span>
+                  <span className="text-xs text-slate-500 block">Alamat:</span>
+                  <span className="text-xs text-slate-700">{address || '-'}</span>
                 </div>
                 <div>
-                  <span className="text-xs text-forest-400 block">Kontak WhatsApp:</span>
-                  <span className="text-xs text-forest-200">{contactPhone || '-'}</span>
+                  <span className="text-xs text-slate-500 block">Kontak WhatsApp:</span>
+                  <span className="text-xs text-slate-700">{contactPhone || '-'}</span>
                 </div>
               </div>
 
               {/* Ringkasan Tarif & Rekening */}
-              <div className="p-4 bg-forest-950/80 rounded-2xl border border-forest-800 space-y-2">
-                <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">
+              <div className="p-4 sm:p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider block">
                   Ketentuan Sewa &amp; Rekening
                 </span>
                 <div>
-                  <span className="text-xs text-forest-400 block">Tarif Sewa Standar:</span>
-                  <strong className="text-sm text-gold-300">{formatRupiah(defaultRentPrice)} / bulan</strong>
+                  <span className="text-xs text-slate-500 block">Tarif Sewa Standar:</span>
+                  <strong className="text-sm text-slate-900">{formatRupiah(defaultRentPrice)} / bulan</strong>
                 </div>
                 <div>
-                  <span className="text-xs text-forest-400 block">Siklus &amp; Jatuh Tempo:</span>
-                  <span className="text-xs text-forest-200 capitalize">
+                  <span className="text-xs text-slate-500 block">Siklus &amp; Jatuh Tempo:</span>
+                  <span className="text-xs text-slate-700 capitalize">
                     {billingCycle} &bull; Setiap tanggal {dueDay}
                   </span>
                 </div>
                 <div>
-                  <span className="text-xs text-forest-400 block">Rekening Bank:</span>
-                  <span className="text-xs text-forest-200">
+                  <span className="text-xs text-slate-500 block">Rekening Bank:</span>
+                  <span className="text-xs text-slate-700">
                     {bankName} {bankAccountNo} a.n {bankAccountHolder || '-'}
                   </span>
                 </div>
@@ -976,12 +960,12 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
             </div>
 
             {/* Ringkasan Kamar Siap Disewa */}
-            <div className="p-4 bg-forest-950/80 rounded-2xl border border-forest-800 space-y-3">
+            <div className="p-4 sm:p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-forest-300 uppercase tracking-wider">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                   Kamar Siap Disewa ({roomList.length} Kamar)
                 </span>
-                <span className="text-[10px] text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/30 font-bold">
+                <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 font-bold">
                   Status: Vacant
                 </span>
               </div>
@@ -989,7 +973,7 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
                 {roomList.map((r) => (
                   <span
                     key={r.id}
-                    className="px-2.5 py-1 rounded-lg bg-forest-900 border border-forest-700 text-xs font-medium text-forest-200"
+                    className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-700 shadow-xs"
                   >
                     {r.label}
                   </span>
@@ -997,11 +981,11 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
               </div>
             </div>
 
-            <div className="pt-4 flex justify-between">
+            <div className="pt-4 border-t border-slate-200 flex justify-between">
               <button
                 type="button"
                 onClick={() => setCurrentStep(3)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-700 text-forest-300 hover:text-white text-xs font-semibold transition-all"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold transition-all shadow-xs"
               >
                 <AiOutlineArrowLeft />
                 <span>Kembali</span>
@@ -1010,11 +994,11 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
                 type="button"
                 onClick={handleSaveSetup}
                 disabled={saving}
-                className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-gradient-to-r from-gold-500 to-gold-400 hover:from-gold-400 hover:to-gold-300 text-forest-950 text-xs font-extrabold transition-all shadow-lg disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 text-xs font-extrabold transition-all shadow-xs disabled:opacity-50"
               >
                 {saving ? (
                   <>
-                    <div className="w-3.5 h-3.5 border-2 border-forest-950 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-3.5 h-3.5 border-2 border-gold-400 border-t-transparent rounded-full animate-spin" />
                     <span>Menyimpan Konfigurasi...</span>
                   </>
                 ) : (
