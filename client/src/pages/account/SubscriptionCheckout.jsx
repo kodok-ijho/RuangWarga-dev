@@ -126,51 +126,51 @@ export default function SubscriptionCheckout() {
   };
 
   return (
-    <div className="min-h-screen bg-[#071f13] text-white py-10 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 text-slate-900 py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Tombol Navigasi */}
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 text-xs font-semibold text-forest-300 hover:text-white transition-colors"
+          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
         >
           <AiOutlineArrowLeft /> Kembali ke Pilihan Paket
         </button>
 
         {isSuccess ? (
           /* STATE SUKSES */
-          <div className="bg-forest-900/90 border border-emerald-500/50 rounded-2xl p-8 text-center shadow-2xl space-y-5">
-            <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center justify-center text-3xl mx-auto">
+          <div className="bg-white border border-emerald-200 rounded-2xl p-8 text-center shadow-md space-y-5">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center text-3xl mx-auto">
               <AiOutlineCheckCircle />
             </div>
 
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+              <span className="text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
                 Pembayaran Terverifikasi
               </span>
-              <h1 className="text-2xl font-bold text-white font-display mt-3">
+              <h1 className="text-2xl font-bold text-slate-900 font-display mt-3">
                 Langganan Berhasil Diaktifkan!
               </h1>
-              <p className="text-xs text-forest-300 mt-1 max-w-md mx-auto leading-relaxed">
-                Layanan <strong className="text-white">{tenantName}</strong> kini berstatus{' '}
-                <strong className="text-emerald-300">Aktif</strong> dengan kapasitas{' '}
-                <strong className="text-gold-300">{totalCapacity} {template.unitLabel}</strong> selama{' '}
-                <strong className="text-white">{durationMonths} bulan</strong> ke depan.
+              <p className="text-xs text-slate-600 mt-1 max-w-md mx-auto leading-relaxed">
+                Layanan <strong className="text-slate-900">{tenantName}</strong> kini berstatus{' '}
+                <strong className="text-emerald-700">Aktif</strong> dengan kapasitas{' '}
+                <strong className="text-forest-900 font-semibold">{totalCapacity} {template.unitLabel}</strong> selama{' '}
+                <strong className="text-slate-900">{durationMonths} bulan</strong> ke depan.
               </p>
             </div>
 
-            <div className="pt-4 border-t border-forest-800 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
                 type="button"
                 onClick={() => navigate(`/t/${tenantId}/dashboard`)}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gold-500 hover:bg-gold-400 text-forest-950 font-bold text-xs shadow-lg transition-all"
+                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 font-bold text-xs shadow-xs transition-all"
               >
                 Buka Dashboard Layanan
               </button>
               <button
                 type="button"
                 onClick={() => navigate('/account/subscription')}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-forest-800 hover:bg-forest-700 text-forest-200 text-xs font-semibold border border-forest-700 transition-colors"
+                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-200 shadow-xs transition-colors"
               >
                 Lihat Detail Status Langganan
               </button>
@@ -178,66 +178,66 @@ export default function SubscriptionCheckout() {
           </div>
         ) : (
           /* STATE CHECKOUT QRIS */
-          <div className="bg-forest-900/90 border border-forest-700/80 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
-            <div className="text-center space-y-1 pb-4 border-b border-forest-800">
-              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-gold-500/10 border border-gold-500/30 text-gold-300 text-xs font-semibold">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-md space-y-6">
+            <div className="text-center space-y-1 pb-4 border-b border-slate-200">
+              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-gold-50 border border-gold-200 text-gold-800 text-xs font-semibold">
                 <AiOutlineSafetyCertificate />
                 <span>Mayar QRIS Resmi</span>
               </div>
-              <h1 className="text-xl font-bold text-white font-display mt-2">
+              <h1 className="text-xl font-bold text-slate-900 font-display mt-2">
                 Scan QRIS untuk Menyelesaikan Pembayaran
               </h1>
-              <p className="text-xs text-forest-300">
-                Layanan: <strong className="text-white">{tenantName}</strong> &bull; Paket {durationMonths} Bulan
+              <p className="text-xs text-slate-500">
+                Layanan: <strong className="text-slate-900">{tenantName}</strong> &bull; Paket {durationMonths} Bulan
               </p>
             </div>
 
             {loading ? (
               <div className="py-16 text-center space-y-3">
-                <div className="h-8 w-8 rounded-full border-2 border-forest-600 border-t-gold-500 animate-spin mx-auto" />
-                <p className="text-xs text-forest-400">Menyiapkan QRIS pembayaran dari Mayar gateway...</p>
+                <div className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-forest-800 animate-spin mx-auto" />
+                <p className="text-xs text-slate-500">Menyiapkan QRIS pembayaran dari Mayar gateway...</p>
               </div>
             ) : (
               <div className="space-y-6">
                 {/* QR Code Container */}
-                <div className="bg-white rounded-2xl p-6 text-center text-forest-950 max-w-xs mx-auto shadow-inner space-y-3">
-                  <div className="flex items-center justify-between border-b pb-2">
-                    <span className="font-extrabold text-xs tracking-wider">QRIS STANDAR</span>
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-center text-slate-900 max-w-xs mx-auto shadow-inner space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                    <span className="font-extrabold text-xs tracking-wider text-slate-800">QRIS STANDAR</span>
                     <span className="text-[10px] font-bold text-red-600">GPN</span>
                   </div>
 
                   {/* QR Visual Canvas / Placeholder */}
-                  <div className="w-52 h-52 mx-auto bg-stone-100 border-2 border-stone-300 rounded-xl flex flex-col items-center justify-center p-3 relative overflow-hidden">
-                    <AiOutlineQrcode className="text-8xl text-forest-950" />
-                    <span className="text-[9px] font-mono text-stone-600 mt-1">
+                  <div className="w-52 h-52 mx-auto bg-white border border-slate-200 rounded-xl flex flex-col items-center justify-center p-3 relative overflow-hidden shadow-xs">
+                    <AiOutlineQrcode className="text-8xl text-forest-900" />
+                    <span className="text-[9px] font-mono text-slate-500 mt-1">
                       {paymentData?.gatewayRef || 'MYR-QRIS-CODE'}
                     </span>
                   </div>
 
-                  <div className="pt-2 border-t">
-                    <p className="text-[11px] font-medium text-stone-600">
+                  <div className="pt-2 border-t border-slate-200">
+                    <p className="text-[11px] font-medium text-slate-600">
                       Scan dengan GoPay, OVO, Dana, BCA, Livin, atau Mobile Banking apa pun.
                     </p>
                   </div>
                 </div>
 
                 {/* Rincian Tagihan */}
-                <div className="p-4 bg-forest-950/80 rounded-xl border border-forest-800 space-y-2 text-xs">
-                  <div className="flex justify-between text-forest-300">
+                <div className="p-4 bg-slate-50/90 rounded-xl border border-slate-200 space-y-2 text-xs">
+                  <div className="flex justify-between text-slate-600">
                     <span>Referensi Transaksi:</span>
-                    <span className="font-mono font-bold text-white">{paymentData?.gatewayRef}</span>
+                    <span className="font-mono font-bold text-slate-900">{paymentData?.gatewayRef}</span>
                   </div>
-                  <div className="flex justify-between text-forest-300">
+                  <div className="flex justify-between text-slate-600">
                     <span>Kapasitas Unit:</span>
-                    <span className="text-white">{totalCapacity} {template.unitLabel}</span>
+                    <span className="text-slate-900 font-medium">{totalCapacity} {template.unitLabel}</span>
                   </div>
-                  <div className="flex justify-between text-forest-300">
+                  <div className="flex justify-between text-slate-600">
                     <span>Durasi Langganan:</span>
-                    <span className="text-white">{durationMonths} Bulan</span>
+                    <span className="text-slate-900 font-medium">{durationMonths} Bulan</span>
                   </div>
-                  <div className="flex justify-between items-baseline pt-2 border-t border-forest-800 text-sm font-bold">
-                    <span className="text-white">Total Tagihan:</span>
-                    <span className="text-xl text-gold-300 font-mono">
+                  <div className="flex justify-between items-baseline pt-2 border-t border-slate-200 text-sm font-bold">
+                    <span className="text-slate-900">Total Tagihan:</span>
+                    <span className="text-xl text-forest-900 font-mono font-extrabold">
                       Rp {finalTotal.toLocaleString('id-ID')}
                     </span>
                   </div>
@@ -249,11 +249,11 @@ export default function SubscriptionCheckout() {
                     type="button"
                     onClick={handleSimulatePaymentSuccess}
                     disabled={activating}
-                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-forest-950 font-extrabold text-xs shadow-lg transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3 px-4 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 font-extrabold text-xs shadow-xs transition-all flex items-center justify-center gap-2"
                   >
                     {activating ? (
                       <span className="inline-flex items-center gap-2">
-                        <span className="h-4 w-4 rounded-full border-2 border-forest-950 border-t-white animate-spin" />
+                        <span className="h-4 w-4 rounded-full border-2 border-gold-400 border-t-white animate-spin" />
                         <span>Memverifikasi Pembayaran...</span>
                       </span>
                     ) : (
@@ -264,7 +264,7 @@ export default function SubscriptionCheckout() {
                     )}
                   </button>
 
-                  <p className="text-[11px] text-center text-forest-400">
+                  <p className="text-[11px] text-center text-slate-500">
                     Pada mode live, status akan otomatis terupdate via Webhook Mayar setelah pembayaran selesai.
                   </p>
                 </div>
