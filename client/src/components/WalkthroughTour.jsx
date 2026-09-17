@@ -246,7 +246,7 @@ export default function WalkthroughTour() {
         </div>
       ) : (
         /* Fallback dark overlay full screen saat elemen sedang dimuat */
-        <div className="fixed inset-0 bg-[#081a11]/85 backdrop-blur-xs transition-opacity duration-300" />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-300" />
       )}
 
       {/* ── Responsive Tooltip Popover Card ── */}
