@@ -16,7 +16,12 @@
 @layer components {
   /* Kartu standar */
   .pv-card {
-    @apply rounded-xl bg-white border border-forest-100 shadow-card;
+    @apply rounded-2xl bg-white border border-forest-100/90 shadow-card transition-all;
+  }
+
+  /* Kartu dark mode (tema Forest) */
+  .pv-card-dark {
+    @apply rounded-2xl bg-[#091e13]/85 border border-forest-800/90 shadow-lg backdrop-blur-sm transition-all;
   }
 
   /* Badge peran */
@@ -24,21 +29,21 @@
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide;
   }
 
-  /* Tombol utama */
+  /* Tombol utama (Gold CTA eksklusif) */
   .pv-btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-gold-500 text-forest-900 font-semibold px-4 py-2.5 text-sm transition-colors hover:bg-gold-400 disabled:opacity-60;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gold-500 text-forest-950 font-bold px-4 py-2.5 text-sm shadow-md shadow-forest-950/20 transition-all hover:bg-gold-400 hover:shadow-lg hover:shadow-forest-950/30 active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none;
   }
 
   .pv-btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg text-forest-700 font-medium px-4 py-2.5 text-sm transition-colors hover:bg-forest-100;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl text-forest-700 font-semibold px-4 py-2.5 text-sm transition-all hover:bg-forest-100 hover:text-forest-900 active:scale-[0.98];
   }
 
   .pv-btn-danger {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-red-50 text-red-700 font-medium px-4 py-2.5 text-sm transition-colors hover:bg-red-100;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-red-50 text-red-700 font-semibold px-4 py-2.5 text-sm border border-red-200/60 transition-all hover:bg-red-100 active:scale-[0.98];
   }
 
   .pv-input {
-    @apply w-full rounded-lg border border-forest-200 bg-white px-3 py-2.5 text-sm text-forest-900 placeholder:text-forest-400 focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 outline-none transition-all;
+    @apply w-full rounded-xl border border-forest-200 bg-white px-3.5 py-2.5 text-sm text-forest-900 placeholder:text-forest-400 focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 outline-none transition-all;
   }
 
   .pv-dialog-backdrop {

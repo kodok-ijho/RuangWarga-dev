@@ -42,11 +42,11 @@ describe('Home Page — SumoPod UX Model Test', () => {
     );
 
     // Guest Landing elements must be present
-    expect(html).toContain('Satu Platform untuk Seluruh Kebutuhan');
+    expect(html).toContain('Kelola Iuran &amp; Warga');
     expect(html).toContain('Masuk ke Akun');
-    expect(html).toContain('Model SumoPod SaaS Platform');
+    expect(html).toContain('Solusi Terpadu Manajemen Komunitas');
     expect(html).toContain('Mulai Coba Gratis 15 Hari');
-    expect(html).toContain('Empat Vertikal Bisnis');
+    expect(html).toContain('Dirancang Khusus Sesuai Karakter Operasional');
 
     // Authenticated workspace elements must NOT be present
     expect(html).not.toContain('Layanan &amp; Tenant Anda');
@@ -95,6 +95,6 @@ describe('Home Page — SumoPod UX Model Test', () => {
     expect(html).toContain('Keluar');
 
     // Guest Landing headline must NOT be present
-    expect(html).not.toContain('Satu Platform untuk Seluruh Kebutuhan');
+    expect(html).not.toContain('Kelola Iuran &amp; Warga');
   });
 });

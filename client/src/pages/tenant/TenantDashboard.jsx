@@ -24,6 +24,7 @@ import { useSubscriptionGate } from '../../hooks/useSubscriptionGate';
 import TrialCountdownBanner from '../../components/TrialCountdownBanner';
 import { formatRupiah, MONTHS_LONG } from '../../services/dataHelpers';
 import { fetchTenantDashboardData } from '../../services/tenantOperationalService';
+import AnimatedCounter from '../../components/AnimatedCounter';
 
 export default function TenantDashboard() {
   const { tenantId: routeTenantId } = useParams();
@@ -209,20 +210,20 @@ export default function TenantDashboard() {
           {/* Konteks & Kamus Istilah Vertikal */}
           <div className="pt-5">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-3 bg-forest-950/70 rounded-xl border border-forest-800">
-                <span className="text-[10px] text-forest-400 block font-medium">Satuan Unit</span>
+              <div className="p-3 bg-forest-950/70 rounded-xl border border-forest-800/80">
+                <span className="text-[11px] text-forest-300 block font-medium">Satuan Unit</span>
                 <span className="text-sm font-bold text-white mt-0.5 block">{template.unitLabel}</span>
               </div>
-              <div className="p-3 bg-forest-950/70 rounded-xl border border-forest-800">
-                <span className="text-[10px] text-forest-400 block font-medium">Jenis Iuran / Tagihan</span>
-                <span className="text-sm font-bold text-gold-300 mt-0.5 block">{template.billLabel}</span>
+              <div className="p-3 bg-forest-950/70 rounded-xl border border-forest-800/80">
+                <span className="text-[11px] text-forest-300 block font-medium">Jenis Iuran / Tagihan</span>
+                <span className="text-sm font-bold text-white mt-0.5 block">{template.billLabel}</span>
               </div>
-              <div className="p-3 bg-forest-950/70 rounded-xl border border-forest-800">
-                <span className="text-[10px] text-forest-400 block font-medium">Sebutan Anggota</span>
+              <div className="p-3 bg-forest-950/70 rounded-xl border border-forest-800/80">
+                <span className="text-[11px] text-forest-300 block font-medium">Sebutan Anggota</span>
                 <span className="text-sm font-bold text-white mt-0.5 block">{template.memberLabel}</span>
               </div>
-              <div className="p-3 bg-forest-950/70 rounded-xl border border-forest-800">
-                <span className="text-[10px] text-forest-400 block font-medium">Tindakan Bayar</span>
+              <div className="p-3 bg-forest-950/70 rounded-xl border border-forest-800/80">
+                <span className="text-[11px] text-forest-300 block font-medium">Tindakan Bayar</span>
                 <span className="text-sm font-bold text-emerald-300 mt-0.5 block">{template.paymentActionLabel}</span>
               </div>
             </div>
@@ -403,46 +404,46 @@ export default function TenantDashboard() {
             <div className="space-y-4">
               {/* Row 1: IPL Billing Stats */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-4 bg-forest-950/80 rounded-2xl border border-forest-800 shadow-sm">
-                  <span className="text-[11px] text-forest-400 block font-medium">Total Tagihan {template.billLabel}</span>
-                  <span className="text-lg sm:text-xl font-bold text-white mt-1 block">
-                    {formatRupiah(billing.totalBilled)}
+                <div className="p-4 sm:p-5 bg-forest-950/80 rounded-2xl border border-forest-800 shadow-md">
+                  <span className="text-xs text-forest-300 block font-medium">Total Tagihan {template.billLabel}</span>
+                  <span className="text-xl sm:text-2xl font-extrabold text-white mt-1.5 block tracking-tight font-display">
+                    <AnimatedCounter value={billing.totalBilled} formatter={formatRupiah} />
                   </span>
-                  <span className="text-[10px] text-forest-400 mt-1 block">
+                  <span className="text-[11px] text-forest-400 mt-1 block">
                     {billing.billCount} {template.unitLabel.toLowerCase()} ditagih
                   </span>
                 </div>
 
-                <div className="p-4 bg-forest-950/80 rounded-2xl border border-forest-800 shadow-sm">
-                  <span className="text-[11px] text-emerald-400 block font-medium">Terkumpul</span>
-                  <span className="text-lg sm:text-xl font-bold text-emerald-300 mt-1 block">
-                    {formatRupiah(billing.totalCollected)}
+                <div className="p-4 sm:p-5 bg-forest-950/80 rounded-2xl border border-forest-800 shadow-md">
+                  <span className="text-xs text-emerald-400 block font-medium">Terkumpul</span>
+                  <span className="text-xl sm:text-2xl font-extrabold text-emerald-300 mt-1.5 block tracking-tight font-display">
+                    <AnimatedCounter value={billing.totalCollected} formatter={formatRupiah} />
                   </span>
-                  <span className="text-[10px] text-emerald-400/80 mt-1 block">
+                  <span className="text-[11px] text-emerald-400/90 mt-1 block">
                     {billing.totalBilled > 0
                       ? `${((billing.totalCollected / billing.totalBilled) * 100).toFixed(0)}% terbayar`
                       : '0% terbayar'}
                   </span>
                 </div>
 
-                <div className="p-4 bg-forest-950/80 rounded-2xl border border-forest-800 shadow-sm">
-                  <span className="text-[11px] text-amber-400 block font-medium">Tunggakan</span>
-                  <span className="text-lg sm:text-xl font-bold text-amber-300 mt-1 block">
-                    {formatRupiah(billing.totalOutstanding)}
+                <div className="p-4 sm:p-5 bg-forest-950/80 rounded-2xl border border-forest-800 shadow-md">
+                  <span className="text-xs text-amber-400 block font-medium">Tunggakan</span>
+                  <span className="text-xl sm:text-2xl font-extrabold text-amber-300 mt-1.5 block tracking-tight font-display">
+                    <AnimatedCounter value={billing.totalOutstanding} formatter={formatRupiah} />
                   </span>
-                  <span className="text-[10px] text-amber-400/80 mt-1 block">
+                  <span className="text-[11px] text-amber-400/90 mt-1 block">
                     {billing.totalOutstanding > 0 ? 'Perlu tindak lanjut' : 'Nihil tunggakan'}
                   </span>
                 </div>
 
-                <div className="p-4 bg-forest-950/80 rounded-2xl border border-forest-800 shadow-sm">
-                  <span className="text-[11px] text-gold-400 block font-medium">Kolektibilitas</span>
-                  <span className="text-lg sm:text-xl font-bold text-gold-300 mt-1 block">
-                    {billing.collectionRate.toFixed(0)}%
+                <div className="p-4 sm:p-5 bg-forest-950/80 rounded-2xl border border-forest-800 shadow-md">
+                  <span className="text-xs text-gold-400 block font-medium">Kolektibilitas</span>
+                  <span className="text-xl sm:text-2xl font-extrabold text-gold-300 mt-1.5 block tracking-tight font-display">
+                    <AnimatedCounter value={billing.collectionRate} formatter={(v) => `${v.toFixed(0)}%`} />
                   </span>
                   <div className="w-full bg-forest-800 rounded-full h-1.5 mt-2 overflow-hidden">
                     <div
-                      className="bg-gradient-to-r from-gold-500 to-emerald-400 h-1.5 rounded-full"
+                      className="bg-gradient-to-r from-gold-500 to-emerald-400 h-1.5 rounded-full transition-all duration-500"
                       style={{ width: `${Math.min(billing.collectionRate, 100)}%` }}
                     />
                   </div>
@@ -451,55 +452,55 @@ export default function TenantDashboard() {
 
               {/* Row 2: Cashflow & Occupancy Stats */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 bg-forest-950/60 rounded-2xl border border-forest-800/80 flex items-center justify-between">
+                <div className="p-4 sm:p-5 bg-forest-950/60 rounded-2xl border border-forest-800/80 flex items-center justify-between shadow-sm">
                   <div>
-                    <span className="text-[11px] text-forest-400 block font-medium">Arus Kas Bersih (Net)</span>
+                    <span className="text-xs text-forest-300 block font-medium">Arus Kas Bersih (Net)</span>
                     <span
-                      className={`text-base sm:text-lg font-bold mt-1 block ${
+                      className={`text-lg sm:text-xl font-extrabold mt-1.5 block tracking-tight ${
                         finance.netCashflow >= 0 ? 'text-emerald-400' : 'text-rose-400'
                       }`}
                     >
-                      {formatRupiah(finance.netCashflow)}
+                      <AnimatedCounter value={finance.netCashflow} formatter={formatRupiah} />
                     </span>
-                    <span className="text-[10px] text-forest-400 mt-0.5 block">
+                    <span className="text-[11px] text-forest-300 mt-0.5 block">
                       Masuk: {formatRupiah(finance.totalIncome)} &bull; Keluar: {formatRupiah(finance.totalExpense)}
                     </span>
                   </div>
-                  <div className="w-10 h-10 rounded-xl bg-forest-900 border border-forest-700 flex items-center justify-center text-forest-300 text-lg">
+                  <div className="w-10 h-10 rounded-xl bg-forest-900 border border-forest-700/80 flex items-center justify-center text-forest-300 text-lg shrink-0">
                     <AiOutlineWallet />
                   </div>
                 </div>
 
-                <div className="p-4 bg-forest-950/60 rounded-2xl border border-forest-800/80 flex items-center justify-between">
+                <div className="p-4 sm:p-5 bg-forest-950/60 rounded-2xl border border-forest-800/80 flex items-center justify-between shadow-sm">
                   <div>
-                    <span className="text-[11px] text-forest-400 block font-medium">
+                    <span className="text-xs text-forest-300 block font-medium">
                       Okupansi {template.unitLabel}
                     </span>
-                    <span className="text-base sm:text-lg font-bold text-white mt-1 block">
-                      {units.occupied} <span className="text-xs text-forest-400 font-normal">/ {units.total} unit</span>
+                    <span className="text-lg sm:text-xl font-bold text-white mt-1.5 block tracking-tight">
+                      <AnimatedCounter value={units.occupied} /> <span className="text-xs text-forest-300 font-normal">/ {units.total} {template.unitLabel.toLowerCase()}</span>
                     </span>
-                    <span className="text-[10px] text-forest-400 mt-0.5 block">
-                      {units.vacant} unit kosong / belum terisi
+                    <span className="text-[11px] text-forest-300 mt-0.5 block">
+                      {units.vacant} unit belum terisi
                     </span>
                   </div>
-                  <div className="w-10 h-10 rounded-xl bg-forest-900 border border-forest-700 flex items-center justify-center text-forest-300 text-lg">
+                  <div className="w-10 h-10 rounded-xl bg-forest-900 border border-forest-700/80 flex items-center justify-center text-forest-300 text-lg shrink-0">
                     <AiOutlineHome />
                   </div>
                 </div>
 
-                <div className="p-4 bg-forest-950/60 rounded-2xl border border-forest-800/80 flex items-center justify-between">
+                <div className="p-4 sm:p-5 bg-forest-950/60 rounded-2xl border border-forest-800/80 flex items-center justify-between shadow-sm">
                   <div>
-                    <span className="text-[11px] text-forest-400 block font-medium">
+                    <span className="text-xs text-forest-300 block font-medium">
                       Total {template.memberLabel} Terdaftar
                     </span>
-                    <span className="text-base sm:text-lg font-bold text-white mt-1 block">
-                      {members.total} <span className="text-xs text-forest-400 font-normal">orang</span>
+                    <span className="text-lg sm:text-xl font-bold text-white mt-1.5 block tracking-tight">
+                      <AnimatedCounter value={members.total} /> <span className="text-xs text-forest-300 font-normal">orang</span>
                     </span>
-                    <span className="text-[10px] text-forest-400 mt-0.5 block">
+                    <span className="text-[11px] text-forest-300 mt-0.5 block">
                       {pendingReg} menunggu verifikasi
                     </span>
                   </div>
-                  <div className="w-10 h-10 rounded-xl bg-forest-900 border border-forest-700 flex items-center justify-center text-forest-300 text-lg">
+                  <div className="w-10 h-10 rounded-xl bg-forest-900 border border-forest-700/80 flex items-center justify-center text-forest-300 text-lg shrink-0">
                     <AiOutlineTeam />
                   </div>
                 </div>
