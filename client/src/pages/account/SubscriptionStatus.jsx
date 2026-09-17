@@ -170,30 +170,30 @@ export default function SubscriptionStatus() {
   const status = subData?.status || 'trial';
 
   return (
-    <div className="min-h-screen bg-[#071f13] text-white py-10 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 text-slate-900 py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto space-y-8">
         {/* Tombol Navigasi Kembali */}
         <button
           type="button"
           onClick={() => navigate('/account/tenants')}
-          className="inline-flex items-center gap-2 text-xs font-semibold text-forest-300 hover:text-white transition-colors"
+          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
         >
           <AiOutlineArrowLeft /> Kembali ke Daftar Layanan
         </button>
 
         {/* Header Title */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-forest-800">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-slate-200">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-2xl p-2 bg-forest-950 rounded-xl border border-forest-800 shadow-inner">
+              <span className="text-2xl p-2 bg-white rounded-xl border border-slate-200 shadow-xs text-forest-800">
                 {template.icon}
               </span>
               <div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-display">
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-display tracking-tight">
                   Status Langganan &amp; Kapasitas
                 </h1>
-                <p className="text-xs sm:text-sm text-forest-300">
-                  Layanan: <strong className="text-white">{currentTenant?.name}</strong> &bull; Tipe: {template.name}
+                <p className="text-xs sm:text-sm text-slate-500">
+                  Layanan: <strong className="text-slate-900">{currentTenant?.name}</strong> &bull; Tipe: {template.name}
                 </p>
               </div>
             </div>
@@ -204,7 +204,8 @@ export default function SubscriptionStatus() {
               type="button"
               onClick={fetchSubscriptionDetails}
               disabled={loading}
-              className="px-3.5 py-2 rounded-xl bg-forest-800 hover:bg-forest-700 text-forest-200 hover:text-white text-xs font-semibold border border-forest-700 transition-colors"
+              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 text-xs font-semibold border border-slate-200 shadow-xs transition-colors"
+              title="Perbarui Data"
             >
               <AiOutlineReload className={loading ? 'animate-spin' : ''} />
             </button>
@@ -213,7 +214,7 @@ export default function SubscriptionStatus() {
               <button
                 type="button"
                 onClick={() => navigate(`/account/choose-plan?tenantId=${currentTenant?.id}`)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-gold-500 to-amber-500 hover:from-gold-400 hover:to-amber-400 text-forest-950 font-bold text-xs shadow-lg shadow-gold-900/30 transition-all hover:scale-105"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 font-bold text-xs shadow-xs transition-all"
               >
                 <AiOutlineCreditCard className="text-sm font-bold" />
                 <span>Perpanjang / Ubah Paket</span>
@@ -225,7 +226,7 @@ export default function SubscriptionStatus() {
         {/* Loading State */}
         {loading && (
           <div className="flex items-center justify-center py-20">
-            <div className="h-8 w-8 rounded-full border-2 border-forest-600 border-t-gold-500 animate-spin" />
+            <div className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-forest-800 animate-spin" />
           </div>
         )}
 
@@ -234,18 +235,18 @@ export default function SubscriptionStatus() {
             {/* GRID KARTU STATUS & KAPASITAS */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Kartu Status Langganan */}
-              <div className="bg-forest-900/70 border border-forest-800 rounded-2xl p-6 shadow-xl space-y-4">
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-forest-400 uppercase tracking-wider">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                     Status Paket Aktif
                   </span>
                   <span
                     className={`inline-flex items-center gap-1 text-[11px] font-bold px-3 py-1 rounded-md border uppercase ${
                       status === 'active'
-                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                         : status === 'trial'
-                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                        : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                        : 'bg-rose-50 text-rose-700 border-rose-200'
                     }`}
                   >
                     {status === 'active' ? <AiOutlineCheckCircle /> : <AiOutlineClockCircle />}
@@ -254,7 +255,7 @@ export default function SubscriptionStatus() {
                 </div>
 
                 <div className="pt-2">
-                  <p className="text-xs text-forest-300">
+                  <p className="text-xs text-slate-600">
                     {status === 'active'
                       ? 'Paket berlangganan Anda sedang aktif dengan kapasitas penuh.'
                       : status === 'trial'
@@ -263,10 +264,10 @@ export default function SubscriptionStatus() {
                   </p>
                 </div>
 
-                <div className="p-4 bg-forest-950/80 rounded-xl border border-forest-800 space-y-2 text-xs">
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-forest-400">Masa Berlaku Hingga:</span>
-                    <strong className="text-white font-mono">
+                    <span className="text-slate-500">Masa Berlaku Hingga:</span>
+                    <strong className="text-slate-900 font-mono font-bold">
                       {status === 'active' && subData?.current_period_end
                         ? new Date(subData.current_period_end).toLocaleDateString('id-ID', {
                             day: 'numeric',
@@ -286,41 +287,41 @@ export default function SubscriptionStatus() {
               </div>
 
               {/* Kartu Kapasitas Unit Terpakai vs Dibeli */}
-              <div className="bg-forest-900/70 border border-forest-800 rounded-2xl p-6 shadow-xl space-y-4">
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-forest-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <AiOutlinePieChart className="text-gold-400" />
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <AiOutlinePieChart className="text-gold-500" />
                     <span>Kapasitas {template.unitLabel}</span>
                   </span>
-                  <span className="text-xs font-bold text-gold-300">
+                  <span className="text-xs font-bold text-forest-800">
                     {usedUnitsCount} / {totalPurchasedCapacity} Terpakai
                   </span>
                 </div>
 
                 {/* Progress Bar */}
                 <div className="space-y-1.5">
-                  <div className="w-full bg-forest-950 h-3 rounded-full overflow-hidden border border-forest-800">
+                  <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden border border-slate-200">
                     <div
                       className={`h-full transition-all duration-500 ${
                         usagePercent >= 90
                           ? 'bg-rose-500'
                           : usagePercent >= 75
                           ? 'bg-amber-500'
-                          : 'bg-gradient-to-r from-emerald-500 to-gold-500'
+                          : 'bg-forest-800'
                       }`}
                       style={{ width: `${usagePercent}%` }}
                     />
                   </div>
-                  <div className="flex justify-between text-[11px] text-forest-400">
+                  <div className="flex justify-between text-[11px] text-slate-500">
                     <span>{usagePercent}% Utilisasi</span>
                     <span>Sisa Kuota: {Math.max(0, totalPurchasedCapacity - usedUnitsCount)} {template.unitLabel}</span>
                   </div>
                 </div>
 
-                <div className="p-3 bg-forest-950/80 rounded-xl border border-forest-800 flex items-center justify-between text-xs">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
                   <div>
-                    <span className="text-forest-400 block text-[10px]">Rincian Blok:</span>
-                    <span className="text-forest-200 font-medium">
+                    <span className="text-slate-500 block text-[10px]">Rincian Blok:</span>
+                    <span className="text-slate-800 font-semibold">
                       {blocksData.length > 0
                         ? blocksData.map((b) => `${b.block_count}x Blok ${b.block_size}`).join(' + ')
                         : '1x Blok 10 (Trial Default)'}
@@ -330,7 +331,7 @@ export default function SubscriptionStatus() {
                   <button
                     type="button"
                     onClick={() => navigate(`/account/choose-plan?tenantId=${currentTenant?.id}`)}
-                    className="text-gold-400 hover:text-gold-300 font-semibold underline text-xs"
+                    className="text-forest-800 hover:text-forest-900 font-semibold underline text-xs"
                   >
                     Tambah Kuota
                   </button>
@@ -342,17 +343,17 @@ export default function SubscriptionStatus() {
             <div className="space-y-3 pt-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-bold text-white font-display">Riwayat Pembayaran Langganan</h2>
-                  <p className="text-xs text-forest-400">Daftar transaksi perpanjangan paket platform untuk layanan ini</p>
+                  <h2 className="text-lg font-bold text-slate-900 font-display">Riwayat Pembayaran Langganan</h2>
+                  <p className="text-xs text-slate-500">Daftar transaksi perpanjangan paket platform untuk layanan ini</p>
                 </div>
               </div>
 
-              <div className="bg-forest-900/60 border border-forest-800 rounded-2xl overflow-hidden shadow-xl">
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
                 {paymentsHistory.length === 0 ? (
-                  <div className="py-12 text-center text-forest-400">
-                    <AiOutlineFileText className="text-3xl mx-auto mb-2 text-forest-600" />
-                    <p className="text-xs font-medium text-forest-300">Belum ada riwayat pembayaran langganan</p>
-                    <p className="text-[11px] text-forest-500 mt-0.5">
+                  <div className="py-12 text-center text-slate-400">
+                    <AiOutlineFileText className="text-3xl mx-auto mb-2 text-slate-300" />
+                    <p className="text-xs font-medium text-slate-600">Belum ada riwayat pembayaran langganan</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
                       Layanan Anda saat ini masih aktif menggunakan paket masa percobaan (trial).
                     </p>
                   </div>
@@ -360,7 +361,7 @@ export default function SubscriptionStatus() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
-                        <tr className="bg-forest-950/80 border-b border-forest-800 text-forest-400 uppercase tracking-wider font-semibold">
+                        <tr className="bg-slate-100/90 border-b border-slate-200 text-slate-700 uppercase tracking-wider font-bold text-[11px]">
                           <th className="py-3 px-4">No. Referensi / Tanggal</th>
                           <th className="py-3 px-4">Durasi Paket</th>
                           <th className="py-3 px-4">Metode Bayar</th>
@@ -368,14 +369,14 @@ export default function SubscriptionStatus() {
                           <th className="py-3 px-4 text-right">Status</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-forest-800/60">
+                      <tbody className="divide-y divide-slate-100">
                         {paymentsHistory.map((p) => (
-                          <tr key={p.id} className="hover:bg-forest-800/30">
+                          <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
                             <td className="py-3 px-4">
-                              <span className="font-mono font-bold text-white block">{p.payment_gateway_ref || p.id}</span>
-                              <span className="text-[10px] text-forest-400">
+                              <span className="font-mono font-bold text-slate-900 block">{p.payment_gateway_ref || p.id}</span>
+                              <span className="text-[10px] text-slate-500">
                                 {p.paid_at || p.created_at
-                                  ? new Date(p.paid_at || p.created_at).toLocaleDateString('id-ID', {
+                                   ? new Date(p.paid_at || p.created_at).toLocaleDateString('id-ID', {
                                       day: 'numeric',
                                       month: 'short',
                                       year: 'numeric',
@@ -383,19 +384,19 @@ export default function SubscriptionStatus() {
                                   : '-'}
                               </span>
                             </td>
-                            <td className="py-3 px-4 text-forest-200">{p.duration_months} Bulan</td>
-                            <td className="py-3 px-4 uppercase font-mono text-[11px] text-forest-300">
+                            <td className="py-3 px-4 text-slate-700">{p.duration_months} Bulan</td>
+                            <td className="py-3 px-4 uppercase font-mono text-[11px] text-slate-600">
                               {p.payment_method}
                             </td>
-                            <td className="py-3 px-4 font-mono font-bold text-gold-300">
+                            <td className="py-3 px-4 font-mono font-bold text-slate-900">
                               Rp {p.amount.toLocaleString('id-ID')}
                             </td>
                             <td className="py-3 px-4 text-right">
                               <span
-                                className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                className={`inline-block px-2.5 py-0.5 rounded text-[10px] font-bold uppercase ${
                                   p.status === 'settled'
-                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-amber-50 text-amber-700 border border-amber-200'
                                 }`}
                               >
                                 {p.status}
