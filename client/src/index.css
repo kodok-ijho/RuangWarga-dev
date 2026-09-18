@@ -64,6 +64,28 @@
   }
 }
 
+/* Utility Classes & Tokens untuk Tipografi & Hierarki Visual */
+@layer utilities {
+  .text-title-page {
+    @apply font-display text-xl sm:text-2xl font-extrabold text-forest-950 tracking-tight;
+  }
+  .text-title-section {
+    @apply text-base sm:text-lg font-bold text-slate-900 tracking-tight;
+  }
+  .text-value-primary {
+    @apply font-mono font-bold text-slate-900 tracking-tight;
+  }
+  .text-meta {
+    @apply text-xs text-slate-500 font-normal leading-relaxed;
+  }
+  .text-label-caps {
+    @apply text-[10px] font-bold uppercase tracking-wider text-slate-500;
+  }
+  .pv-focus-ring {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500/50 focus-visible:ring-offset-2;
+  }
+}
+
 /* Animasi toast */
 @keyframes slideIn {
   from {
@@ -73,6 +95,18 @@
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+/* Dukungan prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

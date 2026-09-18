@@ -39,8 +39,10 @@ export default {
         display: ['"Playfair Display"', 'Georgia', 'serif'],
       },
       boxShadow: {
-        card: '0 1px 3px rgba(10,24,19,0.08), 0 1px 2px rgba(10,24,19,0.04)',
-        elevated: '0 10px 30px -10px rgba(10,24,19,0.25)',
+        subtle: '0 1px 2px rgba(10, 24, 19, 0.04), 0 1px 1px rgba(10, 24, 19, 0.02)',
+        card: '0 1px 3px rgba(10, 24, 19, 0.06), 0 1px 2px rgba(10, 24, 19, 0.03)',
+        popover: '0 10px 25px -5px rgba(10, 24, 19, 0.1), 0 8px 10px -6px rgba(10, 24, 19, 0.05)',
+        elevated: '0 12px 32px rgba(10, 24, 19, 0.12), 0 4px 8px rgba(10, 24, 19, 0.04)',
       },
     },
   },
