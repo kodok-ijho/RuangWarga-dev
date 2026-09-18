@@ -456,7 +456,16 @@ export default function Residents() {
                           <tr
                             key={p.id}
                             onClick={() => setSelectedId(p.id)}
-                            className="hover:bg-slate-50/80 cursor-pointer transition-colors"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setSelectedId(p.id);
+                              }
+                            }}
+                            tabIndex={0}
+                            role="button"
+                            aria-label={`Buka detail ${template.memberLabel?.toLowerCase() || 'warga'} ${p.full_name}`}
+                            className="hover:bg-slate-50/80 cursor-pointer transition-colors focus:outline-hidden focus:bg-slate-100/90"
                           >
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2.5">

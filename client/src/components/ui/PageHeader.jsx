@@ -20,19 +20,21 @@ export function PageHeader({
             {backTo ? (
               <Link
                 to={backTo}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition shadow-xs"
+                aria-label="Kembali"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition shadow-xs pv-focus-ring"
                 title="Kembali"
               >
-                <AiOutlineArrowLeft className="text-base" />
+                <AiOutlineArrowLeft className="text-base" aria-hidden="true" />
               </Link>
             ) : (
               <button
                 type="button"
                 onClick={onBack}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition shadow-xs"
+                aria-label="Kembali"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition shadow-xs pv-focus-ring"
                 title="Kembali"
               >
-                <AiOutlineArrowLeft className="text-base" />
+                <AiOutlineArrowLeft className="text-base" aria-hidden="true" />
               </button>
             )}
           </div>

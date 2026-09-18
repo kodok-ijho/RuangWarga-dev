@@ -330,7 +330,12 @@ export default function Events() {
                                     </span>
                                   </div>
                                   {isAdmin && (
-                                    <button type="button" className="text-[11px] font-bold text-red-600" onClick={() => revoke(event.id, member.id)}>
+                                    <button
+                                      type="button"
+                                      className="text-[11px] font-bold text-red-600 hover:text-red-700 pv-focus-ring rounded-sm px-1"
+                                      aria-label={`Cabut penugasan panitia ${member.profile_name || member.profile_id}`}
+                                      onClick={() => revoke(event.id, member.id)}
+                                    >
                                       Cabut
                                     </button>
                                   )}
@@ -445,11 +450,16 @@ export default function Events() {
                                     {badge.label}
                                   </span>
                                 </div>
-                                {isAdmin && (
-                                  <button type="button" className="text-xs text-red-600 hover:underline px-2 py-1" onClick={() => revoke(event.id, member.id)}>
-                                    Cabut
-                                  </button>
-                                )}
+                                  {isAdmin && (
+                                    <button
+                                      type="button"
+                                      className="text-xs text-red-600 hover:text-red-700 hover:underline px-2 py-1 pv-focus-ring rounded-md"
+                                      aria-label={`Cabut penugasan panitia ${member.profile_name || member.profile_id}`}
+                                      onClick={() => revoke(event.id, member.id)}
+                                    >
+                                      Cabut
+                                    </button>
+                                  )}
                               </div>
                             );
                           })}
