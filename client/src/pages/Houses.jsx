@@ -16,6 +16,7 @@ import { useTour } from '../context/TourContext';
 import { useTenant } from '../hooks/useTenant';
 import { useTenantTemplate } from '../hooks/useTenantTemplate';
 import Modal from '../components/Modal';
+import { EmptyState, SkeletonTable } from '../components/ui';
 import {
   fetchUnits,
   upsertUnit,
@@ -406,41 +407,61 @@ export default function Houses() {
         </div>
       </section>
 
-      <section className="pv-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-100/90 text-left">
-                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700">{template.unitLabel}</th>
-                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700">Penanggung Jawab / Pemilik</th>
-                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700">{template.memberLabel} Aktif</th>
-                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700">Skema {template.billLabel}</th>
-                <th className="hidden px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700 md:table-cell">Detail</th>
-                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700">Status</th>
-                <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-slate-700">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center">
-                    <div className="flex justify-center items-center gap-2 text-slate-500 text-sm">
-                      <svg className="animate-spin h-5 w-5 text-gold-500" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      Memuat data {template.unitLabel.toLowerCase()}...
-                    </div>
-                  </td>
+      {isLoading ? (
+        <SkeletonTable cols={7} rows={6} />
+      ) : filteredUnits.length === 0 ? (
+        <EmptyState
+          icon="🏡"
+          title={
+            search || filterStatus !== 'all'
+              ? `Tidak Ditemukan ${template.unitLabel}`
+              : `Belum Ada Data ${template.unitLabel}`
+          }
+          description={
+            search || filterStatus !== 'all'
+              ? `Tidak ada data ${template.unitLabel.toLowerCase()} yang sesuai dengan filter pencarian blok atau status hunian.`
+              : `Mulai kelola aset dan skema ${template.billLabel} dengan mendaftarkan nomor unit pertama Anda.`
+          }
+          action={
+            search || filterStatus !== 'all' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('');
+                  setFilterStatus('all');
+                }}
+                className="pv-btn-ghost text-xs shadow-2xs"
+              >
+                Reset Filter & Pencarian
+              </button>
+            ) : canWrite ? (
+              <button
+                type="button"
+                onClick={openAdd}
+                className="pv-btn-primary text-xs shadow-xs"
+              >
+                <AiOutlinePlus /> Tambah {template.unitLabel}
+              </button>
+            ) : null
+          }
+        />
+      ) : (
+        <section className="pv-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-100/90 text-left">
+                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700">{template.unitLabel}</th>
+                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700">Penanggung Jawab / Pemilik</th>
+                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700">{template.memberLabel} Aktif</th>
+                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700">Skema {template.billLabel}</th>
+                  <th className="hidden px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700 md:table-cell">Detail</th>
+                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700">Status</th>
+                  <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-slate-700">Aksi</th>
                 </tr>
-              ) : filteredUnits.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
-                    Tidak ada {template.unitLabel.toLowerCase()} yang cocok.
-                  </td>
-                </tr>
-              ) : (
-                filteredUnits.map((unit) => {
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredUnits.map((unit) => {
                   const owner = getUnitOwner(unit.id);
                   const occupant = getUnitOccupant(unit.id);
                   const schema = getSchemaById(iplSchemas, unit.ipl_schema_id);
@@ -478,19 +499,20 @@ export default function Houses() {
                           className={`pv-badge ${
                             unit.is_occupied
                               ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
-                              : 'border border-amber-200 bg-amber-50 text-amber-700'
+                              : 'border border-slate-200 bg-slate-100 text-slate-500'
                           }`}
                         >
                           {unit.is_occupied ? template.occupiedUnitLabel : template.emptyUnitLabel}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex justify-end gap-1.5">
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
                           <button
                             type="button"
                             onClick={() => setSelectedUnit(unit)}
-                            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-800 transition-colors"
+                            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
                             aria-label={`Lihat detail ${template.unitLabel.toLowerCase()}`}
+                            title={`Detail ${template.unitLabel}`}
                           >
                             <AiOutlineEye />
                           </button>
@@ -499,7 +521,7 @@ export default function Houses() {
                               <button
                                 type="button"
                                 onClick={() => openEdit(unit)}
-                                className="rounded-lg p-2 text-slate-400 hover:bg-amber-50 hover:text-amber-700 transition-colors"
+                                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
                                 aria-label={`Edit ${template.unitLabel.toLowerCase()}`}
                                 title={`Edit ${template.unitLabel}`}
                               >
@@ -520,12 +542,12 @@ export default function Houses() {
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {selectedUnit && (
         <UnitDetailModal
@@ -702,8 +724,9 @@ function UnitFormModal({ unit, owners, canEditSchema, iplSchemas, template, acti
               <input
                 type="text"
                 value={form.block}
+                autoCapitalize="characters"
                 onChange={(event) => updateField('block', event.target.value)}
-                className="pv-input uppercase"
+                className="pv-input uppercase text-xs"
                 placeholder="CB1 / REG / LT1"
                 required
               />
@@ -712,8 +735,9 @@ function UnitFormModal({ unit, owners, canEditSchema, iplSchemas, template, acti
               <input
                 type="text"
                 value={form.unit_number}
+                autoCapitalize="characters"
                 onChange={(event) => updateField('unit_number', event.target.value)}
-                className="pv-input uppercase"
+                className="pv-input uppercase text-xs"
                 placeholder={template?.unitPlaceholder || '01 / 3A'}
                 required
               />
@@ -724,19 +748,21 @@ function UnitFormModal({ unit, owners, canEditSchema, iplSchemas, template, acti
             <Field label="Lantai">
               <input
                 type="number"
+                inputMode="numeric"
                 min="1"
                 value={form.floor}
                 onChange={(event) => updateField('floor', event.target.value)}
-                className="pv-input"
+                className="pv-input text-xs"
               />
             </Field>
-            <Field label="Luas / Kapasitas">
+            <Field label="Luas / Kapasitas (m²)">
               <input
                 type="number"
+                inputMode="numeric"
                 min="0"
                 value={form.size}
                 onChange={(event) => updateField('size', event.target.value)}
-                className="pv-input"
+                className="pv-input text-xs"
               />
             </Field>
           </div>

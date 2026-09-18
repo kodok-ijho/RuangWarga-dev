@@ -40,6 +40,7 @@ import {
 } from '../services/mockData';
 import { AiOutlineCheck, AiOutlineClose, AiOutlineEye, AiOutlineClockCircle, AiOutlineEdit } from 'react-icons/ai';
 import { useToast } from '../hooks/useToast';
+import { EmptyState, SkeletonTable, SkeletonList } from '../components/ui';
 
 const TABS = [
   { key: 'pending', label: 'Menunggu' },
@@ -533,20 +534,49 @@ export default function PaymentVerification() {
 
       {/* Payment List */}
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center space-y-4 p-12 sm:p-20">
-          <div className="h-10 w-10 border-4 border-forest-200 border-t-gold-500 rounded-full animate-spin" />
-          <p className="text-sm text-forest-500">Memuat data verifikasi pembayaran...</p>
+        <div>
+          <div className="block sm:hidden">
+            <SkeletonList items={3} />
+          </div>
+          <div className="hidden sm:block">
+            <SkeletonTable cols={6} rows={4} />
+          </div>
         </div>
       ) : currentList.length === 0 ? (
-        <div className="pv-card p-8 text-center sm:p-12">
-          <p className="text-sm text-forest-500">
-            {activeTab === 'pending'
-              ? 'Tidak ada pembayaran yang menunggu verifikasi.'
+        <EmptyState
+          icon={
+            activeTab === 'pending'
+              ? '✅'
               : activeTab === 'verified'
-              ? 'Belum ada pembayaran yang diverifikasi.'
-              : 'Tidak ada pembayaran yang ditolak.'}
-          </p>
-        </div>
+              ? '💳'
+              : '📋'
+          }
+          title={
+            activeTab === 'pending'
+              ? 'Semua Pembayaran Terverifikasi'
+              : activeTab === 'verified'
+              ? 'Belum Ada Pembayaran Terverifikasi'
+              : 'Tidak Ada Pembayaran Ditolak'
+          }
+          description={
+            activeTab === 'pending'
+              ? 'Bagus! Saat ini tidak ada setoran pembayaran warga yang sedang menunggu persetujuan atau konfirmasi bendahara.'
+              : activeTab === 'verified'
+              ? 'Daftar riwayat pembayaran warga yang telah disetujui akan tampil terarsip di tab ini.'
+              : 'Tidak ada catatan transaksi pembayaran yang ditolak pada periode ini.'
+          }
+          action={
+            activeTab !== 'pending' ? (
+              <button
+                type="button"
+                onClick={() => setActiveTab('pending')}
+                className="pv-btn-ghost text-xs shadow-2xs"
+              >
+                Kembali ke Antrean Verifikasi
+              </button>
+            ) : null
+          }
+        />
       ) : (
         <div className="space-y-3">
           {currentList.map((payment) => {

@@ -9,6 +9,7 @@ import Placeholder from '../components/Placeholder';
 import QrisCheckoutModal from '../components/QrisCheckoutModal';
 import CreateBillingModal from '../components/CreateBillingModal';
 import CheckoutRoomModal from '../components/CheckoutRoomModal';
+import { EmptyState, SkeletonTable } from '../components/ui';
 import {
   MONTHS_SHORT,
   MONTHS_LONG,
@@ -765,24 +766,35 @@ export default function PaymentMatrix() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center p-20 space-y-4">
-        <div className="h-10 w-10 border-4 border-forest-200 border-t-gold-500 rounded-full animate-spin" />
-        <p className="text-sm text-forest-500">Memuat matriks pembayaran...</p>
+      <div className="space-y-5">
+        <div className="h-8 w-64 rounded-xl bg-slate-200/80 animate-pulse" />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="h-20 rounded-2xl bg-slate-200/60 animate-pulse" />
+          <div className="h-20 rounded-2xl bg-slate-200/60 animate-pulse" />
+          <div className="h-20 rounded-2xl bg-slate-200/60 animate-pulse" />
+          <div className="h-20 rounded-2xl bg-slate-200/60 animate-pulse" />
+        </div>
+        <SkeletonTable cols={14} rows={8} />
       </div>
     );
   }
 
   if (loadError) {
     return (
-      <div className="pv-card p-10 text-center max-w-md mx-auto space-y-4">
-        <p className="text-sm text-red-600 font-semibold">{loadError}</p>
-        <button
-          onClick={() => setRefreshKey(k => k + 1)}
-          className="pv-btn-primary mx-auto text-xs font-semibold px-4 py-2"
-        >
-          🔄 Coba Lagi
-        </button>
-      </div>
+      <EmptyState
+        icon="⚠️"
+        title="Gagal Memuat Matriks Pembayaran"
+        description={loadError}
+        action={
+          <button
+            type="button"
+            onClick={() => setRefreshKey(k => k + 1)}
+            className="pv-btn-primary text-xs font-semibold px-4 py-2 shadow-xs"
+          >
+            🔄 Coba Lagi
+          </button>
+        }
+      />
     );
   }
 

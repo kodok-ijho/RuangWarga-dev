@@ -12,7 +12,7 @@ import { useSubscriptionGate } from '../hooks/useSubscriptionGate';
 import { useTenantTemplate } from '../hooks/useTenantTemplate';
 import { useToast } from '../hooks/useToast';
 import Modal from '../components/Modal';
-import { MobileList } from '../components/ui';
+import { MobileList, EmptyState, SkeletonTable } from '../components/ui';
 import { ExpenseCard, ExpenseDetailDrawer } from '../components/finance';
 import {
   fetchExpenses,
@@ -259,10 +259,44 @@ export default function Expenses() {
       </div>
 
       {/* Daftar pengeluaran */}
-      {filtered.length === 0 ? (
-        <div className="pv-card p-10 text-center text-slate-400 text-sm">
-          Belum ada pengeluaran tercatat.
-        </div>
+      {isLoading ? (
+        <SkeletonTable cols={6} rows={5} />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon="💸"
+          title={
+            filterCategory || filterMonth
+              ? 'Tidak Ditemukan Pengeluaran'
+              : 'Belum Ada Pengeluaran Kas'
+          }
+          description={
+            filterCategory || filterMonth
+              ? 'Tidak ada transaksi pengeluaran kas yang sesuai dengan filter kategori atau bulan yang dipilih.'
+              : 'Belum ada catatan pengeluaran kas yang dibukukan untuk periode komunitas ini.'
+          }
+          action={
+            filterCategory || filterMonth ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterCategory('');
+                  setFilterMonth('');
+                }}
+                className="pv-btn-ghost text-xs shadow-2xs"
+              >
+                Reset Filter
+              </button>
+            ) : canEdit && canWrite ? (
+              <button
+                type="button"
+                onClick={() => setModalForm('add')}
+                className="pv-btn-primary text-xs shadow-xs"
+              >
+                <AiOutlinePlus /> Catat Pengeluaran Pertama
+              </button>
+            ) : null
+          }
+        />
       ) : (
         <>
           {/* Mobile Card List (< 768px) */}
@@ -577,21 +611,21 @@ function ExpenseFormModal({ expense, initialScope = 'general', eventOptions = []
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-forest-700 mb-1">Tanggal</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Tanggal *</label>
             <input
               type="date"
               value={form.date}
               onChange={(e) => setForm({ ...form, date: e.target.value })}
               required
-              className="pv-input"
+              className="pv-input text-xs"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-forest-700 mb-1">Kategori</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Kategori *</label>
             <select
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
-              className="pv-input"
+              className="pv-input text-xs"
             >
               {EXPENSE_CATEGORIES.map((c) => (
                 <option key={c} value={c}>{c}</option>
@@ -599,26 +633,26 @@ function ExpenseFormModal({ expense, initialScope = 'general', eventOptions = []
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-forest-700 mb-1">Scope</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Lingkup Pengeluaran</label>
             <select
               value={form.scope}
               onChange={(e) => setForm({ ...form, scope: e.target.value, event_id: '' })}
-              className="pv-input"
+              className="pv-input text-xs"
             >
-              {canEditGeneral && <option value="general">Umum</option>}
-              {(canEditGeneral || manageableEventIds.size > 0) && <option value="event">Event</option>}
+              {canEditGeneral && <option value="general">Operasional Umum</option>}
+              {(canEditGeneral || manageableEventIds.size > 0) && <option value="event">Kegiatan / Event Khusus</option>}
             </select>
           </div>
           {form.scope === 'event' && (
             <div>
-              <label className="block text-sm font-medium text-forest-700 mb-1">Event</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Pilih Event *</label>
               <select
                 value={form.event_id}
                 onChange={(e) => setForm({ ...form, event_id: e.target.value })}
-                className="pv-input"
+                className="pv-input text-xs"
                 required
               >
-                <option value="">Pilih event</option>
+                <option value="">Pilih kegiatan warga...</option>
                 {eventOptions
                   .filter((event) => canEditGeneral || manageableEventIds.has(event.id))
                   .map((event) => <option key={event.id} value={event.id}>{event.event_code} · {event.title}</option>)}
@@ -628,35 +662,36 @@ function ExpenseFormModal({ expense, initialScope = 'general', eventOptions = []
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-forest-700 mb-1">
-            Jumlah (Rp) <span className="text-red-500">*</span>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">
+            Nominal Pengeluaran (Rp) <span className="text-rose-500">*</span>
           </label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-forest-400">Rp</span>
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Rp</span>
             <input
               type="number"
+              inputMode="numeric"
               value={form.amount}
               onChange={(e) => setForm({ ...form, amount: e.target.value })}
               required
               min="1"
-              step="1"
-              className="pv-input pl-9"
-              placeholder="0"
+              step="100"
+              className="pv-input pl-10 text-xs font-bold font-mono"
+              placeholder="Contoh: 150000"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-forest-700 mb-1">
-            Deskripsi <span className="text-red-500">*</span>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">
+            Deskripsi Pengeluaran <span className="text-rose-500">*</span>
           </label>
           <textarea
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             required
             rows={3}
-            className="pv-input resize-none"
-            placeholder="Jelaskan detail pengeluaran (mis. honor petugas kebersihan 2 orang untuk awal Juni)"
+            className="pv-input resize-none text-xs"
+            placeholder="Jelaskan peruntukan pengeluaran kas secara detail (misal: Pembelian 2 kantong semen dan upah tukang perbaikan gapura)"
           />
         </div>
 

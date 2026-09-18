@@ -30,7 +30,7 @@ import {
   OCCUPANCY_STATUS,
   canManageResidents,
 } from '../services/dataHelpers';
-import { MobileList } from '../components/ui';
+import { MobileList, EmptyState, SkeletonTable, SkeletonList } from '../components/ui';
 import { ResidentCard, ResidentDetailDrawer } from '../components/residents';
 
 export default function Residents() {
@@ -372,19 +372,52 @@ export default function Residents() {
       {/* Daftar Penghuni Adaptif (Mobile Cards / Desktop Table) */}
       <div data-tour="residents-list">
         {isLoading ? (
-          <div className="pv-card p-10 text-center">
-            <div className="flex justify-center items-center gap-2 text-slate-500 text-sm">
-              <svg className="animate-spin h-5 w-5 text-gold-500" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              Memuat data {template.memberLabel.toLowerCase()}...
+          <div>
+            <div className="block md:hidden">
+              <SkeletonList items={4} />
+            </div>
+            <div className="hidden md:block">
+              <SkeletonTable cols={7} rows={6} />
             </div>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="pv-card p-10 text-center text-slate-400">
-            Tidak ada {template.memberLabel.toLowerCase()} yang cocok.
-          </div>
+          <EmptyState
+            icon="👥"
+            title={
+              search || filterBlock || filterStatus || filterOccupancy
+                ? `Tidak Ditemukan ${template.memberLabel}`
+                : `Belum Ada ${template.memberLabel} Terdaftar`
+            }
+            description={
+              search || filterBlock || filterStatus || filterOccupancy
+                ? `Tidak ada data ${template.memberLabel.toLowerCase()} yang sesuai dengan kata kunci atau filter yang Anda gunakan.`
+                : `Mulai kelola komunitas dengan menambahkan data ${template.memberLabel.toLowerCase()} pertama Anda.`
+            }
+            action={
+              search || filterBlock || filterStatus || filterOccupancy ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch('');
+                    setFilterBlock('');
+                    setFilterStatus('');
+                    setFilterOccupancy('');
+                  }}
+                  className="pv-btn-ghost text-xs shadow-2xs"
+                >
+                  Reset Filter & Pencarian
+                </button>
+              ) : canManage ? (
+                <button
+                  type="button"
+                  onClick={() => setModalAddEdit('add')}
+                  className="pv-btn-primary text-xs shadow-xs"
+                >
+                  <AiOutlinePlus /> Tambah {template.memberLabel}
+                </button>
+              ) : null
+            }
+          />
         ) : (
           <MobileList
             items={filtered}
@@ -636,7 +669,9 @@ function ProfileFormModal({ profile, onSave, onClose, isSaving, units, currentUs
             value={form.full_name}
             onChange={(e) => setForm({ ...form, full_name: e.target.value })}
             placeholder="Contoh: Budi Santoso"
-            className="pv-input"
+            autoComplete="name"
+            enterKeyHint="next"
+            className="pv-input text-xs"
             required
           />
         </Field>
@@ -644,10 +679,12 @@ function ProfileFormModal({ profile, onSave, onClose, isSaving, units, currentUs
         <Field label="Email Google (Login)">
           <input
             type="email"
+            inputMode="email"
+            autoComplete="email"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             placeholder="budi@gmail.com (opsional)"
-            className="pv-input"
+            className="pv-input text-xs"
           />
           <p className="mt-1 text-[11px] text-slate-500">
             {isEdit
@@ -659,10 +696,12 @@ function ProfileFormModal({ profile, onSave, onClose, isSaving, units, currentUs
         <Field label="Nomor Telepon / WhatsApp">
           <input
             type="tel"
+            inputMode="tel"
+            autoComplete="tel"
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            placeholder="08123456789"
-            className="pv-input"
+            placeholder="Contoh: 08123456789"
+            className="pv-input text-xs"
           />
         </Field>
 

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import QrisCheckoutModal from '../components/QrisCheckoutModal';
-import { MobileList } from '../components/ui';
+import { MobileList, EmptyState, SkeletonTable } from '../components/ui';
 import { IncomeCard, IncomeDetailDrawer } from '../components/finance';
 import {
   createNonIplIncome,
@@ -471,11 +471,12 @@ export default function NonIplIncomes() {
           <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
             Nominal Pembayaran (Rp) *
             <input
-              className="pv-input mt-1 font-bold text-slate-900"
+              className="pv-input mt-1 font-extrabold text-slate-900 font-mono"
               type="number"
-              min="1"
-              step="1"
-              placeholder="0"
+              inputMode="numeric"
+              min="1000"
+              step="100"
+              placeholder="Contoh: 100000"
               value={form.amount}
               onChange={(e) => setForm({ ...form, amount: e.target.value })}
               required
@@ -682,14 +683,39 @@ export default function NonIplIncomes() {
 
         {/* Table Content */}
         {loading ? (
-          <div className="p-12 flex flex-col items-center justify-center text-sm text-slate-500">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-gold-500 border-t-transparent mb-4"></div>
-            Memuat daftar transaksi non-IPL...
+          <div className="p-4">
+            <SkeletonTable cols={6} rows={5} />
           </div>
         ) : filteredRows.length === 0 ? (
-          <div className="p-12 text-center text-sm text-slate-500">
-            <div className="text-4xl mb-2 opacity-50">📋</div>
-            Tidak ada transaksi non-IPL untuk filter ini.
+          <div className="p-4">
+            <EmptyState
+              icon="💰"
+              title={
+                activeTab !== 'all' || filterScope !== 'all'
+                  ? 'Tidak Ada Transaksi Sesuai Filter'
+                  : 'Belum Ada Pemasukan Non-IPL'
+              }
+              description={
+                activeTab !== 'all' || filterScope !== 'all'
+                  ? 'Tidak ditemukan riwayat pembayaran yang cocok dengan tab status atau lingkup yang dipilih.'
+                  : 'Semua dana partisipasi warga, sumbangan sukarela, dan sponsorship di luar IPL akan terdata di sini.'
+              }
+              action={
+                activeTab !== 'all' || filterScope !== 'all' ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('all');
+                      setFilterScope('all');
+                      setFilterEventId('');
+                    }}
+                    className="pv-btn-ghost text-xs shadow-2xs"
+                  >
+                    Tampilkan Semua Pemasukan
+                  </button>
+                ) : null
+              }
+            />
           </div>
         ) : (
           <>

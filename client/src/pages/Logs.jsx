@@ -10,6 +10,7 @@ import {
   AiOutlineClockCircle,
   AiOutlineInfoCircle,
 } from 'react-icons/ai';
+import { EmptyState, SkeletonTable } from '../components/ui';
 
 const ACTION_OPTIONS = [
   { value: '', label: 'Semua Aksi' },
@@ -208,89 +209,104 @@ export default function Logs() {
       </div>
 
       {/* Unified Table Card */}
-      <div className="pv-card overflow-hidden">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-12 space-y-3">
-            <svg className="animate-spin h-8 w-8 text-gold-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <p className="text-sm text-forest-500 font-medium">Memuat data sistem log...</p>
-          </div>
-        ) : (
+      {isLoading ? (
+        <SkeletonTable cols={6} rows={6} />
+      ) : logs.length === 0 ? (
+        <EmptyState
+          icon="📜"
+          title={
+            search || filterAction
+              ? 'Tidak Ditemukan Log Aktivitas'
+              : 'Belum Ada Log Aktivitas'
+          }
+          description={
+            search || filterAction
+              ? 'Tidak ada rekaman log audit yang sesuai dengan kata kunci pencarian atau tipe aksi yang dipilih.'
+              : 'Semua rekaman aktivitas login, audit data keuangan, dan perubahan sistem akan tercatat otomatis di sini.'
+          }
+          action={
+            search || filterAction ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('');
+                  setFilterAction('');
+                }}
+                className="pv-btn-ghost text-xs shadow-2xs"
+              >
+                Reset Filter & Pencarian
+              </button>
+            ) : null
+          }
+        />
+      ) : (
+        <div className="pv-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-forest-100 bg-forest-50/50">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-forest-600 uppercase w-[160px]">Waktu</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-forest-600 uppercase w-[220px]">Aktor</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-forest-600 uppercase w-[150px]">Aksi</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-forest-600 uppercase w-[120px]">Entitas</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-forest-600 uppercase">Rincian</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-forest-600 uppercase w-[120px]">Alamat IP</th>
+                <tr className="border-b border-slate-200 bg-slate-100/90">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider w-[160px]">Waktu</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider w-[220px]">Aktor</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider w-[150px]">Aksi</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider w-[120px]">Entitas</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Rincian</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider w-[120px]">Alamat IP</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-forest-100">
-                {logs.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-forest-400">
-                      Tidak ada log aktivitas yang cocok dengan filter.
+              <tbody className="divide-y divide-slate-100">
+                {logs.map((log) => (
+                  <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
+                    {/* Waktu */}
+                    <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                      {formatDateTime(log.created_at || log.timestamp)}
+                    </td>
+
+                    {/* Aktor */}
+                    <td className="px-4 py-3 min-w-[200px]">
+                      <div className="font-semibold text-slate-900 leading-tight">
+                        {log.actor_name || 'Sistem'}
+                      </div>
+                      {log.actor_email && (
+                        <div className="text-[11px] text-slate-400 font-mono mt-0.5 select-all">
+                          {log.actor_email}
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Aksi Badge */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium ${
+                        log.action?.includes('delete') || log.action?.includes('reject') || log.action?.includes('failed')
+                          ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                          : log.action?.includes('approve') || log.action?.includes('success')
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : 'bg-slate-100 text-slate-700 border border-slate-200'
+                      }`}>
+                        {log.action}
+                      </span>
+                    </td>
+
+                    {/* Entitas */}
+                    <td className="px-4 py-3 text-xs text-slate-600 font-mono">
+                      {log.entity || log.target || '—'}
+                    </td>
+
+                    {/* Rincian */}
+                    <td className="px-4 py-3 text-xs text-slate-600 max-w-xs truncate" title={log.details || log.description}>
+                      {log.details || log.description || '—'}
+                    </td>
+
+                    {/* IP */}
+                    <td className="px-4 py-3 text-xs text-slate-400 font-mono">
+                      {log.ip_address || '—'}
                     </td>
                   </tr>
-                ) : (
-                  logs.map((log) => (
-                    <tr key={log.id} className="hover:bg-forest-50/30 transition-colors">
-                      {/* Waktu */}
-                      <td className="px-4 py-3 text-forest-500 text-xs whitespace-nowrap">
-                        {formatDateTime(log.created_at || log.timestamp)}
-                      </td>
-
-                      {/* Aktor */}
-                      <td className="px-4 py-3 min-w-[200px]">
-                        <div className="font-semibold text-forest-900 leading-tight">
-                          {log.actor_name || 'Sistem'}
-                        </div>
-                        {log.actor_email && (
-                          <div className="text-[11px] text-forest-400 font-mono mt-0.5 select-all">
-                            {log.actor_email}
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Aksi */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`inline-flex items-center rounded px-2 py-0.5 text-2xs font-semibold leading-none ${getActionBadgeColor(log.action)}`}>
-                          {log.action}
-                        </span>
-                      </td>
-
-                      {/* Entitas */}
-                      <td className="px-4 py-3 whitespace-nowrap text-xs">
-                        <span className="font-medium text-forest-700">{log.entity_type || '—'}</span>
-                        {log.entity_id && (
-                          <span className="text-forest-400 font-mono text-[10px] ml-1 select-all">
-                            ({String(log.entity_id).substring(0, 8)})
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Rincian */}
-                      <td className="px-4 py-3 text-xs text-forest-700 font-medium">
-                        {formatMetadataSummary(log)}
-                      </td>
-
-                      {/* IP Address */}
-                      <td className="px-4 py-3 text-forest-500 font-mono text-xs whitespace-nowrap">
-                        {log.ip_address || '—'}
-                      </td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Load More Button */}
       {!isLoading && logs.length < totalCount && (
