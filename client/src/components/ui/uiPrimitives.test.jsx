@@ -9,7 +9,14 @@ import { StatusBadge } from './StatusBadge';
 import { DataRow } from './DataRow';
 import { Card } from './Card';
 import { EmptyState } from './EmptyState';
-import { LoadingState, Skeleton } from './LoadingState';
+import {
+  LoadingState,
+  Skeleton,
+  SkeletonText,
+  SkeletonCard,
+  SkeletonTable,
+  SkeletonList,
+} from './LoadingState';
 import { PageHeader } from './PageHeader';
 import { MobileList } from './MobileList';
 
@@ -91,6 +98,38 @@ describe('UI Primitives (Design System Foundation - Phase 1)', () => {
   it('renders Skeleton placeholder', () => {
     const html = renderToString(<Skeleton className="h-4 w-32" />);
     expect(html).toContain('animate-pulse');
+  });
+
+  it('renders SkeletonText, SkeletonCard, SkeletonTable, and SkeletonList', () => {
+    const textHtml = renderToString(<SkeletonText lines={3} />);
+    expect(textHtml).toContain('space-y-2');
+    expect(textHtml).toContain('animate-pulse');
+
+    const cardHtml = renderToString(<SkeletonCard rows={2} />);
+    expect(cardHtml).toContain('shadow-xs');
+    expect(cardHtml).toContain('animate-pulse');
+
+    const tableHtml = renderToString(<SkeletonTable cols={3} rows={4} />);
+    expect(tableHtml).toContain('<table');
+    expect(tableHtml).toContain('<thead');
+    expect(tableHtml).toContain('<tbody');
+
+    const listHtml = renderToString(<SkeletonList items={3} />);
+    expect(listHtml).toContain('space-y-2.5');
+  });
+
+  it('renders EmptyState in compact mode with string emoji', () => {
+    const html = renderToString(
+      <EmptyState
+        compact
+        icon="💸"
+        title="Belum Ada Pengeluaran"
+        description="Semua pencatatan akan muncul di sini."
+      />
+    );
+    expect(html).toContain('Belum Ada Pengeluaran');
+    expect(html).toContain('💸');
+    expect(html).toContain('p-5 sm:p-6');
   });
 
   it('renders PageHeader with title, description, and back link', () => {

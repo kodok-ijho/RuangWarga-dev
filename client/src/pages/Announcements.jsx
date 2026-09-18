@@ -94,6 +94,20 @@ export default function Announcements() {
               ? 'Tidak ditemukan pengumuman yang sesuai dengan kata kunci pencarian atau filter yang dipilih.'
               : 'Belum ada pengumuman yang diterbitkan untuk saat ini.'
           }
+          action={
+            search || urgencyFilter !== 'all' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('');
+                  setUrgencyFilter('all');
+                }}
+                className="pv-btn-ghost text-xs shadow-2xs"
+              >
+                Reset Pencarian & Filter
+              </button>
+            ) : null
+          }
         />
       ) : (
         <>
