@@ -12,6 +12,8 @@ import { useSubscriptionGate } from '../hooks/useSubscriptionGate';
 import { useTenantTemplate } from '../hooks/useTenantTemplate';
 import { useToast } from '../hooks/useToast';
 import Modal from '../components/Modal';
+import { MobileList } from '../components/ui';
+import { ExpenseCard, ExpenseDetailDrawer } from '../components/finance';
 import {
   fetchExpenses,
   fetchEvents,
@@ -81,6 +83,7 @@ export default function Expenses() {
   const [modalForm, setModalForm] = useState(null); // null | 'add' | expense obj
   const [viewReceipt, setViewReceipt] = useState(null); // expense obj
   const [receiptImageError, setReceiptImageError] = useState(false);
+  const [selectedExpenseForDrawer, setSelectedExpenseForDrawer] = useState(null);
 
   const loadExpenses = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -261,60 +264,158 @@ export default function Expenses() {
           Belum ada pengeluaran tercatat.
         </div>
       ) : (
-        <div className="space-y-2.5">
-          {filtered.map((exp) => (
-            <div key={exp.id} className="pv-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-300 transition-colors">
-              {/* Kiri */}
-              <div className="flex items-start gap-3 flex-1 min-w-0">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-forest-800 border border-slate-200 text-xs font-extrabold shadow-xs">
-                  {(exp.category || '').charAt(0)}
-                </span>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-bold text-slate-900 text-sm">{exp.category}</p>
-                    <span className="pv-badge bg-amber-50 text-amber-800 border border-amber-200 font-medium">{exp.scope === 'event' ? 'Event' : 'Umum'}</span>
-                    <span className="pv-badge bg-slate-100 text-slate-700 border border-slate-200 font-medium">{formatDate(exp.date || exp.expense_date)}</span>
-                  </div>
-                  <p className="text-xs text-slate-600 mt-1 line-clamp-1">{exp.description}</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Oleh: {exp.recorded_by}</p>
-                </div>
-              </div>
+        <>
+          {/* Mobile Card List (< 768px) */}
+          <div className="block md:hidden">
+            <MobileList
+              items={filtered}
+              keyExtractor={(exp) => exp.id}
+              emptyMessage="Belum ada pengeluaran tercatat."
+              renderItem={(exp) => {
+                const canEditThis = canEdit && canWrite && ((exp.scope || 'general') === 'event' ? manageableEventIds.has(exp.event_id) : canEditGeneral);
+                return (
+                  <ExpenseCard
+                    expense={exp}
+                    canEdit={canEditThis}
+                    onViewReceipt={(item) => {
+                      setReceiptImageError(false);
+                      setViewReceipt(item);
+                    }}
+                    onEdit={(item) => setModalForm(item)}
+                    onDelete={(item) => handleDelete(item)}
+                    onSelect={(item) => setSelectedExpenseForDrawer(item)}
+                  />
+                );
+              }}
+            />
+          </div>
 
-              {/* Kanan */}
-              <div className="flex items-center gap-3">
-                {exp.receipt_file && (
-                  <button
-                    onClick={() => { setReceiptImageError(false); setViewReceipt(exp); }}
-                    className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
-                    title="Lihat bukti"
-                  >
-                    <AiOutlinePaperClip />
-                  </button>
-                )}
-                <p className="font-extrabold text-slate-900 text-sm">{formatRupiah(exp.amount)}</p>
-                {canEdit && canWrite && ((exp.scope || 'general') === 'event' ? manageableEventIds.has(exp.event_id) : canEditGeneral) && (
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => setModalForm(exp)}
-                      className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
-                      title="Edit"
-                    >
-                      <AiOutlineEdit />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(exp)}
-                      className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
-                      title="Hapus"
-                    >
-                      <AiOutlineDelete />
-                    </button>
-                  </div>
-                )}
-              </div>
+          {/* Desktop Clean Table (>= 768px) */}
+          <div className="hidden md:block pv-card overflow-hidden border border-slate-200 shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-slate-100/90 border-b border-slate-200 text-xs uppercase text-slate-700 font-bold tracking-wider">
+                  <tr>
+                    <th className="px-5 py-3">Tanggal</th>
+                    <th className="px-5 py-3">Kategori & Lingkup</th>
+                    <th className="px-5 py-3">Keterangan</th>
+                    <th className="px-5 py-3">Dicatat Oleh</th>
+                    <th className="px-5 py-3 text-center">Bukti</th>
+                    <th className="px-5 py-3 text-right">Nominal</th>
+                    {canEdit && canWrite && (
+                      <th className="px-5 py-3 text-center">Aksi</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {filtered.map((exp) => {
+                    const canEditThis = canEdit && canWrite && ((exp.scope || 'general') === 'event' ? manageableEventIds.has(exp.event_id) : canEditGeneral);
+                    return (
+                      <tr
+                        key={exp.id}
+                        onClick={() => setSelectedExpenseForDrawer(exp)}
+                        className="hover:bg-slate-50/80 transition-colors cursor-pointer"
+                      >
+                        <td className="px-5 py-3.5 whitespace-nowrap text-xs font-semibold text-slate-600">
+                          {formatDate(exp.date || exp.expense_date)}
+                        </td>
+                        <td className="px-5 py-3.5 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900">{exp.category}</span>
+                            <span className="pv-badge bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-semibold">
+                              {exp.scope === 'event' ? '🎪 Event' : '🏡 Kas Umum'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5 max-w-xs text-xs text-slate-600 truncate">
+                          {exp.description || '-'}
+                        </td>
+                        <td className="px-5 py-3.5 whitespace-nowrap text-xs text-slate-500">
+                          {exp.recorded_by || '-'}
+                        </td>
+                        <td className="px-5 py-3.5 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          {exp.receipt_file ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReceiptImageError(false);
+                                setViewReceipt(exp);
+                              }}
+                              className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-semibold"
+                              title="Lihat Bukti Kwitansi"
+                            >
+                              <AiOutlinePaperClip className="text-sm" />
+                              <span>Nota</span>
+                            </button>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic">-</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5 text-right font-extrabold text-rose-600 font-mono tabular-nums whitespace-nowrap">
+                          - {formatRupiah(exp.amount)}
+                        </td>
+                        {canEdit && canWrite && (
+                          <td className="px-5 py-3.5 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                            {canEditThis ? (
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setModalForm(exp)}
+                                  className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                                  title="Edit"
+                                >
+                                  <AiOutlineEdit />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDelete(exp)}
+                                  className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                  title="Hapus"
+                                >
+                                  <AiOutlineDelete />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[11px] text-slate-300">-</span>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          ))}
-        </div>
+          </div>
+        </>
       )}
+
+      {/* Expense Detail Drawer */}
+      <ExpenseDetailDrawer
+        isOpen={!!selectedExpenseForDrawer}
+        onClose={() => setSelectedExpenseForDrawer(null)}
+        expense={selectedExpenseForDrawer}
+        canEdit={
+          canEdit &&
+          canWrite &&
+          selectedExpenseForDrawer &&
+          ((selectedExpenseForDrawer.scope || 'general') === 'event'
+            ? manageableEventIds.has(selectedExpenseForDrawer.event_id)
+            : canEditGeneral)
+        }
+        onEdit={(item) => {
+          setSelectedExpenseForDrawer(null);
+          setModalForm(item);
+        }}
+        onDelete={(item) => {
+          setSelectedExpenseForDrawer(null);
+          handleDelete(item);
+        }}
+        onViewReceipt={(item) => {
+          setReceiptImageError(false);
+          setViewReceipt(item);
+        }}
+      />
 
       {/* Modal form */}
       {modalForm && canWrite && (

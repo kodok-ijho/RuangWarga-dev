@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import QrisCheckoutModal from '../components/QrisCheckoutModal';
+import { MobileList } from '../components/ui';
+import { IncomeCard, IncomeDetailDrawer } from '../components/finance';
 import {
   createNonIplIncome,
   updateNonIplIncome,
@@ -66,6 +68,7 @@ export default function NonIplIncomes() {
   const [previewImage, setPreviewImage] = useState(null);
   const [rejectingItem, setRejectingItem] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [selectedIncomeForDrawer, setSelectedIncomeForDrawer] = useState(null);
 
   const canManageGeneral = canManageGeneralExpenses(role, isReadOnly);
 
@@ -689,148 +692,209 @@ export default function NonIplIncomes() {
             Tidak ada transaksi non-IPL untuk filter ini.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-100/90 border-b border-slate-200 text-xs uppercase text-slate-700 font-bold tracking-wider">
-                <tr>
-                  <th className="px-5 py-3">Tanggal</th>
-                  <th className="px-5 py-3">Tujuan & Kategori</th>
-                  <th className="px-5 py-3">Pembayar</th>
-                  <th className="px-5 py-3">Metode</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3 text-right">Nominal</th>
-                  <th className="px-5 py-3 text-center">Aksi / Verifikasi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredRows.map((row) => {
-                  const isRowPending = row.status === 'pending_verification';
+          <>
+            {/* Mobile Card List (< 768px) */}
+            <div className="block md:hidden p-3">
+              <MobileList
+                items={filteredRows}
+                keyExtractor={(row) => row.id}
+                emptyMessage="Tidak ada transaksi non-IPL untuk filter ini."
+                renderItem={(row) => {
                   const canVerifyRow = isStaff || (row.scope === 'event' && manageableEventIds.has(row.event_id));
-
                   return (
-                    <tr key={row.id} className={`hover:bg-slate-50/80 transition-colors ${isRowPending ? 'bg-amber-50/40' : ''}`}>
-                      <td className="px-5 py-3 whitespace-nowrap text-slate-600 font-medium text-xs">
-                        {formatDate(row.income_date)}
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="text-[11px] font-bold text-slate-500 uppercase">
-                          {row.scope === 'event' ? `🎪 ${getEventName(row.event_id)}` : '🏡 Kas Umum'}
-                        </div>
-                        <div className="font-bold text-slate-900">{row.category}</div>
-                        <p className="text-xs text-slate-500 line-clamp-1">{row.description}</p>
-                        {row.rejection_reason && (
-                          <p className="text-xs text-red-600 mt-1 font-medium">
-                            ⚠️ Alasan ditolak: {row.rejection_reason}
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-5 py-3 font-semibold text-slate-900">
-                        {row.source_name}
-                      </td>
-                      <td className="px-5 py-3">
-                        {getMethodBadge(row.payment_method)}
-                      </td>
-                      <td className="px-5 py-3">
-                        {getStatusBadge(row.status)}
-                      </td>
-                      <td className="px-5 py-3 text-right font-extrabold text-emerald-700 whitespace-nowrap">
-                        {formatRupiah(row.amount)}
-                      </td>
-                      <td className="px-5 py-3 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1.5">
-                          {/* Bukti Transfer Viewer */}
-                          {row.receipt_file_url ? (
-                            <button
-                              type="button"
-                              className="pv-btn-ghost py-1 px-2.5 text-xs flex items-center gap-1 text-blue-700 bg-blue-50/80 hover:bg-blue-100 border border-blue-200 rounded-lg shadow-2xs font-semibold"
-                              onClick={() => setPreviewImage(row.receipt_file_url)}
-                              title="Lihat Bukti Transfer"
-                            >
-                              <AiOutlineEye /> Bukti
-                            </button>
-                          ) : (
-                            <span className="text-[11px] text-slate-400 italic">Tanpa bukti</span>
-                          )}
-
-                          {/* Action Buttons for Staff / Event Treasurer on Pending Rows */}
-                          {isRowPending && canVerifyRow && (
-                            <>
-                              <button
-                                type="button"
-                                className="py-1 px-2.5 text-xs font-bold rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white flex items-center gap-1 shadow-xs transition-colors"
-                                onClick={() => handleApprove(row)}
-                                title="Setujui dan Verifikasi"
-                              >
-                                <AiOutlineCheck /> Terima
-                              </button>
-                              <button
-                                type="button"
-                                className="py-1 px-2.5 text-xs font-bold rounded-lg bg-red-600 hover:bg-red-700 text-white flex items-center gap-1 shadow-xs transition-colors"
-                                onClick={() => {
-                                  setRejectingItem(row);
-                                  setRejectionReason('');
-                                }}
-                                title="Tolak Pembayaran"
-                              >
-                                <AiOutlineClose /> Tolak
-                              </button>
-                            </>
-                          )}
-
-                          {/* Edit / Delete for Authorized Staff */}
-                          {canVerifyRow && (
-                            <div className="flex items-center gap-2 ml-1 border-l border-slate-200 pl-2">
-                              <button
-                                type="button"
-                                className="text-xs font-semibold text-blue-600 hover:underline"
-                                onClick={() => {
-                                  setEditingId(row.id);
-                                  setForm({
-                                    income_date: row.income_date ? new Date(row.income_date).toISOString().slice(0, 10) : '',
-                                    scope: row.scope,
-                                    event_id: row.event_id || '',
-                                    category: row.category,
-                                    source_name: row.source_name,
-                                    amount: row.amount,
-                                    payment_method: row.payment_method || 'bank_transfer',
-                                    reference_number: row.reference_number || '',
-                                    description: row.description || '',
-                                  });
-                                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                                }}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                className="text-xs font-semibold text-red-600 hover:underline"
-                                onClick={() => remove(row.id)}
-                              >
-                                Hapus
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                    <IncomeCard
+                      income={row}
+                      canVerify={canVerifyRow}
+                      onViewReceipt={(url) => setPreviewImage(url)}
+                      onApprove={(item) => handleApprove(item)}
+                      onReject={(item) => {
+                        setRejectingItem(item);
+                        setRejectionReason('');
+                      }}
+                      onSelect={(item) => setSelectedIncomeForDrawer(item)}
+                    />
                   );
-                })}
-              </tbody>
-              <tfoot className="bg-slate-50 border-t border-slate-200 font-bold text-slate-900">
-                <tr>
-                  <td colSpan="5" className="px-5 py-3 text-right text-slate-700 text-xs uppercase tracking-wider">
-                    Total Pemasukan Terverifikasi:
-                  </td>
-                  <td className="px-5 py-3 text-right text-sm font-extrabold text-emerald-700">
-                    {formatRupiah(totalAmount)}
-                  </td>
-                  <td />
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+                }}
+              />
+              <div className="mt-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs font-bold text-slate-800">
+                <span>Total Terverifikasi:</span>
+                <span className="text-emerald-700 font-mono text-sm">{formatRupiah(totalAmount)}</span>
+              </div>
+            </div>
+
+            {/* Desktop Clean Table (>= 768px) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-100/90 border-b border-slate-200 text-xs uppercase text-slate-700 font-bold tracking-wider">
+                  <tr>
+                    <th className="px-5 py-3">Tanggal</th>
+                    <th className="px-5 py-3">Tujuan & Kategori</th>
+                    <th className="px-5 py-3">Pembayar</th>
+                    <th className="px-5 py-3">Metode</th>
+                    <th className="px-5 py-3">Status</th>
+                    <th className="px-5 py-3 text-right">Nominal</th>
+                    <th className="px-5 py-3 text-center">Aksi / Verifikasi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredRows.map((row) => {
+                    const isRowPending = row.status === 'pending_verification';
+                    const canVerifyRow = isStaff || (row.scope === 'event' && manageableEventIds.has(row.event_id));
+
+                    return (
+                      <tr
+                        key={row.id}
+                        onClick={() => setSelectedIncomeForDrawer(row)}
+                        className={`hover:bg-slate-50/80 transition-colors cursor-pointer ${isRowPending ? 'bg-amber-50/40' : ''}`}
+                      >
+                        <td className="px-5 py-3 whitespace-nowrap text-slate-600 font-medium text-xs">
+                          {formatDate(row.income_date)}
+                        </td>
+                        <td className="px-5 py-3">
+                          <div className="text-[11px] font-bold text-slate-500 uppercase">
+                            {row.scope === 'event' ? `🎪 ${getEventName(row.event_id)}` : '🏡 Kas Umum'}
+                          </div>
+                          <div className="font-bold text-slate-900">{row.category}</div>
+                          <p className="text-xs text-slate-500 line-clamp-1">{row.description}</p>
+                          {row.rejection_reason && (
+                            <p className="text-xs text-red-600 mt-1 font-medium">
+                              ⚠️ Alasan ditolak: {row.rejection_reason}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-5 py-3 font-semibold text-slate-900">
+                          {row.source_name}
+                        </td>
+                        <td className="px-5 py-3">
+                          {getMethodBadge(row.payment_method)}
+                        </td>
+                        <td className="px-5 py-3">
+                          {getStatusBadge(row.status)}
+                        </td>
+                        <td className="px-5 py-3 text-right font-extrabold text-emerald-700 whitespace-nowrap font-mono tabular-nums">
+                          + {formatRupiah(row.amount)}
+                        </td>
+                        <td className="px-5 py-3 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-1.5">
+                            {/* Bukti Transfer Viewer */}
+                            {row.receipt_file_url ? (
+                              <button
+                                type="button"
+                                className="pv-btn-ghost py-1 px-2.5 text-xs flex items-center gap-1 text-blue-700 bg-blue-50/80 hover:bg-blue-100 border border-blue-200 rounded-lg shadow-2xs font-semibold"
+                                onClick={() => setPreviewImage(row.receipt_file_url)}
+                                title="Lihat Bukti Transfer"
+                              >
+                                <AiOutlineEye /> Bukti
+                              </button>
+                            ) : (
+                              <span className="text-[11px] text-slate-400 italic">Tanpa bukti</span>
+                            )}
+
+                            {/* Action Buttons for Staff / Event Treasurer on Pending Rows */}
+                            {isRowPending && canVerifyRow && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="py-1 px-2.5 text-xs font-bold rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white flex items-center gap-1 shadow-xs transition-colors"
+                                  onClick={() => handleApprove(row)}
+                                  title="Setujui dan Verifikasi"
+                                >
+                                  <AiOutlineCheck /> Terima
+                                </button>
+                                <button
+                                  type="button"
+                                  className="py-1 px-2.5 text-xs font-bold rounded-lg bg-red-600 hover:bg-red-700 text-white flex items-center gap-1 shadow-xs transition-colors"
+                                  onClick={() => {
+                                    setRejectingItem(row);
+                                    setRejectionReason('');
+                                  }}
+                                  title="Tolak Pembayaran"
+                                >
+                                  <AiOutlineClose /> Tolak
+                                </button>
+                              </>
+                            )}
+
+                            {/* Edit / Delete for Authorized Staff */}
+                            {canVerifyRow && (
+                              <div className="flex items-center gap-2 ml-1 border-l border-slate-200 pl-2">
+                                <button
+                                  type="button"
+                                  className="text-xs font-semibold text-blue-600 hover:underline"
+                                  onClick={() => {
+                                    setEditingId(row.id);
+                                    setForm({
+                                      income_date: row.income_date ? new Date(row.income_date).toISOString().slice(0, 10) : '',
+                                      scope: row.scope,
+                                      event_id: row.event_id || '',
+                                      category: row.category,
+                                      source_name: row.source_name,
+                                      amount: row.amount,
+                                      payment_method: row.payment_method || 'bank_transfer',
+                                      reference_number: row.reference_number || '',
+                                      description: row.description || '',
+                                    });
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="text-xs font-semibold text-red-600 hover:underline"
+                                  onClick={() => remove(row.id)}
+                                >
+                                  Hapus
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot className="bg-slate-50 border-t border-slate-200 font-bold text-slate-900">
+                  <tr>
+                    <td colSpan="5" className="px-5 py-3 text-right text-slate-700 text-xs uppercase tracking-wider">
+                      Total Pemasukan Terverifikasi:
+                    </td>
+                    <td className="px-5 py-3 text-right text-sm font-extrabold text-emerald-700 font-mono tabular-nums">
+                      {formatRupiah(totalAmount)}
+                    </td>
+                    <td />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </>
         )}
       </div>
+
+      {/* Income Detail Drawer */}
+      <IncomeDetailDrawer
+        isOpen={!!selectedIncomeForDrawer}
+        onClose={() => setSelectedIncomeForDrawer(null)}
+        income={selectedIncomeForDrawer}
+        canVerify={
+          selectedIncomeForDrawer &&
+          (isStaff ||
+            (selectedIncomeForDrawer.scope === 'event' &&
+              manageableEventIds.has(selectedIncomeForDrawer.event_id)))
+        }
+        onApprove={(item) => {
+          setSelectedIncomeForDrawer(null);
+          handleApprove(item);
+        }}
+        onReject={(item) => {
+          setSelectedIncomeForDrawer(null);
+          setRejectingItem(item);
+          setRejectionReason('');
+        }}
+        onViewReceipt={(url) => {
+          setPreviewImage(url);
+        }}
+      />
 
       {/* Modal Preview Bukti Transfer */}
       {previewImage && (
