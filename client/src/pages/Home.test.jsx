@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
@@ -17,6 +17,17 @@ import { useAuth } from '../hooks/useAuth';
 import { useTenant } from '../hooks/useTenant';
 
 describe('Home Page — SumoPod UX Model Test', () => {
+  beforeAll(() => {
+    vi.spyOn(console, 'error').mockImplementation((...args) => {
+      if (typeof args[0] === 'string' && args[0].includes('useLayoutEffect does nothing on the server')) {
+        return;
+      }
+    });
+  });
+
+  afterAll(() => {
+    vi.restoreAllMocks();
+  });
   it('renders clean GuestLandingView when user is NOT authenticated', () => {
     useAuth.mockReturnValue({
       user: null,
