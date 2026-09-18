@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { AuthProvider } from './context/AuthContext';
@@ -12,6 +12,7 @@ describe('App and AuthContext smoke test', () => {
   });
 
   it('AuthProvider renders without crashing via SSR renderToString', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(() => {
       renderToString(
         <AuthProvider>
@@ -19,5 +20,6 @@ describe('App and AuthContext smoke test', () => {
         </AuthProvider>
       );
     }).not.toThrow();
+    warnSpy.mockRestore();
   });
 });
