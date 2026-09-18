@@ -55,6 +55,7 @@ import {
 import { autoGenerateKosBilling, generateKelasSppBilling } from '../services/tenantOperationalService';
 import { compressImage } from '../utils/imageCompressor';
 import { AiOutlineDownload } from 'react-icons/ai';
+import { ResidentIplOverview, PaymentFlowModal, PaymentHistoryList } from '../components/payment';
 
 export function isHangingPayment(payment, bill, cellStatus) {
   if (!bill) return false;
@@ -449,6 +450,44 @@ export default function PaymentMatrix() {
     [selectedBills]
   );
 
+  // Mode tab untuk warga: 'my_bills' (Overview & Riwayat) atau 'matrix' (Matriks Transparansi)
+  const [activeTab, setActiveTab] = useState('my_bills');
+
+  const myRow = useMemo(() => {
+    if (!myUnitId || !Array.isArray(matrix)) return null;
+    return matrix.find((row) => String(row?.unit?.id) === String(myUnitId)) || null;
+  }, [matrix, myUnitId]);
+
+  const myBills = useMemo(() => {
+    if (!myRow || !Array.isArray(myRow.cells)) return [];
+    return myRow.cells
+      .map((c) => c?.bill)
+      .filter(Boolean)
+      .sort((a, b) => (a.period > b.period ? 1 : -1));
+  }, [myRow]);
+
+  const myUnpaidBills = useMemo(() => {
+    return myBills.filter((b) => b.status === 'unpaid' || b.status === 'rejected');
+  }, [myBills]);
+
+  const currentPeriodStr = useMemo(() => new Date().toISOString().slice(0, 7), []);
+
+  const myCurrentBill = useMemo(() => {
+    return myBills.find((b) => b.period === currentPeriodStr) || myBills[myBills.length - 1] || null;
+  }, [myBills, currentPeriodStr]);
+
+  const myPayments = useMemo(() => {
+    if (IS_DEMO) {
+      return myBills
+        .map((b) => getPaymentForBill(b.id))
+        .filter(Boolean);
+    }
+    return productionPayments.filter((p) => {
+      const pUnitId = p.unit_id || p.unitId;
+      return String(pUnitId) === String(myUnitId);
+    });
+  }, [myBills, productionPayments, myUnitId]);
+
   // Validasi runut lintas tahun untuk semua seleksi. Dipakai bersama oleh
   // Pembayaran warga maupun catat manual (staff) — urutan bayar harus konsisten.
   const validateAndGetSelected = () => {
@@ -834,176 +873,247 @@ export default function PaymentMatrix() {
         </div>
       </div>
 
-      {/* Legenda & Panduan */}
-      <div data-tour="matrix-pay-guide" className="flex flex-wrap items-center gap-4 text-xs text-slate-600 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded bg-emerald-100 border border-emerald-300"></span> Lunas (nominal + tgl)
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded bg-orange-100 border border-orange-400"></span> Menunggu Verifikasi
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded bg-amber-100 border-2 border-dashed border-amber-500"></span> ⚠️ Perlu Perbaikan (Menggantung)
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded bg-amber-50 border border-amber-300"></span> Belum Bayar
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded bg-red-50 border border-red-300"></span> Terlambat / Ditolak
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded bg-slate-100 border border-slate-300"></span> Dibatalkan
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded bg-forest-800 border border-forest-800"></span> Dipilih
-        </span>
-      </div>
-
-      {/* Matriks */}
-      <div data-tour="matrix-grid" className="pv-card relative z-0 overflow-hidden border border-slate-200 shadow-card bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs table-fixed min-w-[960px] border-collapse">
-            <thead>
-              <tr className="bg-slate-100/90 border-b border-slate-200">
-                <th className="sticky left-0 z-20 bg-slate-100 px-3.5 py-3 text-left text-[11px] font-bold text-slate-800 uppercase tracking-wide w-[180px] border-r border-slate-200">
-                  {template.headerResidentUnit || `${template.unitLabel} / ${template.memberLabel}`}
-                </th>
-                {matrixMonths.map((m) => (
-                  <th
-                    key={m.period}
-                    className="px-1 py-3 text-center text-[11px] font-bold text-slate-700 uppercase w-16"
-                  >
-                    {m.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {matrix.length === 0 ? (
-                <tr>
-                  <td colSpan={13} className="px-4 py-10 text-center text-forest-400">
-                    {role === 'warga' || role === 'anggota'
-                      ? `Anda belum memiliki ${template.unitLabel.toLowerCase()}. Hubungi pengelola.`
-                      : `Belum ada data ${template.unitLabel.toLowerCase()}.`}
-                  </td>
-                </tr>
-              ) : (
-                matrix.map((row) => {
-                  const residentNames = (Array.isArray(row.residents) && row.residents.length > 0
-                    ? row.residents
-                    : row.resident
-                      ? [row.resident]
-                      : [])
-                    .map((resident) => resident?.full_name?.trim())
-                    .filter(Boolean);
-                  // Warga / penyewa hanya bisa interaksi (bayar) untuk unitnya sendiri.
-                  const isMyUnit = (role === 'warga' || role === 'anggota') && row.unit.id === myUnitId;
-                  const canInteract = isStaff || isMyUnit;
-                  // Sel belum-bayar unit lain DIKUNCI saat ada unit aktif (hanya
-                  // relevan untuk staff — warga hanya punya satu unit sendiri).
-                  const isLockedOtherUnit =
-                    canInteract && activeUnitId !== null && row.unit.id !== activeUnitId;
-                  // Background OPAQUE untuk kolom sticky kiri, supaya sel
-                  // bulan tidak tembus/silang saat scroll horizontal. Pakai
-                  // versi solid (bukan /alpha) sesuai state baris.
-                  const stickyBg = isMyUnit ? 'bg-gold-50' : 'bg-white';
-                  // Dim baris unit non-aktif saat ada seleksi; highlight ring
-                  // tipis untuk baris unit aktif.
-                  const isActiveRow = activeUnitId !== null && row.unit.id === activeUnitId;
-                  const rowBg = isActiveRow
-                    ? 'bg-gold-50/40 ring-1 ring-inset ring-gold-200'
-                    : isLockedOtherUnit
-                    ? 'opacity-50'
-                    : isMyUnit
-                    ? 'bg-gold-50/50'
-                    : 'hover:bg-slate-50/80';
-                  return (
-                    <tr
-                      key={row.unit.id}
-                      data-tour={isMyUnit ? 'my-unit-row' : undefined}
-                      className={rowBg}
-                    >
-                      <td className={`sticky left-0 z-10 ${stickyBg} px-3 py-2 border-r border-slate-200`}>
-                        <p className={`font-bold text-xs ${isMyUnit ? 'text-forest-950' : 'text-slate-900'}`}>
-                          {row.unit.label || `Blok ${row.unit.block}/${row.unit.unit_number}`}
-                          {isMyUnit && (
-                            <span className="ml-1.5 pv-badge bg-gold-500 text-forest-950 text-[8px]">
-                              {template.unitLabel} Saya
-                            </span>
-                          )}
-                        </p>
-                        <p
-                          className="text-[10px] leading-tight text-slate-500 max-w-[180px] break-words mt-0.5"
-                          title={residentNames.join(' / ')}
-                        >
-                          {residentNames.length > 0 ? residentNames.join(' / ') : `— Belum Ada ${template.memberLabel} —`}
-                        </p>
-                        {row.unit.is_occupied || row.unit.status === 'occupied' ? (
-                          <span className="mt-0.5 inline-flex items-center rounded px-1.5 py-0.5 text-[8px] font-bold leading-none bg-emerald-100 text-emerald-800 border border-emerald-300">
-                            {template.occupiedUnitLabel}
-                          </span>
-                        ) : (
-                          <span className="mt-0.5 inline-flex items-center rounded px-1.5 py-0.5 text-[8px] font-bold leading-none bg-amber-100 text-amber-800 border border-amber-300">
-                            {template.emptyUnitLabel}
-                          </span>
-                        )}
-                      </td>
-                      {row.cells.map((cell, mIdx) => {
-                        const targetPeriod = matrixMonths[mIdx]?.period;
-                        const matchedCell =
-                          (cell && cell.bill && cell.bill.period === targetPeriod)
-                            ? cell
-                            : (Array.isArray(row.cells)
-                                ? row.cells.find((c) => c?.bill?.period === targetPeriod)
-                                : null) || cell;
-                        const isSelected = matchedCell?.bill ? isBillSelected(matchedCell.bill.id) : false;
-                        const payment = mergePaymentDetails(
-                          matchedCell?.payment,
-                          matchedCell?.bill?.id,
-                          matchedCell?.bill?.payment_id
-                        );
-                        const isHanging = isHangingPayment(payment, matchedCell?.bill, matchedCell?.status);
-                        return (
-                          <td key={mIdx} className="px-1 py-1 text-center">
-                            <Cell
-                              cell={matchedCell}
-                              payment={payment}
-                              isHanging={isHanging}
-                              unitId={row.unit.id}
-                              isSelected={isSelected}
-                              isStaff={isStaff}
-                              canInteract={canInteract}
-                              isLockedOtherUnit={isLockedOtherUnit}
-                              onClick={() => {
-                                if (isHanging) {
-                                  setDetailModal({ bill: matchedCell.bill, payment, unit: row.unit, isHanging: true });
-                                  return;
-                                }
-                                if (
-                                  matchedCell?.status === 'paid' ||
-                                  matchedCell?.status === 'pending_verification' ||
-                                  matchedCell?.status === 'rejected' ||
-                                  matchedCell?.payment?.status === 'rejected'
-                                ) {
-                                  setDetailModal({ bill: matchedCell.bill, payment, unit: row.unit, isHanging: false });
-                                  return;
-                                }
-                                // Cancelled/failed/expired: allow selecting for re-payment
-                                if (!canInteract || isLockedOtherUnit) return;
-                                toggleCell(matchedCell?.bill);
-                              }}
-                            />
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+      {/* Tab Switcher untuk Warga (Tagihan Saya vs Matriks Transparansi) */}
+      {!isStaff && (
+        <div className="flex border-b border-slate-200 gap-6">
+          <button
+            type="button"
+            onClick={() => setActiveTab('my_bills')}
+            className={`pb-3 text-sm font-bold transition-all relative ${
+              activeTab === 'my_bills'
+                ? 'text-forest-900 border-b-2 border-forest-800'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Tagihan &amp; Riwayat Saya
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('matrix')}
+            className={`pb-3 text-sm font-bold transition-all relative ${
+              activeTab === 'matrix'
+                ? 'text-forest-900 border-b-2 border-forest-800'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Matriks Transparansi Komplek
+          </button>
         </div>
-      </div>
+      )}
+
+      {!isStaff && activeTab === 'my_bills' ? (
+        <div className="space-y-6">
+          <ResidentIplOverview
+            unit={myRow?.unit}
+            unpaidBills={myUnpaidBills}
+            currentPeriodBill={myCurrentBill}
+            latestPayment={myPayments[0] || null}
+            selectedBillIds={Object.keys(selected)}
+            onToggleBillSelection={(billId) => {
+              const b = myBills.find((bill) => bill.id === billId);
+              if (b) toggleCell(b);
+            }}
+            onSelectAllUnpaid={() => {
+              const allSelected = myUnpaidBills.length > 0 && myUnpaidBills.every((b) => isBillSelected(b.id));
+              if (allSelected) {
+                setSelected({});
+              } else {
+                const newSelected = {};
+                myUnpaidBills.forEach((b) => {
+                  newSelected[b.id] = true;
+                });
+                setSelected(newSelected);
+              }
+            }}
+            onPaySelected={handlePay}
+            onViewDetail={(bill, payment) => {
+              setDetailModal({ bill, payment, unit: myRow?.unit, isHanging: false });
+            }}
+            template={template}
+            isReadOnly={isReadOnly}
+          />
+
+          <PaymentHistoryList
+            payments={myPayments}
+            bills={myBills}
+            template={template}
+            onDownloadReceipt={IS_DEMO ? (item) => downloadDigitalReceipt(item?.payment || item) : undefined}
+          />
+        </div>
+      ) : (
+        <>
+          {/* Legenda & Panduan */}
+          <div data-tour="matrix-pay-guide" className="flex flex-wrap items-center gap-4 text-xs text-slate-600 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded bg-emerald-100 border border-emerald-300"></span> Lunas (nominal + tgl)
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded bg-orange-100 border border-orange-400"></span> Menunggu Verifikasi
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded bg-amber-100 border-2 border-dashed border-amber-500"></span> ⚠️ Perlu Perbaikan (Menggantung)
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded bg-amber-50 border border-amber-300"></span> Belum Bayar
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded bg-red-50 border border-red-300"></span> Terlambat / Ditolak
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded bg-slate-100 border border-slate-300"></span> Dibatalkan
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded bg-forest-800 border border-forest-800"></span> Dipilih
+            </span>
+          </div>
+
+          {/* Matriks */}
+          <div data-tour="matrix-grid" className="pv-card relative z-0 overflow-hidden border border-slate-200 shadow-card bg-white">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs table-fixed min-w-[960px] border-collapse">
+                <thead>
+                  <tr className="bg-slate-100/90 border-b border-slate-200">
+                    <th className="sticky left-0 z-20 bg-slate-100 px-3.5 py-3 text-left text-[11px] font-bold text-slate-800 uppercase tracking-wide w-[180px] border-r border-slate-200">
+                      {template.headerResidentUnit || `${template.unitLabel} / ${template.memberLabel}`}
+                    </th>
+                    {matrixMonths.map((m) => (
+                      <th
+                        key={m.period}
+                        className="px-1 py-3 text-center text-[11px] font-bold text-slate-700 uppercase w-16"
+                      >
+                        {m.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {matrix.length === 0 ? (
+                    <tr>
+                      <td colSpan={13} className="px-4 py-10 text-center text-forest-400">
+                        {role === 'warga' || role === 'anggota'
+                          ? `Anda belum memiliki ${template.unitLabel.toLowerCase()}. Hubungi pengelola.`
+                          : `Belum ada data ${template.unitLabel.toLowerCase()}.`}
+                      </td>
+                    </tr>
+                  ) : (
+                    matrix.map((row) => {
+                      const residentNames = (Array.isArray(row.residents) && row.residents.length > 0
+                        ? row.residents
+                        : row.resident
+                          ? [row.resident]
+                          : [])
+                        .map((resident) => resident?.full_name?.trim())
+                        .filter(Boolean);
+                      // Warga / penyewa hanya bisa interaksi (bayar) untuk unitnya sendiri.
+                      const isMyUnit = (role === 'warga' || role === 'anggota') && row.unit.id === myUnitId;
+                      const canInteract = isStaff || isMyUnit;
+                      // Sel belum-bayar unit lain DIKUNCI saat ada unit aktif (hanya
+                      // relevan untuk staff — warga hanya punya satu unit sendiri).
+                      const isLockedOtherUnit =
+                        canInteract && activeUnitId !== null && row.unit.id !== activeUnitId;
+                      // Background OPAQUE untuk kolom sticky kiri, supaya sel
+                      // bulan tidak tembus/silang saat scroll horizontal. Pakai
+                      // versi solid (bukan /alpha) sesuai state baris.
+                      const stickyBg = isMyUnit ? 'bg-gold-50' : 'bg-white';
+                      // Dim baris unit non-aktif saat ada seleksi; highlight ring
+                      // tipis untuk baris unit aktif.
+                      const isActiveRow = activeUnitId !== null && row.unit.id === activeUnitId;
+                      const rowBg = isActiveRow
+                        ? 'bg-gold-50/40 ring-1 ring-inset ring-gold-200'
+                        : isLockedOtherUnit
+                        ? 'opacity-50'
+                        : isMyUnit
+                        ? 'bg-gold-50/50'
+                        : 'hover:bg-slate-50/80';
+                      return (
+                        <tr
+                          key={row.unit.id}
+                          data-tour={isMyUnit ? 'my-unit-row' : undefined}
+                          className={rowBg}
+                        >
+                          <td className={`sticky left-0 z-10 ${stickyBg} px-3 py-2 border-r border-slate-200`}>
+                            <p className={`font-bold text-xs ${isMyUnit ? 'text-forest-950' : 'text-slate-900'}`}>
+                              {row.unit.label || `Blok ${row.unit.block}/${row.unit.unit_number}`}
+                              {isMyUnit && (
+                                <span className="ml-1.5 pv-badge bg-gold-500 text-forest-950 text-[8px]">
+                                  {template.unitLabel} Saya
+                                </span>
+                              )}
+                            </p>
+                            <p
+                              className="text-[10px] leading-tight text-slate-500 max-w-[180px] break-words mt-0.5"
+                              title={residentNames.join(' / ')}
+                            >
+                              {residentNames.length > 0 ? residentNames.join(' / ') : `— Belum Ada ${template.memberLabel} —`}
+                            </p>
+                            {row.unit.is_occupied || row.unit.status === 'occupied' ? (
+                              <span className="mt-0.5 inline-flex items-center rounded px-1.5 py-0.5 text-[8px] font-bold leading-none bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                {template.occupiedUnitLabel}
+                              </span>
+                            ) : (
+                              <span className="mt-0.5 inline-flex items-center rounded px-1.5 py-0.5 text-[8px] font-bold leading-none bg-amber-100 text-amber-800 border border-amber-300">
+                                {template.emptyUnitLabel}
+                              </span>
+                            )}
+                          </td>
+                          {row.cells.map((cell, mIdx) => {
+                            const targetPeriod = matrixMonths[mIdx]?.period;
+                            const matchedCell =
+                              (cell && cell.bill && cell.bill.period === targetPeriod)
+                                ? cell
+                                : (Array.isArray(row.cells)
+                                    ? row.cells.find((c) => c?.bill?.period === targetPeriod)
+                                    : null) || cell;
+                            const isSelected = matchedCell?.bill ? isBillSelected(matchedCell.bill.id) : false;
+                            const payment = mergePaymentDetails(
+                              matchedCell?.payment,
+                              matchedCell?.bill?.id,
+                              matchedCell?.bill?.payment_id
+                            );
+                            const isHanging = isHangingPayment(payment, matchedCell?.bill, matchedCell?.status);
+                            return (
+                              <td key={mIdx} className="px-1 py-1 text-center">
+                                <Cell
+                                  cell={matchedCell}
+                                  payment={payment}
+                                  isHanging={isHanging}
+                                  unitId={row.unit.id}
+                                  isSelected={isSelected}
+                                  isStaff={isStaff}
+                                  canInteract={canInteract}
+                                  isLockedOtherUnit={isLockedOtherUnit}
+                                  onClick={() => {
+                                    if (isHanging) {
+                                      setDetailModal({ bill: matchedCell.bill, payment, unit: row.unit, isHanging: true });
+                                      return;
+                                    }
+                                    if (
+                                      matchedCell?.status === 'paid' ||
+                                      matchedCell?.status === 'pending_verification' ||
+                                      matchedCell?.status === 'rejected' ||
+                                      matchedCell?.payment?.status === 'rejected'
+                                    ) {
+                                      setDetailModal({ bill: matchedCell.bill, payment, unit: row.unit, isHanging: false });
+                                      return;
+                                    }
+                                    // Cancelled/failed/expired: allow selecting for re-payment
+                                    if (!canInteract || isLockedOtherUnit) return;
+                                    toggleCell(matchedCell?.bill);
+                                  }}
+                                />
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Footer bayar — warga (transfer bank) atau staff (catat manual) */}
       {selectedBills.length > 0 && (
@@ -1049,9 +1159,10 @@ export default function PaymentMatrix() {
         </div>
       )}
 
-      {/* Modal pembayaran warga (Transfer Bank) */}
+      {/* Modal pembayaran warga (QRIS / Transfer Bank) */}
       {payModal && (
-        <ResidentPayModal
+        <PaymentFlowModal
+          open={Boolean(payModal)}
           bills={payModal}
           total={totalToPay}
           canUseQris={canUseQris}

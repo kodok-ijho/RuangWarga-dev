@@ -12,6 +12,7 @@ const MAX_WIDTHS = {
 
 export function Dialog({
   isOpen,
+  open,
   onClose,
   title,
   description,
@@ -21,6 +22,8 @@ export function Dialog({
   showCloseButton = true,
   className = '',
 }) {
+  const visible = open !== undefined ? open : isOpen;
+
   const handleKeyDown = useCallback(
     (e) => {
       if (e.key === 'Escape' && !preventCloseOnBackdrop) {
@@ -31,7 +34,7 @@ export function Dialog({
   );
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!visible || typeof document === 'undefined') return;
 
     // Kunci scroll body saat modal aktif
     const originalStyle = window.getComputedStyle(document.body).overflow;
@@ -42,13 +45,13 @@ export function Dialog({
       document.body.style.overflow = originalStyle;
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, handleKeyDown]);
+  }, [visible, handleKeyDown]);
 
-  if (!isOpen) return null;
+  if (!visible) return null;
 
   const maxWidthClass = MAX_WIDTHS[maxWidth] || MAX_WIDTHS.md;
 
-  return createPortal(
+  const modalContent = (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs sm:items-center sm:p-4 overflow-y-auto"
       role="dialog"
@@ -101,9 +104,14 @@ export function Dialog({
           {children}
         </div>
       </div>
-    </div>,
-    document.body
+    </div>
   );
+
+  if (typeof document === 'undefined' || !document.body) {
+    return modalContent;
+  }
+
+  return createPortal(modalContent, document.body);
 }
 
 export default Dialog;
