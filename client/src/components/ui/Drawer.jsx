@@ -68,10 +68,10 @@ export function Drawer({
           <button
             type="button"
             onClick={onClose}
-            className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition pv-focus-ring ml-3 shrink-0"
+            className="min-h-[44px] min-w-[44px] rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition pv-focus-ring ml-2 shrink-0"
             aria-label="Tutup panel"
           >
-            <AiOutlineClose className="text-base" />
+            <AiOutlineClose className="text-lg" aria-hidden="true" />
           </button>
         </div>
 

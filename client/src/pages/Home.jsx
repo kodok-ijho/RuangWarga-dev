@@ -405,25 +405,25 @@ function AuthenticatedWorkspaceHub() {
                     </span>
                   )}
                 </div>
-                <p className="text-[10px] text-slate-500 tracking-wider uppercase font-medium">
+                <p className="text-[10px] text-slate-500 tracking-wider uppercase font-medium hidden sm:block">
                   Workspace Kelola Tenant
                 </p>
               </div>
             </Link>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link
               to="/listing"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-forest-900 rounded-lg hover:bg-slate-100 transition"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-forest-900 rounded-lg hover:bg-slate-100 pv-focus-ring transition"
             >
-              <AiOutlineShop className="text-sm text-forest-700" />
+              <AiOutlineShop className="text-sm text-forest-700" aria-hidden="true" />
               <span>Direktori Listing</span>
             </Link>
 
             {/* Profile Pill & Logout */}
-            <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
-              <div className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-slate-100 border border-slate-200/90 max-w-[200px] truncate">
+            <div className="flex items-center gap-1.5 sm:gap-2 pl-2 border-l border-slate-200">
+              <div className="flex items-center gap-2 px-2 sm:px-2.5 py-1 rounded-xl bg-slate-100 border border-slate-200/90 max-w-[110px] sm:max-w-[200px] truncate">
                 <div className="w-6 h-6 rounded-full bg-forest-800 text-white font-bold text-xs flex items-center justify-center shrink-0">
                   {displayName.charAt(0).toUpperCase()}
                 </div>
@@ -436,8 +436,9 @@ function AuthenticatedWorkspaceHub() {
               <button
                 type="button"
                 onClick={() => signOut()}
-                className="px-3 py-1.5 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition border border-rose-200"
+                className="min-h-[36px] px-2.5 sm:px-3 py-1.5 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition border border-rose-200 shrink-0 pv-focus-ring"
                 title="Keluar dari akun"
+                aria-label="Keluar dari akun"
               >
                 Keluar
               </button>
