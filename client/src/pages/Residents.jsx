@@ -30,6 +30,8 @@ import {
   OCCUPANCY_STATUS,
   canManageResidents,
 } from '../services/dataHelpers';
+import { MobileList } from '../components/ui';
+import { ResidentCard, ResidentDetailDrawer } from '../components/residents';
 
 export default function Residents() {
   const { role, session, isReadOnly } = useAuth();
@@ -367,127 +369,144 @@ export default function Residents() {
         </div>
       </div>
 
-      {/* Tabel */}
-      <div data-tour="residents-list" className="pv-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-100/90 text-left">
-                <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider">Nama</th>
-                <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider">{template.unitLabel}</th>
-                <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider hidden sm:table-cell">Telepon</th>
-                <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider hidden lg:table-cell">{template.contractLabel || 'Status Tinggal'}</th>
-                <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider hidden lg:table-cell">Pemilik</th>
-                <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider hidden md:table-cell">Role</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center">
-                    <div className="flex justify-center items-center gap-2 text-slate-500 text-sm">
-                      <svg className="animate-spin h-5 w-5 text-gold-500" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      Memuat data {template.memberLabel.toLowerCase()}...
-                    </div>
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
-                    Tidak ada {template.memberLabel.toLowerCase()} yang cocok.
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((p) => {
-                  const unit = getUnitById(p.unit_id);
-                  return (
-                    <tr
-                       key={p.id}
-                       onClick={() => setSelectedId(p.id)}
-                       className="hover:bg-slate-50/80 cursor-pointer transition-colors"
-                     >
-                       <td className="px-4 py-3">
-                         <div className="flex items-center gap-2.5">
-                           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs">
-                             {p.full_name.charAt(0)}
-                           </span>
-                           <div className="min-w-0">
-                             <p className="font-semibold text-slate-900 truncate">{p.full_name}</p>
-                             {p.email && p.email.includes('@warga.palmvillage.local') ? (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600">
-                                <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-                                Akun Sementara (Belum Login)
+      {/* Daftar Penghuni Adaptif (Mobile Cards / Desktop Table) */}
+      <div data-tour="residents-list">
+        {isLoading ? (
+          <div className="pv-card p-10 text-center">
+            <div className="flex justify-center items-center gap-2 text-slate-500 text-sm">
+              <svg className="animate-spin h-5 w-5 text-gold-500" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              Memuat data {template.memberLabel.toLowerCase()}...
+            </div>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="pv-card p-10 text-center text-slate-400">
+            Tidak ada {template.memberLabel.toLowerCase()} yang cocok.
+          </div>
+        ) : (
+          <MobileList
+            items={filtered}
+            renderItem={(p) => {
+              const unit = getUnitById(p.unit_id);
+              return (
+                <ResidentCard
+                  key={p.id}
+                  profile={p}
+                  unit={unit}
+                  template={template}
+                  activeTenant={activeTenant}
+                  onClick={() => setSelectedId(p.id)}
+                />
+              );
+            }}
+            desktopContent={
+              <div className="pv-card overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-100/90 text-left">
+                        <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider">Nama</th>
+                        <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider">{template.unitLabel}</th>
+                        <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider hidden sm:table-cell">Telepon</th>
+                        <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider">Status</th>
+                        <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider hidden lg:table-cell">{template.contractLabel || 'Status Tinggal'}</th>
+                        <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider hidden lg:table-cell">Pemilik</th>
+                        <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider hidden md:table-cell">Role</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filtered.map((p) => {
+                        const unit = getUnitById(p.unit_id);
+                        return (
+                          <tr
+                            key={p.id}
+                            onClick={() => setSelectedId(p.id)}
+                            className="hover:bg-slate-50/80 cursor-pointer transition-colors"
+                          >
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2.5">
+                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs">
+                                  {p.full_name.charAt(0)}
+                                </span>
+                                <div className="min-w-0">
+                                  <p className="font-semibold text-slate-900 truncate">{p.full_name}</p>
+                                  {p.email && p.email.includes('@warga.palmvillage.local') ? (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600">
+                                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                                      Akun Sementara (Belum Login)
+                                    </span>
+                                  ) : (
+                                    <p className="text-[11px] text-slate-400 truncate">{p.email}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-slate-800 font-medium">
+                              {unit ? (unit.label || `${unit.block}/${unit.unit_number}`) : '—'}
+                            </td>
+                            <td className="px-4 py-3 text-slate-500 hidden sm:table-cell">{p.phone || '—'}</td>
+                            <td className="px-4 py-3">
+                              <span className={`pv-badge ${p.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
+                                {p.is_active ? 'Aktif' : 'Non-aktif'}
                               </span>
-                            ) : (
-                              <p className="text-[11px] text-slate-400 truncate">{p.email}</p>
-                            )}
-                           </div>
-                         </div>
-                       </td>
-                       <td className="px-4 py-3 text-slate-800 font-medium">
-                         {unit ? (unit.label || `${unit.block}/${unit.unit_number}`) : '—'}
-                       </td>
-                       <td className="px-4 py-3 text-slate-500 hidden sm:table-cell">{p.phone || '—'}</td>
-                       <td className="px-4 py-3">
-                         <span className={`pv-badge ${p.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
-                           {p.is_active ? 'Aktif' : 'Non-aktif'}
-                         </span>
-                       </td>
-                       <td className="px-4 py-3 hidden lg:table-cell">
-                         {p.occupancy_status ? (
-                           <span className={`pv-badge ${occupancyStatusColor(p.occupancy_status)}`}>
-                             {occupancyStatusLabel(p.occupancy_status, activeTenant?.type)}
-                           </span>
-                         ) : (
-                           <span className="text-slate-400 text-xs">—</span>
-                         )}
-                       </td>
-                       <td className="px-4 py-3 hidden lg:table-cell text-slate-700 text-xs font-medium">
-                         {(() => {
-                           if (!unit) return '—';
-                           if (p.occupancy_status === 'tenant') {
-                             const owner = getUnitOwner(p.unit_id);
-                             return owner ? owner.full_name : '—';
-                           }
-                           if (p.occupancy_status && p.occupancy_status.startsWith('owner_')) {
-                             return <span className="text-emerald-700 font-semibold">Diri sendiri</span>;
-                           }
-                           return '—';
-                           })()}
-                       </td>
-                       <td className="px-4 py-3 hidden md:table-cell">
-                         <span className={`pv-badge ${roleColor(p.role)}`}>{roleLabel(p.role, activeTenant?.type)}</span>
-                       </td>
-                     </tr>
-                   );
-                 })
-               )}
-             </tbody>
-           </table>
-         </div>
-       </div>
- 
-       {/* Modal detail */}
-       {selected && (
-         <DetailModal
-           profile={selected}
-           canManage={canManage}
-           template={template}
-           activeTenant={activeTenant}
-           getUnitById={getUnitById}
-           getUnitOwner={getUnitOwner}
-           onClose={() => setSelectedId(null)}
-           onEdit={() => {
-             setModalAddEdit(selected);
-             setSelectedId(null);
-           }}
-           onDelete={() => handleDelete(selected)}
-         />
-       )}
+                            </td>
+                            <td className="px-4 py-3 hidden lg:table-cell">
+                              {p.occupancy_status ? (
+                                <span className={`pv-badge ${occupancyStatusColor(p.occupancy_status)}`}>
+                                  {occupancyStatusLabel(p.occupancy_status, activeTenant?.type)}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 text-xs">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 hidden lg:table-cell text-slate-700 text-xs font-medium">
+                              {(() => {
+                                if (!unit) return '—';
+                                if (p.occupancy_status === 'tenant') {
+                                  const owner = getUnitOwner(p.unit_id);
+                                  return owner ? owner.full_name : '—';
+                                }
+                                if (p.occupancy_status && p.occupancy_status.startsWith('owner_')) {
+                                  return <span className="text-emerald-700 font-semibold">Diri sendiri</span>;
+                                }
+                                return '—';
+                              })()}
+                            </td>
+                            <td className="px-4 py-3 hidden md:table-cell">
+                              <span className={`pv-badge ${roleColor(p.role)}`}>{roleLabel(p.role, activeTenant?.type)}</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            }
+          />
+        )}
+      </div>
+
+      {/* Modal/Drawer detail */}
+      {selected && (
+        <ResidentDetailDrawer
+          open={Boolean(selected)}
+          profile={selected}
+          unit={getUnitById(selected.unit_id)}
+          owner={selected.occupancy_status === 'tenant' ? getUnitOwner(selected.unit_id) : null}
+          canManage={canManage}
+          template={template}
+          activeTenant={activeTenant}
+          onClose={() => setSelectedId(null)}
+          onEdit={() => {
+            setModalAddEdit(selected);
+            setSelectedId(null);
+          }}
+          onDelete={() => handleDelete(selected)}
+        />
+      )}
  
        {/* Modal add/edit */}
        {modalAddEdit && canManage && (
