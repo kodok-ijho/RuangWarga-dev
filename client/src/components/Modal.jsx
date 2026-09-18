@@ -48,13 +48,16 @@ export default function Modal({ open, onClose, title, children, size = 'md' }) {
       <div
         className={`relative pv-card w-full ${sizes[size]} max-h-[90vh] overflow-y-auto shadow-elevated bg-white`}
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
       >
         {title && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-white/95 backdrop-blur-xs z-10">
             <h3 className="font-bold text-slate-900 text-base">{title}</h3>
             <button
+              type="button"
               onClick={onClose}
-              className="text-slate-400 hover:text-slate-700 text-xl leading-none"
+              className="min-h-[44px] min-w-[44px] rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition pv-focus-ring ml-2 text-xl leading-none"
               aria-label="Tutup"
             >
               ✕

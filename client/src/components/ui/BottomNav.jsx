@@ -184,34 +184,34 @@ export function BottomNav() {
 
             <button
               onClick={() => handleNavigate(homePath)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition"
+              className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 pv-focus-ring transition"
             >
-              <AiOutlineHome className="text-base text-forest-800" />
+              <AiOutlineHome className="text-base text-forest-800" aria-hidden="true" />
               <span>Beranda Operasional</span>
             </button>
 
             <button
               onClick={() => handleNavigate(iplPath)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition"
+              className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 pv-focus-ring transition"
             >
-              <AiOutlineTable className="text-base text-forest-800" />
+              <AiOutlineTable className="text-base text-forest-800" aria-hidden="true" />
               <span>{template.billLabel || 'Matriks Pembayaran'}</span>
             </button>
 
             <button
               onClick={() => handleNavigate(wargaPath)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition"
+              className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 pv-focus-ring transition"
             >
-              <AiOutlineTeam className="text-base text-forest-800" />
+              <AiOutlineTeam className="text-base text-forest-800" aria-hidden="true" />
               <span>Daftar {template.memberLabel || 'Warga'}</span>
             </button>
 
             {canViewHouses(role) && (
               <button
                 onClick={() => handleNavigate('/houses')}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition"
+                className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 pv-focus-ring transition"
               >
-                <AiOutlineHome className="text-base text-forest-800" />
+                <AiOutlineHome className="text-base text-forest-800" aria-hidden="true" />
                 <span>Data {template.unitLabel || 'Rumah / Unit'}</span>
               </button>
             )}
@@ -224,27 +224,27 @@ export function BottomNav() {
             {canViewPaymentVerification(role) && (
               <button
                 onClick={() => handleNavigate(activeTenantId ? `${tenantPrefix}/payment-verification` : '/payment-verification')}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition"
+                className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 pv-focus-ring transition"
               >
-                <AiOutlineFileText className="text-base text-forest-800" />
+                <AiOutlineFileText className="text-base text-forest-800" aria-hidden="true" />
                 <span>Verifikasi Pembayaran</span>
               </button>
             )}
 
             <button
               onClick={() => handleNavigate(activeTenantId ? `${tenantPrefix}/expenses` : '/expenses')}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition"
+              className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 pv-focus-ring transition"
             >
-              <AiOutlineWallet className="text-base text-forest-800" />
+              <AiOutlineWallet className="text-base text-forest-800" aria-hidden="true" />
               <span>Pengeluaran Kas</span>
             </button>
 
             {canViewFinancialReports(role) && (
               <button
                 onClick={() => handleNavigate(activeTenantId ? `${tenantPrefix}/reports` : '/reports')}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition"
+                className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 pv-focus-ring transition"
               >
-                <AiOutlineBarChart className="text-base text-forest-800" />
+                <AiOutlineBarChart className="text-base text-forest-800" aria-hidden="true" />
                 <span>Laporan Arus Kas</span>
               </button>
             )}
@@ -256,18 +256,18 @@ export function BottomNav() {
 
             <button
               onClick={() => handleNavigate('/account/tenants')}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition"
+              className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 pv-focus-ring transition"
             >
-              <AiOutlineUser className="text-base text-forest-800" />
+              <AiOutlineUser className="text-base text-forest-800" aria-hidden="true" />
               <span>Kelola Tenant Anda</span>
             </button>
 
             {isStaffRole(role) && (
               <button
                 onClick={() => handleNavigate('/settings')}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition"
+                className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 pv-focus-ring transition"
               >
-                <AiOutlineSetting className="text-base text-forest-800" />
+                <AiOutlineSetting className="text-base text-forest-800" aria-hidden="true" />
                 <span>Pengaturan Iuran</span>
               </button>
             )}
@@ -275,9 +275,9 @@ export function BottomNav() {
             {isPlatformAdmin && (
               <button
                 onClick={() => handleNavigate('/platform')}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 transition"
+                className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 pv-focus-ring transition"
               >
-                <span className="text-base">👑</span>
+                <span className="text-base" aria-hidden="true">👑</span>
                 <span>Platform Owner Dashboard</span>
               </button>
             )}
@@ -291,9 +291,9 @@ export function BottomNav() {
                 setMenuDrawerOpen(false);
                 signOut();
               }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 text-xs font-bold transition"
+              className="w-full min-h-[44px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 text-xs font-bold pv-focus-ring transition"
             >
-              <AiOutlineLogout className="text-sm" />
+              <AiOutlineLogout className="text-sm" aria-hidden="true" />
               <span>Keluar dari Akun</span>
             </button>
           </div>
