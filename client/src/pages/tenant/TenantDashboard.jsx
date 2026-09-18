@@ -28,6 +28,8 @@ import { Card, Button, StatusBadge, PageHeader, Badge } from '../../components/u
 import { ResidentBillingHero } from '../../components/dashboard/ResidentBillingHero';
 import { StaffCollectionHero } from '../../components/dashboard/StaffCollectionHero';
 import { QuickActionsGrid } from '../../components/dashboard/QuickActionsGrid';
+import { AnnouncementBanner } from '../../components/community';
+import { getAnnouncementsByTenant } from '../../services/communityData';
 
 export default function TenantDashboard() {
   const { tenantId: routeTenantId } = useParams();
@@ -295,7 +297,18 @@ export default function TenantDashboard() {
           />
         )}
 
-        {/* ── 4. Quick Actions Grid (Level 2 - Akses Cepat) ─────────────────── */}
+        {/* ── 4. Announcement Banner (Priority 3 - Pengumuman Warga Penting) ── */}
+        {(() => {
+          const topAnnouncement = getAnnouncementsByTenant(tenantId)[0];
+          return topAnnouncement ? (
+            <AnnouncementBanner
+              announcement={topAnnouncement}
+              tenantId={tenantId}
+            />
+          ) : null;
+        })()}
+
+        {/* ── 5. Quick Actions Grid (Level 2 - Akses Cepat) ─────────────────── */}
         <QuickActionsGrid
           tenantId={tenantId}
           template={template}

@@ -14,6 +14,8 @@ import {
   revokeEventMember,
 } from '../services/dataService';
 import { formatDateTime } from '../services/dataHelpers';
+import { PageHeader, MobileList } from '../components/ui';
+import { EventCard } from '../components/community';
 
 const EMPTY_FORM = {
   title: '',
@@ -188,172 +190,257 @@ export default function Events() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-forest-900">Event / Kegiatan</h1>
-          <p className="text-sm text-forest-500">Master event, tautan dokumentasi, dan kepanitiaan event (Ketua, Bendahara, Sie).</p>
-        </div>
-        <div className="flex gap-2">
-          <select className="pv-input py-1.5 text-sm" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-            <option value="all">Semua Status</option>
-            <option value="draft">Draft</option>
-            <option value="active">Aktif</option>
-            <option value="completed">Selesai</option>
-            <option value="cancelled">Dibatalkan</option>
-            <option value="archived">Diarsipkan</option>
-          </select>
-          {isAdmin && (
-            <button type="button" className="pv-btn-primary whitespace-nowrap" onClick={() => {
-              setForm(EMPTY_FORM);
-              setEditingEvent(null);
-              setShowForm((value) => !value);
-            }}>
-              {showForm ? 'Batal' : '+ Buat Event'}
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Page Header */}
+      <PageHeader
+        title="Kegiatan & Acara Warga"
+        description="Master data event, dokumentasi kegiatan, dan susunan kepanitiaan komunitas."
+        action={
+          <div className="flex items-center gap-2">
+            <select
+              className="pv-input py-1.5 text-xs font-semibold"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
+              <option value="all">Semua Status</option>
+              <option value="draft">Draf</option>
+              <option value="active">Sedang Berlangsung</option>
+              <option value="completed">Selesai</option>
+              <option value="cancelled">Dibatalkan</option>
+              <option value="archived">Diarsipkan</option>
+            </select>
 
-      {showForm && isAdmin && (
-        <form className="pv-card grid gap-3 p-5 md:grid-cols-2" onSubmit={submitEvent}>
-          <div className="md:col-span-2">
-            <h2 className="text-base font-bold text-forest-900">{editingEvent ? 'Edit Data Event' : 'Buat Event Baru'}</h2>
-            <p className="text-xs text-forest-500">Isi data kegiatan dan tautan Google Drive dokumentasi (opsional).</p>
+            {isAdmin && (
+              <button
+                type="button"
+                className="pv-btn-primary whitespace-nowrap text-xs shadow-xs"
+                onClick={() => {
+                  setForm(EMPTY_FORM);
+                  setEditingEvent(null);
+                  setShowForm((value) => !value);
+                }}
+              >
+                {showForm ? 'Tutup Form' : '+ Buat Event'}
+              </button>
+            )}
           </div>
-          <input className="pv-input" placeholder="Judul event *" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
-          <input className="pv-input" placeholder="Kode event (contoh: HUT-PV-2026) *" value={form.event_code} onChange={(e) => setForm({ ...form, event_code: e.target.value })} required />
-          <label className="text-sm text-forest-700">Tanggal Mulai *<input className="pv-input mt-1" type="datetime-local" value={form.event_date} onChange={(e) => setForm({ ...form, event_date: e.target.value })} required /></label>
-          <label className="text-sm text-forest-700">Tanggal Selesai (Opsional)<input className="pv-input mt-1" type="datetime-local" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></label>
-          <input className="pv-input" placeholder="Lokasi kegiatan" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
-          <select className="pv-input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-            <option value="draft">Draft</option>
-            <option value="active">Aktif</option>
+        }
+      />
+
+      {/* Form Tambah/Edit Event */}
+      {showForm && isAdmin && (
+        <form className="pv-card grid gap-3 p-5 md:grid-cols-2 border border-slate-200 bg-white shadow-xs" onSubmit={submitEvent}>
+          <div className="md:col-span-2 pb-2 border-b border-slate-100">
+            <h2 className="text-base font-bold text-slate-900">{editingEvent ? 'Edit Data Event' : 'Buat Event Baru'}</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Isi data kegiatan dan tautan Google Drive dokumentasi (opsional).</p>
+          </div>
+          <input className="pv-input text-xs sm:text-sm" placeholder="Judul event *" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+          <input className="pv-input text-xs sm:text-sm" placeholder="Kode event (contoh: HUT-PV-2026) *" value={form.event_code} onChange={(e) => setForm({ ...form, event_code: e.target.value })} required />
+          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Tanggal Mulai *<input className="pv-input mt-1 font-normal text-xs" type="datetime-local" value={form.event_date} onChange={(e) => setForm({ ...form, event_date: e.target.value })} required /></label>
+          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Tanggal Selesai (Opsional)<input className="pv-input mt-1 font-normal text-xs" type="datetime-local" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></label>
+          <input className="pv-input text-xs sm:text-sm" placeholder="Lokasi kegiatan" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+          <select className="pv-input text-xs sm:text-sm font-semibold" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+            <option value="draft">Draf</option>
+            <option value="active">Sedang Berlangsung</option>
             <option value="completed">Selesai</option>
             <option value="cancelled">Dibatalkan</option>
             <option value="archived">Diarsipkan (Terkunci)</option>
           </select>
-          <input className="pv-input md:col-span-2" placeholder="Link Folder Dokumentasi Kegiatan (Google Drive) - Opsional" value={form.documentation_url} onChange={(e) => setForm({ ...form, documentation_url: e.target.value })} />
-          <textarea className="pv-input md:col-span-2" rows="3" placeholder="Deskripsi atau keterangan kegiatan" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          <div className="flex gap-2 md:col-span-2">
-            <button className="pv-btn-primary" type="submit">Simpan Event</button>
-            <button className="pv-btn-ghost" type="button" onClick={() => { setShowForm(false); setEditingEvent(null); }}>Batal</button>
+          <input className="pv-input md:col-span-2 text-xs sm:text-sm" placeholder="Link Folder Dokumentasi Kegiatan (Google Drive) - Opsional" value={form.documentation_url} onChange={(e) => setForm({ ...form, documentation_url: e.target.value })} />
+          <textarea className="pv-input md:col-span-2 text-xs sm:text-sm" rows="3" placeholder="Deskripsi atau keterangan kegiatan" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          <div className="flex gap-2 md:col-span-2 pt-2">
+            <button className="pv-btn-primary text-xs" type="submit">Simpan Event</button>
+            <button className="pv-btn-ghost text-xs" type="button" onClick={() => { setShowForm(false); setEditingEvent(null); }}>Batal</button>
           </div>
         </form>
       )}
 
       {loading ? (
-        <div className="pv-card p-8 flex flex-col items-center justify-center text-sm text-forest-500">
+        <div className="pv-card p-12 flex flex-col items-center justify-center text-sm text-slate-500">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-gold-500 border-t-transparent mb-4"></div>
-          Memuat data event...
+          Memuat data kegiatan...
         </div>
       ) : filteredEvents.length === 0 ? (
-        <div className="pv-card p-8 text-center text-sm text-forest-500">Tidak ada event yang sesuai dengan filter.</div>
+        <div className="pv-card p-10 text-center text-sm text-slate-500 border border-slate-200">
+          Tidak ada kegiatan yang sesuai dengan filter.
+        </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {filteredEvents.map((event) => {
-            const isAssigned = assignedEventIds.has(event.id);
-            const canManage = isAdmin || isFinanceManager || isAssigned;
-            const eventMembers = (members[event.id] || []).filter(m => !m.revoked_at);
-            const leader = eventMembers.find(m => m.assignment_role === 'event_leader');
-            const treasurer = eventMembers.find(m => m.assignment_role === 'event_treasurer');
+        <div className="space-y-4">
+          {/* Mobile Card List (< 768px) */}
+          <div className="block md:hidden">
+            <MobileList
+              items={filteredEvents}
+              keyExtractor={(event) => event.id}
+              emptyMessage="Tidak ada kegiatan."
+              renderItem={(event) => {
+                const eventMembers = (members[event.id] || []).filter(m => !m.revoked_at);
+                const leader = eventMembers.find(m => m.assignment_role === 'event_leader');
+                const treasurer = eventMembers.find(m => m.assignment_role === 'event_treasurer');
+                return (
+                  <div key={event.id} className="space-y-2">
+                    <EventCard
+                      event={event}
+                      isAdmin={isAdmin}
+                      leader={leader}
+                      treasurer={treasurer}
+                      isPanitiaOpen={Boolean(members[event.id])}
+                      onTogglePanitia={() => loadMembers(event.id)}
+                      onEdit={() => {
+                        setEditingEvent(event);
+                        const toInputDate = (dStr) => {
+                          if (!dStr) return '';
+                          const d = new Date(dStr);
+                          if (Number.isNaN(d.getTime())) return '';
+                          const pad = (n) => String(n).padStart(2, '0');
+                          return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                        };
+                        setForm({
+                          title: event.title || '',
+                          event_code: event.event_code || '',
+                          event_date: toInputDate(event.event_date),
+                          end_date: toInputDate(event.end_date),
+                          location: event.location || '',
+                          description: event.description || '',
+                          documentation_url: event.documentation_url || '',
+                          status: event.status || 'draft',
+                        });
+                        setShowForm(true);
+                      }}
+                      onDelete={() => removeEvent(event.id)}
+                    />
 
-            return (
-              <article key={event.id} className="pv-card flex flex-col justify-between p-5">
-                <div>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gold-700">{event.event_code}</p>
-                      <h2 className="mt-1 text-lg font-bold text-forest-900">
-                        {event.title}
-                        {event.status === 'archived' && <span className="ml-2 text-xs font-normal text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded">(Diarsipkan)</span>}
-                      </h2>
-                    </div>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold uppercase ${getStatusBadge(event.status)}`}>{event.status}</span>
-                  </div>
-
-                  <p className="mt-3 text-sm text-forest-600">
-                    📅 {formatDateTime(event.event_date)}{event.location ? ` · 📍 ${event.location}` : ''}
-                  </p>
-                  
-                  {event.description && <p className="mt-2 text-sm text-forest-500">{event.description}</p>}
-
-                  {/* Documentation Link Preview */}
-                  {event.documentation_url && (
-                    <div className="mt-3 flex items-center gap-2">
-                      <a
-                        href={event.documentation_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200"
-                      >
-                        <span>📁</span> Buka Folder Dokumentasi Kegiatan
-                      </a>
-                    </div>
-                  )}
-
-                  {/* Committee status highlights */}
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                    <span className={`px-2 py-0.5 rounded border ${leader ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                      {leader ? `👑 Ketua: ${leader.profile_name || 'Terisi'}` : '⚠️ Ketua belum di-assign'}
-                    </span>
-                    <span className={`px-2 py-0.5 rounded border ${treasurer ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                      {treasurer ? `💰 Bendahara: ${treasurer.profile_name || 'Terisi'}` : '⚠️ Bendahara belum di-assign'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-forest-100">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Link className="pv-btn-primary py-1.5 text-xs" to={`/events/${event.id}`}>Lihat Keuangan</Link>
-                    <button type="button" className="pv-btn-ghost py-1.5 text-xs" onClick={() => loadMembers(event.id)}>
-                      {members[event.id] ? 'Tutup Panitia' : 'Kelola Panitia'}
-                    </button>
-                    {isAdmin && (
-                      <div className="ml-auto flex items-center gap-2">
-                        <button type="button" className="text-xs text-blue-600 hover:underline" onClick={() => {
-                          setEditingEvent(event);
-                          const toInputDate = (dStr) => {
-                            if (!dStr) return '';
-                            const d = new Date(dStr);
-                            if (Number.isNaN(d.getTime())) return '';
-                            const pad = (n) => String(n).padStart(2, '0');
-                            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-                          };
-                          setForm({
-                            title: event.title || '',
-                            event_code: event.event_code || '',
-                            event_date: toInputDate(event.event_date),
-                            end_date: toInputDate(event.end_date),
-                            location: event.location || '',
-                            description: event.description || '',
-                            documentation_url: event.documentation_url || '',
-                            status: event.status || 'draft',
-                          });
-                          setShowForm(true);
-                        }}>Edit</button>
-                        <button type="button" className="text-xs text-red-600 hover:underline" onClick={() => removeEvent(event.id)}>Hapus</button>
+                    {/* Panel Panitia Mobile */}
+                    {members[event.id] && (
+                      <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 text-xs">
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="font-bold uppercase tracking-wide text-slate-800">Susunan Kepanitiaan Event</p>
+                          <span className="text-slate-500">{eventMembers.length} Panitia</span>
+                        </div>
+                        {eventMembers.length === 0 ? (
+                          <p className="text-slate-400 italic py-1">Belum ada panitia yang ditugaskan.</p>
+                        ) : (
+                          <div className="space-y-1.5 mb-3">
+                            {eventMembers.map((member) => {
+                              const badge = formatRoleBadge(member.assignment_role, member.custom_role_title);
+                              return (
+                                <div key={member.id} className="flex items-center justify-between gap-2 p-2 bg-white rounded-lg border border-slate-200">
+                                  <div>
+                                    <span className="font-semibold text-slate-900">{member.profile_name || member.profile_id}</span>
+                                    <span className={`ml-2 inline-block px-2 py-0.5 rounded text-[10px] border ${badge.className}`}>
+                                      {badge.label}
+                                    </span>
+                                  </div>
+                                  {isAdmin && (
+                                    <button type="button" className="text-[11px] font-bold text-red-600" onClick={() => revoke(event.id, member.id)}>
+                                      Cabut
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {isAdmin && (
+                          <div className="pt-2 border-t border-slate-200/60 space-y-2">
+                            <p className="font-semibold text-slate-700">+ Tugaskan Panitia Baru</p>
+                            <select
+                              className="pv-input text-xs"
+                              value={memberForm[event.id]?.profile_id || ''}
+                              onChange={(e) => setMemberForm({ ...memberForm, [event.id]: { ...memberForm[event.id], profile_id: e.target.value } })}
+                            >
+                              <option value="">Pilih warga aktif *</option>
+                              {users.map((user) => <option key={user.id} value={user.id}>{user.full_name || user.email}</option>)}
+                            </select>
+                            <select
+                              className="pv-input text-xs"
+                              value={memberForm[event.id]?.assignment_role || ''}
+                              onChange={(e) => setMemberForm({ ...memberForm, [event.id]: { ...memberForm[event.id], assignment_role: e.target.value } })}
+                            >
+                              <option value="">Pilih Peran *</option>
+                              <option value="event_leader">👑 Ketua Event</option>
+                              <option value="event_treasurer">💰 Bendahara Event</option>
+                              <option value="coordinator_member">👥 Anggota / Sie Panitia</option>
+                            </select>
+                            <input
+                              className="pv-input text-xs"
+                              placeholder="Nama Sie (misal: Sie Konsumsi)"
+                              value={memberForm[event.id]?.custom_role_title || ''}
+                              onChange={(e) => setMemberForm({ ...memberForm, [event.id]: { ...memberForm[event.id], custom_role_title: e.target.value } })}
+                            />
+                            <button
+                              type="button"
+                              className="pv-btn-primary py-1 text-xs w-full"
+                              onClick={() => assign(event.id)}
+                            >
+                              Simpan Penugasan
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
+                );
+              }}
+            />
+          </div>
 
-                  {/* Panel Pengelolaan Anggota / Panitia */}
+          {/* Desktop Grid Layout (>= 768px) */}
+          <div className="hidden md:grid md:grid-cols-2 gap-4">
+            {filteredEvents.map((event) => {
+              const eventMembers = (members[event.id] || []).filter(m => !m.revoked_at);
+              const leader = eventMembers.find(m => m.assignment_role === 'event_leader');
+              const treasurer = eventMembers.find(m => m.assignment_role === 'event_treasurer');
+
+              return (
+                <div key={event.id} className="space-y-2">
+                  <EventCard
+                    event={event}
+                    isAdmin={isAdmin}
+                    leader={leader}
+                    treasurer={treasurer}
+                    isPanitiaOpen={Boolean(members[event.id])}
+                    onTogglePanitia={() => loadMembers(event.id)}
+                    onEdit={() => {
+                      setEditingEvent(event);
+                      const toInputDate = (dStr) => {
+                        if (!dStr) return '';
+                        const d = new Date(dStr);
+                        if (Number.isNaN(d.getTime())) return '';
+                        const pad = (n) => String(n).padStart(2, '0');
+                        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                      };
+                      setForm({
+                        title: event.title || '',
+                        event_code: event.event_code || '',
+                        event_date: toInputDate(event.event_date),
+                        end_date: toInputDate(event.end_date),
+                        location: event.location || '',
+                        description: event.description || '',
+                        documentation_url: event.documentation_url || '',
+                        status: event.status || 'draft',
+                      });
+                      setShowForm(true);
+                    }}
+                    onDelete={() => removeEvent(event.id)}
+                  />
+
+                  {/* Panel Pengelolaan Anggota / Panitia Desktop */}
                   {members[event.id] && (
-                    <div className="mt-4 rounded-xl bg-forest-50 p-4 border border-forest-200">
+                    <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 text-xs">
                       <div className="flex items-center justify-between mb-3">
-                        <p className="text-xs font-bold uppercase tracking-wide text-forest-800">Susunan Kepanitiaan Event</p>
-                        <span className="text-xs text-forest-500">{eventMembers.length} Panitia Aktif</span>
+                        <p className="font-bold uppercase tracking-wide text-slate-800">Susunan Kepanitiaan Event</p>
+                        <span className="text-slate-500">{eventMembers.length} Panitia Aktif</span>
                       </div>
 
                       {eventMembers.length === 0 ? (
-                        <p className="text-xs text-forest-400 italic py-2">Belum ada panitia yang ditugaskan. Ketua dan Bendahara Event wajib diisi.</p>
+                        <p className="text-slate-400 italic py-2">Belum ada panitia yang ditugaskan. Ketua dan Bendahara Event wajib diisi.</p>
                       ) : (
                         <div className="space-y-2 mb-4">
                           {eventMembers.map((member) => {
                             const badge = formatRoleBadge(member.assignment_role, member.custom_role_title);
                             return (
-                              <div key={member.id} className="flex items-center justify-between gap-2 p-2 bg-white rounded-lg border border-forest-100 text-sm">
+                              <div key={member.id} className="flex items-center justify-between gap-2 p-2 bg-white rounded-lg border border-slate-200">
                                 <div>
-                                  <span className="font-semibold text-forest-900">{member.profile_name || member.profile_id}</span>
+                                  <span className="font-semibold text-slate-900">{member.profile_name || member.profile_id}</span>
                                   <span className={`ml-2 inline-block px-2 py-0.5 rounded text-xs border ${badge.className}`}>
                                     {badge.label}
                                   </span>
@@ -370,15 +457,15 @@ export default function Events() {
                       )}
 
                       {isAdmin && (
-                        <div className="mt-3 pt-3 border-t border-forest-200/60">
-                          <p className="text-xs font-semibold text-forest-700 mb-2">+ Tugaskan Panitia Baru</p>
+                        <div className="mt-3 pt-3 border-t border-slate-200/60">
+                          <p className="font-semibold text-slate-700 mb-2">+ Tugaskan Panitia Baru</p>
                           <div className="grid gap-2 sm:grid-cols-2">
                             <select
                               className="pv-input text-xs"
                               value={memberForm[event.id]?.profile_id || ''}
                               onChange={(e) => setMemberForm({ ...memberForm, [event.id]: { ...memberForm[event.id], profile_id: e.target.value } })}
                             >
-                              <option value="">Pilih warga / profil aktif *</option>
+                              <option value="">Pilih warga aktif *</option>
                               {users.map((user) => <option key={user.id} value={user.id}>{user.full_name || user.email}</option>)}
                             </select>
 
@@ -388,9 +475,9 @@ export default function Events() {
                               onChange={(e) => setMemberForm({ ...memberForm, [event.id]: { ...memberForm[event.id], assignment_role: e.target.value } })}
                             >
                               <option value="">Pilih Peran *</option>
-                              <option value="event_leader">👑 Ketua Event (Mandatory)</option>
-                              <option value="event_treasurer">💰 Bendahara Event (Mandatory)</option>
-                              <option value="coordinator_member">👥 Anggota / Sie Panitia (Optional)</option>
+                              <option value="event_leader">👑 Ketua Event</option>
+                              <option value="event_treasurer">💰 Bendahara Event</option>
+                              <option value="coordinator_member">👥 Anggota / Sie Panitia</option>
                             </select>
 
                             <input
@@ -412,14 +499,10 @@ export default function Events() {
                       )}
                     </div>
                   )}
-
-                  {!isAdmin && canManage && (
-                    <p className="mt-3 text-xs text-forest-500">Akses Anda: {isFinanceManager ? 'Pengelola Keuangan Global' : 'Panitia Event Terdaftar'}.</p>
-                  )}
                 </div>
-              </article>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
