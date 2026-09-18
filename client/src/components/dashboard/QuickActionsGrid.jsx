@@ -7,6 +7,7 @@ import {
   AiOutlineBarChart,
   AiOutlineSetting,
   AiOutlineArrowRight,
+  AiOutlineNotification,
 } from 'react-icons/ai';
 import { HiOutlineSparkles } from 'react-icons/hi';
 
@@ -109,6 +110,27 @@ export function QuickActionsGrid({
             </h4>
             <p className="text-[11px] text-slate-500 mt-0.5 truncate">
               Arus kas &amp; saldo kas
+            </p>
+          </div>
+        </Link>
+
+        {/* 5. Pengumuman Komunitas */}
+        <Link
+          to={`/t/${tenantId}/announcements`}
+          className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-card hover:border-slate-300 hover:shadow-subtle transition-all flex flex-col justify-between group min-h-[104px]"
+        >
+          <div className="flex items-center justify-between">
+            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 group-hover:bg-forest-800 group-hover:text-white flex items-center justify-center text-base transition-colors">
+              <AiOutlineNotification />
+            </div>
+            <AiOutlineArrowRight className="text-slate-300 group-hover:text-forest-800 transition-colors text-xs" />
+          </div>
+          <div className="mt-2">
+            <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-forest-900 leading-tight">
+              Pengumuman
+            </h4>
+            <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+              Papan info warga
             </p>
           </div>
         </Link>

@@ -36,6 +36,7 @@ const Settings = lazy(() => import('./pages/Settings'));
 const Expenses = lazy(() => import('./pages/Expenses'));
 const Events = lazy(() => import('./pages/Events'));
 const EventFinance = lazy(() => import('./pages/EventFinance'));
+const Announcements = lazy(() => import('./pages/Announcements'));
 const NonIplIncomes = lazy(() => import('./pages/NonIplIncomes'));
 const Users = lazy(() => import('./pages/Users'));
 const Logs = lazy(() => import('./pages/Logs'));
@@ -308,6 +309,34 @@ export default function App() {
                   }
                 />
                 <Route
+                  path="/t/:tenantId/announcements"
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <Announcements />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/t/:tenantId/events"
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <RoleGuard canAccess={canViewEvents}>
+                        <Events />
+                      </RoleGuard>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/t/:tenantId/events/:eventId"
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <RoleGuard canAccess={canViewEvents}>
+                        <EventFinance />
+                      </RoleGuard>
+                    </Suspense>
+                  }
+                />
+                <Route
                   path="/t/:tenantId/roles"
                   element={
                     <Suspense fallback={<PageLoader />}>
@@ -516,6 +545,14 @@ export default function App() {
                         <RoleGuard canAccess={canViewExpenses}>
                           <Expenses />
                         </RoleGuard>
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/announcements"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <Announcements />
                       </Suspense>
                     }
                   />
