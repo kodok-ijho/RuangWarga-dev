@@ -160,22 +160,22 @@ export default function EventCard({
               <button
                 type="button"
                 onClick={onEdit}
-                className="inline-flex min-h-[38px] min-w-[38px] items-center justify-center rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-                title="Edit Event"
-                aria-label="Edit Event"
+                className="inline-flex min-h-[38px] min-w-[38px] items-center justify-center rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 pv-focus-ring transition-colors"
+                title={`Edit event ${title}`}
+                aria-label={`Edit event ${title}`}
               >
-                <AiOutlineEdit className="text-base" />
+                <AiOutlineEdit className="text-base" aria-hidden="true" />
               </button>
             )}
             {onDelete && (
               <button
                 type="button"
                 onClick={onDelete}
-                className="inline-flex min-h-[38px] min-w-[38px] items-center justify-center rounded-xl text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors"
-                title="Hapus Event"
-                aria-label="Hapus Event"
+                className="inline-flex min-h-[38px] min-w-[38px] items-center justify-center rounded-xl text-rose-500 hover:text-rose-700 hover:bg-rose-50 pv-focus-ring transition-colors"
+                title={`Hapus event ${title}`}
+                aria-label={`Hapus event ${title}`}
               >
-                <AiOutlineDelete className="text-base" />
+                <AiOutlineDelete className="text-base" aria-hidden="true" />
               </button>
             )}
           </div>

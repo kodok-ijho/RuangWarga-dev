@@ -172,6 +172,18 @@ export default defineConfig(({ mode }) => {
     host: proxyConfig.isUat ? '127.0.0.1' : undefined,
     open: !proxyConfig.isUat,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-charts': ['recharts'],
+          'vendor-icons': ['react-icons'],
+          'vendor-data': ['@tanstack/react-query', '@supabase/supabase-js', 'papaparse'],
+          'vendor-core': ['react', 'react-dom', 'react-router-dom'],
+        },
+      },
+    },
+  },
   test: {
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     exclude: ['tests/**', 'node_modules/**', 'dist/**'],

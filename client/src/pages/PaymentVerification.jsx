@@ -646,27 +646,33 @@ export default function PaymentVerification() {
                     {payment.status === 'pending_verification' && (
                       <>
                         <button
+                          type="button"
                           onClick={() => handleVerify(payment)}
                           disabled={Boolean(activeActionId) || !canWrite}
-                          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-60 shadow-xs"
+                          aria-label={`Verifikasi pembayaran dari ${resident?.full_name || 'warga'}`}
+                          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-60 shadow-xs pv-focus-ring"
                         >
-                          <AiOutlineCheck /> Verifikasi
+                          <AiOutlineCheck aria-hidden="true" /> Verifikasi
                         </button>
                         <button
+                          type="button"
                           onClick={() => openRejectModal(payment)}
                           disabled={Boolean(activeActionId) || !canWrite}
-                          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60 shadow-xs"
+                          aria-label={`Tolak pembayaran dari ${resident?.full_name || 'warga'}`}
+                          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60 shadow-xs pv-focus-ring"
                         >
-                          <AiOutlineClose /> Tolak
+                          <AiOutlineClose aria-hidden="true" /> Tolak
                         </button>
                       </>
                     )}
                     <button
+                      type="button"
                       disabled={Boolean(activeActionId)}
                       onClick={() => openDetail(payment)}
-                      className="col-span-2 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 shadow-xs disabled:opacity-60 sm:col-span-1"
+                      aria-label={`Lihat detail pembayaran dari ${resident?.full_name || 'warga'}`}
+                      className="col-span-2 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 shadow-xs disabled:opacity-60 sm:col-span-1 pv-focus-ring"
                     >
-                      <AiOutlineEye /> Detail
+                      <AiOutlineEye aria-hidden="true" /> Detail
                     </button>
                   </div>
                 </div>

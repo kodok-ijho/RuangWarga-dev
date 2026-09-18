@@ -15,7 +15,7 @@ export function LoadingState({
       aria-live="polite"
     >
       <div
-        className={`${spinnerSize} rounded-full border-2 border-slate-200 border-t-gold-500 animate-spin`}
+        className={`${spinnerSize} rounded-full border-2 border-slate-200 border-t-gold-500 animate-spin motion-reduce:animate-none`}
         aria-hidden="true"
       />
       {message && <p className="text-xs text-slate-500 font-medium">{message}</p>}
@@ -26,7 +26,7 @@ export function LoadingState({
 export function Skeleton({ className = '', rounded = 'rounded-xl' }) {
   return (
     <div
-      className={`animate-pulse bg-slate-200/70 ${rounded} ${className}`}
+      className={`animate-pulse motion-reduce:animate-none bg-slate-200/70 ${rounded} ${className}`}
       aria-hidden="true"
     />
   );
@@ -50,7 +50,7 @@ export function SkeletonText({ lines = 3, className = '' }) {
 export function SkeletonCard({ rows = 3, className = '' }) {
   return (
     <div
-      className={`rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs space-y-4 animate-pulse ${className}`}
+      className={`rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs space-y-4 animate-pulse motion-reduce:animate-none ${className}`}
       aria-hidden="true"
     >
       <div className="flex items-center justify-between">
@@ -82,7 +82,7 @@ export function SkeletonCard({ rows = 3, className = '' }) {
 export function SkeletonTable({ cols = 4, rows = 5, className = '' }) {
   return (
     <div
-      className={`w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs animate-pulse ${className}`}
+      className={`w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs animate-pulse motion-reduce:animate-none ${className}`}
       aria-hidden="true"
     >
       {/* Header bar */}
@@ -133,7 +133,7 @@ export function SkeletonTable({ cols = 4, rows = 5, className = '' }) {
 
 export function SkeletonList({ items = 4, className = '' }) {
   return (
-    <div className={`space-y-2.5 animate-pulse ${className}`} aria-hidden="true">
+    <div className={`space-y-2.5 animate-pulse motion-reduce:animate-none ${className}`} aria-hidden="true">
       {Array.from({ length: items }).map((_, idx) => (
         <div
           key={idx}

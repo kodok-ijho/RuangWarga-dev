@@ -510,31 +510,31 @@ export default function Houses() {
                           <button
                             type="button"
                             onClick={() => setSelectedUnit(unit)}
-                            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                            aria-label={`Lihat detail ${template.unitLabel.toLowerCase()}`}
+                            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 pv-focus-ring transition-colors"
+                            aria-label={`Lihat detail ${template.unitLabel} ${unit.block}/${unit.unit_number}`}
                             title={`Detail ${template.unitLabel}`}
                           >
-                            <AiOutlineEye />
+                            <AiOutlineEye aria-hidden="true" />
                           </button>
                           {canWrite && (
                             <>
                               <button
                                 type="button"
                                 onClick={() => openEdit(unit)}
-                                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                                aria-label={`Edit ${template.unitLabel.toLowerCase()}`}
+                                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 pv-focus-ring transition-colors"
+                                aria-label={`Edit ${template.unitLabel} ${unit.block}/${unit.unit_number}`}
                                 title={`Edit ${template.unitLabel}`}
                               >
-                                <AiOutlineEdit />
+                                <AiOutlineEdit aria-hidden="true" />
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDelete(unit)}
-                                className="rounded-lg p-2 text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
-                                aria-label={`Hapus atau nonaktifkan ${template.unitLabel.toLowerCase()}`}
+                                className="rounded-lg p-2 text-rose-400 hover:bg-rose-50 hover:text-rose-600 pv-focus-ring transition-colors"
+                                aria-label={`Hapus atau nonaktifkan ${template.unitLabel} ${unit.block}/${unit.unit_number}`}
                                 title={`Nonaktifkan ${template.unitLabel}`}
                               >
-                                <AiOutlineDelete />
+                                <AiOutlineDelete aria-hidden="true" />
                               </button>
                             </>
                           )}

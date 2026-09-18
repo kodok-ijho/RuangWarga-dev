@@ -375,10 +375,11 @@ export default function Expenses() {
                                 setReceiptImageError(false);
                                 setViewReceipt(exp);
                               }}
-                              className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-semibold"
+                              className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-semibold pv-focus-ring"
                               title="Lihat Bukti Kwitansi"
+                              aria-label={`Lihat bukti kwitansi ${exp.category}`}
                             >
-                              <AiOutlinePaperClip className="text-sm" />
+                              <AiOutlinePaperClip className="text-sm" aria-hidden="true" />
                               <span>Nota</span>
                             </button>
                           ) : (
@@ -395,18 +396,20 @@ export default function Expenses() {
                                 <button
                                   type="button"
                                   onClick={() => setModalForm(exp)}
-                                  className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                                  className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors pv-focus-ring"
                                   title="Edit"
+                                  aria-label={`Edit pengeluaran ${exp.category}`}
                                 >
-                                  <AiOutlineEdit />
+                                  <AiOutlineEdit aria-hidden="true" />
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handleDelete(exp)}
-                                  className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                  className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors pv-focus-ring"
                                   title="Hapus"
+                                  aria-label={`Hapus pengeluaran ${exp.category}`}
                                 >
-                                  <AiOutlineDelete />
+                                  <AiOutlineDelete aria-hidden="true" />
                                 </button>
                               </div>
                             ) : (

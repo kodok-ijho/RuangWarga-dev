@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
  * AnimatedCounter
  * Signature moment untuk transisi angka metrik dashboard (400ms).
  * Menggunakan requestAnimationFrame dengan easeOutExpo agar terasa cepat, responsif, dan elegan.
+ * Menghormati preferensi prefers-reduced-motion pengguna untuk aksesibilitas WCAG.
  */
 export default function AnimatedCounter({
   value = 0,
@@ -19,6 +20,18 @@ export default function AnimatedCounter({
 
   useEffect(() => {
     targetValRef.current = Number(value) || 0;
+
+    // Periksa apakah pengguna mengaktifkan reduced motion pada OS
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReducedMotion) {
+      setDisplayValue(targetValRef.current);
+      return;
+    }
+
     const startVal = displayValue;
     startValRef.current = startVal;
     startTimeRef.current = null;
@@ -31,7 +44,9 @@ export default function AnimatedCounter({
       const progress = Math.min(elapsed / duration, 1);
       const easedProgress = easeOutExpo(progress);
 
-      const current = startValRef.current + (targetValRef.current - startValRef.current) * easedProgress;
+      const current =
+        startValRef.current +
+        (targetValRef.current - startValRef.current) * easedProgress;
       setDisplayValue(current);
 
       if (progress < 1) {

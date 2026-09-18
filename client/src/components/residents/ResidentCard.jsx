@@ -87,23 +87,25 @@ export function ResidentCard({
                 target="_blank"
                 rel="noopener noreferrer"
                 title={`WhatsApp ${profile.full_name}`}
-                className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-200 flex items-center justify-center text-base transition-colors min-h-[36px]"
+                aria-label={`Hubungi WhatsApp ${profile.full_name}`}
+                className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-200 flex items-center justify-center text-base pv-focus-ring transition-colors min-h-[36px]"
               >
-                <AiOutlineWhatsApp />
+                <AiOutlineWhatsApp aria-hidden="true" />
               </a>
 
               {/* Call Shortcut */}
               <a
                 href={`tel:${cleanPhone}`}
                 title={`Telepon ${profile.full_name}`}
-                className="w-9 h-9 rounded-xl bg-slate-50 text-slate-700 hover:bg-forest-800 hover:text-white border border-slate-200 flex items-center justify-center text-base transition-colors min-h-[36px]"
+                aria-label={`Telepon ${profile.full_name}`}
+                className="w-9 h-9 rounded-xl bg-slate-50 text-slate-700 hover:bg-forest-800 hover:text-white border border-slate-200 flex items-center justify-center text-base pv-focus-ring transition-colors min-h-[36px]"
               >
-                <AiOutlinePhone />
+                <AiOutlinePhone aria-hidden="true" />
               </a>
             </>
           )}
 
-          <span className="text-slate-300 ml-1 text-sm">
+          <span className="text-slate-300 ml-1 text-sm" aria-hidden="true">
             <AiOutlineRight />
           </span>
         </div>
