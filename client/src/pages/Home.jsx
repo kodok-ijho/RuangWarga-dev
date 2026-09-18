@@ -677,15 +677,15 @@ function AuthenticatedWorkspaceHub() {
         </section>
 
         {/* ── Section Pintasan Cepat ──────────────────────────────────── */}
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-          <div className="pv-card p-6 flex items-start gap-4 hover:border-slate-300 border border-slate-200/90 shadow-xs transition">
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
+          <div className="pv-card p-5 sm:p-6 flex items-start gap-4 hover:border-slate-300 border border-slate-200/90 shadow-xs transition">
             <div className="w-12 h-12 rounded-2xl bg-forest-50 border border-forest-100 text-forest-800 flex items-center justify-center text-2xl shrink-0">
               📢
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <h3 className="text-base font-bold text-slate-900 font-display">Modul Listing Publik</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Jelajahi kamar kos kosong dan lapak UMKM warga yang dipromosikan ke halaman publik tanpa batasan login.
+                Jelajahi kamar kos kosong dan lapak UMKM warga yang dipromosikan ke publik.
               </p>
               <Link
                 to="/listing"
@@ -697,14 +697,14 @@ function AuthenticatedWorkspaceHub() {
             </div>
           </div>
 
-          <div className="pv-card p-6 flex items-start gap-4 hover:border-slate-300 border border-slate-200/90 shadow-xs transition">
+          <div className="pv-card p-5 sm:p-6 flex items-start gap-4 hover:border-slate-300 border border-slate-200/90 shadow-xs transition">
             <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-700 flex items-center justify-center text-2xl shrink-0">
               💳
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <h3 className="text-base font-bold text-slate-900 font-display">Pusat Akun &amp; Langganan</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Pantau riwayat invoice pembayaran Mayar, sesuaikan kapasitas blok unit/kamar, dan atur preferensi akun Anda.
+                Pantau invoice Mayar, sesuaikan kapasitas blok unit/kamar, dan atur preferensi akun.
               </p>
               <Link
                 to="/account/tenants"
