@@ -12,6 +12,16 @@ const STATUS_CONFIGS = {
     symbol: '✓',
     style: 'bg-emerald-50 text-emerald-800 border-emerald-200',
   },
+  verified: {
+    label: 'Terverifikasi',
+    symbol: '✓',
+    style: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+  },
+  terverifikasi: {
+    label: 'Terverifikasi',
+    symbol: '✓',
+    style: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+  },
   pending: {
     label: 'Menunggu',
     symbol: '•',

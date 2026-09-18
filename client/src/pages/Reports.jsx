@@ -35,6 +35,7 @@ import {
   fetchEvents,
 } from '../services/dataService';
 import Modal from '../components/Modal';
+import { FinancialOverviewHero } from '../components/finance';
 
 const PIE_COLORS = ['#1a3d2e', '#d4af37', '#e2c462'];
 const FISCAL_YEAR_START = 2026;
@@ -1154,15 +1155,15 @@ export default function Reports() {
           ) : (
             <>
               {/* Section A: Alur Kas (Running Balance) */}
-              <div>
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Alur Kas (Running Balance)</h3>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <SummaryCard label="Saldo Awal Kas" value={formatRupiah(openingBalance)} icon="🏦" color="bg-white border border-slate-200 text-slate-900 shadow-xs" />
-                  <SummaryCard label="Pemasukan Kas (Total)" value={`+ ${formatRupiah(totalCashIn)}`} icon="💰" color="bg-white border border-slate-200 text-emerald-700 shadow-xs" />
-                  <SummaryCard label="Pengeluaran Kas" value={`- ${formatRupiah(totalExpenses)}`} icon="💸" color="bg-white border border-slate-200 text-red-600 shadow-xs" />
-                  <SummaryCard label="Saldo Akhir Kas" value={formatRupiah(closingBalance)} icon="📈" color="bg-forest-800 text-gold-400 font-extrabold shadow-sm" />
-                </div>
-              </div>
+              <FinancialOverviewHero
+                openingBalance={openingBalance}
+                totalIncome={totalCashIn}
+                totalExpense={totalExpenses}
+                closingBalance={closingBalance}
+                periodLabel={periodLabel}
+                onPrint={handlePrint}
+                onExportCsv={handleExportCSV}
+              />
 
               {hasFinanceBreakdown && (
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

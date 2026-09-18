@@ -34,7 +34,7 @@ export function Drawer({
 
   if (!isOpen) return null;
 
-  return createPortal(
+  const drawerContent = (
     <div
       className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs transition-opacity"
       role="dialog"
@@ -87,9 +87,14 @@ export function Drawer({
           </div>
         )}
       </div>
-    </div>,
-    document.body
+    </div>
   );
+
+  if (typeof document === 'undefined' || !document.body) {
+    return drawerContent;
+  }
+
+  return createPortal(drawerContent, document.body);
 }
 
 export default Drawer;
