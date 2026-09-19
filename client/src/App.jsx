@@ -66,10 +66,12 @@ const UmkmListingDirectory = lazy(() => import('./pages/public/UmkmListingDirect
 const UmkmListingDetail = lazy(() => import('./pages/public/UmkmListingDetail'));
 const ManageRoles = lazy(() => import('./pages/roles/ManageRoles'));
 const AssignMemberRole = lazy(() => import('./pages/roles/AssignMemberRole'));
+const AccountLayout = lazy(() => import('./components/account/AccountLayout'));
+const TenantShell = lazy(() => import('./components/tenant/TenantShell'));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center py-20">
-    <div className="h-8 w-8 rounded-full border-2 border-forest-200 border-t-gold-500 animate-spin" />
+    <div className="h-8 w-8 rounded-full border-2 border-slate-200 border-t-slate-800 animate-spin" />
   </div>
 );
 
@@ -185,225 +187,253 @@ export default function App() {
                   }
                 />
 
-                {/* Tenant Owner Dashboard Layer (§7.2, T2.6, T2.7) */}
+                {/* Tenant Owner Dashboard Layer (§7.2, TASK-030) */}
                 <Route
                   path="/account"
                   element={
                     <Suspense fallback={<PageLoader />}>
-                      <MyTenants />
+                      <AccountLayout />
                     </Suspense>
                   }
-                />
-                <Route
-                  path="/account/tenants"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <MyTenants />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/account/add-tenant"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <AddNewTenant />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/account/choose-plan"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <ChoosePlan />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/account/subscription"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <SubscriptionStatus />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/account/subscription/checkout"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <SubscriptionCheckout />
-                    </Suspense>
-                  }
-                />
+                >
+                  <Route
+                    index
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <MyTenants />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="tenants"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <MyTenants />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="add-tenant"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <AddNewTenant />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="choose-plan"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <ChoosePlan />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="subscription"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <SubscriptionStatus />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="subscription/checkout"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <SubscriptionCheckout />
+                      </Suspense>
+                    }
+                  />
+                </Route>
 
-                {/* Tenant Operational Layer (§7, T2.8, T6.2, T6.3) */}
+                {/* Tenant Operational Workspace Layer (§7, TASK-040) */}
                 <Route
-                  path="/t/:tenantId/setup"
+                  path="/t/:tenantId"
                   element={
                     <Suspense fallback={<PageLoader />}>
-                      <SetupWizard />
+                      <TenantShell />
                     </Suspense>
                   }
-                />
-                <Route
-                  path="/t/:tenantId/approval"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <TenantMemberApproval />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/t/:tenantId/members/pending"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <TenantMemberApproval />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/t/:tenantId/payment-verification"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <RoleGuard canAccess={canViewPaymentVerification}>
-                        <PaymentVerification />
-                      </RoleGuard>
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/t/:tenantId/expenses"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <RoleGuard canAccess={canViewExpenses}>
-                        <Expenses />
-                      </RoleGuard>
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/t/:tenantId/reports"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <RoleGuard canAccess={canViewFinancialReports}>
-                        <Reports />
-                      </RoleGuard>
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/t/:tenantId/payment-matrix"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <RoleGuard canAccess={canViewPaymentMatrix}>
-                        <PaymentMatrix />
-                      </RoleGuard>
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/t/:tenantId/dashboard"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <TenantDashboard />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/t/:tenantId/announcements"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <Announcements />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/t/:tenantId/events"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <RoleGuard canAccess={canViewEvents}>
-                        <Events />
-                      </RoleGuard>
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/t/:tenantId/events/:eventId"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <RoleGuard canAccess={canViewEvents}>
-                        <EventFinance />
-                      </RoleGuard>
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/t/:tenantId/roles"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <TenantPermissionGuard permission="manage_tenant_users">
-                        <ManageRoles />
-                      </TenantPermissionGuard>
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/t/:tenantId/members/:id/role"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <TenantPermissionGuard permission="manage_tenant_users">
-                        <AssignMemberRole />
-                      </TenantPermissionGuard>
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/t/:tenantId/arisan/rounds"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <ArisanRounds />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/t/:tenantId/arisan/draw"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <ArisanDraw />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/t/:tenantId/listings/post"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <PostListing />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/t/:tenantId/post-listing"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <PostListing />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/t/:tenantId/listings"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <MyListings />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/t/:tenantId/my-listings"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <MyListings />
-                    </Suspense>
-                  }
-                />
+                >
+                  <Route
+                    index
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <TenantDashboard />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="dashboard"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <TenantDashboard />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="setup"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <SetupWizard />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="approval"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <TenantMemberApproval />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="members/pending"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <TenantMemberApproval />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="payment-verification"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <RoleGuard canAccess={canViewPaymentVerification}>
+                          <PaymentVerification />
+                        </RoleGuard>
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="expenses"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <RoleGuard canAccess={canViewExpenses}>
+                          <Expenses />
+                        </RoleGuard>
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="reports"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <RoleGuard canAccess={canViewFinancialReports}>
+                          <Reports />
+                        </RoleGuard>
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="payment-matrix"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <RoleGuard canAccess={canViewPaymentMatrix}>
+                          <PaymentMatrix />
+                        </RoleGuard>
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="announcements"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <Announcements />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="events"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <RoleGuard canAccess={canViewEvents}>
+                          <Events />
+                        </RoleGuard>
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="events/:eventId"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <RoleGuard canAccess={canViewEvents}>
+                          <EventFinance />
+                        </RoleGuard>
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="roles"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <TenantPermissionGuard permission="manage_tenant_users">
+                          <ManageRoles />
+                        </TenantPermissionGuard>
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="members/:id/role"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <TenantPermissionGuard permission="manage_tenant_users">
+                          <AssignMemberRole />
+                        </TenantPermissionGuard>
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="arisan/rounds"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <ArisanRounds />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="arisan/draw"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <ArisanDraw />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="listings/post"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <PostListing />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="post-listing"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <PostListing />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="listings"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <MyListings />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="my-listings"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <MyListings />
+                      </Suspense>
+                    }
+                  />
+                </Route>
+
+                {/* Legacy Fallback Shortcuts */}
                 <Route
                   path="/post-listing"
                   element={
@@ -433,14 +463,6 @@ export default function App() {
                   element={
                     <Suspense fallback={<PageLoader />}>
                       <ArisanDraw />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/t/:tenantId"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <TenantDashboard />
                     </Suspense>
                   }
                 />

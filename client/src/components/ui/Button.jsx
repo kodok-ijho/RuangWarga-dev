@@ -5,6 +5,10 @@ const VARIANTS = {
     'bg-gold-500 text-forest-950 font-bold shadow-xs hover:bg-gold-400 hover:shadow-subtle active:scale-[0.98] border border-gold-600/30',
   secondary:
     'bg-forest-800 text-white font-semibold hover:bg-forest-900 active:scale-[0.98] border border-forest-700/50 shadow-xs',
+  neutral:
+    'bg-slate-900 text-white font-medium hover:bg-slate-800 active:scale-[0.98] border border-slate-900 shadow-xs',
+  brand:
+    'bg-slate-900 text-white font-medium hover:bg-slate-800 active:scale-[0.98] border border-slate-900 shadow-xs',
   slate:
     'bg-slate-900 text-white font-semibold hover:bg-slate-800 active:scale-[0.98] border border-slate-800 shadow-xs',
   outline:

@@ -14,6 +14,31 @@
 }
 
 @layer components {
+  /* RuangWarga Neutral SaaS Component Classes (80-90% neutral surfaces) */
+  .rw-card {
+    @apply rounded-xl bg-white border border-slate-200/90 shadow-rw-subtle transition-all;
+  }
+
+  .rw-btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 text-white font-medium px-4 py-2.5 text-sm shadow-xs transition-all hover:bg-slate-800 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .rw-btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 text-slate-800 font-medium px-4 py-2.5 text-sm transition-all hover:bg-slate-200 hover:text-slate-900 active:scale-[0.98];
+  }
+
+  .rw-btn-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-white text-slate-700 font-medium px-4 py-2.5 text-sm border border-slate-200 transition-all hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98];
+  }
+
+  .rw-btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl text-slate-600 font-medium px-4 py-2.5 text-sm transition-all hover:bg-slate-100 hover:text-slate-900 active:scale-[0.98];
+  }
+
+  .rw-input {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 outline-none transition-all;
+  }
+
   /* Kartu standar (Modern Light Canvas) */
   .pv-card {
     @apply rounded-2xl bg-white border border-slate-200/90 shadow-card transition-all;
@@ -66,8 +91,27 @@
 
 /* Utility Classes & Tokens untuk Tipografi & Hierarki Visual */
 @layer utilities {
+  .rw-heading-1 {
+    @apply font-sans text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight;
+  }
+  .rw-heading-2 {
+    @apply font-sans text-xl sm:text-2xl font-bold text-slate-900 tracking-tight;
+  }
+  .rw-heading-3 {
+    @apply font-sans text-base sm:text-lg font-semibold text-slate-900 tracking-tight;
+  }
+  .rw-text-body {
+    @apply font-sans text-sm text-slate-600 leading-relaxed;
+  }
+  .rw-text-muted {
+    @apply font-sans text-xs text-slate-500 leading-relaxed;
+  }
+  .rw-focus-ring {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/30 focus-visible:ring-offset-2;
+  }
+
   .text-title-page {
-    @apply font-display text-xl sm:text-2xl font-extrabold text-forest-950 tracking-tight;
+    @apply font-sans text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight;
   }
   .text-title-section {
     @apply text-base sm:text-lg font-bold text-slate-900 tracking-tight;

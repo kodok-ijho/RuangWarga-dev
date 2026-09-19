@@ -19,6 +19,11 @@ import {
 } from './LoadingState';
 import { PageHeader } from './PageHeader';
 import { MobileList } from './MobileList';
+import { Textarea } from './Textarea';
+import { Divider } from './Divider';
+import { Avatar } from './Avatar';
+import { Tabs } from './Tabs';
+import { DataList } from './DataList';
 
 describe('UI Primitives (Design System Foundation - Phase 1)', () => {
   it('renders Button with primary variant and text', () => {
@@ -163,4 +168,58 @@ describe('UI Primitives (Design System Foundation - Phase 1)', () => {
     expect(html).toContain('desktop-table');
     expect(html).toContain('Table View');
   });
+
+  it('renders Button with neutral/brand variant', () => {
+    const neutralHtml = renderToString(<Button variant="neutral">Kelola</Button>);
+    expect(neutralHtml).toContain('Kelola');
+    expect(neutralHtml).toContain('bg-slate-900');
+
+    const brandHtml = renderToString(<Button variant="brand">Simpan</Button>);
+    expect(brandHtml).toContain('Simpan');
+    expect(brandHtml).toContain('bg-slate-900');
+  });
+
+  it('renders Textarea with label and helper text', () => {
+    const html = renderToString(
+      <Textarea label="Catatan" helperText="Maksimal 200 karakter" rows={4} />
+    );
+    expect(html).toContain('Catatan');
+    expect(html).toContain('Maksimal 200 karakter');
+    expect(html).toContain('rows="4"');
+  });
+
+  it('renders Divider with optional text label', () => {
+    const html = renderToString(<Divider>Atau</Divider>);
+    expect(html).toContain('Atau');
+    expect(html).toContain('role="separator"');
+  });
+
+  it('renders Avatar with name initials fallback', () => {
+    const html = renderToString(<Avatar name="Budi Santoso" size="md" />);
+    expect(html).toContain('BS');
+  });
+
+  it('renders Tabs with active state and badge', () => {
+    const tabs = [
+      { id: 'all', label: 'Semua', badge: 5 },
+      { id: 'active', label: 'Aktif' },
+    ];
+    const html = renderToString(<Tabs tabs={tabs} activeTab="all" onChange={() => {}} />);
+    expect(html).toContain('Semua');
+    expect(html).toContain('5');
+    expect(html).toContain('aria-selected="true"');
+  });
+
+  it('renders DataList with key-value pairs', () => {
+    const items = [
+      { label: 'Nama Komunitas', value: 'Kos Melati' },
+      { label: 'Tipe', value: 'Kos-kosan' },
+    ];
+    const html = renderToString(<DataList items={items} />);
+    expect(html).toContain('Nama Komunitas');
+    expect(html).toContain('Kos Melati');
+    expect(html).toContain('Tipe');
+    expect(html).toContain('Kos-kosan');
+  });
 });
+
