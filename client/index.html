@@ -15,6 +15,31 @@
     <link rel="icon" type="image/png" href="/logo.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <script>
+      window.addEventListener('error', function(e) {
+        var root = document.getElementById('root');
+        if (root && (!root.innerHTML || root.innerHTML.trim() === '')) {
+          root.innerHTML = '<div style="padding:24px;font-family:sans-serif;background:#fff;color:#b91c1c;max-width:540px;margin:40px auto;border:1px solid #fca5a5;border-radius:16px;box-shadow:0 10px 25px rgba(0,0,0,0.05);">' +
+            '<h3 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Kendala Memuat Halaman</h3>' +
+            '<p style="font-size:12px;color:#64748b;margin:0 0 12px;line-height:1.5;">Peramban mendeteksi error saat menginisialisasi modul antarmuka:</p>' +
+            '<pre style="background:#fef2f2;padding:12px;border-radius:8px;font-size:11px;overflow:auto;margin:0 0 16px;color:#991b1b;border:1px solid #fecaca;white-space:pre-wrap;">' + (e.message || e) + '\n' + (e.filename || '') + (e.lineno ? (':' + e.lineno) : '') + '</pre>' +
+            '<button onclick="if(window.caches){caches.keys().then(function(k){k.forEach(function(n){caches.delete(n);})});}if(navigator.serviceWorker){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(s){s.unregister();})});}location.reload(true);" style="padding:10px 16px;background:#0f172a;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Bersihkan Cache &amp; Muat Ulang</button>' +
+          '</div>';
+        }
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        var root = document.getElementById('root');
+        if (root && (!root.innerHTML || root.innerHTML.trim() === '')) {
+          var msg = e.reason ? (e.reason.message || e.reason.stack || e.reason) : 'Unhandled rejection';
+          root.innerHTML = '<div style="padding:24px;font-family:sans-serif;background:#fff;color:#b91c1c;max-width:540px;margin:40px auto;border:1px solid #fca5a5;border-radius:16px;box-shadow:0 10px 25px rgba(0,0,0,0.05);">' +
+            '<h3 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Kendala Memuat Halaman</h3>' +
+            '<p style="font-size:12px;color:#64748b;margin:0 0 12px;line-height:1.5;">Terjadi kegagalan asinkron saat menginisialisasi sesi:</p>' +
+            '<pre style="background:#fef2f2;padding:12px;border-radius:8px;font-size:11px;overflow:auto;margin:0 0 16px;color:#991b1b;border:1px solid #fecaca;white-space:pre-wrap;">' + msg + '</pre>' +
+            '<button onclick="if(window.caches){caches.keys().then(function(k){k.forEach(function(n){caches.delete(n);})});}if(navigator.serviceWorker){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(s){s.unregister();})});}location.reload(true);" style="padding:10px 16px;background:#0f172a;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Bersihkan Cache &amp; Muat Ulang</button>' +
+          '</div>';
+        }
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>

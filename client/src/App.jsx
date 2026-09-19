@@ -14,6 +14,7 @@ import NotFound from './pages/NotFound';
 // Lazy-load halaman berat untuk code-splitting (recharts, papaparse)
 import { lazy, Suspense } from 'react';
 import { useAuth } from './hooks/useAuth';
+import { useTenant } from './hooks/useTenant';
 import {
   canViewFinancialReports,
   canViewPaymentMatrix,
@@ -74,8 +75,6 @@ const PageLoader = () => (
     <div className="h-8 w-8 rounded-full border-2 border-slate-200 border-t-slate-800 animate-spin" />
   </div>
 );
-
-import { useTenant } from './hooks/useTenant';
 
 /**
  * RoleGuard — renders children only if user has one of the allowed roles.
