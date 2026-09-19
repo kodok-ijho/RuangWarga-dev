@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { Navigate, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   useAuth,
   IS_DEMO_MODE,
