@@ -17,14 +17,34 @@ export default class ErrorBoundary extends React.Component {
     console.error('Unhandled application render error:', error, errorInfo);
   }
 
-  handleReload = () => {
+  handleReload = async () => {
+    try {
+      if ('caches' in window) {
+        const names = await caches.keys();
+        await Promise.all(names.map((n) => caches.delete(n)));
+      }
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const r of regs) await r.unregister();
+      }
+    } catch (_e) {
+      // ignore
+    }
     window.location.reload();
   };
 
-  handleReset = () => {
+  handleReset = async () => {
     try {
-      localStorage.removeItem('pv_demo_session');
-      localStorage.removeItem('pv_active_tenant_id');
+      localStorage.clear();
+      sessionStorage.clear();
+      if ('caches' in window) {
+        const names = await caches.keys();
+        await Promise.all(names.map((n) => caches.delete(n)));
+      }
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const r of regs) await r.unregister();
+      }
     } catch (_e) {
       // ignore
     }
