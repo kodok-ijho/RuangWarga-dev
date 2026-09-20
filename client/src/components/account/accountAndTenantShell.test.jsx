@@ -114,16 +114,43 @@ describe('Phase 4 — Tenant Workspace Shell (Contextual & Responsive)', () => {
 
 describe('Phase 4.6 — Navigation Safeguards (No Duplicate Navbars)', () => {
   it('ensures LegacyBottomNav returns empty (null) on tenant workspace routes', () => {
-    const html = renderToString(
-      <MemoryRouter initialEntries={['/t/t-kos-1/dashboard']}>
-        <LegacyBottomNav />
-      </MemoryRouter>
-    );
-    expect(html).toBe('');
+    const tenantPaths = [
+      '/t/t-kos-1',
+      '/t/t-kos-1/',
+      '/t/t-kos-1/dashboard',
+      '/t/t-kos-1/dashboard/',
+      '/t/t-kos-1/expenses',
+      '/t/t-kos-1/subscription/checkout',
+      '/t/t-kos-1/setup',
+    ];
+    for (const path of tenantPaths) {
+      const html = renderToString(
+        <MemoryRouter initialEntries={[path]}>
+          <LegacyBottomNav />
+        </MemoryRouter>
+      );
+      expect(html).toBe('');
+    }
   });
 
-  it('ensures LegacyBottomNav returns empty (null) on account, platform, listing, and onboarding routes', () => {
-    const paths = ['/account', '/platform', '/listing', '/onboarding'];
+  it('ensures LegacyBottomNav returns empty (null) on account, platform, listing, join, and onboarding routes', () => {
+    const paths = [
+      '/account',
+      '/account/',
+      '/account/tenants',
+      '/account/subscription/checkout',
+      '/platform',
+      '/platform/',
+      '/platform/revenue',
+      '/listing',
+      '/listing/',
+      '/listing/kos',
+      '/listing/umkm/123',
+      '/onboarding',
+      '/onboarding/choose-type',
+      '/join',
+      '/join/PV-INV-123',
+    ];
     for (const path of paths) {
       const html = renderToString(
         <MemoryRouter initialEntries={[path]}>
@@ -132,5 +159,17 @@ describe('Phase 4.6 — Navigation Safeguards (No Duplicate Navbars)', () => {
       );
       expect(html).toBe('');
     }
+  });
+
+  it('ensures LegacyBottomNav renders on legacy transitional routes (/residents, /settings)', () => {
+    const html = renderToString(
+      <MemoryRouter initialEntries={['/residents']}>
+        <LegacyBottomNav />
+      </MemoryRouter>
+    );
+    // Legacy nav renders for transitional routes
+    expect(html).toContain('fixed bottom-0');
+    expect(html).toContain('Navigasi Utama Ponsel');
+    expect(html).toContain('Penyewa'); // adapts dynamically to mock template.memberLabel
   });
 });

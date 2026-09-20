@@ -21,7 +21,7 @@ export function PageHeader({
               <Link
                 to={backTo}
                 aria-label="Kembali"
-                className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition shadow-xs pv-focus-ring"
+                className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition pv-focus-ring"
                 title="Kembali"
               >
                 <AiOutlineArrowLeft className="text-base" aria-hidden="true" />
@@ -31,7 +31,7 @@ export function PageHeader({
                 type="button"
                 onClick={onBack}
                 aria-label="Kembali"
-                className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition shadow-xs pv-focus-ring"
+                className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition pv-focus-ring"
                 title="Kembali"
               >
                 <AiOutlineArrowLeft className="text-base" aria-hidden="true" />
@@ -41,7 +41,7 @@ export function PageHeader({
         )}
 
         {Icon && (
-          <div className="p-2.5 rounded-2xl bg-slate-100 text-slate-800 border border-slate-200 shadow-xs shrink-0 mt-0.5">
+          <div className="p-2.5 rounded-2xl bg-slate-100 text-slate-800 border border-slate-200 shrink-0 mt-0.5">
             <Icon className="text-xl" aria-hidden="true" />
           </div>
         )}

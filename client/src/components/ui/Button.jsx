@@ -1,20 +1,20 @@
 import React, { forwardRef } from 'react';
 
 const PRIMARY_STYLE =
-  'bg-slate-900 text-white font-semibold hover:bg-slate-800 active:scale-[0.98] border border-slate-900 shadow-xs';
+  'bg-slate-900 text-white font-semibold hover:bg-slate-800 active:scale-[0.98] border border-slate-900';
 
 const VARIANTS = {
   primary: PRIMARY_STYLE,
   secondary:
-    'bg-slate-100 text-slate-800 font-semibold hover:bg-slate-200 active:scale-[0.98] border border-slate-200/80 shadow-xs',
+    'bg-slate-100 text-slate-800 font-semibold hover:bg-slate-200 active:scale-[0.98] border border-slate-200/80',
   tenant:
-    'bg-[var(--tenant-primary,#0f172a)] text-white font-semibold hover:opacity-90 active:scale-[0.98] shadow-xs border border-black/10',
+    'bg-[var(--tenant-primary,#0f172a)] text-white font-semibold hover:opacity-90 active:scale-[0.98] border border-black/10',
   outline:
-    'bg-white text-slate-800 font-semibold border border-slate-200 hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98] shadow-xs',
+    'bg-white text-slate-800 font-semibold border border-slate-200 hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98]',
   ghost:
     'text-slate-700 font-semibold hover:bg-slate-100 hover:text-slate-900 active:scale-[0.98] border border-transparent',
   destructive:
-    'bg-rose-600 text-white font-semibold border border-rose-700 hover:bg-rose-700 active:scale-[0.98] shadow-xs',
+    'bg-rose-600 text-white font-semibold border border-rose-700 hover:bg-rose-700 active:scale-[0.98]',
   danger:
     'bg-rose-50 text-rose-700 font-semibold border border-rose-200/80 hover:bg-rose-100 active:scale-[0.98]',
   // Aliases backward-compatible

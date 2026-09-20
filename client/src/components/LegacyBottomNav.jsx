@@ -48,15 +48,23 @@ export function LegacyBottomNav() {
   // Jangan tampilkan jika belum login
   if (!isAuthenticated) return null;
 
-  // Safeguard: JANGAN tampilkan pada rute modern (/t/*, /platform/*, /account/*, /listing/*, onboarding)
+  // Safeguard: JANGAN tampilkan pada rute modern (/t/*, /platform/*, /account/*, /listing/*, /onboarding/*, /join/*)
   // Rute modern /t/:tenantId/* sudah memiliki navigasi mobile bawaan di TenantShell.
+  const path = (location.pathname || '').toLowerCase();
   if (
-    location.pathname.startsWith('/t/') ||
-    location.pathname.startsWith('/platform') ||
-    location.pathname.startsWith('/account') ||
-    location.pathname.startsWith('/listing') ||
-    location.pathname.startsWith('/onboarding') ||
-    location.pathname.endsWith('/setup')
+    path === '/t' ||
+    path.startsWith('/t/') ||
+    path === '/platform' ||
+    path.startsWith('/platform/') ||
+    path === '/account' ||
+    path.startsWith('/account/') ||
+    path === '/listing' ||
+    path.startsWith('/listing/') ||
+    path === '/onboarding' ||
+    path.startsWith('/onboarding/') ||
+    path === '/join' ||
+    path.startsWith('/join/') ||
+    path.endsWith('/setup')
   ) {
     return null;
   }

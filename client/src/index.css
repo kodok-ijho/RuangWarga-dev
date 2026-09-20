@@ -56,7 +56,7 @@
 
   /* Tombol utama global (RuangWarga Neutral Primary) */
   .pv-btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 text-white font-semibold px-4 py-2.5 text-sm shadow-xs transition-all hover:bg-slate-800 active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 text-white font-semibold px-4 py-2.5 text-sm transition-all hover:bg-slate-800 active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none;
   }
 
   .pv-btn-ghost {
