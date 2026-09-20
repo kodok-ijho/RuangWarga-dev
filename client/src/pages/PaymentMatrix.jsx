@@ -9,7 +9,7 @@ import Placeholder from '../components/Placeholder';
 import QrisCheckoutModal from '../components/QrisCheckoutModal';
 import CreateBillingModal from '../components/CreateBillingModal';
 import CheckoutRoomModal from '../components/CheckoutRoomModal';
-import { EmptyState, SkeletonTable } from '../components/ui';
+import { EmptyState, SkeletonTable, SearchInput, Pagination } from '../components/ui';
 import {
   MONTHS_SHORT,
   MONTHS_LONG,
@@ -123,6 +123,12 @@ export default function PaymentMatrix() {
   const [resolvedMyUnitId, setResolvedMyUnitId] = useState(null);
   const [isUnitResolving, setIsUnitResolving] = useState(true);
 
+  // Matrix search, filter, and pagination states
+  const [matrixSearch, setMatrixSearch] = useState('');
+  const [matrixFilterOccupancy, setMatrixFilterOccupancy] = useState('all'); // 'all' | 'occupied' | 'vacant'
+  const [matrixPage, setMatrixPage] = useState(1);
+  const [matrixPageSize, setMatrixPageSize] = useState(25);
+
   // Isolasi Tenant & Reset Stale State saat activeTenantId berubah
   useEffect(() => {
     let active = true;
@@ -135,6 +141,9 @@ export default function PaymentMatrix() {
     setDetailModal(null);
     setLoadError('');
     setResolvedMyUnitId(null);
+    setMatrixSearch('');
+    setMatrixFilterOccupancy('all');
+    setMatrixPage(1);
 
     const resolveUnit = async () => {
       setIsUnitResolving(true);
@@ -511,6 +520,33 @@ export default function PaymentMatrix() {
     ),
     [selectedBills]
   );
+
+  const filteredMatrix = useMemo(() => {
+    const q = matrixSearch.trim().toLowerCase();
+    return (matrix || []).filter((row) => {
+      if (matrixFilterOccupancy === 'occupied' && !row.unit?.is_occupied && row.unit?.status !== 'occupied') return false;
+      if (matrixFilterOccupancy === 'vacant' && (row.unit?.is_occupied || row.unit?.status === 'occupied')) return false;
+      if (!q) return true;
+
+      const unitLabel = (row.unit?.label || `Blok ${row.unit?.block}/${row.unit?.unit_number}`).toLowerCase();
+      const residentNames = (Array.isArray(row.residents) && row.residents.length > 0
+        ? row.residents
+        : row.resident
+          ? [row.resident]
+          : [])
+        .map((r) => (r?.full_name || '').toLowerCase());
+
+      return unitLabel.includes(q) || residentNames.some((name) => name.includes(q));
+    });
+  }, [matrix, matrixSearch, matrixFilterOccupancy]);
+
+  const totalMatrixPages = Math.max(1, Math.ceil(filteredMatrix.length / matrixPageSize));
+  const paginatedMatrix = useMemo(() => {
+    const start = (matrixPage - 1) * matrixPageSize;
+    return filteredMatrix.slice(start, start + matrixPageSize);
+  }, [filteredMatrix, matrixPage, matrixPageSize]);
+
+  const activeMatrixFilterCount = (matrixSearch ? 1 : 0) + (matrixFilterOccupancy !== 'all' ? 1 : 0);
 
   // Mode tab untuk warga: 'my_bills' (Overview & Riwayat) atau 'matrix' (Matriks Transparansi)
   const [activeTab, setActiveTab] = useState('my_bills');
@@ -1045,6 +1081,48 @@ export default function PaymentMatrix() {
             </span>
           </div>
 
+          {/* Matrix Search & Filter Bar */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
+            <div className="flex-1 max-w-md">
+              <SearchInput
+                value={matrixSearch}
+                onChange={(val) => {
+                  setMatrixSearch(val);
+                  setMatrixPage(1);
+                }}
+                placeholder={`Cari nomor ${template.unitLabel.toLowerCase()} atau nama ${template.memberLabel.toLowerCase()}...`}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                value={matrixFilterOccupancy}
+                onChange={(e) => {
+                  setMatrixFilterOccupancy(e.target.value);
+                  setMatrixPage(1);
+                }}
+                className="pv-input text-xs py-2 w-auto"
+                aria-label="Filter status unit matriks"
+              >
+                <option value="all">Semua Status {template.unitLabel}</option>
+                <option value="occupied">{template.occupiedUnitLabel}</option>
+                <option value="vacant">{template.emptyUnitLabel}</option>
+              </select>
+              {activeMatrixFilterCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMatrixSearch('');
+                    setMatrixFilterOccupancy('all');
+                    setMatrixPage(1);
+                  }}
+                  className="text-xs text-rose-600 hover:text-rose-700 font-semibold px-2.5 py-2 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors"
+                >
+                  Reset ({activeMatrixFilterCount})
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Matriks */}
           <div data-tour="matrix-grid" className="pv-card relative z-0 overflow-hidden border border-slate-200 shadow-card bg-white">
             <div className="overflow-x-auto">
@@ -1073,8 +1151,25 @@ export default function PaymentMatrix() {
                           : `Belum ada data ${template.unitLabel.toLowerCase()}.`}
                       </td>
                     </tr>
+                  ) : filteredMatrix.length === 0 ? (
+                    <tr>
+                      <td colSpan={13} className="px-4 py-10 text-center text-slate-500">
+                        <p className="font-semibold text-slate-700">Tidak ada {template.unitLabel.toLowerCase()} yang cocok dengan pencarian "{matrixSearch}".</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMatrixSearch('');
+                            setMatrixFilterOccupancy('all');
+                            setMatrixPage(1);
+                          }}
+                          className="mt-2 inline-flex items-center px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+                        >
+                          Reset Pencarian & Filter
+                        </button>
+                      </td>
+                    </tr>
                   ) : (
-                    matrix.map((row) => {
+                    paginatedMatrix.map((row) => {
                       const residentNames = (Array.isArray(row.residents) && row.residents.length > 0
                         ? row.residents
                         : row.resident
@@ -1189,6 +1284,19 @@ export default function PaymentMatrix() {
                 </tbody>
               </table>
             </div>
+            {filteredMatrix.length > 0 && (
+              <Pagination
+                currentPage={matrixPage}
+                totalPages={totalMatrixPages}
+                totalItems={filteredMatrix.length}
+                pageSize={matrixPageSize}
+                onPageChange={setMatrixPage}
+                onPageSizeChange={(sz) => {
+                  setMatrixPageSize(sz);
+                  setMatrixPage(1);
+                }}
+              />
+            )}
           </div>
         </>
       )}

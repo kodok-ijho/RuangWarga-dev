@@ -43,7 +43,7 @@ export function ResidentDetailDrawer({
 
   const cleanPhone = profile.phone ? String(profile.phone).replace(/[^0-9]/g, '') : '';
   const waPhone = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone;
-  const isTemporaryEmail = profile.email && profile.email.includes('@warga.palmvillage.local');
+  const isTemporaryEmail = profile.email && (profile.email.includes('.local') || profile.is_placeholder);
 
   return (
     <Dialog
@@ -56,7 +56,7 @@ export function ResidentDetailDrawer({
       <div className="space-y-5">
         {/* Header Profil */}
         <div className="flex items-center gap-4 pb-4 border-b border-slate-100">
-          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-forest-50 text-forest-900 border border-forest-100 font-black text-2xl shadow-xs">
+          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-800 border border-slate-200 font-black text-2xl shadow-xs">
             {initial}
           </span>
           <div className="min-w-0 space-y-1">

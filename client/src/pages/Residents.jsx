@@ -24,6 +24,10 @@ import {
   fetchUnits,
 } from '../services/dataService';
 import {
+  fetchTenantMembers,
+  fetchTenantUnits,
+} from '../services/tenantOperationalService';
+import {
   roleLabel,
   roleColor,
   occupancyStatusLabel,
@@ -31,7 +35,20 @@ import {
   OCCUPANCY_STATUS,
   canManageResidents,
 } from '../services/dataHelpers';
-import { MobileList, EmptyState, SkeletonTable, SkeletonList } from '../components/ui';
+import {
+  MobileList,
+  EmptyState,
+  SkeletonTable,
+  SkeletonList,
+  Pagination,
+  Table,
+  TableHead,
+  TableHeaderCell,
+  TableBody,
+  TableRow,
+  TableCell,
+  SearchInput,
+} from '../components/ui';
 import { ResidentCard, ResidentDetailDrawer } from '../components/residents';
 
 export default function Residents() {
@@ -54,41 +71,78 @@ export default function Residents() {
   const [profiles, setProfiles] = useState([]);
   const [units, setUnits] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // State filter & search
+  // State filter, search, sort & pagination
   const [search, setSearch] = useState('');
   const [filterBlock, setFilterBlock] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterOccupancy, setFilterOccupancy] = useState('');
+  const [sortKey, setSortKey] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [selectedId, setSelectedId] = useState(null);
 
   // State untuk CRUD & upload
   const [modalAddEdit, setModalAddEdit] = useState(null); // null | 'add' | profile obj
   const [modalUpload, setModalUpload] = useState(false);
 
+  // Reset all transient state on tenant switch
+  useEffect(() => {
+    setSelectedId(null);
+    setSearch('');
+    setFilterBlock('');
+    setFilterStatus('');
+    setFilterOccupancy('');
+    setSortKey('name');
+    setSortDirection('asc');
+    setCurrentPage(1);
+    setModalAddEdit(null);
+    setModalUpload(false);
+  }, [activeTenantId]);
+
   const loadData = useCallback(async () => {
     setIsLoading(true);
-    
-    const fetchResPromise = fetchResidents(token)
-      .then((res) => {
-        setProfiles(res);
-        setIsLoading(false);
-      });
-      
-    const fetchUnitsPromise = fetchUnits(token)
-      .then((res) => {
-        setUnits(res);
-      });
-
+    setLoadError(null);
     try {
-      await Promise.all([fetchResPromise, fetchUnitsPromise]);
+      if (activeTenantId && !String(activeTenantId).startsWith('demo-')) {
+        const [members, tenantUnits] = await Promise.all([
+          fetchTenantMembers(activeTenantId).catch((err) => {
+            console.error('fetchTenantMembers error:', err);
+            return [];
+          }),
+          fetchTenantUnits(activeTenantId).catch((err) => {
+            console.error('fetchTenantUnits error:', err);
+            return [];
+          }),
+        ]);
+        setProfiles(members || []);
+        setUnits(
+          (tenantUnits || []).map((u) => ({
+            ...u,
+            block: u.metadata?.block || u.label || '',
+            unit_number: u.metadata?.unit_number || '',
+          }))
+        );
+      } else {
+        const [res, uList] = await Promise.all([
+          fetchResidents(token).catch(() => []),
+          fetchUnits(token).catch(() => []),
+        ]);
+        setProfiles(res || []);
+        setUnits(uList || []);
+      }
     } catch (err) {
-      toast.error('Gagal memuat data warga/unit.');
+      const msg = err.message || 'Gagal memuat data warga/unit.';
+      setLoadError(msg);
+      toast.error(msg);
       console.error(err);
+    } finally {
       setIsLoading(false);
     }
-  }, [token, toast]);
+  }, [token, toast, activeTenantId]);
 
   useEffect(() => {
     loadData();
@@ -97,32 +151,57 @@ export default function Residents() {
 
   const getUnitById = useCallback((id) => {
     if (!id) return null;
-    return units.find((u) => u.id === Number(id));
+    return units.find((u) => u.id === Number(id) || String(u.id) === String(id));
   }, [units]);
 
   const getUnitOwner = useCallback((unitId) => {
     if (!unitId) return null;
-    const unit = units.find((u) => u.id === Number(unitId));
+    const unit = units.find((u) => u.id === Number(unitId) || String(u.id) === String(unitId));
     if (!unit) return null;
     if (unit.owner_id) {
-      const p = profiles.find((p) => p.id === unit.owner_id);
+      const p = profiles.find((p) => p.id === unit.owner_id || String(p.id) === String(unit.owner_id));
       if (p) return p;
     }
     return profiles.find(
-      (p) => p.unit_id === Number(unitId) && p.occupancy_status && p.occupancy_status.startsWith('owner_')
+      (p) => (p.unit_id === Number(unitId) || String(p.unit_id) === String(unitId)) && p.occupancy_status && p.occupancy_status.startsWith('owner_')
     ) || null;
   }, [units, profiles]);
 
-  const blocks = useMemo(() => [...new Set(units.map((u) => u.block))].sort(), [units]);
+  const blocks = useMemo(() => [...new Set(units.map((u) => u.block || u.metadata?.block).filter(Boolean))].sort(), [units]);
 
-  const filtered = useMemo(() => {
-    return profiles.filter((p) => {
+  const handleSort = (key) => {
+    if (sortKey === key) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+    setCurrentPage(1);
+  };
+
+  const handleResetFilters = () => {
+    setSearch('');
+    setFilterBlock('');
+    setFilterStatus('');
+    setFilterOccupancy('');
+    setCurrentPage(1);
+  };
+
+  const activeFiltersCount = [
+    Boolean(search),
+    Boolean(filterBlock),
+    Boolean(filterStatus),
+    Boolean(filterOccupancy),
+  ].filter(Boolean).length;
+
+  const filteredAndSorted = useMemo(() => {
+    const list = profiles.filter((p) => {
       if (search) {
         const q = search.toLowerCase();
         const unit = getUnitById(p.unit_id);
-        const unitLabel = unit ? `${unit.block}${unit.unit_number}` : '';
+        const unitLabel = unit ? (unit.label || `${unit.block || ''}${unit.unit_number || ''}`) : '';
         if (
-          !p.full_name.toLowerCase().includes(q) &&
+          !p.full_name?.toLowerCase().includes(q) &&
           !(p.email || '').toLowerCase().includes(q) &&
           !(p.phone || '').includes(q) &&
           !unitLabel.toLowerCase().includes(q)
@@ -131,16 +210,62 @@ export default function Residents() {
       }
       if (filterBlock) {
         const unit = getUnitById(p.unit_id);
-        if (!unit || unit.block !== filterBlock) return false;
+        const uBlock = unit?.block || unit?.metadata?.block || '';
+        if (uBlock !== filterBlock) return false;
       }
       if (filterStatus === 'active' && !p.is_active) return false;
       if (filterStatus === 'inactive' && p.is_active) return false;
       if (filterOccupancy && p.occupancy_status !== filterOccupancy) return false;
       return true;
     });
-  }, [profiles, search, filterBlock, filterStatus, filterOccupancy, getUnitById]);
 
-  const selected = selectedId ? profiles.find((p) => p.id === selectedId) : null;
+    list.sort((a, b) => {
+      let valA = '';
+      let valB = '';
+      if (sortKey === 'name') {
+        valA = (a.full_name || '').toLowerCase();
+        valB = (b.full_name || '').toLowerCase();
+        return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+      if (sortKey === 'unit') {
+        const uA = getUnitById(a.unit_id);
+        const uB = getUnitById(b.unit_id);
+        valA = uA ? (uA.label || `${uA.block || ''}${uA.unit_number || ''}`) : '';
+        valB = uB ? (uB.label || `${uB.block || ''}${uB.unit_number || ''}`) : '';
+        return sortDirection === 'asc'
+          ? valA.localeCompare(valB, undefined, { numeric: true })
+          : valB.localeCompare(valA, undefined, { numeric: true });
+      }
+      if (sortKey === 'status') {
+        valA = a.is_active ? 1 : 0;
+        valB = b.is_active ? 1 : 0;
+        return sortDirection === 'asc' ? valA - valB : valB - valA;
+      }
+      if (sortKey === 'role') {
+        valA = (a.role || '').toLowerCase();
+        valB = (b.role || '').toLowerCase();
+        return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+      if (sortKey === 'created_at') {
+        valA = new Date(a.created_at || 0).getTime();
+        valB = new Date(b.created_at || 0).getTime();
+        return sortDirection === 'asc' ? valA - valB : valB - valA;
+      }
+      return 0;
+    });
+
+    return list;
+  }, [profiles, search, filterBlock, filterStatus, filterOccupancy, sortKey, sortDirection, getUnitById]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAndSorted.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedItems = useMemo(() => {
+    const start = (safeCurrentPage - 1) * pageSize;
+    return filteredAndSorted.slice(start, start + pageSize);
+  }, [filteredAndSorted, safeCurrentPage, pageSize]);
+
+  const selected = selectedId ? profiles.find((p) => p.id === selectedId || String(p.id) === String(selectedId)) : null;
 
   // ── Handlers ──────────────────────────────────────────
   const handleSaveProfile = async (data) => {
@@ -310,55 +435,98 @@ export default function Residents() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Daftar {template.memberLabel}</h2>
-          <p className="text-xs text-slate-500 mt-0.5">{filtered.length} dari {profiles.length} {template.memberLabel.toLowerCase()}</p>
+          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
+            Daftar {template.memberLabel}
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Menampilkan {filteredAndSorted.length} dari {profiles.length} {template.memberLabel.toLowerCase()}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {canManage && (
             <>
-              <button onClick={() => setModalUpload(true)} className="pv-btn-ghost text-xs shadow-xs">
+              <button
+                type="button"
+                onClick={() => setModalUpload(true)}
+                className="pv-btn-ghost text-xs shadow-xs min-h-[36px]"
+              >
                 <AiOutlineUpload /> Upload CSV
               </button>
-              <button onClick={() => setModalAddEdit('add')} className="pv-btn-primary text-xs shadow-xs">
+              <button
+                type="button"
+                onClick={() => setModalAddEdit('add')}
+                className="pv-btn-primary text-xs shadow-xs min-h-[36px]"
+              >
                 <AiOutlinePlus /> Tambah {template.memberLabel}
               </button>
             </>
           )}
           {canManage && (
-            <button onClick={handleExportCSV} className="pv-btn-ghost text-xs shadow-xs">
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              className="pv-btn-ghost text-xs shadow-xs min-h-[36px]"
+            >
               <AiOutlineDownload /> Export
             </button>
           )}
         </div>
       </div>
 
+      {/* Error state */}
+      {loadError && (
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 flex items-center justify-between gap-3">
+          <div className="text-xs font-semibold">{loadError}</div>
+          <button
+            type="button"
+            onClick={loadData}
+            className="px-3 py-1.5 rounded-xl bg-white border border-rose-300 text-rose-900 text-xs font-bold hover:bg-rose-100 transition-colors shadow-2xs"
+          >
+            Coba Lagi
+          </button>
+        </div>
+      )}
+
       {/* Search & filters */}
-      <div data-tour="residents-filters" className="pv-card p-4">
+      <div data-tour="residents-filters" className="pv-card p-4 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Cari nama, email, telepon..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-gold-500 focus:ring-2 focus:ring-gold-400/20 outline-none transition"
-            />
-          </div>
+          <SearchInput
+            placeholder={`Cari nama, email, telepon, ${template.unitLabel.toLowerCase()}...`}
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+            onClear={() => {
+              setSearch('');
+              setCurrentPage(1);
+            }}
+            ariaLabel={`Cari data ${template.memberLabel.toLowerCase()}`}
+          />
           <select
             value={filterBlock}
-            onChange={(e) => setFilterBlock(e.target.value)}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-gold-500 focus:ring-2 focus:ring-gold-400/20 outline-none transition font-medium"
+            onChange={(e) => {
+              setFilterBlock(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="h-11 min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-slate-400 font-medium shadow-2xs"
+            aria-label={`Filter berdasarkan blok atau kategori ${template.unitLabel.toLowerCase()}`}
           >
-            <option value="">Semua Blok</option>
-            {blocks.map((b) => <option key={b} value={b}>Blok {b}</option>)}
+            <option value="">Semua Kategori / Blok</option>
+            {blocks.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
           </select>
           <select
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-gold-500 focus:ring-2 focus:ring-gold-400/20 outline-none transition font-medium"
+            onChange={(e) => {
+              setFilterStatus(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="h-11 min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-slate-400 font-medium shadow-2xs"
+            aria-label="Filter status keaktifan"
           >
             <option value="">Semua Status</option>
             <option value="active">Aktif</option>
@@ -366,15 +534,36 @@ export default function Residents() {
           </select>
           <select
             value={filterOccupancy}
-            onChange={(e) => setFilterOccupancy(e.target.value)}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-gold-500 focus:ring-2 focus:ring-gold-400/20 outline-none transition font-medium"
+            onChange={(e) => {
+              setFilterOccupancy(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="h-11 min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-slate-400 font-medium shadow-2xs"
+            aria-label={`Filter ${template.contractLabel || 'status tinggal'}`}
           >
-            <option value="">Semua Status Tinggal</option>
+            <option value="">Semua {template.contractLabel || 'Status Tinggal'}</option>
             {Object.entries(OCCUPANCY_STATUS).map(([key, label]) => (
-              <option key={key} value={key}>{label}</option>
+              <option key={key} value={key}>
+                {label}
+              </option>
             ))}
           </select>
         </div>
+
+        {activeFiltersCount > 0 && (
+          <div className="flex items-center justify-between pt-1 text-xs text-slate-500 border-t border-slate-100">
+            <span className="font-medium">
+              {activeFiltersCount} filter aktif diterapkan
+            </span>
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="font-bold text-slate-700 hover:text-slate-950 underline cursor-pointer"
+            >
+              Reset Filter & Pencarian
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Daftar Penghuni Adaptif (Mobile Cards / Desktop Table) */}
@@ -388,30 +577,29 @@ export default function Residents() {
               <SkeletonTable cols={7} rows={6} />
             </div>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : filteredAndSorted.length === 0 ? (
           <EmptyState
             icon="👥"
             title={
-              search || filterBlock || filterStatus || filterOccupancy
-                ? `Tidak Ditemukan ${template.memberLabel}`
+              search
+                ? `Tidak Ditemukan Hasil Pencarian`
+                : activeFiltersCount > 0
+                ? `Tidak Ada Data yang Cocok`
                 : `Belum Ada ${template.memberLabel} Terdaftar`
             }
             description={
-              search || filterBlock || filterStatus || filterOccupancy
-                ? `Tidak ada data ${template.memberLabel.toLowerCase()} yang sesuai dengan kata kunci atau filter yang Anda gunakan.`
+              search
+                ? `Tidak ada data ${template.memberLabel.toLowerCase()} yang cocok dengan "${search}".`
+                : activeFiltersCount > 0
+                ? `Tidak ada data ${template.memberLabel.toLowerCase()} yang sesuai dengan filter yang Anda gunakan.`
                 : `Mulai kelola komunitas dengan menambahkan data ${template.memberLabel.toLowerCase()} pertama Anda.`
             }
             action={
-              search || filterBlock || filterStatus || filterOccupancy ? (
+              activeFiltersCount > 0 ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    setSearch('');
-                    setFilterBlock('');
-                    setFilterStatus('');
-                    setFilterOccupancy('');
-                  }}
-                  className="pv-btn-ghost text-xs shadow-2xs"
+                  onClick={handleResetFilters}
+                  className="pv-btn-ghost text-xs shadow-2xs min-h-[44px]"
                 >
                   Reset Filter & Pencarian
                 </button>
@@ -419,7 +607,7 @@ export default function Residents() {
                 <button
                   type="button"
                   onClick={() => setModalAddEdit('add')}
-                  className="pv-btn-primary text-xs shadow-xs"
+                  className="pv-btn-primary text-xs shadow-xs min-h-[44px]"
                 >
                   <AiOutlinePlus /> Tambah {template.memberLabel}
                 </button>
@@ -427,115 +615,195 @@ export default function Residents() {
             }
           />
         ) : (
-          <MobileList
-            items={filtered}
-            renderItem={(p) => {
-              const unit = getUnitById(p.unit_id);
-              return (
-                <ResidentCard
-                  key={p.id}
-                  profile={p}
-                  unit={unit}
-                  template={template}
-                  activeTenant={activeTenant}
-                  onClick={() => setSelectedId(p.id)}
-                />
-              );
-            }}
-            desktopContent={
-              <div className="pv-card overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-200 bg-slate-100/90 text-left">
-                        <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider">Nama</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider">{template.unitLabel}</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider hidden sm:table-cell">Telepon</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider">Status</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider hidden lg:table-cell">{template.contractLabel || 'Status Tinggal'}</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider hidden lg:table-cell">Pemilik</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider hidden md:table-cell">Role</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {filtered.map((p) => {
-                        const unit = getUnitById(p.unit_id);
-                        return (
-                          <tr
-                            key={p.id}
-                            onClick={() => setSelectedId(p.id)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                setSelectedId(p.id);
-                              }
-                            }}
-                            tabIndex={0}
-                            role="button"
-                            aria-label={`Buka detail ${template.memberLabel?.toLowerCase() || 'warga'} ${p.full_name}`}
-                            className="hover:bg-slate-50/80 cursor-pointer transition-colors focus:outline-hidden focus:bg-slate-100/90"
-                          >
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2.5">
-                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs">
-                                  {p.full_name.charAt(0)}
-                                </span>
-                                <div className="min-w-0">
-                                  <p className="font-semibold text-slate-900 truncate">{p.full_name}</p>
-                                  {p.email && p.email.includes('@warga.palmvillage.local') ? (
-                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600">
-                                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-                                      Akun Sementara (Belum Login)
-                                    </span>
-                                  ) : (
-                                    <p className="text-[11px] text-slate-400 truncate">{p.email}</p>
-                                  )}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-slate-800 font-medium">
-                              {unit ? (unit.label || `${unit.block}/${unit.unit_number}`) : '—'}
-                            </td>
-                            <td className="px-4 py-3 text-slate-500 hidden sm:table-cell">{p.phone || '—'}</td>
-                            <td className="px-4 py-3">
-                              <span className={`pv-badge ${p.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
-                                {p.is_active ? 'Aktif' : 'Non-aktif'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 hidden lg:table-cell">
-                              {p.occupancy_status ? (
-                                <span className={`pv-badge ${occupancyStatusColor(p.occupancy_status)}`}>
-                                  {occupancyStatusLabel(p.occupancy_status, activeTenant?.type)}
+          <div className="space-y-3">
+            {/* Mobile View */}
+            <div className="block md:hidden space-y-2.5">
+              <MobileList
+                items={paginatedItems}
+                renderItem={(p) => {
+                  const unit = getUnitById(p.unit_id);
+                  return (
+                    <ResidentCard
+                      key={p.id}
+                      profile={p}
+                      unit={unit}
+                      template={template}
+                      activeTenant={activeTenant}
+                      onClick={() => setSelectedId(p.id)}
+                    />
+                  );
+                }}
+              />
+              <Pagination
+                currentPage={safeCurrentPage}
+                totalPages={totalPages}
+                totalItems={filteredAndSorted.length}
+                pageSize={pageSize}
+                onPageChange={(page) => setCurrentPage(page)}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setCurrentPage(1);
+                }}
+                className="rounded-2xl border border-slate-200 shadow-xs"
+              />
+            </div>
+
+            {/* Desktop View: Semantic Table */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableHeaderCell
+                      sortable
+                      sortKey="name"
+                      currentSortKey={sortKey}
+                      currentSortDirection={sortDirection}
+                      onSort={handleSort}
+                    >
+                      Nama & Kontak
+                    </TableHeaderCell>
+                    <TableHeaderCell
+                      sortable
+                      sortKey="unit"
+                      currentSortKey={sortKey}
+                      currentSortDirection={sortDirection}
+                      onSort={handleSort}
+                    >
+                      {template.unitLabel}
+                    </TableHeaderCell>
+                    <TableHeaderCell className="hidden sm:table-cell">
+                      Telepon
+                    </TableHeaderCell>
+                    <TableHeaderCell
+                      sortable
+                      sortKey="status"
+                      currentSortKey={sortKey}
+                      currentSortDirection={sortDirection}
+                      onSort={handleSort}
+                    >
+                      Status
+                    </TableHeaderCell>
+                    <TableHeaderCell className="hidden lg:table-cell">
+                      {template.contractLabel || 'Status Tinggal'}
+                    </TableHeaderCell>
+                    <TableHeaderCell className="hidden lg:table-cell">
+                      Pemilik
+                    </TableHeaderCell>
+                    <TableHeaderCell
+                      sortable
+                      sortKey="role"
+                      currentSortKey={sortKey}
+                      currentSortDirection={sortDirection}
+                      onSort={handleSort}
+                      className="hidden md:table-cell"
+                    >
+                      Role
+                    </TableHeaderCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {paginatedItems.map((p) => {
+                    const unit = getUnitById(p.unit_id);
+                    const isPlaceholder = p.email && (p.email.includes('.local') || p.is_placeholder);
+                    return (
+                      <TableRow
+                        key={p.id}
+                        isClickable
+                        onClick={() => setSelectedId(p.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedId(p.id);
+                          }
+                        }}
+                        tabIndex={0}
+                        role="button"
+                        aria-label={`Buka detail ${template.memberLabel?.toLowerCase() || 'warga'} ${p.full_name}`}
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-2.5">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-800 border border-slate-200 font-bold text-xs">
+                              {p.full_name.charAt(0)}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="font-semibold text-slate-900 truncate">
+                                {p.full_name}
+                              </p>
+                              {isPlaceholder ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                                  Akun Sementara
                                 </span>
                               ) : (
-                                <span className="text-slate-400 text-xs">—</span>
+                                <p className="text-[11px] text-slate-400 truncate">
+                                  {p.email || '—'}
+                                </p>
                               )}
-                            </td>
-                            <td className="px-4 py-3 hidden lg:table-cell text-slate-700 text-xs font-medium">
-                              {(() => {
-                                if (!unit) return '—';
-                                if (p.occupancy_status === 'tenant') {
-                                  const owner = getUnitOwner(p.unit_id);
-                                  return owner ? owner.full_name : '—';
-                                }
-                                if (p.occupancy_status && p.occupancy_status.startsWith('owner_')) {
-                                  return <span className="text-emerald-700 font-semibold">Diri sendiri</span>;
-                                }
-                                return '—';
-                              })()}
-                            </td>
-                            <td className="px-4 py-3 hidden md:table-cell">
-                              <span className={`pv-badge ${roleColor(p.role)}`}>{roleLabel(p.role, activeTenant?.type)}</span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            }
-          />
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-medium text-slate-800">
+                          {unit ? (unit.label || `${unit.block}/${unit.unit_number}`) : '—'}
+                        </TableCell>
+                        <TableCell className="text-slate-500 hidden sm:table-cell">
+                          {p.phone || '—'}
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={`pv-badge ${
+                              p.is_active
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : 'bg-slate-100 text-slate-500 border border-slate-200'
+                            }`}
+                          >
+                            {p.is_active ? '✓ Aktif' : '• Non-aktif'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          {p.occupancy_status ? (
+                            <span className={`pv-badge ${occupancyStatusColor(p.occupancy_status)}`}>
+                              {occupancyStatusLabel(p.occupancy_status, activeTenant?.type)}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 text-xs">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell text-slate-700 text-xs font-medium">
+                          {(() => {
+                            if (!unit) return '—';
+                            if (p.occupancy_status === 'tenant') {
+                              const owner = getUnitOwner(p.unit_id);
+                              return owner ? owner.full_name : '—';
+                            }
+                            if (p.occupancy_status && p.occupancy_status.startsWith('owner_')) {
+                              return <span className="text-emerald-700 font-semibold">Diri sendiri</span>;
+                            }
+                            return '—';
+                          })()}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          <span className={`pv-badge ${roleColor(p.role)}`}>
+                            {roleLabel(p.role, activeTenant?.type)}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+              <Pagination
+                currentPage={safeCurrentPage}
+                totalPages={totalPages}
+                totalItems={filteredAndSorted.length}
+                pageSize={pageSize}
+                onPageChange={(page) => setCurrentPage(page)}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+          </div>
         )}
       </div>
 

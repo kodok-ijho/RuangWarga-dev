@@ -16,7 +16,18 @@ import { useTour } from '../context/TourContext';
 import { useTenant } from '../hooks/useTenant';
 import { useTenantTemplate } from '../hooks/useTenantTemplate';
 import Modal from '../components/Modal';
-import { EmptyState, SkeletonTable } from '../components/ui';
+import {
+  EmptyState,
+  SkeletonTable,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableHeaderCell,
+  TableCell,
+  SearchInput,
+  Pagination,
+} from '../components/ui';
 import {
   fetchUnits,
   upsertUnit,
@@ -24,6 +35,7 @@ import {
   fetchPayments,
   fetchIPLSchemas,
 } from '../services/dataService';
+import { fetchTenantUnits, fetchTenantMembers } from '../services/tenantOperationalService';
 import {
   isStaffRole,
   isBendaharaOrAbove,
@@ -47,9 +59,13 @@ const EMPTY_FORM = {
 
 export default function Houses() {
   const { role, session, isReadOnly } = useAuth();
-  const { activeTenant } = useTenant();
+  const { activeTenantId, activeTenant } = useTenant();
   const template = useTenantTemplate();
   const isRtRw = !activeTenant?.type || activeTenant?.type === 'rt_rw';
+  const sitePlanUrl = activeTenant?.settings?.site_plan_url || (activeTenant?.slug === 'palm-village' ? '/Mapsite%20Palm%20Village.png' : null);
+  const sitePlanPdf = activeTenant?.settings?.site_plan_pdf || (activeTenant?.slug === 'palm-village' ? '/Site Plan Update 2.pdf' : null);
+  const hasSitePlan = isRtRw && Boolean(sitePlanUrl);
+
   const { triggerTour } = useTour();
   const token = session?.access_token;
   const toast = useToast();
@@ -68,37 +84,87 @@ export default function Houses() {
   const [search, setSearch] = useState('');
   const [filterBlock, setFilterBlock] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [sortKey, setSortKey] = useState('unit');
+  const [sortDirection, setSortDirection] = useState('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   const [selectedUnit, setSelectedUnit] = useState(null);
   const [formUnit, setFormUnit] = useState(null);
   const [isMapPreviewOpen, setIsMapPreviewOpen] = useState(false);
 
+  // Tenant switch reset effect
+  useEffect(() => {
+    setSelectedUnit(null);
+    setFormUnit(null);
+    setIsMapPreviewOpen(false);
+    setSearch('');
+    setFilterBlock('');
+    setFilterStatus('');
+    setCurrentPage(1);
+    setSortKey('unit');
+    setSortDirection('asc');
+  }, [activeTenantId]);
+
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [resUnits, resProfiles, resSchemas] = await Promise.all([
-        fetchUnits(token).catch((err) => {
-          console.error('Failed to fetch units:', err);
-          return [];
-        }),
-        fetchResidents(token).catch((err) => {
-          console.error('Failed to fetch residents:', err);
-          return [];
-        }),
-        fetchIPLSchemas(token).catch((err) => {
-          console.warn('Failed to fetch IPL schemas; using defaults:', err);
-          return DEFAULT_IPL_SCHEMAS;
-        }),
-      ]);
-      setUnits(resUnits || []);
-      setProfiles(resProfiles || []);
-      setIplSchemas(resSchemas && resSchemas.length > 0 ? resSchemas : DEFAULT_IPL_SCHEMAS);
+      if (activeTenantId && !String(activeTenantId).startsWith('demo-')) {
+        const [tenantUnits, members, resSchemas] = await Promise.all([
+          fetchTenantUnits(activeTenantId).catch((err) => {
+            console.error('fetchTenantUnits error:', err);
+            return [];
+          }),
+          fetchTenantMembers(activeTenantId).catch((err) => {
+            console.error('fetchTenantMembers error:', err);
+            return [];
+          }),
+          fetchIPLSchemas(token).catch((err) => {
+            console.warn('Failed to fetch IPL schemas; using defaults:', err);
+            return DEFAULT_IPL_SCHEMAS;
+          }),
+        ]);
+        setUnits(
+          (tenantUnits || []).map((u) => ({
+            ...u,
+            block: u.metadata?.block || u.block || u.label || 'BLOK',
+            unit_number: u.metadata?.unit_number || u.unit_number || '',
+            size: u.metadata?.size ?? u.size ?? 0,
+            floor: u.metadata?.floor ?? u.floor ?? 1,
+            is_occupied: u.status === 'occupied' || u.is_occupied || false,
+            owner_id: u.metadata?.owner_id || u.owner_id || null,
+            ipl_schema_id: u.metadata?.ipl_schema_id || u.ipl_schema_id || 'schema-basic',
+            notes: u.metadata?.notes || u.notes || '',
+          }))
+        );
+        setProfiles(members || []);
+        setIplSchemas(resSchemas && resSchemas.length > 0 ? resSchemas : DEFAULT_IPL_SCHEMAS);
+      } else {
+        const [resUnits, resProfiles, resSchemas] = await Promise.all([
+          fetchUnits(token).catch((err) => {
+            console.error('Failed to fetch units:', err);
+            return [];
+          }),
+          fetchResidents(token).catch((err) => {
+            console.error('Failed to fetch residents:', err);
+            return [];
+          }),
+          fetchIPLSchemas(token).catch((err) => {
+            console.warn('Failed to fetch IPL schemas; using defaults:', err);
+            return DEFAULT_IPL_SCHEMAS;
+          }),
+        ]);
+        setUnits(resUnits || []);
+        setProfiles(resProfiles || []);
+        setIplSchemas(resSchemas && resSchemas.length > 0 ? resSchemas : DEFAULT_IPL_SCHEMAS);
+      }
     } catch (err) {
       toast.error(`Gagal memuat data master ${template.unitLabel.toLowerCase()}.`);
       console.error(err);
     } finally {
       setIsLoading(false);
     }
-  }, [token, toast, template.unitLabel]);
+  }, [token, toast, template.unitLabel, activeTenantId]);
 
   useEffect(() => {
     loadData();
@@ -129,7 +195,7 @@ export default function Houses() {
   }, [profiles]);
 
   const blocks = useMemo(
-    () => [...new Set(units.map((unit) => unit.block))].sort(),
+    () => [...new Set(units.map((unit) => unit.block))].filter(Boolean).sort(),
     [units]
   );
 
@@ -162,6 +228,56 @@ export default function Houses() {
       return true;
     });
   }, [filterBlock, filterStatus, search, units, getUnitOwner, getUnitOccupant]);
+
+  const handleSort = (key) => {
+    if (sortKey === key) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedUnits = useMemo(() => {
+    return [...filteredUnits].sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === 'unit') {
+        const blockComp = String(a.block || '').localeCompare(String(b.block || ''));
+        if (blockComp !== 0) {
+          cmp = blockComp;
+        } else {
+          cmp = String(a.unit_number || '').localeCompare(String(b.unit_number || ''), undefined, { numeric: true });
+        }
+      } else if (sortKey === 'owner') {
+        const ownerA = getUnitOwner(a.id)?.full_name || '';
+        const ownerB = getUnitOwner(b.id)?.full_name || '';
+        cmp = ownerA.localeCompare(ownerB);
+      } else if (sortKey === 'occupant') {
+        const occA = getUnitOccupant(a.id)?.full_name || '';
+        const occB = getUnitOccupant(b.id)?.full_name || '';
+        cmp = occA.localeCompare(occB);
+      } else if (sortKey === 'schema') {
+        const schemaA = getSchemaById(iplSchemas, a.ipl_schema_id)?.name || '';
+        const schemaB = getSchemaById(iplSchemas, b.ipl_schema_id)?.name || '';
+        cmp = schemaA.localeCompare(schemaB);
+      } else if (sortKey === 'floor') {
+        cmp = (Number(a.floor) || 0) - (Number(b.floor) || 0);
+      } else if (sortKey === 'size') {
+        cmp = (Number(a.size) || 0) - (Number(b.size) || 0);
+      } else if (sortKey === 'status') {
+        cmp = (a.is_occupied === b.is_occupied) ? 0 : a.is_occupied ? -1 : 1;
+      }
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+  }, [filteredUnits, sortKey, sortDirection, getUnitOwner, getUnitOccupant, iplSchemas]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedUnits.length / pageSize));
+  const paginatedUnits = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return sortedUnits.slice(start, start + pageSize);
+  }, [sortedUnits, currentPage, pageSize]);
+
+  const activeFilterCount = (filterBlock ? 1 : 0) + (filterStatus ? 1 : 0) + (search ? 1 : 0);
 
   const openAdd = () => {
     setFormUnit({ ...EMPTY_FORM });
@@ -290,30 +406,34 @@ export default function Houses() {
         )}
       </div>
 
-      {isRtRw ? (
+      {hasSitePlan ? (
         <section className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
           <div data-tour="houses-mapsite" className="pv-card overflow-hidden">
             <div className="border-b border-slate-200 bg-white px-4 py-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">Mapsite Palm Village</h3>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Site Plan {activeTenant?.name || template.communityLabel}
+                  </h3>
                   <p className="text-[11px] text-slate-500">
-                    Referensi visual blok CB1, CB2, CB3, CB4.
+                    Referensi visual denah tata ruang {template.unitLabel.toLowerCase()}.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <a
-                    href="/Site Plan Update 2.pdf"
-                    download="Site Plan Palm Village.pdf"
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs transition-colors"
-                    title="Unduh file Site Plan PDF"
-                  >
-                    <AiOutlineDownload className="text-sm text-slate-500" /> Unduh PDF
-                  </a>
+                  {sitePlanPdf && (
+                    <a
+                      href={sitePlanPdf}
+                      download={`Site Plan ${activeTenant?.name || 'RuangWarga'}.pdf`}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs transition-colors"
+                      title="Unduh file Site Plan PDF"
+                    >
+                      <AiOutlineDownload className="text-sm text-slate-500" /> Unduh PDF
+                    </a>
+                  )}
                   <button
                     type="button"
                     onClick={openMapPreview}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-forest-800 hover:bg-slate-50 shadow-xs transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs transition-colors"
                   >
                     <AiOutlineEye /> Perbesar
                   </button>
@@ -322,8 +442,8 @@ export default function Houses() {
             </div>
             <div className="bg-white p-3">
               <img
-                src="/Mapsite%20Palm%20Village.png"
-                alt="Mapsite Palm Village"
+                src={sitePlanUrl}
+                alt={`Site Plan ${activeTenant?.name || ''}`}
                 className="h-auto w-full rounded-xl border border-slate-200 object-contain"
               />
             </div>
@@ -345,25 +465,27 @@ export default function Houses() {
         </section>
       )}
 
-      {isRtRw && (
-        <Modal open={isMapPreviewOpen} onClose={closeMapPreview} title="Mapsite Palm Village" size="xl">
+      {hasSitePlan && (
+        <Modal open={isMapPreviewOpen} onClose={closeMapPreview} title={`Site Plan ${activeTenant?.name || template.communityLabel}`} size="xl">
           <div className="space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <p className="text-sm text-slate-500">
-                Preview peta perumahan untuk referensi blok dan posisi rumah.
+                Preview peta tata ruang untuk referensi blok dan posisi unit.
               </p>
-              <a
-                href="/Site Plan Update 2.pdf"
-                download="Site Plan Palm Village.pdf"
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-forest-800 px-3 py-1.5 text-xs font-semibold text-gold-400 hover:bg-forest-900 shadow-xs transition-colors shrink-0"
-              >
-                <AiOutlineDownload className="text-sm" /> Unduh PDF Asli
-              </a>
+              {sitePlanPdf && (
+                <a
+                  href={sitePlanPdf}
+                  download={`Site Plan ${activeTenant?.name || 'RuangWarga'}.pdf`}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 shadow-xs transition-colors shrink-0"
+                >
+                  <AiOutlineDownload className="text-sm" /> Unduh PDF Asli
+                </a>
+              )}
             </div>
             <div className="max-h-[75vh] overflow-auto rounded-xl border border-slate-200 bg-slate-50/50 p-2">
               <img
-                src="/Mapsite%20Palm%20Village.png"
-                alt="Mapsite Palm Village versi besar"
+                src={sitePlanUrl}
+                alt={`Site Plan ${activeTenant?.name || ''} versi besar`}
                 className="w-full h-auto object-contain rounded-lg"
               />
             </div>
@@ -372,104 +494,171 @@ export default function Houses() {
       )}
 
       <section className="pv-card p-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="relative">
-            <AiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex-1 max-w-md">
+            <SearchInput
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              className="pv-input pl-9"
-              placeholder={`Cari ${template.unitLabel.toLowerCase()}, penanggung jawab, ${template.memberLabel.toLowerCase()}...`}
+              onChange={(val) => {
+                setSearch(val);
+                setCurrentPage(1);
+              }}
+              placeholder={`Cari nomor ${template.unitLabel.toLowerCase()}, penanggung jawab, ${template.memberLabel.toLowerCase()}...`}
             />
           </div>
-          <select
-            value={filterBlock}
-            onChange={(event) => setFilterBlock(event.target.value)}
-            className="pv-input"
-          >
-            <option value="">Semua Kategori / Blok</option>
-            {blocks.map((block) => (
-              <option key={block} value={block}>
-                {block}
-              </option>
-            ))}
-          </select>
-          <select
-            value={filterStatus}
-            onChange={(event) => setFilterStatus(event.target.value)}
-            className="pv-input"
-          >
-            <option value="">Semua Status</option>
-            <option value="occupied">{template.occupiedUnitLabel}</option>
-            <option value="vacant">{template.emptyUnitLabel}</option>
-          </select>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={filterBlock}
+              onChange={(event) => {
+                setFilterBlock(event.target.value);
+                setCurrentPage(1);
+              }}
+              className="pv-input text-xs py-2 w-auto min-w-[130px]"
+              aria-label="Filter Kategori atau Blok"
+            >
+              <option value="">Semua Kategori / Blok</option>
+              {blocks.map((block) => (
+                <option key={block} value={block}>
+                  {block}
+                </option>
+              ))}
+            </select>
+            <select
+              value={filterStatus}
+              onChange={(event) => {
+                setFilterStatus(event.target.value);
+                setCurrentPage(1);
+              }}
+              className="pv-input text-xs py-2 w-auto min-w-[120px]"
+              aria-label="Filter Status Hunian"
+            >
+              <option value="">Semua Status</option>
+              <option value="occupied">{template.occupiedUnitLabel}</option>
+              <option value="vacant">{template.emptyUnitLabel}</option>
+            </select>
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('');
+                  setFilterBlock('');
+                  setFilterStatus('');
+                  setCurrentPage(1);
+                }}
+                className="inline-flex items-center gap-1 px-2.5 py-2 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors"
+                title="Reset semua filter dan pencarian"
+              >
+                Reset ({activeFilterCount})
+              </button>
+            )}
+          </div>
         </div>
       </section>
 
       {isLoading ? (
         <SkeletonTable cols={7} rows={6} />
-      ) : filteredUnits.length === 0 ? (
+      ) : units.length === 0 ? (
         <EmptyState
           icon="🏡"
-          title={
-            search || filterStatus !== 'all'
-              ? `Tidak Ditemukan ${template.unitLabel}`
-              : `Belum Ada Data ${template.unitLabel}`
-          }
-          description={
-            search || filterStatus !== 'all'
-              ? `Tidak ada data ${template.unitLabel.toLowerCase()} yang sesuai dengan filter pencarian blok atau status hunian.`
-              : `Mulai kelola aset dan skema ${template.billLabel} dengan mendaftarkan nomor unit pertama Anda.`
-          }
+          title={`Belum Ada Data ${template.unitLabel}`}
+          description={`Mulai kelola aset dan skema ${template.billLabel} dengan mendaftarkan nomor unit pertama Anda.`}
           action={
-            search || filterStatus !== 'all' ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearch('');
-                  setFilterStatus('all');
-                }}
-                className="pv-btn-ghost text-xs shadow-2xs"
-              >
-                Reset Filter & Pencarian
-              </button>
-            ) : canWrite ? (
+            canWrite ? (
               <button
                 type="button"
                 onClick={openAdd}
-                className="pv-btn-primary text-xs shadow-xs"
+                className="pv-btn-primary text-xs shadow-xs min-h-[44px]"
               >
                 <AiOutlinePlus /> Tambah {template.unitLabel}
               </button>
             ) : null
           }
         />
+      ) : filteredUnits.length === 0 ? (
+        <EmptyState
+          icon="🔍"
+          title={`Tidak Ditemukan ${template.unitLabel}`}
+          description={
+            search
+              ? `Tidak ada ${template.unitLabel.toLowerCase()} yang cocok dengan "${search}".`
+              : `Tidak ada ${template.unitLabel.toLowerCase()} yang sesuai filter aktif.`
+          }
+          action={
+            <button
+              type="button"
+              onClick={() => {
+                setSearch('');
+                setFilterBlock('');
+                setFilterStatus('');
+                setCurrentPage(1);
+              }}
+              className="pv-btn-ghost text-xs min-h-[44px]"
+            >
+              Reset Filter & Pencarian
+            </button>
+          }
+        />
       ) : (
         <section className="pv-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-100/90 text-left">
-                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700">{template.unitLabel}</th>
-                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700">Penanggung Jawab / Pemilik</th>
-                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700">{template.memberLabel} Aktif</th>
-                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700">Skema {template.billLabel}</th>
-                  <th className="hidden px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700 md:table-cell">Detail</th>
-                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700">Status</th>
-                  <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-slate-700">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredUnits.map((unit) => {
+          <div className="hidden md:block overflow-x-auto">
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableHeaderCell
+                    sortable
+                    sorted={sortKey === 'unit' ? sortDirection : null}
+                    onSort={() => handleSort('unit')}
+                  >
+                    {template.unitLabel}
+                  </TableHeaderCell>
+                  <TableHeaderCell
+                    sortable
+                    sorted={sortKey === 'owner' ? sortDirection : null}
+                    onSort={() => handleSort('owner')}
+                  >
+                    Penanggung Jawab / Pemilik
+                  </TableHeaderCell>
+                  <TableHeaderCell
+                    sortable
+                    sorted={sortKey === 'occupant' ? sortDirection : null}
+                    onSort={() => handleSort('occupant')}
+                  >
+                    {template.memberLabel} Aktif
+                  </TableHeaderCell>
+                  <TableHeaderCell
+                    sortable
+                    sorted={sortKey === 'schema' ? sortDirection : null}
+                    onSort={() => handleSort('schema')}
+                  >
+                    Skema {template.billLabel}
+                  </TableHeaderCell>
+                  <TableHeaderCell
+                    className="hidden lg:table-cell"
+                    sortable
+                    sorted={sortKey === 'floor' ? sortDirection : null}
+                    onSort={() => handleSort('floor')}
+                  >
+                    Detail
+                  </TableHeaderCell>
+                  <TableHeaderCell
+                    sortable
+                    sorted={sortKey === 'status' ? sortDirection : null}
+                    onSort={() => handleSort('status')}
+                  >
+                    Status
+                  </TableHeaderCell>
+                  <TableHeaderCell align="right">Aksi</TableHeaderCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {paginatedUnits.map((unit) => {
                   const owner = getUnitOwner(unit.id);
                   const occupant = getUnitOccupant(unit.id);
                   const schema = getSchemaById(iplSchemas, unit.ipl_schema_id);
                   return (
-                    <tr key={unit.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="px-4 py-3">
+                    <TableRow key={unit.id} className="hover:bg-slate-50/80 transition-colors">
+                      <TableCell>
                         <div className="flex items-center gap-2.5">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-forest-800 border border-slate-200 shadow-xs font-bold">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs font-bold">
                             <AiOutlineHome />
                           </span>
                           <div>
@@ -479,24 +668,24 @@ export default function Houses() {
                             <p className="text-[11px] text-slate-400">ID #{unit.id}</p>
                           </div>
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-slate-800 font-medium">
+                      </TableCell>
+                      <TableCell className="text-slate-800 font-medium">
                         {owner?.full_name || <span className="text-slate-400">Belum ada</span>}
-                      </td>
-                      <td className="px-4 py-3 text-slate-800 font-medium">
+                      </TableCell>
+                      <TableCell className="text-slate-800 font-medium">
                         {occupant?.full_name || <span className="text-slate-400">{template.emptyUnitLabel}</span>}
-                      </td>
-                      <td className="px-4 py-3">
+                      </TableCell>
+                      <TableCell>
                         <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 border border-slate-200 text-slate-800">
                           {schema?.name || `${template.billLabel} Standar`}
                         </span>
-                      </td>
-                      <td className="hidden px-4 py-3 text-slate-500 md:table-cell">
-                        Lt. {unit.floor || '-'} / {unit.size || 0}m2
-                      </td>
-                      <td className="px-4 py-3">
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell text-slate-500">
+                        Lt. {unit.floor || '-'} / {unit.size || 0}m²
+                      </TableCell>
+                      <TableCell>
                         <span
-                          className={`pv-badge ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${
                             unit.is_occupied
                               ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
                               : 'border border-slate-200 bg-slate-100 text-slate-500'
@@ -504,13 +693,13 @@ export default function Houses() {
                         >
                           {unit.is_occupied ? template.occupiedUnitLabel : template.emptyUnitLabel}
                         </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
+                      </TableCell>
+                      <TableCell align="right">
                         <div className="flex items-center justify-end gap-1">
                           <button
                             type="button"
                             onClick={() => setSelectedUnit(unit)}
-                            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 pv-focus-ring transition-colors"
+                            className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 pv-focus-ring transition-colors"
                             aria-label={`Lihat detail ${template.unitLabel} ${unit.block}/${unit.unit_number}`}
                             title={`Detail ${template.unitLabel}`}
                           >
@@ -521,7 +710,7 @@ export default function Houses() {
                               <button
                                 type="button"
                                 onClick={() => openEdit(unit)}
-                                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 pv-focus-ring transition-colors"
+                                className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 pv-focus-ring transition-colors"
                                 aria-label={`Edit ${template.unitLabel} ${unit.block}/${unit.unit_number}`}
                                 title={`Edit ${template.unitLabel}`}
                               >
@@ -530,7 +719,7 @@ export default function Houses() {
                               <button
                                 type="button"
                                 onClick={() => handleDelete(unit)}
-                                className="rounded-lg p-2 text-rose-400 hover:bg-rose-50 hover:text-rose-600 pv-focus-ring transition-colors"
+                                className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg p-2 text-rose-500 hover:bg-rose-50 hover:text-rose-700 pv-focus-ring transition-colors"
                                 aria-label={`Hapus atau nonaktifkan ${template.unitLabel} ${unit.block}/${unit.unit_number}`}
                                 title={`Nonaktifkan ${template.unitLabel}`}
                               >
@@ -539,13 +728,111 @@ export default function Houses() {
                             </>
                           )}
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
+
+          {/* Mobile card list */}
+          <div className="md:hidden divide-y divide-slate-100">
+            {paginatedUnits.map((unit) => {
+              const owner = getUnitOwner(unit.id);
+              const occupant = getUnitOccupant(unit.id);
+              const schema = getSchemaById(iplSchemas, unit.ipl_schema_id);
+              return (
+                <div key={unit.id} className="p-4 flex flex-col gap-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 border border-slate-200 font-bold">
+                        <AiOutlineHome className="text-base" />
+                      </span>
+                      <div>
+                        <p className="font-bold text-slate-900 text-sm">
+                          {unit.block}/{unit.unit_number}
+                        </p>
+                        <p className="text-[11px] text-slate-400">ID #{unit.id} • Lt. {unit.floor || 1}</p>
+                      </div>
+                    </div>
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${
+                        unit.is_occupied
+                          ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                          : 'border border-slate-200 bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      {unit.is_occupied ? template.occupiedUnitLabel : template.emptyUnitLabel}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50/70 p-2.5 rounded-xl border border-slate-100">
+                    <div>
+                      <span className="text-[10px] uppercase font-semibold text-slate-400 block">Penanggung Jawab</span>
+                      <span className="font-medium text-slate-800 truncate block">
+                        {owner?.full_name || '—'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-semibold text-slate-400 block">{template.memberLabel} Aktif</span>
+                      <span className="font-medium text-slate-800 truncate block">
+                        {occupant?.full_name || template.emptyUnitLabel}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700">
+                      {schema?.name || `${template.billLabel} Standar`}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedUnit(unit)}
+                        className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl p-2 text-slate-600 hover:bg-slate-100 pv-focus-ring"
+                        aria-label={`Detail ${template.unitLabel} ${unit.block}/${unit.unit_number}`}
+                      >
+                        <AiOutlineEye className="text-base" />
+                      </button>
+                      {canWrite && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => openEdit(unit)}
+                            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl p-2 text-slate-600 hover:bg-slate-100 pv-focus-ring"
+                            aria-label={`Edit ${template.unitLabel} ${unit.block}/${unit.unit_number}`}
+                          >
+                            <AiOutlineEdit className="text-base" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(unit)}
+                            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl p-2 text-rose-600 hover:bg-rose-50 pv-focus-ring"
+                            aria-label={`Hapus ${template.unitLabel} ${unit.block}/${unit.unit_number}`}
+                          >
+                            <AiOutlineDelete className="text-base" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={sortedUnits.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setCurrentPage(1);
+            }}
+          />
         </section>
       )}
 

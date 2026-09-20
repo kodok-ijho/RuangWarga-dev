@@ -40,7 +40,7 @@ import {
 } from '../services/mockData';
 import { AiOutlineCheck, AiOutlineClose, AiOutlineEye, AiOutlineClockCircle, AiOutlineEdit } from 'react-icons/ai';
 import { useToast } from '../hooks/useToast';
-import { EmptyState, SkeletonTable, SkeletonList } from '../components/ui';
+import { EmptyState, SkeletonTable, SkeletonList, SearchInput, Pagination } from '../components/ui';
 
 const TABS = [
   { key: 'pending', label: 'Menunggu' },
@@ -169,6 +169,20 @@ export default function PaymentVerification() {
   });
   const [activeActionId, setActiveActionId] = useState(null);
   const [receiptPreviewError, setReceiptPreviewError] = useState(false);
+  const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Tenant switch reset effect
+  useEffect(() => {
+    setSelectedPayment(null);
+    setModalMode(null);
+    setRejectReason('');
+    setActiveActionId(null);
+    setReceiptPreviewError(false);
+    setSearch('');
+    setCurrentPage(1);
+  }, [activeTenantId]);
 
   const [payments, setPayments] = useState([]);
   const [units, setUnits] = useState([]);
@@ -310,6 +324,33 @@ export default function PaymentVerification() {
       : activeTab === 'verified'
       ? verifiedPayments
       : rejectedPayments;
+
+  const filteredList = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return currentList;
+    return currentList.filter((payment) => {
+      const unit = getUnit(payment.unit_id || payment._bill?.unit_id);
+      const resident = payment._profile || getResident(payment.resident_id);
+      const unitStr = unit ? `${unit.block}/${unit.unit_number}`.toLowerCase() : '';
+      const nameStr = (resident?.full_name || payment.payer_name || '').toLowerCase();
+      const amountStr = String(payment.amount || '');
+      const idStr = String(payment.id || '').toLowerCase();
+      const methodStr = String(payment.method || '').toLowerCase();
+      return (
+        unitStr.includes(q) ||
+        nameStr.includes(q) ||
+        amountStr.includes(q) ||
+        idStr.includes(q) ||
+        methodStr.includes(q)
+      );
+    });
+  }, [currentList, search, units, residents]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredList.length / pageSize));
+  const paginatedList = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredList.slice(start, start + pageSize);
+  }, [filteredList, currentPage, pageSize]);
 
   const handleVerify = async (payment) => {
     if (!canWrite) {
@@ -510,7 +551,10 @@ export default function PaymentVerification() {
           return (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => {
+                setActiveTab(tab.key);
+                setCurrentPage(1);
+              }}
               className={`relative flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-2 text-[11px] transition-all sm:flex-row sm:gap-1.5 sm:py-2.5 sm:text-sm ${
                 activeTab === tab.key
                   ? 'bg-white text-slate-900 font-bold shadow-xs border border-slate-200/80'
@@ -530,6 +574,32 @@ export default function PaymentVerification() {
             </button>
           );
         })}
+      </div>
+
+      {/* Search Filter */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex-1 max-w-md">
+          <SearchInput
+            value={search}
+            onChange={(val) => {
+              setSearch(val);
+              setCurrentPage(1);
+            }}
+            placeholder={`Cari nama ${template.memberLabel.toLowerCase()}, ${template.unitLabel.toLowerCase()}, nominal...`}
+          />
+        </div>
+        {search && (
+          <button
+            type="button"
+            onClick={() => {
+              setSearch('');
+              setCurrentPage(1);
+            }}
+            className="text-xs text-rose-600 hover:text-rose-700 font-semibold px-2 py-1 self-start sm:self-auto"
+          >
+            Hapus Pencarian
+          </button>
+        )}
       </div>
 
       {/* Payment List */}
@@ -569,7 +639,10 @@ export default function PaymentVerification() {
             activeTab !== 'pending' ? (
               <button
                 type="button"
-                onClick={() => setActiveTab('pending')}
+                onClick={() => {
+                  setActiveTab('pending');
+                  setCurrentPage(1);
+                }}
                 className="pv-btn-ghost text-xs shadow-2xs"
               >
                 Kembali ke Antrean Verifikasi
@@ -577,9 +650,27 @@ export default function PaymentVerification() {
             ) : null
           }
         />
+      ) : filteredList.length === 0 ? (
+        <EmptyState
+          icon="🔍"
+          title="Tidak Ditemukan Pembayaran"
+          description={`Tidak ada pembayaran yang sesuai dengan pencarian "${search}".`}
+          action={
+            <button
+              type="button"
+              onClick={() => {
+                setSearch('');
+                setCurrentPage(1);
+              }}
+              className="pv-btn-ghost text-xs shadow-2xs min-h-[44px]"
+            >
+              Reset Pencarian
+            </button>
+          }
+        />
       ) : (
         <div className="space-y-3">
-          {currentList.map((payment) => {
+          {paginatedList.map((payment) => {
             const unit = getUnit(payment.unit_id || payment._bill?.unit_id);
             const resident = payment._profile || getResident(payment.resident_id);
             const period = payment.period || payment._bill?.period || getBillPeriod(payment);
@@ -614,20 +705,20 @@ export default function PaymentVerification() {
                         <span>{payment.method === 'cash' ? '💵 Tunai' : '🏦 Transfer Bank'}</span>
                         <span>📅 {formatDate(payment.paid_at)}</span>
                         {(payment.proof_file_url || payment.receipt_file) && (
-                          <a
-                            href={payment.proof_file_url || '#'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => {
-                              if (!payment.proof_file_url) {
-                                e.preventDefault();
-                                alert(`Mengunduh file: ${payment.receipt_file}`);
-                              }
-                            }}
-                            className="col-span-2 flex min-w-0 items-center gap-1 text-gold-700 font-semibold hover:underline"
-                          >
-                            <span className="truncate">📎 {payment.proof_file_name || payment.receipt_file || 'Bukti pembayaran'}</span>
-                          </a>
+                          payment.proof_file_url ? (
+                            <a
+                              href={payment.proof_file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="col-span-2 flex min-w-0 items-center gap-1 text-slate-700 font-semibold hover:underline"
+                            >
+                              <span className="truncate">📎 {payment.proof_file_name || payment.receipt_file || 'Bukti pembayaran'}</span>
+                            </a>
+                          ) : (
+                            <span className="col-span-2 flex min-w-0 items-center gap-1 text-slate-400 text-xs italic">
+                              <span className="truncate">📎 {payment.proof_file_name || payment.receipt_file || 'Bukti'} (URL tidak tersedia)</span>
+                            </span>
+                          )
                         )}
                       </div>
                       {payment.metadata?.note && (
@@ -679,6 +770,18 @@ export default function PaymentVerification() {
               </div>
             );
           })}
+
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredList.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setCurrentPage(1);
+            }}
+          />
         </div>
       )}
 
@@ -757,28 +860,29 @@ export default function PaymentVerification() {
               {(selectedPayment.proof_file_url || selectedPayment.receipt_file) && (
                 <div className="mt-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
                   <p className="text-xs font-semibold text-slate-700 mb-2">📎 Bukti Transfer</p>
-                  <a
-                    href={selectedPayment.proof_file_url || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => {
-                      if (!selectedPayment.proof_file_url) {
-                        e.preventDefault();
-                        alert(`Mengunduh file: ${selectedPayment.receipt_file}`);
-                      }
-                    }}
-                    className="block p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors shadow-xs"
-                  >
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-lg">🖼️</span>
-                        <span className="truncate text-xs font-semibold text-slate-800">
-                          {selectedPayment.proof_file_name || selectedPayment.receipt_file || 'Lihat Bukti Lampiran'}
-                        </span>
+                  {selectedPayment.proof_file_url ? (
+                    <a
+                      href={selectedPayment.proof_file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors shadow-xs"
+                    >
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-lg">🖼️</span>
+                          <span className="truncate text-xs font-semibold text-slate-800">
+                            {selectedPayment.proof_file_name || selectedPayment.receipt_file || 'Lihat Bukti Lampiran'}
+                          </span>
+                        </div>
+                        <span className="text-xs font-semibold text-slate-700 sm:flex-shrink-0">Buka Lampiran</span>
                       </div>
-                      <span className="text-xs font-semibold text-gold-700 sm:flex-shrink-0">Buka Lampiran</span>
+                    </a>
+                  ) : (
+                    <div className="p-3 rounded-xl border border-amber-200 bg-amber-50 text-xs text-amber-900">
+                      <p className="font-semibold">Bukti belum berhasil tersimpan di server</p>
+                      <p className="text-[11px] text-amber-700 mt-0.5">Nama file lokal: {selectedPayment.proof_file_name || selectedPayment.receipt_file}</p>
                     </div>
-                  </a>
+                  )}
                 </div>
               )}
 

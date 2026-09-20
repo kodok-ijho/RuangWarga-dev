@@ -42,7 +42,7 @@ export function ResidentCard({
         {/* Kolom Kiri: Avatar & Info Pokok */}
         <div className="flex items-start gap-3 min-w-0">
           <div className="relative shrink-0 mt-0.5">
-            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-forest-50 text-forest-900 border border-forest-100 font-black text-sm shadow-2xs">
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-800 border border-slate-200 font-black text-sm shadow-2xs">
               {initial}
             </span>
             <span
@@ -98,7 +98,7 @@ export function ResidentCard({
                 href={`tel:${cleanPhone}`}
                 title={`Telepon ${profile.full_name}`}
                 aria-label={`Telepon ${profile.full_name}`}
-                className="w-9 h-9 rounded-xl bg-slate-50 text-slate-700 hover:bg-forest-800 hover:text-white border border-slate-200 flex items-center justify-center text-base pv-focus-ring transition-colors min-h-[36px]"
+                className="w-9 h-9 rounded-xl bg-slate-50 text-slate-700 hover:bg-slate-800 hover:text-white border border-slate-200 flex items-center justify-center text-base pv-focus-ring transition-colors min-h-[36px]"
               >
                 <AiOutlinePhone aria-hidden="true" />
               </a>

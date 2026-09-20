@@ -28,4 +28,14 @@ export { Drawer } from './Drawer';
 export { BottomSheet } from './BottomSheet';
 export { MobileList } from './MobileList';
 export { Toast } from './Toast';
+export { Pagination } from './Pagination';
+export {
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableHeaderCell,
+  TableCell,
+} from './Table';
+export { SearchInput } from './SearchInput';
 export { default as Modal } from '../Modal';
