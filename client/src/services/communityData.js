@@ -45,11 +45,20 @@ export const DEFAULT_ANNOUNCEMENTS = [
 ];
 
 export function getAnnouncementsByTenant(tenantId, options = {}) {
-  // Jika ada data tersimpan di localStorage per tenant, gunakan itu; fallback ke default
+  // Hanya ambil data pengumuman yang memang tersimpan untuk tenantId terkait.
+  // Jangan pernah menampilkan mock DEFAULT_ANNOUNCEMENTS untuk tenant nyata (Blocker 5).
   try {
-    const customKey = `ruangwarga_announcements_${tenantId || 'default'}`;
+    if (!tenantId) return [];
+
+    const customKey = `ruangwarga_announcements_${tenantId}`;
     const stored = typeof window !== 'undefined' ? localStorage.getItem(customKey) : null;
-    let list = stored ? JSON.parse(stored) : DEFAULT_ANNOUNCEMENTS;
+    
+    // Hanya fallback ke DEFAULT_ANNOUNCEMENTS jika eksplisit meminta tenant 'default' (testing/fixture)
+    let list = stored ? JSON.parse(stored) : (tenantId === 'default' ? DEFAULT_ANNOUNCEMENTS : []);
+
+    if (!Array.isArray(list) || list.length === 0) {
+      return [];
+    }
 
     if (options.urgency && options.urgency !== 'all') {
       list = list.filter((item) => item.urgency === options.urgency);
@@ -58,8 +67,8 @@ export function getAnnouncementsByTenant(tenantId, options = {}) {
       const q = options.search.toLowerCase();
       list = list.filter(
         (item) =>
-          item.title.toLowerCase().includes(q) ||
-          item.summary.toLowerCase().includes(q) ||
+          item.title?.toLowerCase().includes(q) ||
+          item.summary?.toLowerCase().includes(q) ||
           (item.content && item.content.toLowerCase().includes(q))
       );
     }
@@ -71,6 +80,6 @@ export function getAnnouncementsByTenant(tenantId, options = {}) {
       return new Date(b.date).getTime() - new Date(a.date).getTime();
     });
   } catch {
-    return DEFAULT_ANNOUNCEMENTS;
+    return tenantId === 'default' ? DEFAULT_ANNOUNCEMENTS : [];
   }
 }

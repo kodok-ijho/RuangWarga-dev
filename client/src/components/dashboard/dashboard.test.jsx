@@ -137,8 +137,12 @@ describe('Dashboard Architecture & Components (Phase 5)', () => {
             tenantId="t-rt-1"
             template={template}
             periodLabel="September 2026"
-            dashData={{ billing: { collectionRate: 0 }, recentPayments: [] }}
-            userProfile={{ unit_number: 'A/12' }}
+            dashData={{
+              myObligation: { amount: 150000, status: 'unpaid' },
+              myUnit: 'A/12',
+              billing: { collectionRate: 0 },
+              recentPayments: [],
+            }}
           />
         </MemoryRouter>
       );
@@ -168,8 +172,12 @@ describe('Dashboard Architecture & Components (Phase 5)', () => {
             tenantId="t-kos-1"
             template={template}
             periodLabel="September 2026"
-            dashData={{ billing: { collectionRate: 0 }, recentPayments: [] }}
-            userProfile={{ unit_number: '101' }}
+            dashData={{
+              myObligation: { amount: 1500000, status: 'unpaid' },
+              myUnit: '101',
+              billing: { collectionRate: 0 },
+              recentPayments: [],
+            }}
           />
         </MemoryRouter>
       );
@@ -189,8 +197,12 @@ describe('Dashboard Architecture & Components (Phase 5)', () => {
             tenantId="t-arisan-1"
             template={template}
             periodLabel="September 2026"
-            dashData={{ billing: { collectionRate: 0 }, recentPayments: [] }}
-            userProfile={{ unit_number: '08' }}
+            dashData={{
+              myObligation: { amount: 100000, status: 'unpaid' },
+              myUnit: '08',
+              billing: { collectionRate: 0 },
+              recentPayments: [],
+            }}
           />
         </MemoryRouter>
       );
@@ -210,8 +222,12 @@ describe('Dashboard Architecture & Components (Phase 5)', () => {
             tenantId="t-kelas-1"
             template={template}
             periodLabel="September 2026"
-            dashData={{ billing: { collectionRate: 0 }, recentPayments: [] }}
-            userProfile={{ unit_number: 'Kelas A' }}
+            dashData={{
+              myObligation: { amount: 150000, status: 'unpaid' },
+              myUnit: 'Kelas A',
+              billing: { collectionRate: 0 },
+              recentPayments: [],
+            }}
           />
         </MemoryRouter>
       );
@@ -330,6 +346,234 @@ describe('Dashboard Architecture & Components (Phase 5)', () => {
       expect(html).toContain('Matriks IPL');
       expect(html).toContain('Daftar Warga');
       expect(html).toContain('Pengaturan Kompleks Lingkungan');
+    });
+  });
+
+  describe('Phase 5.1 — Dashboard Data Integrity & Correctness', () => {
+    // 1. Citizen dengan tagihan aktual menampilkan nominal aktual
+    it('1. citizen with actual bill displays actual amount', () => {
+      const rawHtml = renderToString(
+        <MemoryRouter>
+          <ResidentBillingHero
+            myBill={{ amount: 375000, status: 'unpaid' }}
+            myUnit="B-05"
+            periodLabel="September 2026"
+            template={{ billLabel: 'IPL', unitLabel: 'Rumah' }}
+          />
+        </MemoryRouter>
+      );
+      const html = cleanHtml(rawHtml);
+      expect(html).toContain('375.000');
+    });
+
+    // 2. Citizen paid menampilkan "paid"
+    it('2. citizen paid displays "paid" status badge and message', () => {
+      const rawHtml = renderToString(
+        <MemoryRouter>
+          <ResidentBillingHero
+            myBill={{ amount: 200000, status: 'paid' }}
+            myUnit="B-05"
+            periodLabel="September 2026"
+            template={{ billLabel: 'IPL', unitLabel: 'Rumah' }}
+          />
+        </MemoryRouter>
+      );
+      const html = cleanHtml(rawHtml);
+      expect(html).toContain('Lunas');
+      expect(html).toContain('telah lunas');
+    });
+
+    // 3. Citizen pending verification menampilkan "pending"
+    it('3. citizen pending verification displays "pending" status and message', () => {
+      const rawHtml = renderToString(
+        <MemoryRouter>
+          <ResidentBillingHero
+            myBill={{ amount: 200000, status: 'pending_verification' }}
+            myUnit="B-05"
+            periodLabel="September 2026"
+            template={{ billLabel: 'IPL', unitLabel: 'Rumah' }}
+          />
+        </MemoryRouter>
+      );
+      const html = cleanHtml(rawHtml);
+      expect(html).toContain('Verifikasi');
+      expect(html).toContain('sedang diverifikasi');
+    });
+
+    // 4. Citizen unpaid menampilkan "unpaid"
+    it('4. citizen unpaid displays "unpaid" status and pay button', () => {
+      const rawHtml = renderToString(
+        <MemoryRouter>
+          <ResidentBillingHero
+            myBill={{ amount: 200000, status: 'unpaid' }}
+            myUnit="B-05"
+            periodLabel="September 2026"
+            template={{ billLabel: 'IPL', unitLabel: 'Rumah' }}
+          />
+        </MemoryRouter>
+      );
+      const html = cleanHtml(rawHtml);
+      expect(html).toContain('Belum Bayar');
+      expect(html).toContain('belum terbayar');
+      expect(html).toContain('Bayar IPL Sekarang');
+    });
+
+    // 5. Tenant collection rate 99% tidak membuat citizen otomatis menjadi unpaid jika citizen tersebut sudah paid
+    it('5. tenant collection rate 99% does not make citizen unpaid when citizen is paid', () => {
+      const rawHtml = renderToString(
+        <MemoryRouter>
+          <CitizenDashboard
+            tenantId="t-1"
+            template={TENANT_TEMPLATES.rt_rw}
+            periodLabel="September 2026"
+            dashData={{
+              billing: { collectionRate: 99 },
+              myObligation: { amount: 150000, status: 'paid' },
+              myUnit: 'A-01',
+              recentPayments: [],
+            }}
+          />
+        </MemoryRouter>
+      );
+      const html = cleanHtml(rawHtml);
+      expect(html).toContain('Lunas');
+      expect(html).not.toContain('belum terbayar');
+    });
+
+    // 6. Tidak ada current obligation -> empty state
+    it('6. missing current obligation displays meaningful empty state', () => {
+      const rawHtml = renderToString(
+        <MemoryRouter>
+          <CitizenDashboard
+            tenantId="t-1"
+            template={TENANT_TEMPLATES.rt_rw}
+            periodLabel="September 2026"
+            dashData={{
+              billing: { collectionRate: 0 },
+              myObligation: null,
+              myUnit: 'A-01',
+              recentPayments: [],
+            }}
+          />
+        </MemoryRouter>
+      );
+      const html = cleanHtml(rawHtml);
+      expect(html).toContain('Belum ada tagihan ipl untuk periode ini');
+      expect(html).toContain('Data kewajiban pembayaran belum diterbitkan');
+      expect(html).not.toContain('150.000');
+      expect(html).not.toContain('250.000');
+    });
+
+    // 7. Tidak ada unit identity -> empty state
+    it('7. missing unit identity displays unit belum terhubung', () => {
+      const rawHtml = renderToString(
+        <MemoryRouter>
+          <CitizenDashboard
+            tenantId="t-1"
+            template={TENANT_TEMPLATES.rt_rw}
+            periodLabel="September 2026"
+            dashData={{
+              billing: { collectionRate: 0 },
+              myObligation: null,
+              myUnit: null,
+              recentPayments: [],
+            }}
+          />
+        </MemoryRouter>
+      );
+      const html = cleanHtml(rawHtml);
+      expect(html).toContain('Rumah belum terhubung');
+      expect(html).not.toContain('Blok A/12');
+    });
+
+    // 8. Tidak ada announcement -> empty state
+    it('8. missing announcements displays empty state without mock Palm Village injection', () => {
+      const rawHtml = renderToString(
+        <MemoryRouter>
+          <CitizenDashboard
+            tenantId="t-empty-ann"
+            template={TENANT_TEMPLATES.rt_rw}
+            periodLabel="September 2026"
+            dashData={{
+              billing: { collectionRate: 0 },
+              myObligation: null,
+              myUnit: 'A-01',
+              recentPayments: [],
+            }}
+          />
+        </MemoryRouter>
+      );
+      const html = cleanHtml(rawHtml);
+      expect(html).toContain('Belum ada pengumuman terbaru untuk komunitas ini');
+      expect(html).not.toContain('Fogging Nyamuk DBD');
+    });
+
+    // 9. Tidak ada realistic hardcoded fallback
+    it('9. ensures no realistic hardcoded numbers when data is absent', () => {
+      const rawHtml = renderToString(
+        <MemoryRouter>
+          <ResidentBillingHero
+            myBill={null}
+            myUnit={null}
+            periodLabel="September 2026"
+            template={{ billLabel: 'IPL', unitLabel: 'Rumah' }}
+          />
+        </MemoryRouter>
+      );
+      const html = cleanHtml(rawHtml);
+      expect(html).not.toContain('150.000');
+      expect(html).not.toContain('250.000');
+      expect(html).not.toContain('1.500.000');
+      expect(html).not.toContain('100.000');
+      expect(html).toContain('Belum ada tagihan ipl untuk periode ini');
+    });
+
+    // 10. Tenant switching tidak mempertahankan data citizen dari tenant sebelumnya
+    it('10. tenant switching renders distinct scoped data per tenant', () => {
+      const tenantAData = {
+        myObligation: { amount: 300000, status: 'paid' },
+        myUnit: 'Kamar 10',
+        billing: { collectionRate: 100 },
+        recentPayments: [],
+      };
+      const tenantBData = {
+        myObligation: null,
+        myUnit: null,
+        billing: { collectionRate: 0 },
+        recentPayments: [],
+      };
+
+      const htmlA = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <CitizenDashboard
+              tenantId="t-A"
+              template={TENANT_TEMPLATES.kos}
+              periodLabel="September 2026"
+              dashData={tenantAData}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      const htmlB = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <CitizenDashboard
+              tenantId="t-B"
+              template={TENANT_TEMPLATES.rt_rw}
+              periodLabel="September 2026"
+              dashData={tenantBData}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      expect(htmlA).toContain('300.000');
+      expect(htmlA).toContain('Kamar 10');
+      expect(htmlB).not.toContain('300.000');
+      expect(htmlB).not.toContain('Kamar 10');
+      expect(htmlB).toContain('Rumah belum terhubung');
     });
   });
 });

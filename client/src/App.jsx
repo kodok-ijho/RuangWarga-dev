@@ -343,6 +343,16 @@ export default function App() {
                     }
                   />
                   <Route
+                    path="residents"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <RoleGuard canAccess={canViewResidents}>
+                          <Residents />
+                        </RoleGuard>
+                      </Suspense>
+                    }
+                  />
+                  <Route
                     path="events"
                     element={
                       <Suspense fallback={<PageLoader />}>

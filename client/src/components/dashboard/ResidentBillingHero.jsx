@@ -18,14 +18,60 @@ export function ResidentBillingHero({
   isReadOnly = false,
   className = '',
 }) {
-  const billStatus = myBill?.status || 'unpaid';
-  const amount = Number(myBill?.amount || 150000);
-  const isPaid = billStatus === 'paid' || billStatus === 'lunas';
-  const isPending = billStatus === 'pending' || billStatus === 'pending_verification';
-
   const billLabel = template?.billLabel || 'Iuran';
   const unitLabel = template?.unitLabel || 'Unit';
   const payActionLabel = template?.paymentActionLabel || 'Bayar';
+
+  const isUnavailable = !myBill || myBill.status === 'unavailable' || myBill.status === 'not_applicable';
+
+  if (isUnavailable) {
+    return (
+      <div
+        className={`rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 transition-all ${className}`}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                {billLabel} {periodLabel}
+              </span>
+              <span className="text-slate-300">•</span>
+              <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+                {myUnit ? `${unitLabel} ${myUnit}` : `${unitLabel} belum terhubung`}
+              </span>
+              <StatusBadge status="unavailable" size="sm" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                {myBill?.message || `Belum ada tagihan ${billLabel.toLowerCase()} untuk periode ini.`}
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed max-w-xl">
+                Data kewajiban pembayaran belum diterbitkan atau unit Anda belum memiliki tagihan aktif pada periode {periodLabel}.
+              </p>
+            </div>
+          </div>
+
+          <div className="sm:shrink-0 flex flex-col sm:items-end gap-2">
+            <Button
+              variant="outline"
+              size="md"
+              onClick={onPayClick}
+              className="w-full sm:w-auto text-xs min-h-[44px]"
+            >
+              <span>Buka Riwayat &amp; Matriks</span>
+              <AiOutlineArrowRight />
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const billStatus = myBill.status;
+  const isPaid = billStatus === 'paid' || billStatus === 'lunas' || billStatus === 'verified' || billStatus === 'approved';
+  const isPending = billStatus === 'pending' || billStatus === 'pending_verification' || billStatus === 'menunggu';
+  const hasActualAmount = typeof myBill.amount === 'number' && !isNaN(myBill.amount);
 
   return (
     <div
@@ -45,20 +91,26 @@ export function ResidentBillingHero({
               {billLabel} {periodLabel}
             </span>
             <span className="text-slate-300">•</span>
-            {myUnit && (
-              <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
-                {unitLabel} {myUnit}
-              </span>
-            )}
+            <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
+              {myUnit ? `${unitLabel} ${myUnit}` : `${unitLabel} belum terhubung`}
+            </span>
             <StatusBadge status={billStatus} size="sm" />
           </div>
 
           <div className="space-y-1">
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight">
-                {formatRupiah(amount)}
-              </span>
-              <span className="text-xs text-slate-500 font-medium">/ periode</span>
+              {hasActualAmount ? (
+                <>
+                  <span className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight">
+                    {formatRupiah(myBill.amount)}
+                  </span>
+                  <span className="text-xs text-slate-500 font-medium">/ periode</span>
+                </>
+              ) : (
+                <span className="text-xl sm:text-2xl font-bold text-slate-700">
+                  Belum tersedia
+                </span>
+              )}
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed max-w-xl">
@@ -99,7 +151,7 @@ export function ResidentBillingHero({
               icon={isPaid ? AiOutlineCheckCircle : undefined}
               className="w-full sm:w-auto text-xs min-h-[44px]"
             >
-              <span>Lihat Rincian &amp; Riwayat</span>
+              <span>{isPaid ? 'Lihat Rincian & Riwayat' : 'Lihat Status Verifikasi'}</span>
               <AiOutlineArrowRight />
             </Button>
           )}

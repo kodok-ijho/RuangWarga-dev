@@ -99,6 +99,16 @@ const STATUS_CONFIGS = {
     symbol: '—',
     style: 'bg-slate-100 text-slate-600 border-slate-200',
   },
+  unavailable: {
+    label: 'Belum Tersedia',
+    symbol: '—',
+    style: 'bg-slate-100 text-slate-600 border-slate-200',
+  },
+  not_applicable: {
+    label: 'Tidak Berlaku',
+    symbol: '—',
+    style: 'bg-slate-100 text-slate-600 border-slate-200',
+  },
 };
 
 export function StatusBadge({ status, customLabel, size = 'md', className = '' }) {

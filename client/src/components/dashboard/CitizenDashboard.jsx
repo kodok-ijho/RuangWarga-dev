@@ -25,38 +25,13 @@ export function CitizenDashboard({
 }) {
   const navigate = useNavigate();
 
-  // Resolve bill data: use actual billing if available, fallback to template realistic default
-  const defaultAmount =
-    template?.type === 'kos'
-      ? 1500000
-      : template?.type === 'arisan'
-      ? 100000
-      : template?.type === 'kelas'
-      ? 150000
-      : 250000;
-
-  const collectionRate = dashData?.billing?.collectionRate ?? 0;
-  const isAllPaid = collectionRate >= 100;
-  const defaultStatus = isAllPaid ? 'paid' : 'unpaid';
-
-  const defaultUnit =
-    userProfile?.unit_number ||
-    (template?.type === 'kos'
-      ? 'Kamar 101'
-      : template?.type === 'arisan'
-      ? 'Slot 08'
-      : template?.type === 'kelas'
-      ? 'Kelas A'
-      : 'Blok A/12');
-
-  const myBill = {
-    status: defaultStatus,
-    amount: defaultAmount,
-  };
+  // Resolve obligation and unit strictly from real individual data
+  const myObligation = dashData?.myObligation || null;
+  const myUnit = dashData?.myUnit || userProfile?.unit_number || null;
 
   // Recent activity: derive from recent payments and announcements
   const announcements = getAnnouncementsByTenant(tenantId);
-  const latestAnnouncement = announcements[0];
+  const latestAnnouncement = announcements && announcements.length > 0 ? announcements[0] : null;
   const recentPayments = dashData?.recentPayments || [];
 
   return (
@@ -67,8 +42,8 @@ export function CitizenDashboard({
           Kewajiban Tagihan Saat Ini
         </h2>
         <ResidentBillingHero
-          myBill={myBill}
-          myUnit={defaultUnit}
+          myBill={myObligation}
+          myUnit={myUnit}
           periodLabel={periodLabel}
           template={template}
           isReadOnly={isReadOnly}
@@ -142,7 +117,7 @@ export function CitizenDashboard({
 
           {/* Action 4: Direktori Anggota/Warga */}
           <Link
-            to="/residents"
+            to={`/t/${tenantId}/residents`}
             className="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 p-3.5 rounded-xl border border-slate-200/90 bg-white hover:bg-slate-50 hover:border-slate-300 transition group min-h-[48px]"
           >
             <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center text-base shrink-0 group-hover:bg-slate-900 group-hover:text-white transition-colors">
@@ -197,7 +172,7 @@ export function CitizenDashboard({
                         Pembayaran {template?.billLabel || 'Iuran'} Periode {item.period || periodLabel}
                       </p>
                       <span className="text-[11px] text-slate-500 block truncate">
-                        {formatRupiah(item.amount || defaultAmount)}
+                        {item.amount ? formatRupiah(item.amount) : 'Nominal belum tersedia'}
                       </span>
                     </div>
                   </div>

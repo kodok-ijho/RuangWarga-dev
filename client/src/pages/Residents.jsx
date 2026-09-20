@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
 import {
   AiOutlinePlus,
   AiOutlineEdit,
@@ -34,9 +35,16 @@ import { MobileList, EmptyState, SkeletonTable, SkeletonList } from '../componen
 import { ResidentCard, ResidentDetailDrawer } from '../components/residents';
 
 export default function Residents() {
+  const { tenantId: routeTenantId } = useParams();
   const { role, session, isReadOnly } = useAuth();
-  const { activeTenant } = useTenant();
+  const { activeTenant, activeTenantId, switchTenant } = useTenant();
   const template = useTenantTemplate();
+
+  useEffect(() => {
+    if (routeTenantId && routeTenantId !== activeTenantId) {
+      switchTenant(routeTenantId);
+    }
+  }, [routeTenantId, activeTenantId, switchTenant]);
   const { triggerTour } = useTour();
   const token = session?.access_token;
   const toast = useToast();

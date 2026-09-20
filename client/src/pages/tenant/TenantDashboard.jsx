@@ -92,6 +92,8 @@ export default function TenantDashboard() {
       const data = await fetchTenantDashboardData(tenantId, {
         role: userRole,
         period: selectedPeriod,
+        userId: user?.id,
+        userEmail: user?.email,
       });
       setDashData(data);
     } catch (err) {
@@ -101,9 +103,10 @@ export default function TenantDashboard() {
     } finally {
       setIsLoading(false);
     }
-  }, [tenantId, userRole, selectedPeriod]);
+  }, [tenantId, userRole, selectedPeriod, user?.id, user?.email]);
 
   useEffect(() => {
+    setDashData(null);
     loadDashboard();
   }, [loadDashboard]);
 

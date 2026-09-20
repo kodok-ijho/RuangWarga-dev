@@ -233,7 +233,7 @@ export function StaffDashboard({
           </Link>
 
           <Link
-            to="/residents"
+            to={`/t/${tenantId}/residents`}
             className="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 p-3.5 rounded-xl border border-slate-200/90 bg-white hover:bg-slate-50 hover:border-slate-300 transition group min-h-[48px]"
           >
             <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center text-base shrink-0 group-hover:bg-slate-900 group-hover:text-white transition-colors">

@@ -7,7 +7,7 @@
  */
 
 import { supabase } from './supabaseClient';
-import { mockUnits } from './mockData';
+import { mockUnits, mockProfiles } from './mockData';
 
 const IS_DEMO = import.meta.env.VITE_DEMO_MODE === 'true';
 
@@ -1871,12 +1871,110 @@ export async function fetchTenantRunningBalance(tenantId, { year, month }) {
   };
 }
 
+function resolveCitizenObligationAndUnit({
+  units = [],
+  members = [],
+  billMatrix = [],
+  resolvedPeriod,
+  userId,
+  userEmail,
+  unitId,
+  isDemo = false,
+}) {
+  let matchedUnitId = unitId || null;
+  let matchedUnitLabel = null;
+
+  if (isDemo) {
+    if (!matchedUnitId && (userId || userEmail)) {
+      const p = (mockProfiles || []).find((mp) => mp.id === userId || mp.email === userEmail);
+      if (p && p.unit_id) {
+        matchedUnitId = p.unit_id;
+      }
+    }
+    if (matchedUnitId) {
+      const u = (mockUnits || []).find((mu) => Number(mu.id) === Number(matchedUnitId));
+      if (u) {
+        matchedUnitLabel = `Blok ${u.block} No. ${u.unit_number}`;
+      }
+    }
+  } else {
+    // Production / Supabase mode
+    if (!matchedUnitId && (userId || userEmail)) {
+      const m = (members || []).find(
+        (mem) => (userId && mem.user_id === userId) || (userEmail && (mem.email === userEmail || mem.phone === userEmail))
+      );
+      if (m) {
+        matchedUnitId = m.unit_id;
+        matchedUnitLabel = m.tenant_units?.label || null;
+      }
+    }
+    if (matchedUnitId && !matchedUnitLabel) {
+      const u = (units || []).find((un) => Number(un.id) === Number(matchedUnitId));
+      if (u) {
+        matchedUnitLabel = u.label || null;
+      }
+    }
+  }
+
+  // Cari kewajiban (obligation) untuk matchedUnitId pada periode resolvedPeriod
+  let myObligation = null;
+  if (matchedUnitId) {
+    const row = (billMatrix || []).find(
+      (r) => r.unit?.id === matchedUnitId || Number(r.unit?.id) === Number(matchedUnitId)
+    );
+    const targetCell = row?.cells?.find(
+      (c) => c?.period === resolvedPeriod || c?.bill?.period === resolvedPeriod
+    );
+
+    if (targetCell?.bill) {
+      const bill = targetCell.bill;
+      const payment = targetCell.payment;
+
+      let status = 'unpaid';
+      if (
+        payment?.status === 'pending' ||
+        payment?.status === 'pending_verification' ||
+        bill.status === 'pending'
+      ) {
+        status = 'pending';
+      } else if (
+        payment?.status === 'verified' ||
+        payment?.status === 'approved' ||
+        bill.status === 'paid'
+      ) {
+        status = 'paid';
+      } else if (bill.status === 'unpaid') {
+        status = 'unpaid';
+      } else {
+        status = bill.status || 'unpaid';
+      }
+
+      myObligation = {
+        id: bill.id,
+        period: bill.period || resolvedPeriod,
+        amount: Number(bill.amount),
+        status,
+        dueDate: bill.due_date || null,
+        payment: payment || null,
+      };
+    }
+  }
+
+  return {
+    myUnit: matchedUnitLabel,
+    myObligation,
+  };
+}
+
 /**
  * Mengambil ringkasan data operasional & dashboard tenant
  * @param {string} tenantId - UUID tenant
- * @param {object} options - { role, period } ('YYYY-MM')
+ * @param {object} options - { role, period, userId, userEmail, unitId }
  */
-export async function fetchTenantDashboardData(tenantId, { role = 'admin', period } = {}) {
+export async function fetchTenantDashboardData(
+  tenantId,
+  { role = 'admin', period, userId, userEmail, unitId } = {}
+) {
   if (!tenantId) throw new Error('tenantId wajib disertakan.');
 
   const resolvedPeriod = period || new Date().toISOString().slice(0, 7);
@@ -1925,6 +2023,17 @@ export async function fetchTenantDashboardData(tenantId, { role = 'admin', perio
 
     const collectionRate = totalBilled > 0 ? (totalCollected / totalBilled) * 100 : 0;
 
+    const { myUnit, myObligation } = resolveCitizenObligationAndUnit({
+      units,
+      members,
+      billMatrix,
+      resolvedPeriod,
+      userId,
+      userEmail,
+      unitId,
+      isDemo: true,
+    });
+
     return {
       period: resolvedPeriod,
       year,
@@ -1952,6 +2061,8 @@ export async function fetchTenantDashboardData(tenantId, { role = 'admin', perio
         collectionRate,
       },
       recentPayments: pendingPayments.slice(0, 5),
+      myUnit,
+      myObligation,
     };
   }
 
@@ -1994,6 +2105,17 @@ export async function fetchTenantDashboardData(tenantId, { role = 'admin', perio
 
   const collectionRate = totalBilled > 0 ? (totalCollected / totalBilled) * 100 : 0;
 
+  const { myUnit, myObligation } = resolveCitizenObligationAndUnit({
+    units,
+    members,
+    billMatrix,
+    resolvedPeriod,
+    userId,
+    userEmail,
+    unitId,
+    isDemo: false,
+  });
+
   return {
     period: resolvedPeriod,
     year,
@@ -2021,6 +2143,8 @@ export async function fetchTenantDashboardData(tenantId, { role = 'admin', perio
       collectionRate,
     },
     recentPayments: pendingPayments.slice(0, 5),
+    myUnit,
+    myObligation,
   };
 }
 

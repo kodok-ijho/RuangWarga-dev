@@ -54,7 +54,7 @@ export function QuickActionsGrid({
 
         {/* 2. Direktori Anggota */}
         <Link
-          to="/residents"
+          to={`/t/${tenantId}/residents`}
           className="p-4 rounded-xl bg-white border border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/80 transition-all flex flex-col justify-between group min-h-[104px]"
         >
           <div className="flex items-center justify-between">
