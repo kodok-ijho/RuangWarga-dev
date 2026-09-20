@@ -20,6 +20,7 @@ export function QuickActionsGrid({
 }) {
   const billLabel = template?.billLabel || 'Iuran';
   const memberLabel = template?.memberLabel || 'Warga';
+  const communityLabel = template?.communityLabel || 'Komunitas';
 
   return (
     <div className={`space-y-3 ${className}`}>
@@ -33,16 +34,16 @@ export function QuickActionsGrid({
         {/* 1. Matriks Tagihan */}
         <Link
           to={`/t/${tenantId}/payment-matrix`}
-          className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-card hover:border-slate-300 hover:shadow-subtle transition-all flex flex-col justify-between group min-h-[104px]"
+          className="p-4 rounded-xl bg-white border border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/80 transition-all flex flex-col justify-between group min-h-[104px]"
         >
           <div className="flex items-center justify-between">
-            <div className="w-8 h-8 rounded-lg bg-forest-50 text-forest-800 group-hover:bg-forest-800 group-hover:text-white flex items-center justify-center text-base transition-colors">
-              <AiOutlineTable />
+            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 group-hover:bg-slate-900 group-hover:text-white flex items-center justify-center text-base transition-colors">
+              <AiOutlineTable aria-hidden="true" />
             </div>
-            <AiOutlineArrowRight className="text-slate-300 group-hover:text-forest-800 transition-colors text-xs" />
+            <AiOutlineArrowRight className="text-slate-300 group-hover:text-slate-900 transition-colors text-xs" />
           </div>
           <div className="mt-2">
-            <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-forest-900 leading-tight">
+            <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-slate-900 leading-tight">
               Matriks {billLabel}
             </h4>
             <p className="text-[11px] text-slate-500 mt-0.5 truncate">
@@ -51,19 +52,19 @@ export function QuickActionsGrid({
           </div>
         </Link>
 
-        {/* 2. Direktori Warga */}
+        {/* 2. Direktori Anggota */}
         <Link
           to="/residents"
-          className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-card hover:border-slate-300 hover:shadow-subtle transition-all flex flex-col justify-between group min-h-[104px]"
+          className="p-4 rounded-xl bg-white border border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/80 transition-all flex flex-col justify-between group min-h-[104px]"
         >
           <div className="flex items-center justify-between">
-            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 group-hover:bg-forest-800 group-hover:text-white flex items-center justify-center text-base transition-colors">
-              <AiOutlineTeam />
+            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 group-hover:bg-slate-900 group-hover:text-white flex items-center justify-center text-base transition-colors">
+              <AiOutlineTeam aria-hidden="true" />
             </div>
-            <AiOutlineArrowRight className="text-slate-300 group-hover:text-forest-800 transition-colors text-xs" />
+            <AiOutlineArrowRight className="text-slate-300 group-hover:text-slate-900 transition-colors text-xs" />
           </div>
           <div className="mt-2">
-            <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-forest-900 leading-tight">
+            <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-slate-900 leading-tight">
               Daftar {memberLabel}
             </h4>
             <p className="text-[11px] text-slate-500 mt-0.5 truncate">
@@ -75,16 +76,16 @@ export function QuickActionsGrid({
         {/* 3. Pengeluaran Kas */}
         <Link
           to={isStaff ? `/t/${tenantId}/expenses` : '/expenses'}
-          className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-card hover:border-slate-300 hover:shadow-subtle transition-all flex flex-col justify-between group min-h-[104px]"
+          className="p-4 rounded-xl bg-white border border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/80 transition-all flex flex-col justify-between group min-h-[104px]"
         >
           <div className="flex items-center justify-between">
-            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 group-hover:bg-forest-800 group-hover:text-white flex items-center justify-center text-base transition-colors">
-              <AiOutlineWallet />
+            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 group-hover:bg-slate-900 group-hover:text-white flex items-center justify-center text-base transition-colors">
+              <AiOutlineWallet aria-hidden="true" />
             </div>
-            <AiOutlineArrowRight className="text-slate-300 group-hover:text-forest-800 transition-colors text-xs" />
+            <AiOutlineArrowRight className="text-slate-300 group-hover:text-slate-900 transition-colors text-xs" />
           </div>
           <div className="mt-2">
-            <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-forest-900 leading-tight">
+            <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-slate-900 leading-tight">
               Pengeluaran Kas
             </h4>
             <p className="text-[11px] text-slate-500 mt-0.5 truncate">
@@ -96,16 +97,16 @@ export function QuickActionsGrid({
         {/* 4. Laporan Keuangan */}
         <Link
           to={isStaff ? `/t/${tenantId}/reports` : '/reports'}
-          className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-card hover:border-slate-300 hover:shadow-subtle transition-all flex flex-col justify-between group min-h-[104px]"
+          className="p-4 rounded-xl bg-white border border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/80 transition-all flex flex-col justify-between group min-h-[104px]"
         >
           <div className="flex items-center justify-between">
-            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 group-hover:bg-forest-800 group-hover:text-white flex items-center justify-center text-base transition-colors">
-              <AiOutlineBarChart />
+            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 group-hover:bg-slate-900 group-hover:text-white flex items-center justify-center text-base transition-colors">
+              <AiOutlineBarChart aria-hidden="true" />
             </div>
-            <AiOutlineArrowRight className="text-slate-300 group-hover:text-forest-800 transition-colors text-xs" />
+            <AiOutlineArrowRight className="text-slate-300 group-hover:text-slate-900 transition-colors text-xs" />
           </div>
           <div className="mt-2">
-            <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-forest-900 leading-tight">
+            <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-slate-900 leading-tight">
               Laporan Keuangan
             </h4>
             <p className="text-[11px] text-slate-500 mt-0.5 truncate">
@@ -117,16 +118,16 @@ export function QuickActionsGrid({
         {/* 5. Pengumuman Komunitas */}
         <Link
           to={`/t/${tenantId}/announcements`}
-          className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-card hover:border-slate-300 hover:shadow-subtle transition-all flex flex-col justify-between group min-h-[104px]"
+          className="p-4 rounded-xl bg-white border border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/80 transition-all flex flex-col justify-between group min-h-[104px]"
         >
           <div className="flex items-center justify-between">
-            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 group-hover:bg-forest-800 group-hover:text-white flex items-center justify-center text-base transition-colors">
-              <AiOutlineNotification />
+            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 group-hover:bg-slate-900 group-hover:text-white flex items-center justify-center text-base transition-colors">
+              <AiOutlineNotification aria-hidden="true" />
             </div>
-            <AiOutlineArrowRight className="text-slate-300 group-hover:text-forest-800 transition-colors text-xs" />
+            <AiOutlineArrowRight className="text-slate-300 group-hover:text-slate-900 transition-colors text-xs" />
           </div>
           <div className="mt-2">
-            <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-forest-900 leading-tight">
+            <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-slate-900 leading-tight">
               Pengumuman
             </h4>
             <p className="text-[11px] text-slate-500 mt-0.5 truncate">
@@ -140,17 +141,17 @@ export function QuickActionsGrid({
           <>
             <Link
               to={`/t/${tenantId}/arisan/rounds`}
-              className="p-4 rounded-xl bg-purple-50/50 border border-purple-200/80 shadow-xs hover:border-purple-300 hover:shadow-subtle transition-all flex flex-col justify-between group min-h-[104px]"
+              className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 hover:border-slate-300 hover:bg-slate-100/80 transition-all flex flex-col justify-between group min-h-[104px]"
             >
               <div className="flex items-center justify-between">
                 <span className="text-xl">📋</span>
-                <AiOutlineArrowRight className="text-purple-400 group-hover:text-purple-800 transition-colors text-xs" />
+                <AiOutlineArrowRight className="text-slate-400 group-hover:text-slate-900 transition-colors text-xs" />
               </div>
               <div className="mt-2">
-                <h4 className="text-xs sm:text-sm font-bold text-purple-950 leading-tight">
+                <h4 className="text-xs sm:text-sm font-bold text-slate-900 leading-tight">
                   Putaran Arisan
                 </h4>
-                <p className="text-[11px] text-purple-700 mt-0.5 truncate">
+                <p className="text-[11px] text-slate-500 mt-0.5 truncate">
                   Kelola siklus putaran
                 </p>
               </div>
@@ -158,17 +159,17 @@ export function QuickActionsGrid({
 
             <Link
               to={`/t/${tenantId}/arisan/draw`}
-              className="p-4 rounded-xl bg-amber-50/50 border border-amber-200/80 shadow-xs hover:border-amber-300 hover:shadow-subtle transition-all flex flex-col justify-between group min-h-[104px]"
+              className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 hover:border-slate-300 hover:bg-slate-100/80 transition-all flex flex-col justify-between group min-h-[104px]"
             >
               <div className="flex items-center justify-between">
                 <span className="text-xl">🎲</span>
-                <AiOutlineArrowRight className="text-amber-500 group-hover:text-amber-800 transition-colors text-xs" />
+                <AiOutlineArrowRight className="text-slate-400 group-hover:text-slate-900 transition-colors text-xs" />
               </div>
               <div className="mt-2">
-                <h4 className="text-xs sm:text-sm font-bold text-amber-950 leading-tight">
+                <h4 className="text-xs sm:text-sm font-bold text-slate-900 leading-tight">
                   Kocok Undian
                 </h4>
-                <p className="text-[11px] text-amber-700 mt-0.5 truncate">
+                <p className="text-[11px] text-slate-500 mt-0.5 truncate">
                   Ruang undi digital
                 </p>
               </div>
@@ -180,16 +181,16 @@ export function QuickActionsGrid({
         {(template?.type === 'kos' || template?.type === 'rt_rw') && (
           <Link
             to={`/t/${tenantId}/listings/post`}
-            className="p-4 rounded-xl bg-amber-50/40 border border-amber-200/70 shadow-xs hover:border-amber-300 hover:shadow-subtle transition-all flex flex-col justify-between group min-h-[104px]"
+            className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 hover:border-slate-300 hover:bg-slate-100/80 transition-all flex flex-col justify-between group min-h-[104px]"
           >
             <div className="flex items-center justify-between">
               <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center text-base">
-                <HiOutlineSparkles />
+                <HiOutlineSparkles aria-hidden="true" />
               </div>
-              <AiOutlineArrowRight className="text-amber-400 group-hover:text-amber-800 transition-colors text-xs" />
+              <AiOutlineArrowRight className="text-slate-400 group-hover:text-slate-900 transition-colors text-xs" />
             </div>
             <div className="mt-2">
-              <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-amber-900 leading-tight">
+              <h4 className="text-xs sm:text-sm font-bold text-slate-900 leading-tight">
                 {template?.type === 'kos' ? 'Iklan Kamar' : 'Pasang Iklan UMKM'}
               </h4>
               <p className="text-[11px] text-slate-500 mt-0.5 truncate">
@@ -203,17 +204,17 @@ export function QuickActionsGrid({
         {isTenantAdmin && (
           <Link
             to={`/t/${tenantId}/setup`}
-            className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 shadow-xs hover:border-slate-300 hover:shadow-subtle transition-all flex flex-col justify-between group min-h-[104px]"
+            className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 hover:border-slate-300 hover:bg-slate-100/80 transition-all flex flex-col justify-between group min-h-[104px]"
           >
             <div className="flex items-center justify-between">
               <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-600 flex items-center justify-center text-base">
-                <AiOutlineSetting />
+                <AiOutlineSetting aria-hidden="true" />
               </div>
-              <AiOutlineArrowRight className="text-slate-400 group-hover:text-slate-800 transition-colors text-xs" />
+              <AiOutlineArrowRight className="text-slate-400 group-hover:text-slate-900 transition-colors text-xs" />
             </div>
             <div className="mt-2">
-              <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-slate-900 leading-tight">
-                Pengaturan Komplek
+              <h4 className="text-xs sm:text-sm font-bold text-slate-900 leading-tight">
+                Pengaturan {communityLabel}
               </h4>
               <p className="text-[11px] text-slate-500 mt-0.5 truncate">
                 Unit, tarif &amp; denda

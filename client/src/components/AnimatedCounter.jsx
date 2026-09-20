@@ -12,7 +12,9 @@ export default function AnimatedCounter({
   formatter = (val) => String(Math.round(val)),
   className = '',
 }) {
-  const [displayValue, setDisplayValue] = useState(0);
+  const [displayValue, setDisplayValue] = useState(() =>
+    typeof window === 'undefined' ? Number(value) || 0 : 0
+  );
   const startValRef = useRef(0);
   const startTimeRef = useRef(null);
   const targetValRef = useRef(value);
