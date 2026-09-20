@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   AiOutlinePlus,
@@ -28,44 +28,43 @@ import {
   fetchTenantUnits,
 } from '../services/tenantOperationalService';
 import {
+  canModifyData,
   roleLabel,
   roleColor,
   occupancyStatusLabel,
   occupancyStatusColor,
   OCCUPANCY_STATUS,
-  canManageResidents,
 } from '../services/dataHelpers';
 import {
-  MobileList,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableHeaderCell,
+  TableCell,
+  SearchInput,
+  Pagination,
   EmptyState,
   SkeletonTable,
   SkeletonList,
-  Pagination,
-  Table,
-  TableHead,
-  TableHeaderCell,
-  TableBody,
-  TableRow,
-  TableCell,
-  SearchInput,
+  MobileList,
 } from '../components/ui';
-import { ResidentCard, ResidentDetailDrawer } from '../components/residents';
+import { ResidentCard } from '../components/residents/ResidentCard';
+import { ResidentDetailDrawer } from '../components/residents/ResidentDetailDrawer';
 
 export default function Residents() {
-  const { tenantId: routeTenantId } = useParams();
-  const { role, session, isReadOnly } = useAuth();
-  const { activeTenant, activeTenantId, switchTenant } = useTenant();
-  const template = useTenantTemplate();
+  const params = useParams();
+  const { role, token } = useAuth();
+  const { currentTenant, userTenants } = useTenant();
+  const activeTenantId = params.tenantId || currentTenant?.id || userTenants?.[0]?.id || null;
+  const activeTenant = currentTenant?.id === activeTenantId
+    ? currentTenant
+    : (userTenants || []).find((t) => t.id === activeTenantId) || null;
+  const template = useTenantTemplate(activeTenant?.type);
 
-  useEffect(() => {
-    if (routeTenantId && routeTenantId !== activeTenantId) {
-      switchTenant(routeTenantId);
-    }
-  }, [routeTenantId, activeTenantId, switchTenant]);
-  const { triggerTour } = useTour();
-  const token = session?.access_token;
   const toast = useToast();
-  const canManage = canManageResidents(role, isReadOnly);
+  const { triggerTour } = useTour();
+  const canManage = canModifyData(role);
 
   // Data states
   const [profiles, setProfiles] = useState([]);
@@ -73,6 +72,10 @@ export default function Residents() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const fetchSeqRef = useRef(0);
+  const activeTenantRef = useRef(activeTenantId);
+  activeTenantRef.current = activeTenantId;
 
   // State filter, search, sort & pagination
   const [search, setSearch] = useState('');
@@ -101,23 +104,25 @@ export default function Residents() {
     setCurrentPage(1);
     setModalAddEdit(null);
     setModalUpload(false);
+    setProfiles([]);
+    setUnits([]);
+    setLoadError(null);
   }, [activeTenantId]);
 
   const loadData = useCallback(async () => {
+    const seq = ++fetchSeqRef.current;
+    const targetTenantId = activeTenantId;
     setIsLoading(true);
     setLoadError(null);
     try {
-      if (activeTenantId && !String(activeTenantId).startsWith('demo-')) {
+      if (targetTenantId && !String(targetTenantId).startsWith('demo-')) {
         const [members, tenantUnits] = await Promise.all([
-          fetchTenantMembers(activeTenantId).catch((err) => {
-            console.error('fetchTenantMembers error:', err);
-            return [];
-          }),
-          fetchTenantUnits(activeTenantId).catch((err) => {
-            console.error('fetchTenantUnits error:', err);
-            return [];
-          }),
+          fetchTenantMembers(targetTenantId),
+          fetchTenantUnits(targetTenantId),
         ]);
+        if (seq !== fetchSeqRef.current || activeTenantRef.current !== targetTenantId) {
+          return;
+        }
         setProfiles(members || []);
         setUnits(
           (tenantUnits || []).map((u) => ({
@@ -128,21 +133,29 @@ export default function Residents() {
         );
       } else {
         const [res, uList] = await Promise.all([
-          fetchResidents(token).catch(() => []),
-          fetchUnits(token).catch(() => []),
+          fetchResidents(token),
+          fetchUnits(token),
         ]);
+        if (seq !== fetchSeqRef.current || activeTenantRef.current !== targetTenantId) {
+          return;
+        }
         setProfiles(res || []);
         setUnits(uList || []);
       }
     } catch (err) {
-      const msg = err.message || 'Gagal memuat data warga/unit.';
+      if (seq !== fetchSeqRef.current || activeTenantRef.current !== targetTenantId) {
+        return;
+      }
+      const msg = err.message || `Gagal memuat data ${template.memberLabel.toLowerCase()}.`;
       setLoadError(msg);
       toast.error(msg);
-      console.error(err);
+      console.error('loadData Residents error:', err);
     } finally {
-      setIsLoading(false);
+      if (seq === fetchSeqRef.current && activeTenantRef.current === targetTenantId) {
+        setIsLoading(false);
+      }
     }
-  }, [token, toast, activeTenantId]);
+  }, [token, toast, activeTenantId, template.memberLabel]);
 
   useEffect(() => {
     loadData();
@@ -577,6 +590,21 @@ export default function Residents() {
               <SkeletonTable cols={7} rows={6} />
             </div>
           </div>
+        ) : loadError ? (
+          <EmptyState
+            icon="⚠️"
+            title={`Data ${template.memberLabel} Belum Dapat Dimuat`}
+            description={loadError}
+            action={
+              <button
+                type="button"
+                onClick={loadData}
+                className="pv-btn-primary text-xs shadow-xs min-h-[44px]"
+              >
+                🔄 Coba Lagi
+              </button>
+            }
+          />
         ) : filteredAndSorted.length === 0 ? (
           <EmptyState
             icon="👥"

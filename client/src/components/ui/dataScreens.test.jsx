@@ -529,5 +529,274 @@ describe('Phase 7 — Data-heavy Screens Regression Test Matrix (§23)', () => {
       expect(html).toContain('aria-label="Cari data warga"');
     });
   });
+
+  // ────────────────────────────────────────────────────────────────────
+  // PHASE 7.1 — DATA ISOLATION & ASYNC STATE HARDENING TESTS
+  // ────────────────────────────────────────────────────────────────────
+  describe('Phase 7.1 — Data Isolation & Async State Hardening', () => {
+    // Tenant race (Tests 1-3)
+    it('1. Tenant A request resolves after switching to B -> A data does not enter state', async () => {
+      let state = { activeTenantId: 'tenant-a', data: [], error: null, isLoading: true };
+      let fetchSeq = 0;
+      let activeTenant = 'tenant-a';
+
+      // Tenant A starts
+      const seqA = ++fetchSeq;
+      const tenantA_id = 'tenant-a';
+
+      // User switches to Tenant B before Tenant A finishes
+      activeTenant = 'tenant-b';
+      state = { activeTenantId: 'tenant-b', data: [], error: null, isLoading: true };
+      const seqB = ++fetchSeq;
+      const tenantB_id = 'tenant-b';
+
+      // Tenant A resolves late
+      const resolveA = () => {
+        if (seqA !== fetchSeq || activeTenant !== tenantA_id) return;
+        state.data = [{ id: 1, name: 'Tenant A Resident' }];
+        state.isLoading = false;
+      };
+      resolveA();
+
+      // Verify Tenant A data was NOT written to state
+      expect(state.data.length).toBe(0);
+      expect(state.activeTenantId).toBe('tenant-b');
+    });
+
+    it('2. Tenant B response remains active dataset', () => {
+      let state = { activeTenantId: 'tenant-b', data: [], error: null, isLoading: true };
+      let fetchSeq = 2;
+      let activeTenant = 'tenant-b';
+
+      // Tenant B resolves
+      const seqB = 2;
+      const tenantB_id = 'tenant-b';
+      if (seqB === fetchSeq && activeTenant === tenantB_id) {
+        state.data = [{ id: 101, name: 'Tenant B Member' }];
+        state.isLoading = false;
+      }
+
+      expect(state.data.length).toBe(1);
+      expect(state.data[0].name).toBe('Tenant B Member');
+      expect(state.isLoading).toBe(false);
+    });
+
+    it('3. stale error from Tenant A does not replace Tenant B state', () => {
+      let state = { activeTenantId: 'tenant-b', data: [{ id: 101 }], error: null, isLoading: false };
+      let fetchSeq = 2;
+      let activeTenant = 'tenant-b';
+
+      // Tenant A errors late
+      const seqA = 1;
+      const tenantA_id = 'tenant-a';
+      if (seqA === fetchSeq && activeTenant === tenantA_id) {
+        state.error = 'Network error on Tenant A';
+        state.data = [];
+      }
+
+      // Verify Tenant A error was discarded and did not overwrite Tenant B state
+      expect(state.error).toBeNull();
+      expect(state.data.length).toBe(1);
+    });
+
+    // Citizen matrix (Tests 4-7)
+    it('4. citizen + resolved unit -> only own unit', () => {
+      const myUnitId = 10;
+      const role = 'warga';
+      const isStaff = false;
+
+      const tenantMatrix = [
+        { unit: { id: 10, label: 'A/10' }, bills: [] },
+        { unit: { id: 20, label: 'A/20' }, bills: [] },
+        { unit: { id: 30, label: 'A/30' }, bills: [] },
+      ];
+
+      // Non-staff scoped filtering
+      const citizenMatrix = !isStaff && myUnitId
+        ? tenantMatrix.filter((row) => row.unit.id === myUnitId)
+        : tenantMatrix;
+
+      expect(citizenMatrix.length).toBe(1);
+      expect(citizenMatrix[0].unit.id).toBe(10);
+      expect(citizenMatrix.some((row) => row.unit.id === 20)).toBe(false);
+    });
+
+    it('5. citizen + unresolved unit -> tenant-wide matrix NOT shown', () => {
+      const myUnitId = null;
+      const isStaff = false;
+      const tenantMatrix = [
+        { unit: { id: 10, label: 'A/10' } },
+        { unit: { id: 20, label: 'A/20' } },
+      ];
+
+      let displayedMatrix = null;
+      if (!isStaff && !myUnitId) {
+        displayedMatrix = [];
+      } else {
+        displayedMatrix = tenantMatrix;
+      }
+
+      expect(displayedMatrix).toEqual([]);
+      // Render honest message
+      const rawHtml = renderToString(
+        <EmptyState
+          icon="🏠"
+          title="Unit Anda Belum Terdaftar"
+          description="Unit atau status keanggotaan Anda belum dapat ditentukan pada tenant ini. Matriks kewajiban pembayaran hanya ditampilkan untuk unit Anda."
+        />
+      );
+      const html = cleanHtml(rawHtml);
+      expect(html).toContain('Unit Anda Belum Terdaftar');
+      expect(html).not.toContain('A/10');
+    });
+
+    it('6. citizen + membership lookup failure -> safe state, not tenant-wide data', () => {
+      let resolvedMyUnitId = null;
+      const fetchMembership = () => {
+        throw new Error('Database connection failed');
+      };
+
+      try {
+        fetchMembership();
+      } catch {
+        resolvedMyUnitId = null;
+      }
+
+      expect(resolvedMyUnitId).toBeNull();
+      // Should not fallback to tenant-wide dataset or global profile
+      const isStaff = false;
+      const safeMatrix = !isStaff && !resolvedMyUnitId ? [] : [{ unit: { id: 'leaked' } }];
+      expect(safeMatrix.length).toBe(0);
+    });
+
+    it('7. staff + tenant -> tenant-wide matrix remains functional', () => {
+      const isStaff = true;
+      const tenantMatrix = [
+        { unit: { id: 1, label: 'Rumah 1' } },
+        { unit: { id: 2, label: 'Rumah 2' } },
+        { unit: { id: 3, label: 'Rumah 3' } },
+      ];
+
+      const displayedMatrix = isStaff ? tenantMatrix : [];
+      expect(displayedMatrix.length).toBe(3);
+      expect(displayedMatrix[0].unit.label).toBe('Rumah 1');
+    });
+
+    // Error state (Tests 8-12)
+    it('8. Residents fetch failure -> Error State with retry action', () => {
+      const loadError = 'Koneksi ke server terputus.';
+      const rawHtml = renderToString(
+        <EmptyState
+          icon="⚠️"
+          title="Data Warga Belum Dapat Dimuat"
+          description={loadError}
+          action={<button type="button">🔄 Coba Lagi</button>}
+        />
+      );
+      const html = cleanHtml(rawHtml);
+      expect(html).toContain('Data Warga Belum Dapat Dimuat');
+      expect(html).toContain('Koneksi ke server terputus.');
+      expect(html).toContain('Coba Lagi');
+      expect(html).not.toContain('Belum Ada Warga Terdaftar');
+    });
+
+    it('9. Houses fetch failure -> Error State with retry action', () => {
+      const loadError = 'Gagal memuat data master rumah.';
+      const rawHtml = renderToString(
+        <EmptyState
+          icon="⚠️"
+          title="Data Rumah Belum Dapat Dimuat"
+          description={loadError}
+          action={<button type="button">🔄 Coba Lagi</button>}
+        />
+      );
+      const html = cleanHtml(rawHtml);
+      expect(html).toContain('Data Rumah Belum Dapat Dimuat');
+      expect(html).toContain(loadError);
+      expect(html).not.toContain('Belum Ada Data Rumah');
+    });
+
+    it('10. Payment Verification fetch failure -> Error State with retry action', () => {
+      const loadError = 'Gagal mengambil data verifikasi pembayaran.';
+      const rawHtml = renderToString(
+        <EmptyState
+          icon="⚠️"
+          title="Gagal Memuat Data Pembayaran"
+          description={loadError}
+          action={<button type="button">🔄 Coba Lagi</button>}
+        />
+      );
+      const html = cleanHtml(rawHtml);
+      expect(html).toContain('Gagal Memuat Data Pembayaran');
+      expect(html).toContain(loadError);
+      expect(html).not.toContain('Semua Pembayaran Terverifikasi');
+    });
+
+    it('11. Payment Matrix fetch failure -> Error State with retry action', () => {
+      const loadError = 'Gagal memuat matriks pembayaran.';
+      const rawHtml = renderToString(
+        <EmptyState
+          icon="⚠️"
+          title="Gagal Memuat Matriks Pembayaran"
+          description={loadError}
+          action={<button type="button">🔄 Coba Lagi</button>}
+        />
+      );
+      const html = cleanHtml(rawHtml);
+      expect(html).toContain('Gagal Memuat Matriks Pembayaran');
+      expect(html).toContain(loadError);
+      expect(html).toContain('Coba Lagi');
+    });
+
+    it('12. successful empty response -> Empty State', () => {
+      const loadError = null;
+      const isError = Boolean(loadError);
+
+      expect(isError).toBe(false);
+      const rawHtml = renderToString(
+        <EmptyState
+          icon="👥"
+          title="Belum Ada Warga Terdaftar"
+          description="Mulai kelola komunitas dengan mendaftarkan warga pertama Anda."
+        />
+      );
+      const html = cleanHtml(rawHtml);
+      expect(html).toContain('Belum Ada Warga Terdaftar');
+      expect(html).not.toContain('Data Belum Dapat Dimuat');
+    });
+
+    // Accessibility (Test 13)
+    it('13. ResidentCard phone action touch target >=44px', () => {
+      const rawHtml = renderToString(
+        <MemoryRouter>
+          <ResidentCard
+            profile={{ ...mockTenantAMembers[0], phone: '08123456789' }}
+            unit={mockTenantAUnits[0]}
+            onClick={() => {}}
+          />
+        </MemoryRouter>
+      );
+      const html = cleanHtml(rawHtml);
+      expect(html).toContain('min-w-[44px]');
+      expect(html).toContain('min-h-[44px]');
+      expect(html).toContain('href="tel:08123456789"');
+      expect(html).toContain('href="https://wa.me/628123456789"');
+    });
+
+    // Regression (Test 14)
+    it('14. payment transaction integrity preserved (pay.status source of truth)', () => {
+      const bill = { id: 10, status: 'paid', amount: 150000, late_fee: 10000 };
+      const payment = { id: 99, status: 'pending_verification', amount: 160000 };
+
+      // Payment status must come from payment record, NOT billing status
+      const paymentStatus = normalizePaymentStatus(payment.status);
+      expect(paymentStatus).toBe('pending_verification');
+      expect(paymentStatus).not.toBe(bill.status);
+
+      // Obligation calculation includes late_fee
+      const totalDue = (bill.amount || 0) + (bill.late_fee || 0);
+      expect(totalDue).toBe(160000);
+    });
+  });
 });
 

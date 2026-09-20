@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTenant } from '../context/TenantContext';
@@ -173,6 +173,18 @@ export default function PaymentVerification() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  const [payments, setPayments] = useState([]);
+  const [units, setUnits] = useState([]);
+  const [residents, setResidents] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [qrisEnabled, setQrisEnabled] = useState(true);
+  const [qrisProvider, setQrisProvider] = useState('midtrans');
+
+  const fetchSeqRef = useRef(0);
+  const activeTenantRef = useRef(activeTenantId);
+  activeTenantRef.current = activeTenantId;
+
   // Tenant switch reset effect
   useEffect(() => {
     setSelectedPayment(null);
@@ -182,14 +194,11 @@ export default function PaymentVerification() {
     setReceiptPreviewError(false);
     setSearch('');
     setCurrentPage(1);
+    setPayments([]);
+    setUnits([]);
+    setResidents([]);
+    setLoadError(null);
   }, [activeTenantId]);
-
-  const [payments, setPayments] = useState([]);
-  const [units, setUnits] = useState([]);
-  const [residents, setResidents] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [qrisEnabled, setQrisEnabled] = useState(true);
-  const [qrisProvider, setQrisProvider] = useState('midtrans');
 
   const sortedUnits = useMemo(() => {
     return [...units].sort((a, b) => {
@@ -200,89 +209,82 @@ export default function PaymentVerification() {
   }, [units]);
 
   useEffect(() => {
-    let active = true;
+    const seq = ++fetchSeqRef.current;
+    const targetTenantId = activeTenantId;
+
     const loadData = async () => {
       try {
         setIsLoading(true);
-        if (IS_DEMO && (!activeTenantId || String(activeTenantId).startsWith('demo-'))) {
+        setLoadError(null);
+        if (IS_DEMO && (!targetTenantId || String(targetTenantId).startsWith('demo-'))) {
           // Demo mode uses mock data directly
-          const mockPay = getPendingPayments(); // Just to load mockData module
+          getPendingPayments();
+          if (seq !== fetchSeqRef.current || activeTenantRef.current !== targetTenantId) return;
           setPayments(mockPayments);
           setUnits([]);
           setResidents([]);
           setQrisEnabled(mockSettings.qris_enabled ?? true);
           setQrisProvider(String(mockSettings.qris_provider || 'midtrans').toLowerCase());
-        } else if (activeTenantId) {
+        } else if (targetTenantId) {
           // Multi-tenant mode
           const [payData, unitData, memberData, settingsData] = await Promise.all([
-            fetchPayments(session?.access_token, { tenantId: activeTenantId }).catch((err) => {
-              console.error('fetchPayments error:', err);
-              return [];
-            }),
-            fetchTenantUnits(activeTenantId).catch((err) => {
-              console.error('fetchTenantUnits error:', err);
-              return [];
-            }),
-            fetchTenantMembers(activeTenantId).catch((err) => {
-              console.error('fetchTenantMembers error:', err);
-              return [];
-            }),
+            fetchPayments(session?.access_token, { tenantId: targetTenantId }),
+            fetchTenantUnits(targetTenantId),
+            fetchTenantMembers(targetTenantId),
             fetchSettings(session?.access_token).catch(() => null),
           ]);
-          if (active) {
-            setPayments(payData);
-            setUnits(
-              unitData.map((u) => ({
-                ...u,
-                block: u.metadata?.block || u.label,
-                unit_number: u.metadata?.unit_number || '',
-              }))
-            );
-            setResidents(memberData);
-            if (settingsData) {
-              setQrisEnabled(settingsData.qris_enabled ?? true);
-              setQrisProvider(String(settingsData.qris_provider || 'midtrans').toLowerCase());
-            }
+          if (seq !== fetchSeqRef.current || activeTenantRef.current !== targetTenantId) {
+            return;
+          }
+          setPayments(payData || []);
+          setUnits(
+            (unitData || []).map((u) => ({
+              ...u,
+              block: u.metadata?.block || u.label,
+              unit_number: u.metadata?.unit_number || '',
+            }))
+          );
+          setResidents(memberData || []);
+          if (settingsData) {
+            setQrisEnabled(settingsData.qris_enabled ?? true);
+            setQrisProvider(String(settingsData.qris_provider || 'midtrans').toLowerCase());
           }
         } else {
           // Prod mode fetches from API & Supabase
           const [payData, unitData, resData, matrixData, settingsData] = await Promise.all([
-            fetchPayments(session?.access_token).catch((err) => {
-              console.error('fetchPayments error:', err);
-              return [];
-            }),
-            fetchUnits(session?.access_token).catch((err) => {
-              console.error('fetchUnits error:', err);
-              return [];
-            }),
-            fetchResidents(session?.access_token).catch((err) => {
-              console.error('fetchResidents error:', err);
-              return [];
-            }),
+            fetchPayments(session?.access_token),
+            fetchUnits(session?.access_token),
+            fetchResidents(session?.access_token),
             fetchBillMatrix(session?.access_token, currentBillingYear()).catch(() => []),
             fetchSettings(session?.access_token).catch(() => null),
           ]);
-          if (active) {
-            setPayments(mergePaymentSources(payData, matrixData));
-            setUnits(unitData);
-            setResidents(resData);
-            if (settingsData) {
-              setQrisEnabled(settingsData.qris_enabled ?? true);
-              setQrisProvider(String(settingsData.qris_provider || 'midtrans').toLowerCase());
-            }
+          if (seq !== fetchSeqRef.current || activeTenantRef.current !== targetTenantId) {
+            return;
+          }
+          setPayments(mergePaymentSources(payData || [], matrixData));
+          setUnits(unitData || []);
+          setResidents(resData || []);
+          if (settingsData) {
+            setQrisEnabled(settingsData.qris_enabled ?? true);
+            setQrisProvider(String(settingsData.qris_provider || 'midtrans').toLowerCase());
           }
         }
       } catch (err) {
-        toast.error('Gagal mengambil data verifikasi.');
+        if (seq !== fetchSeqRef.current || activeTenantRef.current !== targetTenantId) {
+          return;
+        }
+        const msg = err.message || 'Gagal mengambil data verifikasi pembayaran.';
+        setLoadError(msg);
+        toast.error(msg);
+        console.error('PaymentVerification loadData error:', err);
       } finally {
-        if (active) setIsLoading(false);
+        if (seq === fetchSeqRef.current && activeTenantRef.current === targetTenantId) {
+          setIsLoading(false);
+        }
       }
     };
     loadData();
-    return () => {
-      active = false;
-    };
-  }, [refreshKey, session?.access_token, activeTenantId]);
+  }, [refreshKey, session?.access_token, activeTenantId, toast]);
 
   useEffect(() => {
     setReceiptPreviewError(false);
@@ -612,6 +614,21 @@ export default function PaymentVerification() {
             <SkeletonTable cols={6} rows={4} />
           </div>
         </div>
+      ) : loadError ? (
+        <EmptyState
+          icon="⚠️"
+          title="Gagal Memuat Data Pembayaran"
+          description={loadError}
+          action={
+            <button
+              type="button"
+              onClick={() => setRefreshKey((k) => k + 1)}
+              className="pv-btn-primary text-xs shadow-xs min-h-[44px]"
+            >
+              🔄 Coba Lagi
+            </button>
+          }
+        />
       ) : currentList.length === 0 ? (
         <EmptyState
           icon={

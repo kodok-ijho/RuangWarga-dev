@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useTenant } from '../hooks/useTenant';
 import { useTenantTemplate } from '../hooks/useTenantTemplate';
@@ -129,6 +129,10 @@ export default function PaymentMatrix() {
   const [matrixPage, setMatrixPage] = useState(1);
   const [matrixPageSize, setMatrixPageSize] = useState(25);
 
+  const fetchSeqRef = useRef(0);
+  const activeTenantRef = useRef(activeTenantId);
+  activeTenantRef.current = activeTenantId;
+
   // Isolasi Tenant & Reset Stale State saat activeTenantId berubah
   useEffect(() => {
     let active = true;
@@ -148,14 +152,14 @@ export default function PaymentMatrix() {
     const resolveUnit = async () => {
       setIsUnitResolving(true);
       if (IS_DEMO) {
-        if (active) {
+        if (active && activeTenantRef.current === activeTenantId) {
           setResolvedMyUnitId(profile?.unit_id || null);
           setIsUnitResolving(false);
         }
         return;
       }
       if (!activeTenantId) {
-        if (active) {
+        if (active && activeTenantRef.current === activeTenantId) {
           setResolvedMyUnitId(null);
           setIsUnitResolving(false);
         }
@@ -170,15 +174,15 @@ export default function PaymentMatrix() {
             (currentUserId && (mem.user_id === currentUserId || mem.id === currentUserId)) ||
             (currentUserEmail && (mem.email === currentUserEmail || mem.phone === currentUserEmail))
         );
-        if (active) {
+        if (active && activeTenantRef.current === activeTenantId) {
           setResolvedMyUnitId(m?.unit_id || null);
         }
       } catch {
-        if (active) {
+        if (active && activeTenantRef.current === activeTenantId) {
           setResolvedMyUnitId(null);
         }
       } finally {
-        if (active) {
+        if (active && activeTenantRef.current === activeTenantId) {
           setIsUnitResolving(false);
         }
       }
@@ -245,46 +249,70 @@ export default function PaymentMatrix() {
   const [loadError, setLoadError] = useState('');
 
   const loadMatrix = useCallback(async ({ silent = false } = {}) => {
+    const seq = ++fetchSeqRef.current;
+    const targetTenantId = activeTenantId;
+
     if (!silent) {
       setIsLoading(true);
       setLoadError('');
     }
+
+    // Citizen / member: Tunggu hingga proses resolveUnit selesai
+    if (!IS_DEMO && !isStaff && isUnitResolving) {
+      return;
+    }
+
+    // Citizen / member: Jika unit tidak terdaftar / tidak dapat di-resolve, JANGAN fetch tenant-wide matrix!
+    if (!IS_DEMO && !isStaff && !myUnitId) {
+      if (seq !== fetchSeqRef.current || activeTenantRef.current !== targetTenantId) return;
+      setMatrix([]);
+      setProductionPayments([]);
+      if (!silent) setIsLoading(false);
+      return;
+    }
+
     try {
-      const scopedMatrixPromise =
-        !IS_DEMO && !isStaff && myUnitId
-          ? fetchBillMatrix(session?.access_token, year, { scopeUnitId: myUnitId, tenantId: activeTenantId }).catch(() => [])
-          : Promise.resolve([]);
+      if (!isStaff && myUnitId) {
+        // Citizen / member: HANYA fetch matriks dan pembayaran untuk unit sendiri (unit-scoped)
+        const [scopedData, paymentData] = await Promise.all([
+          fetchBillMatrix(session?.access_token, year, { scopeUnitId: myUnitId, tenantId: targetTenantId }),
+          !IS_DEMO
+            ? fetchPayments(session?.access_token, { tenantId: targetTenantId, scopeUnitId: myUnitId })
+            : Promise.resolve([]),
+        ]);
 
-      const [data, paymentData, scopedData] = await Promise.all([
-        fetchBillMatrix(session?.access_token, year, { tenantId: activeTenantId }),
-        !IS_DEMO
-          ? fetchPayments(session?.access_token, { tenantId: activeTenantId, ...(myUnitId ? { scopeUnitId: myUnitId } : {}) }).catch(() => [])
-          : Promise.resolve([]),
-        scopedMatrixPromise,
-      ]);
+        if (seq !== fetchSeqRef.current || activeTenantRef.current !== targetTenantId) return;
 
-      if (!IS_DEMO && !isStaff && myUnitId && Array.isArray(scopedData) && scopedData.length > 0) {
-        const scopedByUnit = new Map(scopedData.map((row) => [String(row?.unit?.id), row]));
-        setMatrix(
-          data.map((row) => {
-            const scopedRow = scopedByUnit.get(String(row?.unit?.id));
-            return scopedRow ? scopedRow : row;
-          })
-        );
+        const myUnitRows = (scopedData || []).filter((row) => String(row?.unit?.id) === String(myUnitId));
+        setMatrix(myUnitRows);
+        setProductionPayments(paymentData || []);
       } else {
-        setMatrix(data);
+        // Staff / Admin: Matriks dan pembayaran tenant-wide
+        const [data, paymentData] = await Promise.all([
+          fetchBillMatrix(session?.access_token, year, { tenantId: targetTenantId }),
+          !IS_DEMO
+            ? fetchPayments(session?.access_token, { tenantId: targetTenantId })
+            : Promise.resolve([]),
+        ]);
+
+        if (seq !== fetchSeqRef.current || activeTenantRef.current !== targetTenantId) return;
+
+        setMatrix(data || []);
+        setProductionPayments(paymentData || []);
       }
-      setProductionPayments(paymentData);
     } catch (err) {
+      if (seq !== fetchSeqRef.current || activeTenantRef.current !== targetTenantId) return;
       const msg = err.message || 'Gagal memuat matriks pembayaran.';
       if (!silent) {
         setLoadError(msg);
         toast.error(msg);
       }
     } finally {
-      if (!silent) setIsLoading(false);
+      if (seq === fetchSeqRef.current && activeTenantRef.current === targetTenantId) {
+        if (!silent) setIsLoading(false);
+      }
     }
-  }, [session?.access_token, year, role, toast, isStaff, myUnitId, activeTenantId]);
+  }, [session?.access_token, year, toast, isStaff, myUnitId, activeTenantId, isUnitResolving]);
 
   const getPaymentForBillView = useCallback((billId, preferredPaymentId = null) => {
     if (IS_DEMO) return getPaymentForBill(billId);
@@ -862,7 +890,7 @@ export default function PaymentMatrix() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isUnitResolving) {
     return (
       <div className="space-y-5">
         <div className="h-8 w-64 rounded-xl bg-slate-200/80 animate-pulse" />
@@ -887,11 +915,21 @@ export default function PaymentMatrix() {
           <button
             type="button"
             onClick={() => setRefreshKey(k => k + 1)}
-            className="pv-btn-primary text-xs font-semibold px-4 py-2 shadow-xs"
+            className="pv-btn-primary text-xs font-semibold px-4 py-2 shadow-xs min-h-[44px]"
           >
             🔄 Coba Lagi
           </button>
         }
+      />
+    );
+  }
+
+  if (!isStaff && !myUnitId) {
+    return (
+      <EmptyState
+        icon="🏠"
+        title={`${template.unitLabel} Anda Belum Terdaftar`}
+        description={`Unit atau status keanggotaan Anda belum dapat ditentukan pada ${activeTenant?.name || 'tenant ini'}. Matriks kewajiban pembayaran hanya ditampilkan untuk unit Anda. Silakan hubungi pengelola komunitas untuk menghubungkan profil Anda dengan ${template.unitLabel.toLowerCase()} Anda.`}
       />
     );
   }

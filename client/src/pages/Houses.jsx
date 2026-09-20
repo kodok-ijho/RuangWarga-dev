@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import {
   AiOutlineDelete,
@@ -79,7 +79,12 @@ export default function Houses() {
   const [profiles, setProfiles] = useState([]);
   const [iplSchemas, setIplSchemas] = useState(DEFAULT_IPL_SCHEMAS);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const fetchSeqRef = useRef(0);
+  const activeTenantRef = useRef(activeTenantId);
+  activeTenantRef.current = activeTenantId;
 
   const [search, setSearch] = useState('');
   const [filterBlock, setFilterBlock] = useState('');
@@ -104,26 +109,29 @@ export default function Houses() {
     setCurrentPage(1);
     setSortKey('unit');
     setSortDirection('asc');
+    setUnits([]);
+    setProfiles([]);
+    setLoadError(null);
   }, [activeTenantId]);
 
   const loadData = useCallback(async () => {
+    const seq = ++fetchSeqRef.current;
+    const targetTenantId = activeTenantId;
     setIsLoading(true);
+    setLoadError(null);
     try {
-      if (activeTenantId && !String(activeTenantId).startsWith('demo-')) {
+      if (targetTenantId && !String(targetTenantId).startsWith('demo-')) {
         const [tenantUnits, members, resSchemas] = await Promise.all([
-          fetchTenantUnits(activeTenantId).catch((err) => {
-            console.error('fetchTenantUnits error:', err);
-            return [];
-          }),
-          fetchTenantMembers(activeTenantId).catch((err) => {
-            console.error('fetchTenantMembers error:', err);
-            return [];
-          }),
+          fetchTenantUnits(targetTenantId),
+          fetchTenantMembers(targetTenantId),
           fetchIPLSchemas(token).catch((err) => {
             console.warn('Failed to fetch IPL schemas; using defaults:', err);
             return DEFAULT_IPL_SCHEMAS;
           }),
         ]);
+        if (seq !== fetchSeqRef.current || activeTenantRef.current !== targetTenantId) {
+          return;
+        }
         setUnits(
           (tenantUnits || []).map((u) => ({
             ...u,
@@ -141,28 +149,32 @@ export default function Houses() {
         setIplSchemas(resSchemas && resSchemas.length > 0 ? resSchemas : DEFAULT_IPL_SCHEMAS);
       } else {
         const [resUnits, resProfiles, resSchemas] = await Promise.all([
-          fetchUnits(token).catch((err) => {
-            console.error('Failed to fetch units:', err);
-            return [];
-          }),
-          fetchResidents(token).catch((err) => {
-            console.error('Failed to fetch residents:', err);
-            return [];
-          }),
+          fetchUnits(token),
+          fetchResidents(token),
           fetchIPLSchemas(token).catch((err) => {
             console.warn('Failed to fetch IPL schemas; using defaults:', err);
             return DEFAULT_IPL_SCHEMAS;
           }),
         ]);
+        if (seq !== fetchSeqRef.current || activeTenantRef.current !== targetTenantId) {
+          return;
+        }
         setUnits(resUnits || []);
         setProfiles(resProfiles || []);
         setIplSchemas(resSchemas && resSchemas.length > 0 ? resSchemas : DEFAULT_IPL_SCHEMAS);
       }
     } catch (err) {
-      toast.error(`Gagal memuat data master ${template.unitLabel.toLowerCase()}.`);
-      console.error(err);
+      if (seq !== fetchSeqRef.current || activeTenantRef.current !== targetTenantId) {
+        return;
+      }
+      const msg = err.message || `Gagal memuat data master ${template.unitLabel.toLowerCase()}.`;
+      setLoadError(msg);
+      toast.error(msg);
+      console.error('loadData Houses error:', err);
     } finally {
-      setIsLoading(false);
+      if (seq === fetchSeqRef.current && activeTenantRef.current === targetTenantId) {
+        setIsLoading(false);
+      }
     }
   }, [token, toast, template.unitLabel, activeTenantId]);
 
@@ -556,6 +568,21 @@ export default function Houses() {
 
       {isLoading ? (
         <SkeletonTable cols={7} rows={6} />
+      ) : loadError ? (
+        <EmptyState
+          icon="⚠️"
+          title={`Data ${template.unitLabel} Belum Dapat Dimuat`}
+          description={loadError}
+          action={
+            <button
+              type="button"
+              onClick={loadData}
+              className="pv-btn-primary text-xs shadow-xs min-h-[44px]"
+            >
+              🔄 Coba Lagi
+            </button>
+          }
+        />
       ) : units.length === 0 ? (
         <EmptyState
           icon="🏡"
