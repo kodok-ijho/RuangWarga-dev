@@ -53,7 +53,7 @@ import {
   downloadDigitalReceipt,
   sendEmailReceipt,
 } from '../services/mockData';
-import { autoGenerateKosBilling, generateKelasSppBilling } from '../services/tenantOperationalService';
+import { autoGenerateKosBilling, generateKelasSppBilling, fetchTenantMembers } from '../services/tenantOperationalService';
 import { compressImage } from '../utils/imageCompressor';
 import { AiOutlineDownload } from 'react-icons/ai';
 import { ResidentIplOverview, PaymentFlowModal, PaymentHistoryList } from '../components/payment';
@@ -120,7 +120,68 @@ export default function PaymentMatrix() {
   // seluruh fitur lain. QRIS adalah satu-satunya pengecualian sementara.
   const isDemoAdmin = isReadOnly && (role === 'admin' || role === 'admin_viewer');
   const canUseQris = true;
-  const myUnitId = profile?.unit_id;
+  const [resolvedMyUnitId, setResolvedMyUnitId] = useState(null);
+  const [isUnitResolving, setIsUnitResolving] = useState(true);
+
+  // Isolasi Tenant & Reset Stale State saat activeTenantId berubah
+  useEffect(() => {
+    let active = true;
+    setSelected({});
+    setMatrix([]);
+    setProductionPayments([]);
+    setPayModal(null);
+    setQrisCheckoutData(null);
+    setManualModal(null);
+    setDetailModal(null);
+    setLoadError('');
+    setResolvedMyUnitId(null);
+
+    const resolveUnit = async () => {
+      setIsUnitResolving(true);
+      if (IS_DEMO) {
+        if (active) {
+          setResolvedMyUnitId(profile?.unit_id || null);
+          setIsUnitResolving(false);
+        }
+        return;
+      }
+      if (!activeTenantId) {
+        if (active) {
+          setResolvedMyUnitId(null);
+          setIsUnitResolving(false);
+        }
+        return;
+      }
+      try {
+        const members = await fetchTenantMembers(activeTenantId);
+        const currentUserId = session?.user?.id || profile?.id;
+        const currentUserEmail = session?.user?.email || profile?.email;
+        const m = (members || []).find(
+          (mem) =>
+            (currentUserId && (mem.user_id === currentUserId || mem.id === currentUserId)) ||
+            (currentUserEmail && (mem.email === currentUserEmail || mem.phone === currentUserEmail))
+        );
+        if (active) {
+          setResolvedMyUnitId(m?.unit_id || null);
+        }
+      } catch {
+        if (active) {
+          setResolvedMyUnitId(null);
+        }
+      } finally {
+        if (active) {
+          setIsUnitResolving(false);
+        }
+      }
+    };
+
+    resolveUnit();
+    return () => {
+      active = false;
+    };
+  }, [activeTenantId, profile?.id, profile?.email, session?.user?.id, session?.user?.email]);
+
+  const myUnitId = IS_DEMO ? (profile?.unit_id || null) : resolvedMyUnitId;
   const [refreshKey, setRefreshKey] = useState(0);
   const [isCreateBillingOpen, setIsCreateBillingOpen] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
@@ -188,7 +249,7 @@ export default function PaymentMatrix() {
       const [data, paymentData, scopedData] = await Promise.all([
         fetchBillMatrix(session?.access_token, year, { tenantId: activeTenantId }),
         !IS_DEMO
-          ? fetchPayments(session?.access_token, myUnitId ? { scopeUnitId: myUnitId } : {}).catch(() => [])
+          ? fetchPayments(session?.access_token, { tenantId: activeTenantId, ...(myUnitId ? { scopeUnitId: myUnitId } : {}) }).catch(() => [])
           : Promise.resolve([]),
         scopedMatrixPromise,
       ]);
@@ -214,7 +275,7 @@ export default function PaymentMatrix() {
     } finally {
       if (!silent) setIsLoading(false);
     }
-  }, [session?.access_token, year, role, toast, isStaff, myUnitId]);
+  }, [session?.access_token, year, role, toast, isStaff, myUnitId, activeTenantId]);
 
   const getPaymentForBillView = useCallback((billId, preferredPaymentId = null) => {
     if (IS_DEMO) return getPaymentForBill(billId);
@@ -563,6 +624,7 @@ export default function PaymentMatrix() {
               method: 'bank_transfer',
               file: receiptFile,
               note,
+              tenantId: activeTenantId,
             });
             completedCount += 1;
           }
@@ -893,7 +955,7 @@ export default function PaymentMatrix() {
             onClick={() => setActiveTab('my_bills')}
             className={`pb-3 text-sm font-bold transition-all relative ${
               activeTab === 'my_bills'
-                ? 'text-forest-900 border-b-2 border-forest-800'
+                ? 'text-slate-900 border-b-2 border-slate-900'
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -904,11 +966,11 @@ export default function PaymentMatrix() {
             onClick={() => setActiveTab('matrix')}
             className={`pb-3 text-sm font-bold transition-all relative ${
               activeTab === 'matrix'
-                ? 'text-forest-900 border-b-2 border-forest-800'
+                ? 'text-slate-900 border-b-2 border-slate-900'
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >
-            Matriks Transparansi Komplek
+            Matriks Transparansi {template.communityLabel || 'Komunitas'}
           </button>
         </div>
       )}
@@ -921,6 +983,10 @@ export default function PaymentMatrix() {
             currentPeriodBill={myCurrentBill}
             latestPayment={myPayments[0] || null}
             selectedBillIds={Object.keys(selected)}
+            isLoading={isLoading || isUnitResolving}
+            isError={Boolean(loadError)}
+            errorMessage={loadError}
+            onRetry={() => loadMatrix()}
             onToggleBillSelection={(billId) => {
               const b = myBills.find((bill) => bill.id === billId);
               if (b) toggleCell(b);
@@ -1324,8 +1390,15 @@ export default function PaymentMatrix() {
 
 // ── Komponen sel matriks ──────────────────────────────────────────
 function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isStaff, canInteract, isLockedOtherUnit = false, onClick }) {
-  if (!cell) {
-    return <span className="block h-12 rounded bg-gray-50"></span>;
+  if (!cell || !cell.bill || cell.status === 'none') {
+    return (
+      <span
+        className="block h-12 rounded-xl border border-slate-100 bg-slate-50/50 flex items-center justify-center text-slate-300 text-xs font-mono select-none"
+        title="Tidak ada tagihan untuk periode ini"
+      >
+        —
+      </span>
+    );
   }
   const { status, bill } = cell;
   const payment = propPayment || (status === 'paid' ? getPaymentForBill(bill.id) : null);
@@ -1456,7 +1529,7 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
   // Semua sel belum-bayar BISA diklik. Aturan runut hanya divalidasi saat
   // klik (toast peringatan jika ada tunggakan sebelumnya), bukan diblokir.
   const classes = isSelected
-    ? 'bg-forest-800 text-white border-forest-900 ring-2 ring-gold-400 shadow-sm font-bold'
+    ? 'bg-slate-900 text-white border-slate-950 ring-2 ring-slate-400 shadow-xs font-bold'
     : isOverdue
     ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 cursor-pointer'
     : isPending

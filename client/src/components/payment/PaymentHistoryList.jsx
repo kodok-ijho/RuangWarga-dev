@@ -10,13 +10,20 @@ import {
   AiOutlineCreditCard,
   AiOutlineBank,
   AiOutlineDownload,
+  AiOutlineClockCircle,
 } from 'react-icons/ai';
 
 /**
- * PaymentHistoryList (TASK-013)
+ * PaymentHistoryList (TASK-013 / Phase 6)
+ *
  * Menampilkan riwayat pembayaran warga dengan pola progressive disclosure:
- * Tingkat 1: Daftar periode, tanggal, nominal, metode, dan status.
+ * Tingkat 1: Daftar periode, tanggal, nominal, metode, dan status aktual.
  * Tingkat 2: Klik item membuka detail kuitansi, bukti transfer, dan info verifikasi.
+ *
+ * Standar Phase 6:
+ * - Data correctness: Tanpa status default 'completed' (menggunakan actual pay.status / bill.status)
+ * - Design system tokens: Neutral-first, zero forest-* hardcodes
+ * - Aksesibilitas: Touch target >= 44px, status dapat dibedakan tanpa warna saja
  */
 export function PaymentHistoryList({
   payments = [],
@@ -26,31 +33,36 @@ export function PaymentHistoryList({
   className = '',
 }) {
   const [selectedItem, setSelectedItem] = useState(null);
-  const billLabel = template?.billLabel || 'IPL';
+  const billLabel = template?.billLabel || 'Tagihan';
 
-  // Gabungkan payment dengan bill terkait jika ada
-  const historyItems = payments.map((pay) => {
-    const matchedBill = bills.find((b) => b.id === pay.bill_id || b.id === pay.ipl_bill_id || b.payment_id === pay.id);
+  // Gabungkan payment dengan bill terkait jika ada (tanpa fake status default!)
+  const historyItems = (payments || []).map((pay) => {
+    const matchedBill = (bills || []).find(
+      (b) => b.id === pay.bill_id || b.id === pay.billing_item_id || b.id === pay.ipl_bill_id || b.payment_id === pay.id
+    );
+
+    const actualStatus = pay.status || matchedBill?.status || 'unspecified';
+
     return {
       payment: pay,
       bill: matchedBill,
       id: pay.id || matchedBill?.id,
-      period: pay.period || matchedBill?.period,
-      amount: pay.amount || matchedBill?.amount || 0,
-      status: pay.status || matchedBill?.status || 'completed',
+      period: pay.period || matchedBill?.period || '',
+      amount: pay.amount !== undefined ? Number(pay.amount) : (matchedBill?.amount !== undefined ? Number(matchedBill.amount) : 0),
+      status: actualStatus,
       method: pay.method || pay.payment_method || 'bank_transfer',
-      paidAt: pay.paid_at || pay.created_at || matchedBill?.paid_at,
-      verifiedAt: pay.verified_at || pay.metadata?.verified_at,
-      verifiedBy: pay.verified_by || pay.metadata?.verified_by,
-      note: pay.note || pay.metadata?.note,
-      proofUrl: pay.proof_file_url || pay.receipt_file_url || pay.proof_url || pay.file_url,
+      paidAt: pay.paid_at || pay.created_at || matchedBill?.paid_at || null,
+      verifiedAt: pay.verified_at || pay.metadata?.verified_at || null,
+      verifiedBy: pay.verified_by || pay.metadata?.verified_by_name || pay.metadata?.verified_by || '',
+      note: pay.note || pay.metadata?.note || '',
+      proofUrl: pay.proof_file_url || pay.receipt_file_url || pay.proof_url || pay.file_url || '',
     };
   });
 
   const getMethodIcon = (method) => {
-    if (method === 'qris') return <AiOutlineCreditCard className="text-forest-800" title="QRIS" />;
-    if (method === 'bank_transfer') return <AiOutlineBank className="text-forest-800" title="Transfer Bank" />;
-    return <span className="text-xs">💵</span>;
+    if (method === 'qris') return <AiOutlineCreditCard className="text-slate-700" title="QRIS" />;
+    if (method === 'bank_transfer') return <AiOutlineBank className="text-slate-700" title="Transfer Bank" />;
+    return <span className="text-xs" title="Tunai / Kas">💵</span>;
   };
 
   const getMethodLabel = (method) => {
@@ -74,7 +86,7 @@ export function PaymentHistoryList({
       </div>
 
       {historyItems.length === 0 ? (
-        <Card padding="lg" className="border-slate-200">
+        <Card padding="lg" className="border-slate-200/90 bg-white">
           <EmptyState
             icon={AiOutlineHistory}
             title="Belum Ada Riwayat Pembayaran"
@@ -82,22 +94,31 @@ export function PaymentHistoryList({
           />
         </Card>
       ) : (
-        <Card padding="none" className="border-slate-200 shadow-card overflow-hidden">
+        <Card padding="none" className="border-slate-200/90 bg-white shadow-xs overflow-hidden">
           <div className="divide-y divide-slate-100">
-            {historyItems.map((item) => (
+            {historyItems.map((item, idx) => (
               <div
-                key={item.id || Math.random()}
+                key={item.id || `hist-${idx}`}
                 onClick={() => setSelectedItem(item)}
-                className="p-3.5 sm:p-4 hover:bg-slate-50 transition-colors cursor-pointer flex items-center justify-between gap-3 group"
+                className="p-3.5 sm:p-4 hover:bg-slate-50 transition-colors cursor-pointer flex items-center justify-between gap-3 group min-h-[44px]"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedItem(item);
+                  }
+                }}
+                aria-label={`Rincian pembayaran periode ${item.period ? formatPeriod(item.period) : billLabel}, status ${item.status}`}
               >
                 {/* Kolom Kiri: Ikon Metode & Detail Periode */}
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-slate-100 group-hover:bg-forest-50 text-slate-700 group-hover:text-forest-800 flex items-center justify-center text-lg shrink-0 transition-colors">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 group-hover:bg-slate-200 text-slate-700 flex items-center justify-center text-lg shrink-0 transition-colors">
                     {getMethodIcon(item.method)}
                   </div>
                   <div className="min-w-0">
-                    <span className="text-xs sm:text-sm font-bold text-slate-900 block truncate group-hover:text-forest-900">
-                      {item.period ? formatPeriod(item.period) : `Iuran ${billLabel}`}
+                    <span className="text-xs sm:text-sm font-bold text-slate-900 block truncate group-hover:text-slate-950">
+                      {item.period ? formatPeriod(item.period) : `Tagihan ${billLabel}`}
                     </span>
                     <span className="text-[11px] text-slate-500 block truncate">
                       {item.paidAt ? formatDate(item.paidAt) : 'Tanggal tidak tercatat'} • {getMethodLabel(item.method)}
@@ -115,7 +136,7 @@ export function PaymentHistoryList({
                       <StatusBadge status={item.status} size="xs" />
                     </div>
                   </div>
-                  <div className="hidden sm:flex text-slate-400 group-hover:text-forest-800 text-sm">
+                  <div className="hidden sm:flex text-slate-400 group-hover:text-slate-700 text-base" aria-hidden="true">
                     <AiOutlineEye />
                   </div>
                 </div>
@@ -203,14 +224,14 @@ export function PaymentHistoryList({
                   <div className="flex items-center gap-2 min-w-0">
                     <AiOutlineFileText className="text-lg text-slate-500 shrink-0" />
                     <span className="text-xs text-slate-700 truncate font-medium">
-                      Bukti_Transfer_{selectedItem.period}.jpg
+                      Bukti_Transfer_{selectedItem.period || 'file'}.jpg
                     </span>
                   </div>
                   <a
                     href={selectedItem.proofUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs font-bold text-forest-800 hover:text-forest-900 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-xs"
+                    className="inline-flex items-center gap-1 text-xs font-bold text-slate-900 hover:text-slate-700 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-xs min-h-[36px]"
                   >
                     <span>Buka</span>
                   </a>
@@ -224,17 +245,17 @@ export function PaymentHistoryList({
                 variant="outline"
                 size="sm"
                 onClick={() => setSelectedItem(null)}
-                className="flex-1 text-xs"
+                className="flex-1 text-xs min-h-[44px]"
               >
                 Tutup
               </Button>
-              {onDownloadReceipt && selectedItem.status === 'paid' && (
+              {onDownloadReceipt && (selectedItem.status === 'paid' || selectedItem.status === 'completed' || selectedItem.status === 'verified') && (
                 <Button
                   variant="primary"
                   size="sm"
                   icon={AiOutlineDownload}
                   onClick={() => onDownloadReceipt(selectedItem)}
-                  className="flex-1 text-xs font-bold"
+                  className="flex-1 text-xs font-bold min-h-[44px]"
                 >
                   Unduh Kuitansi
                 </Button>

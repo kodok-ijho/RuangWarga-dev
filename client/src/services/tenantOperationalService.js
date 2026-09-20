@@ -1510,6 +1510,129 @@ export async function rejectTenantPayment(tenantId, paymentId, { rejectedBy, rea
 }
 
 /**
+ * Mengajukan pembayaran manual (transfer / tunai) untuk tenant.
+ * Membuat baris di tabel payments dengan status 'pending_verification' (atau 'completed' jika dibuat oleh staff/cash)
+ * dan memperbarui status billing_items ke 'pending_verification'.
+ */
+export async function submitTenantPayment(tenantId, {
+  billId,
+  method = 'bank_transfer',
+  amount,
+  proofFile,
+  proofUrl,
+  note,
+  paidAt,
+  memberId,
+  isStaff = false,
+  verifiedBy = null,
+} = {}) {
+  if (!tenantId || !billId) {
+    throw new Error('Tenant ID dan Bill ID wajib disertakan.');
+  }
+
+  const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
+  if (isDemoOrMock) {
+    const mock = await import('./mockData');
+    return mock.recordResidentPayment([billId], {
+      method,
+      receiptFile: proofFile?.name || (typeof proofFile === 'string' ? proofFile : null),
+      note,
+    });
+  }
+
+  // 1. Ambil detail tagihan untuk memastikan nominal dan status
+  const { data: bill, error: billFetchErr } = await supabase
+    .from('billing_items')
+    .select('id, amount, late_fee, member_id, status')
+    .eq('tenant_id', tenantId)
+    .eq('id', billId)
+    .single();
+
+  if (billFetchErr || !bill) {
+    throw new Error('Tagihan tidak ditemukan untuk tenant ini.');
+  }
+
+  const paymentAmount = amount !== undefined && amount !== null && amount !== ''
+    ? Number(amount)
+    : (Number(bill.amount || 0) + Number(bill.late_fee || 0));
+
+  const initialStatus = isStaff && method === 'cash' ? 'completed' : 'pending_verification';
+
+  // 2. Upload bukti transfer jika berupa File
+  let resolvedProofUrl = proofUrl || '';
+  let proofFileName = proofFile?.name || (typeof proofFile === 'string' ? proofFile : '');
+
+  if (proofFile && typeof proofFile === 'object' && proofFile.size) {
+    try {
+      const ext = (proofFile.name || '').split('.').pop() || 'jpg';
+      const storagePath = `payments/${tenantId}/${billId}_${Date.now()}.${ext}`;
+      const { data: uploadData, error: uploadErr } = await supabase.storage
+        .from('payment-proofs')
+        .upload(storagePath, proofFile, { upsert: true });
+
+      if (!uploadErr && uploadData?.path) {
+        const { data: pubUrl } = supabase.storage
+          .from('payment-proofs')
+          .getPublicUrl(uploadData.path);
+        resolvedProofUrl = pubUrl?.publicUrl || '';
+      }
+    } catch {
+      // jika storage upload gagal / bucket belum ada, simpan nama file di metadata
+    }
+  }
+
+  // 3. Insert record ke payments
+  const paymentPayload = {
+    tenant_id: tenantId,
+    billing_item_id: billId,
+    member_id: memberId || bill.member_id || null,
+    amount: paymentAmount,
+    method: method || 'bank_transfer',
+    status: initialStatus,
+    proof_url: resolvedProofUrl || null,
+    paid_at: paidAt || new Date().toISOString(),
+    metadata: {
+      note: note || '',
+      proof_file_name: proofFileName,
+      submitted_at: new Date().toISOString(),
+      ...(verifiedBy ? { verified_by_name: verifiedBy } : {}),
+    },
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data: insertedPayment, error: payErr } = await supabase
+    .from('payments')
+    .insert([paymentPayload])
+    .select()
+    .single();
+
+  if (payErr) {
+    // eslint-disable-next-line no-console
+    console.error('[tenantOperationalService] submitTenantPayment error:', payErr);
+    throw payErr;
+  }
+
+  // 4. Update status billing_items
+  const nextBillStatus = initialStatus === 'completed' ? 'paid' : 'pending_verification';
+  const { error: billUpdateErr } = await supabase
+    .from('billing_items')
+    .update({
+      status: nextBillStatus,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('tenant_id', tenantId)
+    .eq('id', billId);
+
+  if (billUpdateErr) {
+    // eslint-disable-next-line no-console
+    console.error('[tenantOperationalService] submitTenantPayment bill update error:', billUpdateErr);
+  }
+
+  return insertedPayment;
+}
+
+/**
  * Memperbarui rincian pembayaran untuk tenant
  * @param {string} tenantId - UUID tenant
  * @param {string} paymentId - UUID payment
@@ -1871,7 +1994,7 @@ export async function fetchTenantRunningBalance(tenantId, { year, month }) {
   };
 }
 
-function resolveCitizenObligationAndUnit({
+export function resolveCitizenObligationAndUnit({
   units = [],
   members = [],
   billMatrix = [],

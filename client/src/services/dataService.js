@@ -870,7 +870,21 @@ function normalizeBillMatrixRows(rows) {
 // PAYMENTS
 // =====================================================================
 
-export async function submitManualPayment(token, { bill_id, method, amount, file, proof_file, note, paid_at }) {
+export async function submitManualPayment(token, { bill_id, method, amount, file, proof_file, note, paid_at, tenantId, memberId } = {}) {
+  if (tenantId) {
+    const { submitTenantPayment } = await import('./tenantOperationalService');
+    return submitTenantPayment(tenantId, {
+      billId: bill_id,
+      method: method || 'bank_transfer',
+      amount,
+      proofFile: file || proof_file,
+      note,
+      paidAt: paid_at,
+      memberId,
+      isStaff: false,
+    });
+  }
+
   if (IS_DEMO) {
     const mock = await getMockData();
     return mock.recordResidentPayment([bill_id], { method, receiptFile: file || proof_file, note });
@@ -890,7 +904,22 @@ export async function submitManualPayment(token, { bill_id, method, amount, file
   }
 }
 
-export async function createCashPayment(token, { bill_id, amount, file, note, paid_at, recorderRole }) {
+export async function createCashPayment(token, { bill_id, amount, file, note, paid_at, recorderRole, tenantId, memberId, verifiedBy } = {}) {
+  if (tenantId) {
+    const { submitTenantPayment } = await import('./tenantOperationalService');
+    return submitTenantPayment(tenantId, {
+      billId: bill_id,
+      method: 'cash',
+      amount,
+      proofFile: file,
+      note,
+      paidAt: paid_at,
+      memberId,
+      isStaff: true,
+      verifiedBy,
+    });
+  }
+
   if (IS_DEMO) {
     const mock = await getMockData();
     return mock.recordManualPayment(bill_id, {

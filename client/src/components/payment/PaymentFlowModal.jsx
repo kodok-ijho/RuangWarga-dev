@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Dialog, Button } from '../ui';
 import { formatRupiah, formatPeriod } from '../../services/dataHelpers';
 import { compressImage } from '../../utils/imageCompressor';
@@ -10,19 +10,25 @@ import {
   AiOutlineCheck,
   AiOutlineWarning,
   AiOutlineInfoCircle,
+  AiOutlineClockCircle,
 } from 'react-icons/ai';
 
 /**
- * PaymentFlowModal (TASK-012)
+ * PaymentFlowModal (TASK-012 / Phase 6)
  * Modal alur pembayaran warga dengan validasi, kalkulasi biaya QRIS (MDR 0,7%),
- * upload bukti transfer dengan kompresi client-side, dan state penanganan yang aman.
+ * upload bukti transfer dengan kompresi client-side, dan kepastian alur verifikasi.
+ *
+ * Standar Phase 6:
+ * - Neutral-first design: bebas warna Palm Village hardcoded
+ * - Kepastian status verifikasi: submit transfer berstatus pending, bukan optimistik lunas
+ * - Aksesibilitas: touch target >= 44px
  */
 export function PaymentFlowModal({
   open = true,
   bills = [],
   total = 0,
   canUseQris = true,
-  billLabel = 'IPL',
+  billLabel = 'Tagihan',
   onConfirm,
   onClose,
 }) {
@@ -62,7 +68,7 @@ export function PaymentFlowModal({
     try {
       const compressed = await compressImage(file);
       setReceiptFile(compressed.file || file);
-    } catch (err) {
+    } catch {
       setReceiptFile(file);
     }
   };
@@ -164,15 +170,15 @@ export function PaymentFlowModal({
                   setUploadError('');
                   setReceiptFile(null);
                 }}
-                className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all ${
+                className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all min-h-[44px] ${
                   method === 'qris'
-                    ? 'border-forest-800 bg-forest-50/70 ring-1 ring-forest-800 shadow-xs'
+                    ? 'border-slate-900 bg-slate-50 ring-1 ring-slate-900 shadow-xs'
                     : 'border-slate-200 bg-white hover:bg-slate-50'
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-base text-forest-800"><AiOutlineCreditCard /></span>
-                  {method === 'qris' && <AiOutlineCheck className="text-forest-800 text-xs font-bold" />}
+                  <span className="text-base text-slate-900"><AiOutlineCreditCard /></span>
+                  {method === 'qris' && <AiOutlineCheck className="text-slate-900 text-xs font-bold" />}
                 </div>
                 <div className="mt-2">
                   <span className="text-xs font-bold text-slate-900 block">QRIS Otomatis</span>
@@ -187,15 +193,15 @@ export function PaymentFlowModal({
                 setMethod('bank_transfer');
                 setUploadError('');
               }}
-              className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all ${
+              className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all min-h-[44px] ${
                 method === 'bank_transfer'
-                  ? 'border-forest-800 bg-forest-50/70 ring-1 ring-forest-800 shadow-xs'
+                  ? 'border-slate-900 bg-slate-50 ring-1 ring-slate-900 shadow-xs'
                   : 'border-slate-200 bg-white hover:bg-slate-50'
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-base text-forest-800"><AiOutlineBank /></span>
-                {method === 'bank_transfer' && <AiOutlineCheck className="text-forest-800 text-xs font-bold" />}
+                <span className="text-base text-slate-900"><AiOutlineBank /></span>
+                {method === 'bank_transfer' && <AiOutlineCheck className="text-slate-900 text-xs font-bold" />}
               </div>
               <div className="mt-2">
                 <span className="text-xs font-bold text-slate-900 block">Transfer Bank</span>
@@ -207,7 +213,12 @@ export function PaymentFlowModal({
 
         {/* 3. Detail Metode Tertentu */}
         {method === 'bank_transfer' && (
-          <div className="space-y-2 p-3.5 rounded-xl border border-slate-200/90 bg-slate-50/50">
+          <div className="space-y-2.5 p-3.5 rounded-xl border border-slate-200/90 bg-slate-50/50">
+            <div className="flex items-center gap-1.5 text-[11px] text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+              <AiOutlineClockCircle className="shrink-0 text-amber-700 text-sm" />
+              <span>Bukti transfer akan diverifikasi oleh bendahara sebelum status tagihan dinyatakan Lunas.</span>
+            </div>
+
             <label className="block text-xs font-bold text-slate-700">
               Unggah Bukti Transfer <span className="text-rose-500">*</span>
             </label>
@@ -216,9 +227,9 @@ export function PaymentFlowModal({
             </p>
 
             <div className="mt-1">
-              <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-300 hover:border-forest-700 rounded-xl bg-white cursor-pointer transition-colors">
+              <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-300 hover:border-slate-800 rounded-xl bg-white cursor-pointer transition-colors min-h-[44px]">
                 <AiOutlineCloudUpload className="text-2xl text-slate-400 mb-1" />
-                <span className="text-xs font-bold text-forest-800">
+                <span className="text-xs font-bold text-slate-900">
                   {receiptFile ? 'Ganti File Bukti' : 'Pilih File Bukti Transfer'}
                 </span>
                 <span className="text-[10px] text-slate-400 mt-0.5">JPG atau PNG, maks 2 MB</span>
@@ -271,7 +282,7 @@ export function PaymentFlowModal({
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={2}
-            className="w-full text-xs rounded-xl border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-forest-800/20 focus:border-forest-800 resize-none"
+            className="w-full text-xs rounded-xl border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 resize-none"
             placeholder="Contoh: Transfer atas nama Budi Santoso, Bank BCA..."
           />
         </div>
@@ -283,7 +294,7 @@ export function PaymentFlowModal({
             variant="ghost"
             onClick={onClose}
             disabled={isSubmitting}
-            className="flex-1 text-xs"
+            className="flex-1 text-xs min-h-[44px]"
           >
             Batal
           </Button>
@@ -291,7 +302,7 @@ export function PaymentFlowModal({
             type="submit"
             variant="primary"
             disabled={isSubmitting}
-            className="flex-1 text-xs font-bold"
+            className="flex-1 text-xs font-bold min-h-[44px]"
           >
             {isSubmitting
               ? 'Memproses...'
