@@ -27,7 +27,7 @@ export function CitizenDashboard({
 
   // Resolve obligation and unit strictly from real individual data
   const myObligation = dashData?.myObligation || null;
-  const myUnit = dashData?.myUnit || userProfile?.unit_number || null;
+  const myUnit = dashData?.myUnit || null;
 
   // Recent activity: derive from recent payments and announcements
   const announcements = getAnnouncementsByTenant(tenantId);

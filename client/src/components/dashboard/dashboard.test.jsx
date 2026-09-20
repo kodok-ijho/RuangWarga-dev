@@ -576,4 +576,101 @@ describe('Dashboard Architecture & Components (Phase 5)', () => {
       expect(htmlB).toContain('Rumah belum terhubung');
     });
   });
+
+  describe('Phase 5.1.1 — Tenant-Scoped Citizen Identity Correction', () => {
+    it('Test A — stale user profile unit tidak boleh muncul saat dashData.myUnit is null', () => {
+      const rawHtml = renderToString(
+        <MemoryRouter>
+          <CitizenDashboard
+            tenantId="t-new-tenant"
+            template={TENANT_TEMPLATES.rt_rw}
+            periodLabel="September 2026"
+            dashData={{
+              myUnit: null,
+              myObligation: null,
+              billing: { collectionRate: 0 },
+              recentPayments: [],
+            }}
+            userProfile={{
+              unit_number: 'UNIT-FROM-OLD-TENANT',
+            }}
+          />
+        </MemoryRouter>
+      );
+      const html = cleanHtml(rawHtml);
+
+      expect(html).toContain('Rumah belum terhubung');
+      expect(html).not.toContain('UNIT-FROM-OLD-TENANT');
+    });
+
+    it('Test B — tenant switching: Tenant A (Unit A) ke Tenant B (myUnit null) tidak mempertahankan Unit A', () => {
+      const tenantAData = {
+        myUnit: 'Unit A',
+        myObligation: null,
+        billing: { collectionRate: 0 },
+        recentPayments: [],
+      };
+      const tenantBData = {
+        myUnit: null,
+        myObligation: null,
+        billing: { collectionRate: 0 },
+        recentPayments: [],
+      };
+
+      const htmlA = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <CitizenDashboard
+              tenantId="t-A"
+              template={TENANT_TEMPLATES.rt_rw}
+              periodLabel="September 2026"
+              dashData={tenantAData}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      const htmlB = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <CitizenDashboard
+              tenantId="t-B"
+              template={TENANT_TEMPLATES.rt_rw}
+              periodLabel="September 2026"
+              dashData={tenantBData}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      expect(htmlA).toContain('Unit A');
+      expect(htmlB).toContain('Rumah belum terhubung');
+      expect(htmlB).not.toContain('Unit A');
+    });
+
+    it('Test C — tenant B memiliki unit: Unit B ditampilkan', () => {
+      const tenantBData = {
+        myUnit: 'Unit B',
+        myObligation: { amount: 250000, status: 'unpaid' },
+        billing: { collectionRate: 0 },
+        recentPayments: [],
+      };
+
+      const htmlB = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <CitizenDashboard
+              tenantId="t-B"
+              template={TENANT_TEMPLATES.rt_rw}
+              periodLabel="September 2026"
+              dashData={tenantBData}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      expect(htmlB).toContain('Rumah Unit B');
+      expect(htmlB).not.toContain('belum terhubung');
+    });
+  });
 });

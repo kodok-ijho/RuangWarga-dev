@@ -1901,7 +1901,7 @@ function resolveCitizenObligationAndUnit({
     // Production / Supabase mode
     if (!matchedUnitId && (userId || userEmail)) {
       const m = (members || []).find(
-        (mem) => (userId && mem.user_id === userId) || (userEmail && (mem.email === userEmail || mem.phone === userEmail))
+        (mem) => (userId && (mem.user_id === userId || mem.id === userId)) || (userEmail && (mem.email === userEmail || mem.phone === userEmail))
       );
       if (m) {
         matchedUnitId = m.unit_id;
