@@ -33,10 +33,10 @@ export const Textarea = forwardRef(function Textarea(
         rows={rows}
         disabled={disabled}
         required={required}
-        className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed ${
+        className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all pv-focus-ring disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed ${
           error
-            ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/20'
-            : 'border-slate-200'
+            ? 'border-rose-300 focus:border-rose-500 focus-visible:ring-2 focus-visible:ring-rose-500/20'
+            : 'border-slate-200 focus:border-slate-900 focus-visible:ring-2 focus-visible:ring-slate-900/10'
         } ${className}`}
         {...props}
       />

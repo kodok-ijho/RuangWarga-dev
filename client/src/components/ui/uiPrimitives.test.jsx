@@ -232,5 +232,54 @@ describe('UI Primitives (Design System Foundation - Phase 1)', () => {
     expect(infoHtml).toContain('Pemberitahuan sistem');
     expect(infoHtml).toContain('bg-sky-50');
   });
+
+  describe('Phase 4.6 — Foundation Hardening & Neutrality', () => {
+    it('renders Button variants adhering to semantic tokens and tenant styling', () => {
+      // Primary default
+      const primaryHtml = renderToString(<Button variant="primary">Primary Action</Button>);
+      expect(primaryHtml).toContain('bg-slate-900');
+      expect(primaryHtml).toContain('min-h-[44px]');
+
+      // Tenant variant using CSS variable fallback
+      const tenantHtml = renderToString(<Button variant="tenant">Tenant Action</Button>);
+      expect(tenantHtml).toContain('var(--tenant-primary,#0f172a)');
+
+      // Destructive variant
+      const destHtml = renderToString(<Button variant="destructive">Hapus Data</Button>);
+      expect(destHtml).toContain('bg-rose-600');
+
+      // Secondary & outline variants
+      const secHtml = renderToString(<Button variant="secondary">Batal</Button>);
+      expect(secHtml).toContain('bg-slate-100');
+
+      const outHtml = renderToString(<Button variant="outline">Lihat Detail</Button>);
+      expect(outHtml).toContain('border-slate-200');
+
+      // Large size touch target (>= 48px)
+      const lgHtml = renderToString(<Button size="lg">Besar</Button>);
+      expect(lgHtml).toContain('min-h-[48px]');
+    });
+
+    it('ensures shared primitives do not leak legacy Palm Village branding', () => {
+      const components = [
+        renderToString(<Button>Aksi</Button>),
+        renderToString(<IconButton aria-label="Aksi">★</IconButton>),
+        renderToString(<Badge>Status</Badge>),
+        renderToString(<Toast type="info" message="Pemberitahuan" />),
+        renderToString(
+          <MemoryRouter>
+            <PageHeader title="Judul" />
+          </MemoryRouter>
+        ),
+        renderToString(<LoadingState message="Memuat" />),
+      ];
+
+      for (const html of components) {
+        expect(html.toLowerCase()).not.toContain('palm village');
+        expect(html).not.toContain('forest-800');
+        expect(html).not.toContain('gold-500');
+      }
+    });
+  });
 });
 

@@ -56,10 +56,10 @@ export function BottomSheet({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors ml-auto"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition pv-focus-ring ml-auto shrink-0"
             aria-label="Tutup"
           >
-            <AiOutlineClose className="text-base" />
+            <AiOutlineClose className="text-lg" aria-hidden="true" />
           </button>
         </div>
 

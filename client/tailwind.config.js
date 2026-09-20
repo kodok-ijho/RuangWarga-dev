@@ -68,6 +68,7 @@ export default {
         display: ['"Playfair Display"', 'Georgia', 'serif'],
       },
       boxShadow: {
+        xs: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
         'rw-none': 'none',
         'rw-subtle': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
         'rw-card': '0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px 0 rgba(0, 0, 0, 0.04)',

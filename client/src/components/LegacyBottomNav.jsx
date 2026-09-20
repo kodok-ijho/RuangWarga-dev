@@ -26,7 +26,18 @@ import {
   roleLabel,
 } from '../services/dataHelpers';
 
-export function BottomNav() {
+/**
+ * @deprecated TRANSITIONAL / LEGACY COMPONENT
+ *
+ * Komponen navigasi bawah transisional ini HANYA digunakan oleh ProtectedLayout
+ * untuk mendukung rute legacy non-tenant (seperti /residents, /settings) hingga Phase 6/7/9.
+ *
+ * JANGAN gunakan komponen ini di dalam workspace multi-tenant modern (/t/:tenantId/*),
+ * karena TenantShell sudah memiliki sistem navigasi modern sendiri yang context-aware.
+ * JANGAN menambahkan fitur baru atau mengekspornya ke dalam design system (components/ui/).
+ */
+
+export function LegacyBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, profile, role, signOut, isReadOnly } = useAuth();
@@ -37,8 +48,13 @@ export function BottomNav() {
   // Jangan tampilkan jika belum login
   if (!isAuthenticated) return null;
 
-  // Jangan tampilkan pada onboarding / setup wizard
+  // Safeguard: JANGAN tampilkan pada rute modern (/t/*, /platform/*, /account/*, /listing/*, onboarding)
+  // Rute modern /t/:tenantId/* sudah memiliki navigasi mobile bawaan di TenantShell.
   if (
+    location.pathname.startsWith('/t/') ||
+    location.pathname.startsWith('/platform') ||
+    location.pathname.startsWith('/account') ||
+    location.pathname.startsWith('/listing') ||
     location.pathname.startsWith('/onboarding') ||
     location.pathname.endsWith('/setup')
   ) {
@@ -303,4 +319,4 @@ export function BottomNav() {
   );
 }
 
-export default BottomNav;
+export default LegacyBottomNav;

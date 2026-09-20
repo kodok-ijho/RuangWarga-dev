@@ -4,6 +4,7 @@ import { renderToString } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import AccountLayout from './AccountLayout';
 import TenantShell from '../tenant/TenantShell';
+import LegacyBottomNav from '../LegacyBottomNav';
 
 // Mock useAuth
 vi.mock('../../hooks/useAuth', () => ({
@@ -108,5 +109,28 @@ describe('Phase 4 — Tenant Workspace Shell (Contextual & Responsive)', () => {
     // Scoped CSS variable
     expect(html).toContain('--tenant-primary');
     expect(html).toContain('--tenant-accent');
+  });
+});
+
+describe('Phase 4.6 — Navigation Safeguards (No Duplicate Navbars)', () => {
+  it('ensures LegacyBottomNav returns empty (null) on tenant workspace routes', () => {
+    const html = renderToString(
+      <MemoryRouter initialEntries={['/t/t-kos-1/dashboard']}>
+        <LegacyBottomNav />
+      </MemoryRouter>
+    );
+    expect(html).toBe('');
+  });
+
+  it('ensures LegacyBottomNav returns empty (null) on account, platform, listing, and onboarding routes', () => {
+    const paths = ['/account', '/platform', '/listing', '/onboarding'];
+    for (const path of paths) {
+      const html = renderToString(
+        <MemoryRouter initialEntries={[path]}>
+          <LegacyBottomNav />
+        </MemoryRouter>
+      );
+      expect(html).toBe('');
+    }
   });
 });
