@@ -99,6 +99,16 @@ const STATUS_CONFIGS = {
     symbol: '—',
     style: 'bg-slate-100 text-slate-600 border-slate-200',
   },
+  completed: {
+    label: 'Lunas',
+    symbol: '✓',
+    style: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+  },
+  unspecified: {
+    label: 'Status tidak tersedia',
+    symbol: '—',
+    style: 'bg-slate-100 text-slate-600 border-slate-200',
+  },
   unavailable: {
     label: 'Belum Tersedia',
     symbol: '—',

@@ -1,11 +1,17 @@
 import React from 'react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { ResidentIplOverview, CitizenBillingOverview } from './ResidentIplOverview';
 import { PaymentFlowModal } from './PaymentFlowModal';
 import { PaymentHistoryList } from './PaymentHistoryList';
-import { resolveCitizenObligationAndUnit } from '../../services/tenantOperationalService';
+import {
+  resolveCitizenObligationAndUnit,
+  submitTenantPayment,
+  verifyTenantPayment,
+  rejectTenantPayment,
+} from '../../services/tenantOperationalService';
+import { supabase } from '../../services/supabaseClient';
 import { TENANT_TEMPLATES } from '../../config/tenantTemplates';
 
 function cleanHtml(html) {
@@ -571,6 +577,385 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
       expect(html).toContain('Tagihan Iuran Belum Dibayar');
       expect(html).toContain('Slot 01');
       expect(html).toContain('Bayar Iuran / SPP (1 Bulan)');
+    });
+  });
+
+  // =========================================================================
+  // 7. PHASE 6.1 — PAYMENT TRANSACTION INTEGRITY HARDENING
+  // =========================================================================
+  describe('Phase 6.1 — Payment Transaction Integrity Hardening', () => {
+    // 1. client amount mismatch -> REJECT / throws error
+    it('1. client amount mismatch -> REJECT / throws error', async () => {
+      const billData = {
+        id: 'bill-test-1',
+        amount: 150000,
+        late_fee: 15000, // total obligation: 165000
+        member_id: 'member-1',
+        status: 'unpaid',
+      };
+
+      const spy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+        if (table === 'billing_items') {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  single: async () => ({ data: billData, error: null }),
+                }),
+              }),
+            }),
+          };
+        }
+        return {};
+      });
+
+      try {
+        await expect(
+          submitTenantPayment('tenant-real-1', {
+            billId: 'bill-test-1',
+            amount: 100000, // mismatch from 165000
+          })
+        ).rejects.toThrow('Nominal pembayaran (100000) tidak sesuai dengan total tagihan wajib (165000).');
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    // 2. actual obligation calculation -> calculates amount + late_fee
+    it('2. actual obligation calculation -> calculates amount + late_fee when amount omitted', async () => {
+      const billData = {
+        id: 'bill-test-2',
+        amount: 200000,
+        late_fee: 25000, // total obligation: 225000
+        member_id: 'member-2',
+        status: 'unpaid',
+      };
+
+      let insertedPayload = null;
+
+      const spy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+        if (table === 'billing_items') {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  single: async () => ({ data: billData, error: null }),
+                }),
+              }),
+            }),
+            update: () => ({
+              eq: () => ({
+                eq: async () => ({ error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'payments') {
+          return {
+            insert: (rows) => ({
+              select: () => ({
+                single: async () => {
+                  insertedPayload = rows[0];
+                  return {
+                    data: { id: 'pay-success-2', ...rows[0] },
+                    error: null,
+                  };
+                },
+              }),
+            }),
+          };
+        }
+        return {};
+      });
+
+      try {
+        const result = await submitTenantPayment('tenant-real-1', {
+          billId: 'bill-test-2',
+          // amount sengaja tidak dikirim agar obligation dihitung otomatis
+        });
+
+        expect(insertedPayload).not.toBeNull();
+        expect(insertedPayload.amount).toBe(225000);
+        expect(result.amount).toBe(225000);
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    // 3. billing update failure on payment submission -> rolls back/deletes inserted payment and throws error
+    it('3. billing update failure on payment submission -> rolls back/deletes inserted payment and throws error', async () => {
+      const billData = {
+        id: 'bill-test-3',
+        amount: 150000,
+        late_fee: 0,
+        member_id: 'member-3',
+        status: 'unpaid',
+      };
+
+      let deletedPaymentId = null;
+      const simulatedBillingError = new Error('Database deadlock on billing update');
+
+      const spy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+        if (table === 'billing_items') {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  single: async () => ({ data: billData, error: null }),
+                }),
+              }),
+            }),
+            update: () => ({
+              eq: () => ({
+                eq: async () => ({ error: simulatedBillingError }),
+              }),
+            }),
+          };
+        }
+        if (table === 'payments') {
+          return {
+            insert: (rows) => ({
+              select: () => ({
+                single: async () => ({
+                  data: { id: 'pay-rollback-3', ...rows[0] },
+                  error: null,
+                }),
+              }),
+            }),
+            delete: () => ({
+              eq: (field1, val1) => ({
+                eq: async (field2, val2) => {
+                  if (field2 === 'id') deletedPaymentId = val2;
+                  return { error: null };
+                },
+              }),
+            }),
+          };
+        }
+        return {};
+      });
+
+      try {
+        await expect(
+          submitTenantPayment('tenant-real-1', {
+            billId: 'bill-test-3',
+          })
+        ).rejects.toThrow('Database deadlock on billing update');
+
+        // Memastikan payment di-rollback (dihapus)
+        expect(deletedPaymentId).toBe('pay-rollback-3');
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    // 4. billing update failure on verification -> throws error
+    it('4. billing update failure on verification -> throws error without swallowing', async () => {
+      const simulatedBillingError = new Error('Failed to update billing item to paid');
+
+      const spy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+        if (table === 'payments') {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  single: async () => ({
+                    data: { id: 'pay-verify-4', billing_item_id: 'bill-verify-4', metadata: {} },
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+            update: () => ({
+              eq: () => ({
+                eq: async () => ({ error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'billing_items') {
+          return {
+            update: () => ({
+              eq: () => ({
+                eq: async () => ({ error: simulatedBillingError }),
+              }),
+            }),
+          };
+        }
+        return {};
+      });
+
+      try {
+        await expect(
+          verifyTenantPayment('tenant-real-1', 'pay-verify-4', { verifiedBy: 'Bendahara' })
+        ).rejects.toThrow('Failed to update billing item to paid');
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    // 5. payment status does NOT inherit bill status
+    it('5. payment status does NOT inherit bill status -> displays unspecified if pay.status is missing', () => {
+      const payments = [
+        {
+          id: 'pay-5',
+          bill_id: 'bill-5',
+          status: null, // payment status null/missing
+          amount: 250000,
+        },
+      ];
+      const bills = [
+        {
+          id: 'bill-5',
+          status: 'paid', // bill status paid!
+          amount: 250000,
+        },
+      ];
+
+      const html = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <PaymentHistoryList payments={payments} bills={bills} template={TENANT_TEMPLATES.rt_rw} />
+          </MemoryRouter>
+        )
+      );
+
+      // Payment history TIDAK BOLEH menampilkan Lunas hanya karena tagihannya berstatus paid
+      expect(html).not.toContain('Lunas');
+      expect(html).toContain('Status tidak tersedia');
+    });
+
+    // 6. rejected payment in history displays 'Ditolak'
+    it('6. rejected payment in history displays Ditolak', () => {
+      const payments = [
+        {
+          id: 'pay-6',
+          status: 'rejected',
+          amount: 175000,
+          method: 'bank_transfer',
+        },
+      ];
+
+      const html = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <PaymentHistoryList payments={payments} bills={[]} template={TENANT_TEMPLATES.rt_rw} />
+          </MemoryRouter>
+        )
+      );
+
+      expect(html).toContain('Ditolak');
+    });
+
+    // 7. pending payment in history displays 'Verifikasi' / 'Menunggu'
+    it('7. pending payment in history displays Verifikasi / Menunggu', () => {
+      const payments = [
+        {
+          id: 'pay-7',
+          status: 'pending_verification',
+          amount: 180000,
+          method: 'bank_transfer',
+        },
+      ];
+
+      const html = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <PaymentHistoryList payments={payments} bills={[]} template={TENANT_TEMPLATES.rt_rw} />
+          </MemoryRouter>
+        )
+      );
+
+      expect(html).toContain('Verifikasi');
+    });
+
+    // 8. stored proof displays view link
+    it('8. stored proof displays view link in detail dialog', () => {
+      const initialItem = {
+        id: 'pay-8',
+        amount: 200000,
+        status: 'completed',
+        method: 'bank_transfer',
+        proofUrl: 'https://storage.example.com/payment-proofs/bukti-transfer-valid.jpg',
+        proofFileName: 'bukti-transfer-valid.jpg',
+      };
+
+      const html = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <PaymentHistoryList
+              payments={[{ id: 'pay-8', amount: 200000, status: 'completed' }]}
+              initialSelectedItem={initialItem}
+              template={TENANT_TEMPLATES.rt_rw}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      expect(html).toContain('bukti-transfer-valid.jpg');
+      expect(html).toContain('href="https://storage.example.com/payment-proofs/bukti-transfer-valid.jpg"');
+      expect(html).toContain('Buka');
+    });
+
+    // 9. failed proof storage displays 'Bukti belum berhasil tersimpan di server' without fake link
+    it('9. failed proof storage displays Bukti belum berhasil tersimpan di server without fake link', () => {
+      const initialItem = {
+        id: 'pay-9',
+        amount: 200000,
+        status: 'pending_verification',
+        method: 'bank_transfer',
+        proofUrl: '', // Upload gagal, URL string kosong
+        proofFileName: 'bukti_transfer_gagal.pdf',
+      };
+
+      const html = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <PaymentHistoryList
+              payments={[{ id: 'pay-9', amount: 200000, status: 'pending_verification' }]}
+              initialSelectedItem={initialItem}
+              template={TENANT_TEMPLATES.rt_rw}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      expect(html).toContain('bukti_transfer_gagal.pdf');
+      expect(html).toContain('Bukti belum berhasil tersimpan di server');
+      // Tidak boleh ada link buka atau link palsu
+      expect(html).not.toContain('Buka');
+    });
+
+    // 10. tenant isolation: payment cannot be submitted for bill belonging to another tenant
+    it('10. tenant isolation: payment cannot be submitted for bill belonging to another tenant', async () => {
+      // Supabase query dengan .eq('tenant_id', 'tenant-A').eq('id', 'bill-belonging-to-tenant-B') mengembalikan error/not found
+      const spy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+        if (table === 'billing_items') {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  single: async () => ({
+                    data: null,
+                    error: { message: 'Row not found or RLS restricted' },
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        return {};
+      });
+
+      try {
+        await expect(
+          submitTenantPayment('tenant-A', {
+            billId: 'bill-belonging-to-tenant-B',
+          })
+        ).rejects.toThrow('Tagihan tidak ditemukan untuk tenant ini.');
+      } finally {
+        spy.mockRestore();
+      }
     });
   });
 });

@@ -30,9 +30,10 @@ export function PaymentHistoryList({
   bills = [],
   template = {},
   onDownloadReceipt,
+  initialSelectedItem = null,
   className = '',
 }) {
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(initialSelectedItem);
   const billLabel = template?.billLabel || 'Tagihan';
 
   // Gabungkan payment dengan bill terkait jika ada (tanpa fake status default!)
@@ -41,7 +42,12 @@ export function PaymentHistoryList({
       (b) => b.id === pay.bill_id || b.id === pay.billing_item_id || b.id === pay.ipl_bill_id || b.payment_id === pay.id
     );
 
-    const actualStatus = pay.status || matchedBill?.status || 'unspecified';
+    // BLOCKER 3: Status payment TIDAK BOLEH fallback ke matchedBill.status!
+    // Transaksi pembayaran adalah riwayat transaksi, bukan riwayat tagihan.
+    const actualStatus = pay.status || 'unspecified';
+
+    const proofUrl = pay.proof_file_url || pay.receipt_file_url || pay.proof_url || pay.file_url || '';
+    const proofFileName = pay.metadata?.proof_file_name || pay.proof_file_name || pay.receipt_file || (proofUrl ? `Bukti_Transfer_${pay.period || matchedBill?.period || 'file'}.jpg` : '');
 
     return {
       payment: pay,
@@ -55,7 +61,8 @@ export function PaymentHistoryList({
       verifiedAt: pay.verified_at || pay.metadata?.verified_at || null,
       verifiedBy: pay.verified_by || pay.metadata?.verified_by_name || pay.metadata?.verified_by || '',
       note: pay.note || pay.metadata?.note || '',
-      proofUrl: pay.proof_file_url || pay.receipt_file_url || pay.proof_url || pay.file_url || '',
+      proofUrl,
+      proofFileName,
     };
   });
 
@@ -214,8 +221,8 @@ export function PaymentHistoryList({
               )}
             </div>
 
-            {/* Bukti Transfer jika ada */}
-            {selectedItem.proofUrl && (
+            {/* Bukti Transfer */}
+            {selectedItem.proofUrl ? (
               <div className="space-y-1.5">
                 <span className="text-xs font-bold text-slate-700 block">
                   Lampiran Bukti Pembayaran:
@@ -224,7 +231,7 @@ export function PaymentHistoryList({
                   <div className="flex items-center gap-2 min-w-0">
                     <AiOutlineFileText className="text-lg text-slate-500 shrink-0" />
                     <span className="text-xs text-slate-700 truncate font-medium">
-                      Bukti_Transfer_{selectedItem.period || 'file'}.jpg
+                      {selectedItem.proofFileName || `Bukti_Transfer_${selectedItem.period || 'file'}.jpg`}
                     </span>
                   </div>
                   <a
@@ -237,7 +244,26 @@ export function PaymentHistoryList({
                   </a>
                 </div>
               </div>
-            )}
+            ) : selectedItem.proofFileName ? (
+              <div className="space-y-1.5">
+                <span className="text-xs font-bold text-slate-700 block">
+                  Lampiran Bukti Pembayaran:
+                </span>
+                <div className="p-2.5 rounded-xl border border-amber-200 bg-amber-50/60 flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <AiOutlineFileText className="text-lg text-amber-600 shrink-0" />
+                    <div className="min-w-0">
+                      <span className="text-xs text-slate-800 truncate font-medium block">
+                        {selectedItem.proofFileName}
+                      </span>
+                      <span className="text-[11px] text-amber-800 block">
+                        Bukti belum berhasil tersimpan di server
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             {/* Aksi Kuitansi */}
             <div className="pt-2 flex gap-2">

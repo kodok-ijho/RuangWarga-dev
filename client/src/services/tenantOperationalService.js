@@ -1427,6 +1427,7 @@ export async function verifyTenantPayment(tenantId, paymentId, { verifiedBy, not
     if (billErr) {
       // eslint-disable-next-line no-console
       console.error('[tenantOperationalService] verifyTenantPayment billing update error:', billErr);
+      throw billErr;
     }
   }
 
@@ -1503,6 +1504,7 @@ export async function rejectTenantPayment(tenantId, paymentId, { rejectedBy, rea
     if (billErr) {
       // eslint-disable-next-line no-console
       console.error('[tenantOperationalService] rejectTenantPayment billing update error:', billErr);
+      throw billErr;
     }
   }
 
@@ -1552,15 +1554,25 @@ export async function submitTenantPayment(tenantId, {
     throw new Error('Tagihan tidak ditemukan untuk tenant ini.');
   }
 
-  const paymentAmount = amount !== undefined && amount !== null && amount !== ''
-    ? Number(amount)
-    : (Number(bill.amount || 0) + Number(bill.late_fee || 0));
+  // BLOCKER 1: Jangan percaya nominal payment dari client
+  // Obligation aktual: amount + applicable late fee
+  const expectedAmount = Number(bill.amount || 0) + Number(bill.late_fee || 0);
+
+  if (amount !== undefined && amount !== null && amount !== '') {
+    const clientAmount = Number(amount);
+    if (clientAmount !== expectedAmount) {
+      throw new Error(`Nominal pembayaran (${clientAmount}) tidak sesuai dengan total tagihan wajib (${expectedAmount}).`);
+    }
+  }
+
+  const paymentAmount = expectedAmount;
 
   const initialStatus = isStaff && method === 'cash' ? 'completed' : 'pending_verification';
 
-  // 2. Upload bukti transfer jika berupa File
+  // 2. Upload bukti transfer jika berupa File (dengan tracking integritas penyimpanan)
   let resolvedProofUrl = proofUrl || '';
   let proofFileName = proofFile?.name || (typeof proofFile === 'string' ? proofFile : '');
+  let isProofUploaded = Boolean(resolvedProofUrl);
 
   if (proofFile && typeof proofFile === 'object' && proofFile.size) {
     try {
@@ -1575,9 +1587,14 @@ export async function submitTenantPayment(tenantId, {
           .from('payment-proofs')
           .getPublicUrl(uploadData.path);
         resolvedProofUrl = pubUrl?.publicUrl || '';
+        isProofUploaded = Boolean(resolvedProofUrl);
+      } else {
+        resolvedProofUrl = '';
+        isProofUploaded = false;
       }
     } catch {
-      // jika storage upload gagal / bucket belum ada, simpan nama file di metadata
+      resolvedProofUrl = '';
+      isProofUploaded = false;
     }
   }
 
@@ -1594,6 +1611,7 @@ export async function submitTenantPayment(tenantId, {
     metadata: {
       note: note || '',
       proof_file_name: proofFileName,
+      proof_stored: isProofUploaded,
       submitted_at: new Date().toISOString(),
       ...(verifiedBy ? { verified_by_name: verifiedBy } : {}),
     },
@@ -1627,6 +1645,15 @@ export async function submitTenantPayment(tenantId, {
   if (billUpdateErr) {
     // eslint-disable-next-line no-console
     console.error('[tenantOperationalService] submitTenantPayment bill update error:', billUpdateErr);
+    // Rollback: Hapus pembayaran yang ter-insert agar tidak terjadi state inkonsisten
+    if (insertedPayment?.id) {
+      await supabase
+        .from('payments')
+        .delete()
+        .eq('tenant_id', tenantId)
+        .eq('id', insertedPayment.id);
+    }
+    throw billUpdateErr;
   }
 
   return insertedPayment;
