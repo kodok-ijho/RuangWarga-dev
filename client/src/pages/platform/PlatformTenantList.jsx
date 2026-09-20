@@ -278,7 +278,7 @@ export default function PlatformTenantList() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Cari tenant berdasarkan nama atau ID..."
-            className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-forest-800 focus:bg-white shadow-xs"
+            className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-900 focus:bg-white shadow-xs"
           />
         </div>
 
@@ -288,7 +288,7 @@ export default function PlatformTenantList() {
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:border-forest-800 focus:bg-white shadow-xs"
+            className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:border-slate-900 focus:bg-white shadow-xs"
           >
             {Object.entries(TYPE_CONFIG).map(([key, cfg]) => (
               <option key={key} value={key}>
@@ -302,7 +302,7 @@ export default function PlatformTenantList() {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:border-forest-800 focus:bg-white shadow-xs"
+            className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:border-slate-900 focus:bg-white shadow-xs"
           >
             {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
               <option key={key} value={key}>
@@ -324,7 +324,7 @@ export default function PlatformTenantList() {
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="h-8 w-8 rounded-full border-2 border-forest-700 border-t-gold-500 animate-spin" />
+            <div className="h-8 w-8 rounded-full border-2 border-slate-200 border-t-slate-900 animate-spin" />
           </div>
         ) : filteredTenants.length === 0 ? (
           <div className="py-16 text-center text-slate-400">
@@ -424,7 +424,7 @@ export default function PlatformTenantList() {
                         <button
                           type="button"
                           onClick={() => handleOpenTenant(item.id)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-forest-800 hover:bg-forest-900 text-white font-semibold text-xs transition-all shadow-xs"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition-all shadow-xs"
                           title="Buka dashboard operasional tenant ini"
                         >
                           <span>Buka</span>

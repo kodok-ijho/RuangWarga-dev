@@ -41,7 +41,7 @@ export function PageHeader({
         )}
 
         {Icon && (
-          <div className="p-2.5 rounded-2xl bg-forest-50 text-forest-800 border border-forest-100 shadow-xs shrink-0 mt-0.5">
+          <div className="p-2.5 rounded-2xl bg-slate-100 text-slate-800 border border-slate-200 shadow-xs shrink-0 mt-0.5">
             <Icon className="text-xl" aria-hidden="true" />
           </div>
         )}

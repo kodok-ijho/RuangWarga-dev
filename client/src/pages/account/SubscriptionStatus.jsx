@@ -185,7 +185,7 @@ export default function SubscriptionStatus() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-slate-200">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-2xl p-2 bg-white rounded-xl border border-slate-200 shadow-xs text-forest-800">
+              <span className="text-2xl p-2 bg-white rounded-xl border border-slate-200 shadow-xs text-slate-800">
                 {template.icon}
               </span>
               <div>
@@ -214,7 +214,7 @@ export default function SubscriptionStatus() {
               <button
                 type="button"
                 onClick={() => navigate(`/account/choose-plan?tenantId=${currentTenant?.id}`)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 font-bold text-xs shadow-xs transition-all"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition-all"
               >
                 <AiOutlineCreditCard className="text-sm font-bold" />
                 <span>Perpanjang / Ubah Paket</span>
@@ -226,7 +226,7 @@ export default function SubscriptionStatus() {
         {/* Loading State */}
         {loading && (
           <div className="flex items-center justify-center py-20">
-            <div className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-forest-800 animate-spin" />
+            <div className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
           </div>
         )}
 
@@ -238,51 +238,35 @@ export default function SubscriptionStatus() {
               <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    Status Paket Aktif
+                    Status Langganan
                   </span>
-                  <span
-                    className={`inline-flex items-center gap-1 text-[11px] font-bold px-3 py-1 rounded-md border uppercase ${
-                      status === 'active'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : status === 'trial'
-                        ? 'bg-amber-50 text-amber-700 border-amber-200'
-                        : 'bg-rose-50 text-rose-700 border-rose-200'
-                    }`}
-                  >
-                    {status === 'active' ? <AiOutlineCheckCircle /> : <AiOutlineClockCircle />}
-                    <span>{status === 'trial' ? 'Trial 15 Hari' : status}</span>
+                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase ${badge.style}`}>
+                    {badge.label}
                   </span>
                 </div>
 
-                <div className="pt-2">
-                  <p className="text-xs text-slate-600">
-                    {status === 'active'
-                      ? 'Paket berlangganan Anda sedang aktif dengan kapasitas penuh.'
-                      : status === 'trial'
-                      ? 'Layanan sedang berada pada masa uji coba gratis selama 15 hari.'
-                      : 'Masa aktif langganan telah berakhir. Fitur transaksi dibatasi (Read-Only).'}
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-extrabold text-slate-900 font-display">
+                    {sub?.status === 'trial' ? 'Masa Percobaan Aktif' : 'Paket Berlangganan Aktif'}
+                  </h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    {sub?.status === 'trial'
+                      ? 'Anda sedang menikmati fitur penuh platform dengan kuota trial gratis.'
+                      : 'Komunitas Anda memiliki akses penuh ke fitur operasional RuangWarga.'}
                   </p>
                 </div>
 
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Masa Berlaku Hingga:</span>
-                    <strong className="text-slate-900 font-mono font-bold">
-                      {status === 'active' && subData?.current_period_end
-                        ? new Date(subData.current_period_end).toLocaleDateString('id-ID', {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric',
-                          })
-                        : subData?.trial_ends_at
-                        ? new Date(subData.trial_ends_at).toLocaleDateString('id-ID', {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric',
-                          })
-                        : '-'}
-                    </strong>
-                  </div>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                  <span className="text-slate-500">Masa Aktif Berakhir:</span>
+                  <strong className="text-slate-900 font-mono">
+                    {sub?.trial_ends_at
+                      ? new Date(sub.trial_ends_at).toLocaleDateString('id-ID', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                        })
+                      : '-'}
+                  </strong>
                 </div>
               </div>
 
@@ -290,10 +274,10 @@ export default function SubscriptionStatus() {
               <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                    <AiOutlinePieChart className="text-gold-500" />
+                    <AiOutlinePieChart className="text-slate-700" />
                     <span>Kapasitas {template.unitLabel}</span>
                   </span>
-                  <span className="text-xs font-bold text-forest-800">
+                  <span className="text-xs font-bold text-slate-900">
                     {usedUnitsCount} / {totalPurchasedCapacity} Terpakai
                   </span>
                 </div>
@@ -307,7 +291,7 @@ export default function SubscriptionStatus() {
                           ? 'bg-rose-500'
                           : usagePercent >= 75
                           ? 'bg-amber-500'
-                          : 'bg-forest-800'
+                          : 'bg-slate-900'
                       }`}
                       style={{ width: `${usagePercent}%` }}
                     />
@@ -331,7 +315,7 @@ export default function SubscriptionStatus() {
                   <button
                     type="button"
                     onClick={() => navigate(`/account/choose-plan?tenantId=${currentTenant?.id}`)}
-                    className="text-forest-800 hover:text-forest-900 font-semibold underline text-xs"
+                    className="text-slate-700 hover:text-slate-900 font-semibold underline text-xs"
                   >
                     Tambah Kuota
                   </button>

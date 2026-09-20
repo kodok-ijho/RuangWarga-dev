@@ -154,7 +154,7 @@ export default function SubscriptionCheckout() {
               <p className="text-xs text-slate-600 mt-1 max-w-md mx-auto leading-relaxed">
                 Layanan <strong className="text-slate-900">{tenantName}</strong> kini berstatus{' '}
                 <strong className="text-emerald-700">Aktif</strong> dengan kapasitas{' '}
-                <strong className="text-forest-900 font-semibold">{totalCapacity} {template.unitLabel}</strong> selama{' '}
+                <strong className="text-slate-900 font-semibold">{totalCapacity} {template.unitLabel}</strong> selama{' '}
                 <strong className="text-slate-900">{durationMonths} bulan</strong> ke depan.
               </p>
             </div>
@@ -163,7 +163,7 @@ export default function SubscriptionCheckout() {
               <button
                 type="button"
                 onClick={() => navigate(`/t/${tenantId}/dashboard`)}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 font-bold text-xs shadow-xs transition-all"
+                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition-all"
               >
                 Buka Dashboard Layanan
               </button>
@@ -180,7 +180,7 @@ export default function SubscriptionCheckout() {
           /* STATE CHECKOUT QRIS */
           <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-md space-y-6">
             <div className="text-center space-y-1 pb-4 border-b border-slate-200">
-              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-gold-50 border border-gold-200 text-gold-800 text-xs font-semibold">
+              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-800 text-xs font-semibold">
                 <AiOutlineSafetyCertificate />
                 <span>Mayar QRIS Resmi</span>
               </div>
@@ -194,7 +194,7 @@ export default function SubscriptionCheckout() {
 
             {loading ? (
               <div className="py-16 text-center space-y-3">
-                <div className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-forest-800 animate-spin mx-auto" />
+                <div className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin mx-auto" />
                 <p className="text-xs text-slate-500">Menyiapkan QRIS pembayaran dari Mayar gateway...</p>
               </div>
             ) : (
@@ -208,7 +208,7 @@ export default function SubscriptionCheckout() {
 
                   {/* QR Visual Canvas / Placeholder */}
                   <div className="w-52 h-52 mx-auto bg-white border border-slate-200 rounded-xl flex flex-col items-center justify-center p-3 relative overflow-hidden shadow-xs">
-                    <AiOutlineQrcode className="text-8xl text-forest-900" />
+                    <AiOutlineQrcode className="text-8xl text-slate-800" />
                     <span className="text-[9px] font-mono text-slate-500 mt-1">
                       {paymentData?.gatewayRef || 'MYR-QRIS-CODE'}
                     </span>
@@ -237,7 +237,7 @@ export default function SubscriptionCheckout() {
                   </div>
                   <div className="flex justify-between items-baseline pt-2 border-t border-slate-200 text-sm font-bold">
                     <span className="text-slate-900">Total Tagihan:</span>
-                    <span className="text-xl text-forest-900 font-mono font-extrabold">
+                    <span className="text-xl text-slate-900 font-mono font-extrabold">
                       Rp {finalTotal.toLocaleString('id-ID')}
                     </span>
                   </div>
@@ -249,11 +249,11 @@ export default function SubscriptionCheckout() {
                     type="button"
                     onClick={handleSimulatePaymentSuccess}
                     disabled={activating}
-                    className="w-full py-3 px-4 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 font-extrabold text-xs shadow-xs transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs shadow-xs transition-all flex items-center justify-center gap-2"
                   >
                     {activating ? (
                       <span className="inline-flex items-center gap-2">
-                        <span className="h-4 w-4 rounded-full border-2 border-gold-400 border-t-white animate-spin" />
+                        <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
                         <span>Memverifikasi Pembayaran...</span>
                       </span>
                     ) : (

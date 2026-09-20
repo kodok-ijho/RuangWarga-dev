@@ -16,6 +16,7 @@ import { useTenant } from '../../hooks/useTenant';
 /**
  * PlatformLayout — Shell khusus untuk Platform Owner Dashboard (§7.1, T3.4).
  * Dilengkapi pengecekan hak akses ganda (UI guard di level layout & RLS di level DB).
+ * Menggunakan RuangWarga Platform neutral design system.
  */
 export default function PlatformLayout() {
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ export default function PlatformLayout() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="h-10 w-10 rounded-full border-2 border-forest-700 border-t-gold-500 animate-spin" />
+        <div className="h-8 w-8 rounded-full border-2 border-slate-200 border-t-slate-900 animate-spin" />
       </div>
     );
   }
@@ -53,7 +54,7 @@ export default function PlatformLayout() {
             <button
               type="button"
               onClick={() => navigate('/account/tenants')}
-              className="w-full py-2.5 px-4 rounded-xl bg-gold-500 hover:bg-gold-400 text-forest-950 font-bold text-xs transition-all shadow-xs"
+              className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-all shadow-xs"
             >
               Kembali ke Layanan Saya
             </button>
@@ -92,15 +93,15 @@ export default function PlatformLayout() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
-      {/* Platform Topbar */}
-      <header className="sticky top-0 z-40 bg-forest-900 border-b border-forest-800 shadow-sm backdrop-blur-md text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+      {/* Platform Topbar (RuangWarga Platform Neutral) */}
+      <header className="sticky top-0 z-40 bg-slate-900 border-b border-slate-800 shadow-sm backdrop-blur-md text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Left: Branding & Tag */}
             <div className="flex items-center gap-3">
-              <Link to="/platform" className="flex items-center gap-2 group">
-                <span className="text-2xl p-1.5 bg-forest-800 border border-forest-700 rounded-xl group-hover:scale-105 transition-transform">
+              <Link to="/platform" className="flex items-center gap-2.5 group">
+                <span className="text-xl p-1.5 bg-slate-800 border border-slate-700 rounded-xl group-hover:scale-105 transition-transform">
                   🛡️
                 </span>
                 <div>
@@ -108,11 +109,11 @@ export default function PlatformLayout() {
                     <span className="font-extrabold text-white text-base tracking-tight font-display">
                       RuangWarga
                     </span>
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-gold-500/20 text-gold-300 border border-gold-500/40 uppercase tracking-wider">
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-slate-800 text-slate-200 border border-slate-700 uppercase tracking-wider">
                       Platform Owner
                     </span>
                   </div>
-                  <span className="text-[10px] text-forest-200 block -mt-0.5">
+                  <span className="text-[10px] text-slate-400 block -mt-0.5">
                     Platform Management &amp; Analytics
                   </span>
                 </div>
@@ -129,8 +130,8 @@ export default function PlatformLayout() {
                   className={({ isActive }) =>
                     `flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
                       isActive
-                        ? 'bg-gold-500 text-forest-950 font-bold shadow-xs'
-                        : 'text-forest-100 hover:bg-forest-800/80 hover:text-white'
+                        ? 'bg-white/15 text-white font-bold shadow-xs'
+                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                     }`
                   }
                 >
@@ -144,7 +145,7 @@ export default function PlatformLayout() {
             <div className="hidden sm:flex items-center gap-3">
               <Link
                 to="/account/tenants"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-forest-800 hover:bg-forest-700 text-forest-100 hover:text-white text-xs font-semibold border border-forest-700 transition-colors shadow-xs"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-semibold border border-slate-700 transition-colors shadow-xs"
               >
                 <AiOutlineHome />
                 <span>Tenant Portal</span>
@@ -156,7 +157,7 @@ export default function PlatformLayout() {
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 rounded-xl text-forest-200 hover:text-white hover:bg-forest-800"
+                className="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800"
               >
                 {mobileMenuOpen ? <AiOutlineClose className="text-xl" /> : <AiOutlineMenu className="text-xl" />}
               </button>
@@ -166,7 +167,7 @@ export default function PlatformLayout() {
 
         {/* Mobile Dropdown Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-forest-800 bg-forest-900 px-4 py-3 space-y-1">
+          <div className="md:hidden border-t border-slate-800 bg-slate-900 px-4 py-3 space-y-1">
             {navLinks.map((item) => (
               <NavLink
                 key={item.to}
@@ -176,8 +177,8 @@ export default function PlatformLayout() {
                 className={({ isActive }) =>
                   `flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold ${
                     isActive
-                      ? 'bg-gold-500 text-forest-950 font-bold'
-                      : 'text-forest-100 hover:bg-forest-800'
+                      ? 'bg-white/15 text-white font-bold'
+                      : 'text-slate-300 hover:bg-slate-800'
                   }`
                 }
               >
@@ -185,11 +186,11 @@ export default function PlatformLayout() {
                 <span>{item.label}</span>
               </NavLink>
             ))}
-            <div className="pt-2 border-t border-forest-800 mt-2">
+            <div className="pt-2 border-t border-slate-800 mt-2">
               <Link
                 to="/account/tenants"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-forest-200 hover:text-white hover:bg-forest-800"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-slate-300 hover:text-white hover:bg-slate-800"
               >
                 <AiOutlineHome />
                 <span>Kembali ke Tenant Portal</span>

@@ -24,12 +24,13 @@ import { Divider } from './Divider';
 import { Avatar } from './Avatar';
 import { Tabs } from './Tabs';
 import { DataList } from './DataList';
+import { Toast } from './Toast';
 
 describe('UI Primitives (Design System Foundation - Phase 1)', () => {
   it('renders Button with primary variant and text', () => {
-    const html = renderToString(<Button variant="primary">Bayar IPL</Button>);
-    expect(html).toContain('Bayar IPL');
-    expect(html).toContain('bg-gold-500');
+    const html = renderToString(<Button variant="primary">Lanjutkan</Button>);
+    expect(html).toContain('Lanjutkan');
+    expect(html).toContain('bg-slate-900');
   });
 
   it('renders Button in loading state with spinner and disabled attribute', () => {
@@ -220,6 +221,16 @@ describe('UI Primitives (Design System Foundation - Phase 1)', () => {
     expect(html).toContain('Kos Melati');
     expect(html).toContain('Tipe');
     expect(html).toContain('Kos-kosan');
+  });
+
+  it('renders Toast with semantic types and message', () => {
+    const html = renderToString(<Toast type="success" message="Data berhasil disimpan" />);
+    expect(html).toContain('Data berhasil disimpan');
+    expect(html).toContain('bg-emerald-50');
+
+    const infoHtml = renderToString(<Toast type="info" message="Pemberitahuan sistem" />);
+    expect(infoHtml).toContain('Pemberitahuan sistem');
+    expect(infoHtml).toContain('bg-sky-50');
   });
 });
 

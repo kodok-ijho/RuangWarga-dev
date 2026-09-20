@@ -14,8 +14,8 @@ const ICONS = {
 
 const STYLES = {
   success: 'bg-emerald-50 border-emerald-200 text-emerald-800',
-  error: 'bg-red-50 border-red-200 text-red-800',
-  info: 'bg-forest-50 border-forest-200 text-forest-800',
+  error: 'bg-rose-50 border-rose-200 text-rose-800',
+  info: 'bg-sky-50 border-sky-200 text-sky-800',
   warning: 'bg-amber-50 border-amber-200 text-amber-800',
 };
 

@@ -13,10 +13,10 @@ import {
   AiOutlineUser,
   AiOutlineClose,
 } from 'react-icons/ai';
-import { useAuth } from '../../hooks/useAuth';
-import { useTenant } from '../../hooks/useTenant';
-import { useTenantTemplate } from '../../hooks/useTenantTemplate';
-import { Drawer } from './Drawer';
+import { useAuth } from '../hooks/useAuth';
+import { useTenant } from '../hooks/useTenant';
+import { useTenantTemplate } from '../hooks/useTenantTemplate';
+import { Drawer } from './ui/Drawer';
 import {
   isStaffRole,
   isBendaharaOrAbove,
@@ -24,7 +24,7 @@ import {
   canViewPaymentVerification,
   canViewHouses,
   roleLabel,
-} from '../../services/dataHelpers';
+} from '../services/dataHelpers';
 
 export function BottomNav() {
   const location = useLocation();

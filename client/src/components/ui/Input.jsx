@@ -45,7 +45,7 @@ export const Input = forwardRef(function Input(
           } ${IconRight ? 'pr-9' : ''} ${
             error
               ? 'border-rose-300 focus:border-rose-500 focus-visible:ring-rose-500/20'
-              : 'border-slate-200 focus:border-gold-500 focus-visible:ring-gold-500/20'
+              : 'border-slate-200 focus:border-slate-900 focus-visible:ring-2 focus-visible:ring-slate-900/10'
           } ${className}`}
           {...props}
         />

@@ -142,7 +142,7 @@ export default function Login() {
   }, [handleGoogleCredential]);
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center text-forest-500">Memuat sesi keamanan JWT...</div>;
+    return <div className="min-h-screen flex items-center justify-center text-slate-500 font-medium text-sm">Memuat sesi keamanan JWT...</div>;
   }
   if (isAuthenticated) {
     return <Navigate to={from} replace />;
@@ -250,7 +250,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-12 selection:bg-gold-500 selection:text-forest-950 font-sans">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-12 selection:bg-slate-900 selection:text-white font-sans">
       <div className="w-full max-w-md">
         {/* Brand Header */}
         <div className="text-center mb-6">
@@ -258,10 +258,10 @@ export default function Login() {
             <img
               src="/logo.png"
               alt="Logo RuangWarga"
-              className="h-16 w-auto rounded-2xl object-cover mx-auto ring-2 ring-forest-800/10 shadow-md mb-3 group-hover:scale-105 transition"
+              className="h-16 w-auto rounded-2xl object-cover mx-auto ring-2 ring-slate-200 shadow-md mb-3 group-hover:scale-105 transition"
             />
           </Link>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-forest-950 font-display tracking-tight flex items-center justify-center gap-2">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-display tracking-tight flex items-center justify-center gap-2">
             <span>RuangWarga</span>
             <span className="inline-flex items-center rounded-md bg-slate-100 text-slate-700 px-2 py-0.5 text-xs font-mono font-bold border border-slate-200">
               {APP_VERSION}
@@ -293,14 +293,14 @@ export default function Login() {
             <button
               type="button"
               onClick={() => { setPendingSuccess(null); setMode('login'); setError(''); }}
-              className="pv-btn-primary w-full py-2.5 text-sm"
+              className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-xs transition"
             >
               Kembali ke Layar Masuk
             </button>
           </div>
         )}
 
-        <div className="pv-card p-6 sm:p-8 rounded-3xl shadow-xl border border-slate-200/90 bg-white text-slate-900">
+        <div className="p-6 sm:p-8 rounded-3xl shadow-xl border border-slate-200/90 bg-white text-slate-900">
           {/* Tab Mode */}
           {IS_DEMO_MODE && (
             <div className="flex gap-1 p-1 bg-slate-100 rounded-2xl mb-6 border border-slate-200/90">
@@ -309,7 +309,7 @@ export default function Login() {
                 onClick={() => { setMode('login'); setError(''); }}
                 className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all ${
                   mode === 'login'
-                    ? 'bg-forest-800 text-white shadow-xs'
+                    ? 'bg-slate-900 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -320,7 +320,7 @@ export default function Login() {
                 onClick={() => { setMode('register_google'); setError(''); }}
                 className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all ${
                   mode === 'register_google'
-                    ? 'bg-forest-800 text-white shadow-xs'
+                    ? 'bg-slate-900 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -374,7 +374,7 @@ export default function Login() {
                       type="button"
                       onClick={() => handleGoogleLoginDemo('dyudhiantoro@gmail.com')}
                       disabled={submitting}
-                      className="w-full flex items-center justify-center gap-2.5 py-3 px-4 bg-gradient-to-r from-gold-500 to-amber-400 hover:from-gold-400 hover:to-amber-300 text-forest-950 font-bold rounded-xl shadow-xs transition-all text-xs border border-gold-400 active:scale-[0.98]"
+                      className="w-full flex items-center justify-center gap-2.5 py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-xs transition-all text-xs border border-slate-800 active:scale-[0.98]"
                     >
                       <span>👑</span>
                       <span>Masuk sebagai Superadmin (dyudhiantoro@gmail.com)</span>
@@ -385,7 +385,7 @@ export default function Login() {
 
               {/* Info Keamanan Akses Portal */}
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-xs text-slate-600 space-y-1.5">
-                <div className="flex items-center gap-2 text-forest-800 font-bold">
+                <div className="flex items-center gap-2 text-slate-800 font-bold">
                   <AiOutlineSafetyCertificate className="text-base shrink-0" />
                   <span>Keamanan Akses RuangWarga</span>
                 </div>
@@ -444,7 +444,7 @@ export default function Login() {
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider">
-                  Unit Rumah yang Ditempati
+                  Unit yang Ditempati
                 </label>
                 <select
                   value={registrationUnitId}
@@ -452,7 +452,7 @@ export default function Login() {
                   required
                   className="pv-input"
                 >
-                  <option value="">Pilih unit rumah</option>
+                  <option value="">Pilih unit</option>
                   {mockUnits.map((unit) => (
                     <option key={unit.id} value={unit.id}>
                       Blok {unit.block}/{unit.unit_number}
@@ -492,7 +492,7 @@ export default function Login() {
           <button
             type="button"
             onClick={() => navigate('/onboarding/choose-type')}
-            className="mt-2.5 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gold-500 hover:bg-gold-400 text-forest-950 text-xs font-bold transition-all shadow-xs"
+            className="mt-2.5 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs"
           >
             <span>Buka Layanan Baru (Trial 15 Hari Gratis)</span>
             <span>&rarr;</span>
@@ -514,7 +514,7 @@ export default function Login() {
               type="button"
               onClick={closeGoogleRegistration}
               disabled={submitting}
-              className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-lg text-forest-500 transition-colors hover:bg-forest-100 hover:text-forest-900 disabled:opacity-50"
+              className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
               aria-label="Tutup pemilihan unit"
               title="Tutup"
             >
@@ -522,11 +522,11 @@ export default function Login() {
             </button>
 
             <div className="pr-10">
-              <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gold-50 text-gold-700 border border-gold-200">
+              <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-800 border border-slate-200">
                 <AiOutlineHome className="text-xl" aria-hidden="true" />
               </div>
-              <h2 id="registration-unit-title" className="text-lg font-extrabold text-forest-950 font-display">
-                Pilih Unit Rumah
+              <h2 id="registration-unit-title" className="text-lg font-extrabold text-slate-900 font-display">
+                Pilih Unit
               </h2>
               <p className="mt-1 text-sm leading-5 text-slate-500">
                 Akun Google ini belum terdaftar. Pilih unit yang akan diajukan untuk diverifikasi admin.
@@ -538,17 +538,17 @@ export default function Login() {
                 <img
                   src={googleRegistration.currentUser.avatar_url}
                   alt=""
-                  className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-forest-800/10"
+                  className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-slate-200"
                   referrerPolicy="no-referrer"
                 />
               ) : (
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-forest-800 text-sm font-bold text-white">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white">
                   {(googleRegistration.currentUser?.full_name || 'W').charAt(0).toUpperCase()}
                 </div>
               )}
               <div className="min-w-0">
                 <p className="truncate text-sm font-bold text-slate-900">
-                  {googleRegistration.currentUser?.full_name || 'Warga baru'}
+                  {googleRegistration.currentUser?.full_name || 'Anggota baru'}
                 </p>
                 <p className="truncate text-xs text-slate-500">
                   {googleRegistration.currentUser?.email || '-'}
@@ -558,8 +558,8 @@ export default function Login() {
 
             <form onSubmit={handleGoogleUnitSubmit} className="mt-4 space-y-4">
               <div>
-                <label htmlFor="google-registration-unit" className="mb-1 block text-sm font-medium text-forest-700">
-                  Unit Rumah yang Ditempati
+                <label htmlFor="google-registration-unit" className="mb-1 block text-sm font-medium text-slate-700">
+                  Unit yang Ditempati
                 </label>
                 <select
                   id="google-registration-unit"
@@ -572,14 +572,14 @@ export default function Login() {
                   required
                   autoFocus
                 >
-                  <option value="">Pilih unit rumah</option>
+                  <option value="">Pilih unit</option>
                   {googleRegistration.units.map((unit) => (
                     <option key={unit.id} value={unit.id}>
                       Blok {unit.block}/{unit.unit_number}
                     </option>
                   ))}
                 </select>
-                <p className="mt-1.5 text-xs leading-5 text-forest-500">
+                <p className="mt-1.5 text-xs leading-5 text-slate-500">
                   Admin akan memeriksa kecocokan identitas dan unit sebelum akun diaktifkan.
                 </p>
               </div>
@@ -600,14 +600,14 @@ export default function Login() {
                   type="button"
                   onClick={closeGoogleRegistration}
                   disabled={submitting}
-                  className="pv-btn-ghost min-h-10 text-sm disabled:opacity-50"
+                  className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition border border-slate-200 disabled:opacity-50"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={submitting || googleRegistration.units.length === 0}
-                  className="pv-btn-primary min-h-10 text-sm disabled:opacity-50"
+                  className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-xs transition disabled:opacity-50"
                 >
                   {submitting ? 'Mengirim...' : 'Ajukan Unit'}
                 </button>

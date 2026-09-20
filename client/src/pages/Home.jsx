@@ -44,7 +44,7 @@ function GuestLandingView() {
   const activeOption = TENANT_TYPE_OPTIONS.find((opt) => opt.type === activeType) || TENANT_TYPE_OPTIONS[0];
 
   return (
-    <div className="min-h-screen bg-[#f8faf9] text-slate-900 flex flex-col selection:bg-gold-500 selection:text-forest-950 font-sans">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col selection:bg-slate-900 selection:text-white font-sans">
       {/* ── Top Navigation Bar (Publik) ─────────────────────────────────── */}
       <header className="sticky top-0 z-40 bg-white/90 border-b border-slate-200/80 backdrop-blur-md shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -52,14 +52,14 @@ function GuestLandingView() {
             <img
               src="/logo.png"
               alt="RuangWarga"
-              className="h-10 w-auto rounded-xl object-cover ring-2 ring-forest-800/10 shadow-sm"
+              className="h-10 w-auto rounded-xl object-cover ring-2 ring-slate-900/10 shadow-sm"
             />
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-lg sm:text-xl font-display tracking-tight text-forest-950">
+                <span className="font-extrabold text-lg sm:text-xl font-display tracking-tight text-slate-900">
                   RuangWarga
                 </span>
-                <span className="inline-flex items-center rounded-md bg-forest-50 text-forest-800 px-1.5 py-0.5 text-[10px] font-mono font-bold border border-forest-200">
+                <span className="inline-flex items-center rounded-md bg-slate-100 text-slate-800 px-1.5 py-0.5 text-[10px] font-mono font-bold border border-slate-200">
                   {APP_VERSION}
                 </span>
                 {IS_DEMO_MODE && (
@@ -77,9 +77,9 @@ function GuestLandingView() {
           <div className="flex items-center gap-3 sm:gap-4">
             <Link
               to="/listing"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-forest-900 rounded-lg hover:bg-slate-100 transition"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition"
             >
-              <AiOutlineShop className="text-sm text-forest-700" />
+              <AiOutlineShop className="text-sm text-slate-600" />
               <span>Direktori Listing</span>
             </Link>
 
@@ -97,13 +97,13 @@ function GuestLandingView() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-16 sm:space-y-20">
         {/* ── Hero Section (Bersih, Fokus & Tegas) ─────────────────────────── */}
         <section className="text-center max-w-3xl mx-auto space-y-5">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-forest-50 border border-forest-200/80 text-forest-800 text-xs font-semibold tracking-wide shadow-xs">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-50 border border-blue-200/80 text-blue-800 text-xs font-semibold tracking-wide shadow-xs">
             <span>✨ Solusi Terpadu Manajemen Komunitas &amp; Properti</span>
           </div>
 
-          <h1 className="text-3xl sm:text-5xl font-black text-forest-950 font-display tracking-tight leading-tight">
+          <h1 className="text-3xl sm:text-5xl font-black text-slate-900 font-display tracking-tight leading-tight">
             Kelola Iuran &amp; Warga{' '}
-            <span className="bg-gradient-to-r from-forest-800 via-forest-700 to-gold-600 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-slate-900 via-slate-800 to-blue-600 bg-clip-text text-transparent">
               Lebih Rapi dan Transparan
             </span>
           </h1>
@@ -123,7 +123,7 @@ function GuestLandingView() {
 
             <Link
               to="/login"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-800 hover:text-forest-950 border border-slate-200 font-bold text-sm shadow-xs transition-all active:scale-[0.98]"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-800 hover:text-slate-900 border border-slate-200 font-bold text-sm shadow-xs transition-all active:scale-[0.98]"
             >
               <span>Masuk Akun</span>
               <AiOutlineArrowRight className="text-xs" />
@@ -132,7 +132,7 @@ function GuestLandingView() {
 
           <div className="flex flex-wrap items-center justify-center gap-6 pt-2 text-xs text-slate-500">
             <span className="flex items-center gap-1.5">
-              <AiOutlineCheckCircle className="text-forest-700 text-sm" /> 15 Hari Coba Gratis
+              <AiOutlineCheckCircle className="text-blue-600 text-sm" /> 15 Hari Coba Gratis
             </span>
             <span className="flex items-center gap-1.5">
               <AiOutlineSafetyCertificate className="text-emerald-600 text-sm" /> Data Terisolasi Aman
@@ -146,7 +146,7 @@ function GuestLandingView() {
         {/* ── Showcase 4 Vertikal Bisnis (Tabbed Showcase Ramping) ──────── */}
         <section className="space-y-6 max-w-4xl mx-auto">
           <div className="text-center space-y-1.5">
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-forest-950 font-display">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-display">
               Dirancang Khusus Sesuai Karakter Operasional
             </h2>
             <p className="text-xs sm:text-sm text-slate-500">
@@ -165,7 +165,7 @@ function GuestLandingView() {
                   onClick={() => setActiveType(opt.type)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                     isSel
-                      ? 'bg-forest-800 text-white shadow-sm'
+                      ? 'bg-slate-900 text-white shadow-xs'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
                   }`}
                 >
@@ -182,14 +182,14 @@ function GuestLandingView() {
               {/* Kolom Kiri: Deskripsi & Fitur Kunci */}
               <div className="space-y-5">
                 <div className="flex items-center gap-3">
-                  <span className="text-4xl p-3 bg-forest-50 text-forest-800 rounded-2xl border border-forest-100 shadow-xs">
+                  <span className="text-4xl p-3 bg-slate-100 text-slate-800 rounded-2xl border border-slate-200 shadow-xs">
                     {activeOption.icon}
                   </span>
                   <div>
                     <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${activeOption.badgeColor}`}>
                       {activeOption.badge}
                     </span>
-                    <h3 className="text-xl font-bold text-forest-950 font-display mt-1">
+                    <h3 className="text-xl font-bold text-slate-900 font-display mt-1">
                       {activeOption.title}
                     </h3>
                     <p className="text-xs text-slate-500">Untuk: {activeOption.targetRole}</p>
@@ -207,7 +207,7 @@ function GuestLandingView() {
                   <ul className="space-y-2 text-xs text-slate-700">
                     {activeOption.features.slice(0, 3).map((feat, i) => (
                       <li key={i} className="flex items-center gap-2">
-                        <AiOutlineCheckCircle className="text-forest-700 text-sm shrink-0" />
+                        <AiOutlineCheckCircle className="text-blue-600 text-sm shrink-0" />
                         <span>{feat}</span>
                       </li>
                     ))}
@@ -232,7 +232,7 @@ function GuestLandingView() {
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                     <span className="text-xs font-bold text-slate-800">Preview Alur Operasional</span>
                   </div>
-                  <span className="text-[10px] font-mono text-forest-800 font-semibold bg-forest-50 px-2 py-0.5 rounded border border-forest-200">
+                  <span className="text-[10px] font-mono text-slate-700 font-semibold bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                     Otomatis
                   </span>
                 </div>
@@ -244,7 +244,7 @@ function GuestLandingView() {
                   </div>
                   <div className="p-3 bg-white rounded-xl border border-slate-200/80 flex items-center justify-between text-xs shadow-xs">
                     <span className="text-slate-600">Metode Pembayaran</span>
-                    <span className="text-gold-700 font-bold">QRIS &amp; Transfer Otomatis</span>
+                    <span className="text-blue-700 font-bold">QRIS &amp; Transfer Otomatis</span>
                   </div>
                   <div className="p-3 bg-white rounded-xl border border-slate-200/80 flex items-center justify-between text-xs shadow-xs">
                     <span className="text-slate-600">Laporan Kas &amp; Pembukuan</span>
@@ -265,7 +265,7 @@ function GuestLandingView() {
         {/* ── Pilar Fondasi Platform (Icon + 1 Baris Value) ───────────── */}
         <section className="pv-card p-8 rounded-3xl border border-slate-200/90 shadow-card space-y-6">
           <div className="text-center max-w-xl mx-auto space-y-1">
-            <h2 className="text-xl sm:text-2xl font-extrabold text-forest-950 font-display">
+            <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 font-display">
               Standar Keamanan &amp; Kemudahan Layanan
             </h2>
             <p className="text-xs text-slate-500">
@@ -309,12 +309,12 @@ function GuestLandingView() {
         </section>
 
         {/* ── Call To Action Bawah (Ringkas & Tegas) ───────────────────── */}
-        <section className="bg-gradient-to-r from-forest-900 via-forest-800 to-forest-900 border border-forest-700/80 rounded-3xl p-8 sm:p-10 text-center space-y-4 shadow-xl text-white">
+        <section className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 border border-slate-800 rounded-3xl p-8 sm:p-10 text-center space-y-4 shadow-xl text-white">
           <div className="max-w-xl mx-auto space-y-1.5">
             <h2 className="text-xl sm:text-2xl font-black text-white font-display">
               Mulai Kelola Komunitas Anda Lebih Nyaman
             </h2>
-            <p className="text-xs sm:text-sm text-forest-200">
+            <p className="text-xs sm:text-sm text-slate-300">
               15 hari trial gratis penuh. Buat tenant Anda dan undang anggota dalam beberapa klik.
             </p>
           </div>
@@ -329,9 +329,9 @@ function GuestLandingView() {
             </Link>
             <Link
               to="/listing"
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-200 font-bold text-xs transition shadow-xs"
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-800 hover:text-slate-950 border border-slate-200 font-bold text-xs transition shadow-xs"
             >
-              <AiOutlineShop className="text-sm text-forest-800" />
+              <AiOutlineShop className="text-sm text-slate-600" />
               <span>Lihat Listing Publik</span>
             </Link>
           </div>
@@ -344,11 +344,11 @@ function GuestLandingView() {
           RuangWarga &copy; 2026 &mdash; Platform Komunitas &amp; Properti.
         </p>
         <div className="flex items-center justify-center gap-4 text-[11px] text-slate-500">
-          <Link to="/listing/kos" className="hover:text-forest-800">Listing Kos</Link>
+          <Link to="/listing/kos" className="hover:text-slate-900">Listing Kos</Link>
           <span>&bull;</span>
-          <Link to="/listing/umkm" className="hover:text-forest-800">Listing UMKM</Link>
+          <Link to="/listing/umkm" className="hover:text-slate-900">Listing UMKM</Link>
           <span>&bull;</span>
-          <Link to="/login" className="hover:text-forest-800">Masuk Akun</Link>
+          <Link to="/login" className="hover:text-slate-900">Masuk Akun</Link>
         </div>
       </footer>
     </div>
@@ -380,7 +380,7 @@ function AuthenticatedWorkspaceHub() {
   const displayEmail = user?.email || profile?.email || '';
 
   return (
-    <div className="min-h-screen bg-[#f8faf9] text-slate-900 flex flex-col selection:bg-gold-500 selection:text-forest-950 font-sans">
+    <div className="min-h-screen bg-[#f8faf9] text-slate-900 flex flex-col selection:bg-slate-900 selection:text-white font-sans">
       {/* ── Top Navigation Bar (Workspace) ────────────────────────────── */}
       <header className="sticky top-0 z-40 bg-white/90 border-b border-slate-200/80 backdrop-blur-md shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -389,14 +389,14 @@ function AuthenticatedWorkspaceHub() {
               <img
                 src="/logo.png"
                 alt="RuangWarga"
-                className="h-10 w-auto rounded-xl object-cover ring-2 ring-forest-800/10 shadow-sm"
+                className="h-10 w-auto rounded-xl object-cover ring-2 ring-slate-200 shadow-sm"
               />
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-lg sm:text-xl font-display tracking-tight text-forest-950">
+                  <span className="font-extrabold text-lg sm:text-xl font-display tracking-tight text-slate-900">
                     RuangWarga
                   </span>
-                  <span className="inline-flex items-center rounded-md bg-forest-50 text-forest-800 px-1.5 py-0.5 text-[10px] font-mono font-bold border border-forest-200">
+                  <span className="inline-flex items-center rounded-md bg-slate-100 text-slate-700 px-1.5 py-0.5 text-[10px] font-mono font-bold border border-slate-200">
                     {APP_VERSION}
                   </span>
                   {IS_DEMO_MODE && (
@@ -415,16 +415,16 @@ function AuthenticatedWorkspaceHub() {
           <div className="flex items-center gap-2 sm:gap-3">
             <Link
               to="/listing"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-forest-900 rounded-lg hover:bg-slate-100 pv-focus-ring transition"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 pv-focus-ring transition"
             >
-              <AiOutlineShop className="text-sm text-forest-700" aria-hidden="true" />
+              <AiOutlineShop className="text-sm text-slate-700" aria-hidden="true" />
               <span>Direktori Listing</span>
             </Link>
 
             {/* Profile Pill & Logout */}
             <div className="flex items-center gap-1.5 sm:gap-2 pl-2 border-l border-slate-200">
               <div className="flex items-center gap-2 px-2 sm:px-2.5 py-1 rounded-xl bg-slate-100 border border-slate-200/90 max-w-[110px] sm:max-w-[200px] truncate">
-                <div className="w-6 h-6 rounded-full bg-forest-800 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                <div className="w-6 h-6 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center shrink-0">
                   {displayName.charAt(0).toUpperCase()}
                 </div>
                 <div className="truncate text-left">
@@ -472,7 +472,7 @@ function AuthenticatedWorkspaceHub() {
             <div className="flex items-center gap-2.5 shrink-0">
               <Link
                 to="/platform"
-                className="pv-btn-primary text-xs px-4 py-2"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition"
               >
                 <AiOutlineSafetyCertificate className="text-base" />
                 <span>Platform Dashboard</span>
@@ -489,13 +489,13 @@ function AuthenticatedWorkspaceHub() {
         )}
 
         {/* ── Section Utama: Kelola Layanan & Tenant Anda ──────────────── */}
-        <section className="pv-card p-6 sm:p-8 space-y-6 shadow-card border border-slate-200/90">
+        <section className="bg-white rounded-2xl p-6 sm:p-8 space-y-6 shadow-xs border border-slate-200/90">
           {/* Section Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-slate-100">
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-2xl">🏢</span>
-                <h2 className="text-xl sm:text-2xl font-extrabold text-forest-950 font-display">
+                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 font-display">
                   Layanan &amp; Tenant Anda
                 </h2>
               </div>
@@ -517,7 +517,7 @@ function AuthenticatedWorkspaceHub() {
 
               <Link
                 to="/onboarding/choose-type"
-                className="pv-btn-primary text-xs px-4 py-2.5"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition"
               >
                 <AiOutlinePlus className="text-sm font-bold" />
                 <span>Daftarkan Tenant Baru</span>
@@ -528,7 +528,7 @@ function AuthenticatedWorkspaceHub() {
           {/* Loading State */}
           {loading && (
             <div className="flex flex-col items-center justify-center py-16 space-y-3">
-              <div className="h-8 w-8 rounded-full border-2 border-forest-600 border-t-gold-500 animate-spin" />
+              <div className="h-8 w-8 rounded-full border-2 border-slate-200 border-t-slate-900 animate-spin" />
               <p className="text-xs text-slate-500">Memuat data tenant Anda...</p>
             </div>
           )}
@@ -549,7 +549,7 @@ function AuthenticatedWorkspaceHub() {
               <div className="pt-2">
                 <Link
                   to="/onboarding/choose-type"
-                  className="pv-btn-primary text-xs px-6 py-3"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition"
                 >
                   <AiOutlinePlus className="text-sm font-bold" />
                   <span>Daftarkan Tenant Pertama (Trial Gratis)</span>
@@ -573,7 +573,7 @@ function AuthenticatedWorkspaceHub() {
                     key={t.id}
                     className={`rounded-2xl p-6 border transition-all flex flex-col justify-between ${
                       isActive
-                        ? 'bg-white border-2 border-gold-500 shadow-elevated ring-4 ring-gold-500/15'
+                        ? 'bg-white border-2 border-slate-900 shadow-elevated ring-4 ring-slate-900/10'
                         : 'bg-white border border-slate-200/90 hover:border-slate-300 hover:shadow-md'
                     }`}
                   >
@@ -581,11 +581,11 @@ function AuthenticatedWorkspaceHub() {
                       {/* Top Row: Icon, Badge Vertikal, Status Aktif */}
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <span className="text-3xl p-2.5 bg-forest-50 text-forest-800 rounded-xl border border-forest-100 shadow-xs">
+                          <span className="text-3xl p-2.5 bg-slate-100 text-slate-800 rounded-xl border border-slate-200 shadow-xs">
                             {template.icon}
                           </span>
                           <div>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-forest-50 text-forest-800 border border-forest-200 uppercase tracking-wide">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 uppercase tracking-wide">
                               {template.name}
                             </span>
                             <h3 className="text-base font-bold text-slate-900 font-display line-clamp-1 mt-1">
@@ -595,7 +595,7 @@ function AuthenticatedWorkspaceHub() {
                         </div>
 
                         {isActive && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-gold-500 text-forest-950 shadow-xs shrink-0">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-900 text-white shadow-xs shrink-0">
                             <AiOutlineCheckCircle /> Aktif
                           </span>
                         )}
@@ -608,7 +608,7 @@ function AuthenticatedWorkspaceHub() {
                         )}
                         <p className="text-[11px] text-slate-600">
                           Peran Anda:{' '}
-                          <strong className="text-forest-900 capitalize">
+                          <strong className="text-slate-900 capitalize">
                             {t.role_name || (t.is_owner ? 'Admin' : (t.role || (isOwner ? 'Admin' : 'Anggota')))}
                           </strong>
                         </p>
@@ -645,11 +645,7 @@ function AuthenticatedWorkspaceHub() {
                       <button
                         type="button"
                         onClick={() => handleSelectTenant(t.id)}
-                        className={`flex-1 py-2.5 px-4 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 active:scale-[0.98] ${
-                          isActive
-                            ? 'pv-btn-primary'
-                            : 'bg-slate-900 hover:bg-slate-800 text-white shadow-xs'
-                        }`}
+                        className="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 active:scale-[0.98] bg-slate-900 hover:bg-slate-800 text-white shadow-xs"
                       >
                         <span>{isActive ? 'Buka Dashboard' : 'Pilih & Buka'}</span>
                         <AiOutlineArrowRight className="text-xs" />
@@ -662,7 +658,7 @@ function AuthenticatedWorkspaceHub() {
                             switchTenant(t.id);
                             navigate('/account/subscription');
                           }}
-                          className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-forest-900 border border-slate-200 transition"
+                          className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-200 transition"
                           title="Kelola Langganan & Kapasitas"
                         >
                           <AiOutlineCreditCard className="text-base" />
@@ -678,8 +674,8 @@ function AuthenticatedWorkspaceHub() {
 
         {/* ── Section Pintasan Cepat ──────────────────────────────────── */}
         <section className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
-          <div className="pv-card p-5 sm:p-6 flex items-start gap-4 hover:border-slate-300 border border-slate-200/90 shadow-xs transition">
-            <div className="w-12 h-12 rounded-2xl bg-forest-50 border border-forest-100 text-forest-800 flex items-center justify-center text-2xl shrink-0">
+          <div className="bg-white rounded-2xl p-5 sm:p-6 flex items-start gap-4 hover:border-slate-300 border border-slate-200/90 shadow-xs transition">
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 text-blue-700 flex items-center justify-center text-2xl shrink-0">
               📢
             </div>
             <div className="space-y-1.5">
@@ -689,7 +685,7 @@ function AuthenticatedWorkspaceHub() {
               </p>
               <Link
                 to="/listing"
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-forest-800 hover:text-forest-950 pt-1"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:text-blue-900 pt-1"
               >
                 <span>Buka Direktori Listing</span>
                 <AiOutlineArrowRight className="text-xs" />
@@ -697,7 +693,7 @@ function AuthenticatedWorkspaceHub() {
             </div>
           </div>
 
-          <div className="pv-card p-5 sm:p-6 flex items-start gap-4 hover:border-slate-300 border border-slate-200/90 shadow-xs transition">
+          <div className="bg-white rounded-2xl p-5 sm:p-6 flex items-start gap-4 hover:border-slate-300 border border-slate-200/90 shadow-xs transition">
             <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-700 flex items-center justify-center text-2xl shrink-0">
               💳
             </div>
@@ -724,11 +720,11 @@ function AuthenticatedWorkspaceHub() {
           RuangWarga &copy; 2026 &mdash; Platform SaaS Multi-Tenant Komunitas &amp; Properti.
         </p>
         <div className="flex items-center justify-center gap-4 text-[11px] text-slate-500">
-          <Link to="/listing/kos" className="hover:text-forest-800">Listing Kos</Link>
+          <Link to="/listing/kos" className="hover:text-slate-900">Listing Kos</Link>
           <span>&bull;</span>
-          <Link to="/listing/umkm" className="hover:text-forest-800">Listing UMKM</Link>
+          <Link to="/listing/umkm" className="hover:text-slate-900">Listing UMKM</Link>
           <span>&bull;</span>
-          <Link to="/account/tenants" className="hover:text-forest-800">Kelola Layanan</Link>
+          <Link to="/account/tenants" className="hover:text-slate-900">Kelola Layanan</Link>
         </div>
       </footer>
     </div>

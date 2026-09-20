@@ -1,6 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
+
+vi.mock('virtual:pwa-register/react', () => ({
+  useRegisterSW: () => ({
+    needRefresh: [false],
+    updateServiceWorker: vi.fn(),
+  }),
+}));
+
 import { AuthProvider } from './context/AuthContext';
 import App from './App';
 

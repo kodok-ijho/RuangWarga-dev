@@ -101,7 +101,7 @@ export default function ChoosePlan() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-slate-200">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gold-50 border border-gold-200 text-gold-800 text-xs font-semibold mb-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-800 text-xs font-semibold mb-2">
               <AiOutlineThunderbolt />
               <span>Paket Langganan Platform RuangWarga</span>
             </div>
@@ -110,7 +110,7 @@ export default function ChoosePlan() {
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-1">
               Untuk layanan: <strong className="text-slate-900">{currentTenant?.name || 'Komunitas Anda'}</strong> &bull;{' '}
-              Tipe: <span className="text-forest-800 font-semibold">{template.name}</span>
+              Tipe: <span className="text-slate-900 font-semibold">{template.name}</span>
             </p>
           </div>
         </div>
@@ -119,7 +119,7 @@ export default function ChoosePlan() {
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <span className="p-2 rounded-xl bg-forest-50 border border-forest-100 text-forest-800 text-lg">
+              <span className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 text-lg">
                 <AiOutlineCalculator />
               </span>
               <div>
@@ -135,7 +135,7 @@ export default function ChoosePlan() {
             <button
               type="button"
               onClick={() => setIsManualOverride(!isManualOverride)}
-              className="text-xs text-forest-800 hover:text-forest-900 font-semibold underline underline-offset-4"
+              className="text-xs text-slate-700 hover:text-slate-900 font-semibold underline underline-offset-4"
             >
               {isManualOverride ? 'Gunakan Rekomendasi Otomatis' : 'Kustomisasi Manual'}
             </button>
@@ -154,7 +154,7 @@ export default function ChoosePlan() {
                     type="number"
                     value={estimatedUnits}
                     onChange={(e) => setEstimatedUnits(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                    className="w-20 px-3 py-1.5 bg-white border border-slate-300 focus:border-forest-800 rounded-lg text-sm text-center font-bold text-slate-900 focus:outline-none shadow-xs"
+                    className="w-20 px-3 py-1.5 bg-white border border-slate-300 focus:border-slate-900 rounded-lg text-sm text-center font-bold text-slate-900 focus:outline-none shadow-xs"
                     min="1"
                     max="500"
                   />
@@ -169,7 +169,7 @@ export default function ChoosePlan() {
                 step="5"
                 value={estimatedUnits}
                 onChange={(e) => setEstimatedUnits(parseInt(e.target.value, 10))}
-                className="w-full accent-forest-800 h-2 bg-slate-200 rounded-lg cursor-pointer"
+                className="w-full accent-slate-900 h-2 bg-slate-200 rounded-lg cursor-pointer"
               />
 
               {/* Rekomendasi Banner */}
@@ -193,7 +193,7 @@ export default function ChoosePlan() {
                   <span className="text-[10px] text-slate-500 block uppercase tracking-wider font-semibold">
                     Base Price Bulanan
                   </span>
-                  <span className="text-lg font-bold text-forest-900 font-mono">
+                  <span className="text-lg font-bold text-slate-900 font-mono">
                     Rp {optimalResult.recommended.monthlyBasePrice.toLocaleString('id-ID')}
                     <span className="text-xs font-normal text-slate-500">/bln</span>
                   </span>
@@ -225,7 +225,7 @@ export default function ChoosePlan() {
                     >
                       <AiOutlineMinus />
                     </button>
-                    <span className="w-8 text-center font-bold font-mono text-sm text-forest-900">
+                    <span className="w-8 text-center font-bold font-mono text-sm text-slate-900">
                       {customBlocks10}
                     </span>
                     <button
@@ -252,7 +252,7 @@ export default function ChoosePlan() {
                     >
                       <AiOutlineMinus />
                     </button>
-                    <span className="w-8 text-center font-bold font-mono text-sm text-forest-900">
+                    <span className="w-8 text-center font-bold font-mono text-sm text-slate-900">
                       {customBlocks5}
                     </span>
                     <button
@@ -272,7 +272,7 @@ export default function ChoosePlan() {
         {/* SECTION 2: Pilihan Durasi & Diskon Periode */}
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
           <div className="flex items-center gap-2.5 mb-2">
-            <span className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-forest-800 text-lg">
+            <span className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 text-lg">
               ⏳
             </span>
             <div>
@@ -318,7 +318,7 @@ export default function ChoosePlan() {
                   onClick={() => setSelectedDuration(plan.months)}
                   className={`rounded-2xl p-5 border-2 text-left transition-all flex flex-col justify-between ${
                     isSelected
-                      ? 'bg-forest-50/40 border-forest-800 ring-2 ring-forest-800/10 shadow-sm'
+                      ? 'bg-slate-50 border-slate-900 ring-2 ring-slate-900/10 shadow-sm'
                       : 'bg-white border-slate-200 hover:border-slate-300 shadow-xs'
                   }`}
                 >
@@ -334,7 +334,7 @@ export default function ChoosePlan() {
 
                   <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
                     <span className="text-slate-500">Diskon:</span>
-                    <span className="font-bold text-forest-900 font-mono">
+                    <span className="font-bold text-slate-900 font-mono">
                       {DEFAULT_PERIOD_DISCOUNTS[plan.months]}%
                     </span>
                   </div>
@@ -345,10 +345,10 @@ export default function ChoosePlan() {
         </div>
 
         {/* SECTION 3: Ringkasan Tagihan & Aksi Checkout */}
-        <div className="bg-white border-2 border-forest-800/20 rounded-2xl p-6 sm:p-8 shadow-md space-y-6">
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-md space-y-6">
           <div className="flex items-center justify-between border-b border-slate-200 pb-4">
             <h2 className="text-lg font-bold text-slate-900 font-display flex items-center gap-2">
-              <AiOutlineSafetyCertificate className="text-gold-500" />
+              <AiOutlineSafetyCertificate className="text-slate-700" />
               <span>Rincian Tagihan Langganan</span>
             </h2>
             <span className="text-xs text-slate-500 font-mono">Periode: {selectedDuration} Bulan</span>
@@ -383,7 +383,7 @@ export default function ChoosePlan() {
               </div>
               <div className="flex justify-between items-baseline pt-2 border-t border-slate-200">
                 <span className="font-bold text-slate-900 text-sm">Total Pembayaran:</span>
-                <span className="text-2xl font-extrabold text-forest-900 font-mono">
+                <span className="text-2xl font-extrabold text-slate-900 font-mono">
                   Rp {billSummary.finalTotal.toLocaleString('id-ID')}
                 </span>
               </div>
@@ -401,7 +401,7 @@ export default function ChoosePlan() {
             <button
               type="button"
               onClick={handleProceedToPayment}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 font-extrabold text-sm shadow-xs transition-all"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-sm shadow-xs transition-all"
             >
               <span>Lanjut ke Pembayaran QRIS</span>
               <AiOutlineArrowRight />

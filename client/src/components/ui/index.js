@@ -27,5 +27,5 @@ export { Dialog } from './Dialog';
 export { Drawer } from './Drawer';
 export { BottomSheet } from './BottomSheet';
 export { MobileList } from './MobileList';
-export { BottomNav } from './BottomNav';
+export { Toast } from './Toast';
 export { default as Modal } from '../Modal';

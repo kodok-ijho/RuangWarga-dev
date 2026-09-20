@@ -361,7 +361,7 @@ export default function PlatformRevenue() {
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
           {loading ? (
             <div className="flex items-center justify-center py-16">
-              <div className="h-8 w-8 rounded-full border-2 border-forest-700 border-t-gold-500 animate-spin" />
+              <div className="h-8 w-8 rounded-full border-2 border-slate-200 border-t-slate-900 animate-spin" />
             </div>
           ) : payments.length === 0 ? (
             <div className="py-16 text-center text-slate-400">

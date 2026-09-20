@@ -3,9 +3,10 @@ import React, { forwardRef } from 'react';
 const VARIANTS = {
   ghost: 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 active:scale-95 border-transparent',
   outline: 'bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 border-slate-200 active:scale-95 shadow-xs',
-  primary: 'bg-gold-500 text-forest-950 hover:bg-gold-400 active:scale-95 border-gold-600/30 shadow-xs',
-  secondary: 'bg-forest-800 text-white hover:bg-forest-900 active:scale-95 border-forest-700/50 shadow-xs',
+  primary: 'bg-slate-900 text-white hover:bg-slate-800 active:scale-95 border-slate-900 shadow-xs',
+  secondary: 'bg-slate-100 text-slate-800 hover:bg-slate-200 active:scale-95 border-slate-200/80 shadow-xs',
   danger: 'text-rose-600 hover:bg-rose-50 hover:text-rose-700 active:scale-95 border-rose-200/60',
+  destructive: 'bg-rose-600 text-white hover:bg-rose-700 active:scale-95 border-rose-700 shadow-xs',
 };
 
 const SIZES = {

@@ -254,7 +254,7 @@ export default function PlatformPricingConfig() {
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
           {loading ? (
             <div className="flex items-center justify-center py-16">
-              <div className="h-8 w-8 rounded-full border-2 border-forest-700 border-t-gold-500 animate-spin" />
+              <div className="h-8 w-8 rounded-full border-2 border-slate-200 border-t-slate-900 animate-spin" />
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -313,7 +313,7 @@ export default function PlatformPricingConfig() {
                                 type="number"
                                 value={editPriceValue}
                                 onChange={(e) => setEditPriceValue(e.target.value)}
-                                className="w-28 px-2.5 py-1 bg-white border border-forest-800 rounded text-xs text-slate-900 focus:outline-none shadow-xs"
+                                className="w-28 px-2.5 py-1 bg-white border border-slate-900 rounded text-xs text-slate-900 focus:outline-none shadow-xs"
                                 step="250"
                                 min="0"
                               />
@@ -348,7 +348,7 @@ export default function PlatformPricingConfig() {
                                 type="checkbox"
                                 checked={editPricingActive}
                                 onChange={(e) => setEditPricingActive(e.target.checked)}
-                                className="rounded border-slate-300 text-forest-800 focus:ring-forest-800"
+                                className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
                               />
                               <span>Aktif</span>
                             </label>
@@ -373,7 +373,7 @@ export default function PlatformPricingConfig() {
                                 type="button"
                                 onClick={() => handleSavePricing(item)}
                                 disabled={saving}
-                                className="p-1.5 rounded-lg bg-forest-800 hover:bg-forest-900 text-gold-400 font-bold text-xs shadow-xs"
+                                className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs"
                                 title="Simpan Perubahan"
                               >
                                 <AiOutlineSave className="text-base" />
@@ -428,7 +428,7 @@ export default function PlatformPricingConfig() {
                 key={period.id}
                 className={`bg-white border rounded-2xl p-5 flex flex-col justify-between transition-all shadow-xs ${
                   isEditing
-                    ? 'border-2 border-forest-800 ring-4 ring-forest-800/10 shadow-sm'
+                    ? 'border-2 border-slate-900 ring-4 ring-slate-900/10 shadow-sm'
                     : 'border-slate-200 hover:border-slate-300'
                 }`}
               >
@@ -461,7 +461,7 @@ export default function PlatformPricingConfig() {
                             type="number"
                             value={editDiscountValue}
                             onChange={(e) => setEditDiscountValue(e.target.value)}
-                            className="w-16 px-2 py-0.5 bg-white border border-forest-800 rounded text-xs text-slate-900 focus:outline-none text-right font-bold shadow-xs"
+                            className="w-16 px-2 py-0.5 bg-white border border-slate-900 rounded text-xs text-slate-900 focus:outline-none text-right font-bold shadow-xs"
                             step="1"
                             min="0"
                             max="100"
@@ -483,7 +483,7 @@ export default function PlatformPricingConfig() {
                             type="checkbox"
                             checked={editPeriodActive}
                             onChange={(e) => setEditPeriodActive(e.target.checked)}
-                            className="rounded border-slate-300 text-forest-800 focus:ring-forest-800"
+                            className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
                           />
                           <span>Aktif</span>
                         </label>
@@ -507,7 +507,7 @@ export default function PlatformPricingConfig() {
                         type="button"
                         onClick={() => handleSavePeriod(period)}
                         disabled={saving}
-                        className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-forest-800 hover:bg-forest-900 text-gold-400 font-bold text-xs shadow-xs"
+                        className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs"
                       >
                         <AiOutlineSave />
                         <span>Simpan</span>

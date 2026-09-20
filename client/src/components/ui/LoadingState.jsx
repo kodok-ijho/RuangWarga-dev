@@ -15,7 +15,7 @@ export function LoadingState({
       aria-live="polite"
     >
       <div
-        className={`${spinnerSize} rounded-full border-2 border-slate-200 border-t-gold-500 animate-spin motion-reduce:animate-none`}
+        className={`${spinnerSize} rounded-full border-2 border-slate-200 border-t-slate-900 animate-spin motion-reduce:animate-none`}
         aria-hidden="true"
       />
       {message && <p className="text-xs text-slate-500 font-medium">{message}</p>}

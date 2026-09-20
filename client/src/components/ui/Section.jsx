@@ -17,7 +17,7 @@ export function Section({
           <div className="space-y-0.5">
             {title && (
               <div className="flex items-center gap-2">
-                {Icon && <Icon className="text-lg text-forest-800 shrink-0" aria-hidden="true" />}
+                {Icon && <Icon className="text-lg text-slate-800 shrink-0" aria-hidden="true" />}
                 <h3 className="text-title-section">{title}</h3>
               </div>
             )}
