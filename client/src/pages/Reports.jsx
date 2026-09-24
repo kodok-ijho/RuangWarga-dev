@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -93,48 +93,8 @@ function normalizeRunningBalance(value) {
   return data.chain;
 }
 
-function isReportApiEmptyResponse(error) {
-  return error?.code === 'REPORT_API_EMPTY_RESPONSE';
-}
-
-function sumAmounts(items = []) {
-  return items.reduce((sum, item) => sum + Number(item?.amount || 0), 0);
-}
-
 function createPeriod(year, month) {
   return `${year}-${String(month).padStart(2, '0')}`;
-}
-
-function buildMonthlyFallbackChain(finData, year, month, openingBalance = 15000000) {
-  const expenses = Array.isArray(finData?.expenses) ? finData.expenses : [];
-  const cashPayments = Array.isArray(finData?.cashPayments) ? finData.cashPayments : [];
-  const totalIncome = cashPayments.length > 0
-    ? sumAmounts(cashPayments)
-    : Number(finData?.report?.totalCollected || 0);
-  const totalExpense = sumAmounts(expenses);
-
-  return [{
-    period: createPeriod(year, month),
-    year,
-    month,
-    openingBalance,
-    totalIncome,
-    totalExpense,
-    closingBalance: openingBalance + totalIncome - totalExpense,
-    incomeCount: cashPayments.length,
-    expenseCount: expenses.length,
-  }];
-}
-
-function buildYearlyFallbackChain(financeByPeriod, periods, openingBalance = 15000000) {
-  let runningBalance = openingBalance;
-
-  return periods.map(({ year, month }) => {
-    const finData = financeByPeriod[createPeriod(year, month)];
-    const chainItem = buildMonthlyFallbackChain(finData, year, month, runningBalance)[0];
-    runningBalance = chainItem.closingBalance;
-    return chainItem;
-  });
 }
 
 async function mapWithConcurrency(items, concurrency, mapper) {
@@ -158,10 +118,13 @@ async function mapWithConcurrency(items, concurrency, mapper) {
 export default function Reports() {
   const params = useParams();
   const { role, session } = useAuth();
-  const { currentTenant, userTenants } = useTenant();
-  const activeTenantId = params.tenantId || currentTenant?.id || userTenants?.[0]?.id || null;
-  const template = useTenantTemplate(currentTenant?.type || 'rt_rw');
+  const { activeTenant, activeTenantId: contextTenantId, userTenants } = useTenant();
+  const activeTenantId = params.tenantId || contextTenantId || activeTenant?.id || userTenants?.[0]?.id || null;
+  const template = useTenantTemplate(activeTenant?.type || 'rt_rw');
   const toast = useToast();
+
+  const requestIdRef = useRef(0);
+  const [unresolvedCount, setUnresolvedCount] = useState(0);
 
   const years = useMemo(() => {
     const lastYear = Math.max(new Date().getFullYear() + 2, FISCAL_YEAR_START + 2);
@@ -207,34 +170,56 @@ export default function Reports() {
   const period = `${year}-${String(month).padStart(2, '0')}`;
 
   const loadData = useCallback(async () => {
+    if (!activeTenantId) {
+      setIsLoading(false);
+      setReport(null);
+      setExpenses([]);
+      setCashPayments([]);
+      setNonIplIncomes([]);
+      setEvents([]);
+      setRunningChain([]);
+      setUnresolvedCount(0);
+      return;
+    }
+
+    const currentRequestId = ++requestIdRef.current;
+    const requestedTenantId = activeTenantId;
+
     setIsLoading(true);
     setLoadError('');
+    setReport(null);
+    setExpenses([]);
+    setCashPayments([]);
+    setNonIplIncomes([]);
+    setEvents([]);
+    setRunningChain([]);
+    setUnresolvedCount(0);
+
     try {
       if (reportType === 'monthly' || reportType === 'non_ipl') {
-        const [finRes, nonIplRes, eventsRes] = await Promise.all([
-          fetchMonthlyFinance(session?.access_token, { year, month, tenantId: activeTenantId }),
+        const [finRes, nonIplRes, eventsRes, balRes] = await Promise.all([
+          fetchMonthlyFinance(session?.access_token, { year, month, tenantId: requestedTenantId }),
           fetchNonIplIncomes(session?.access_token, {
             from: `${year}-${String(month).padStart(2, '0')}-01`,
             to: `${year}-${String(month).padStart(2, '0')}-31`,
+            tenantId: requestedTenantId,
           }).catch(() => []),
           fetchEvents(session?.access_token).catch(() => []),
+          fetchRunningBalance(session?.access_token, { year, month, tenantId: requestedTenantId }),
         ]);
+
+        if (requestIdRef.current !== currentRequestId) {
+          return;
+        }
+
         const finData = normalizeMonthlyFinance(finRes);
         setReport(finData.report);
         setExpenses(finData.expenses);
         setCashPayments(finData.cashPayments);
         setNonIplIncomes(Array.isArray(nonIplRes) && nonIplRes.length > 0 ? nonIplRes : (finData.nonIplIncomes || []));
         setEvents(Array.isArray(eventsRes) ? eventsRes : []);
-
-        try {
-          const balRes = await fetchRunningBalance(session?.access_token, { year, month, tenantId: activeTenantId });
-          setRunningChain(normalizeRunningBalance(balRes));
-        } catch (balanceError) {
-          if (!isReportApiEmptyResponse(balanceError)) {
-            throw balanceError;
-          }
-          setRunningChain(buildMonthlyFallbackChain(finData, year, month));
-        }
+        setRunningChain(normalizeRunningBalance(balRes));
+        setUnresolvedCount(Number(finData.unresolvedCount || 0));
       } else {
         // Yearly mode: July Y to June Y+1
         const monthsOfFiscalYear = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
@@ -243,16 +228,22 @@ export default function Reports() {
           month: m
         }));
 
-        const [results, nonIplYearlyRes, eventsRes] = await Promise.all([
+        const [results, nonIplYearlyRes, eventsRes, balRes] = await Promise.all([
           mapWithConcurrency(periods, YEARLY_REQUEST_CONCURRENCY, ({ year: y, month: m }) => {
-            return fetchMonthlyFinance(session?.access_token, { year: y, month: m, tenantId: activeTenantId });
+            return fetchMonthlyFinance(session?.access_token, { year: y, month: m, tenantId: requestedTenantId });
           }),
           fetchNonIplIncomes(session?.access_token, {
             from: `${year}-07-01`,
             to: `${year + 1}-06-30`,
+            tenantId: requestedTenantId,
           }).catch(() => []),
           fetchEvents(session?.access_token).catch(() => []),
+          fetchRunningBalance(session?.access_token, { year: year + 1, month: 6, tenantId: requestedTenantId }),
         ]);
+
+        if (requestIdRef.current !== currentRequestId) {
+          return;
+        }
 
         setNonIplIncomes(Array.isArray(nonIplYearlyRes) ? nonIplYearlyRes : []);
         setEvents(Array.isArray(eventsRes) ? eventsRes : []);
@@ -372,25 +363,20 @@ export default function Reports() {
 
         setExpenses(aggregatedExpenses);
         setCashPayments(aggregatedPayments);
-
-        try {
-          // Fetch running balance up to the end of the fiscal year (June Y+1) to get the correct balance chain
-          const balRes = await fetchRunningBalance(session?.access_token, { year: year + 1, month: 6 });
-          setRunningChain(normalizeRunningBalance(balRes));
-        } catch (balanceError) {
-          if (!isReportApiEmptyResponse(balanceError)) {
-            throw balanceError;
-          }
-          setRunningChain(buildYearlyFallbackChain(financeByPeriod, periods));
-        }
+        setRunningChain(normalizeRunningBalance(balRes));
       }
     } catch (err) {
+      if (requestIdRef.current !== currentRequestId) {
+        return;
+      }
       setLoadError(err.message || 'Gagal memuat data laporan keuangan.');
       toast.error(err.message || 'Gagal memuat data laporan keuangan.');
     } finally {
-      setIsLoading(false);
+      if (requestIdRef.current === currentRequestId) {
+        setIsLoading(false);
+      }
     }
-  }, [session?.access_token, year, month, reportType, toast]);
+  }, [session?.access_token, year, month, reportType, activeTenantId, toast]);
 
   useEffect(() => {
     if (canViewFinancialReports(role)) {
@@ -535,17 +521,7 @@ export default function Reports() {
     if (reportType === 'monthly' || reportType === 'non_ipl') {
       const periodStr = `${year}-${String(month).padStart(2, '0')}`;
       const matched = runningChain.find(item => item.period === periodStr);
-      return matched || {
-        period: periodStr,
-        year,
-        month,
-        openingBalance: 15000000,
-        totalIncome: 0,
-        totalExpense: 0,
-        closingBalance: 15000000,
-        incomeCount: 0,
-        expenseCount: 0,
-      };
+      return matched || null;
     } else {
       // Yearly: July Y to June Y+1
       const startPeriod = `${year}-07`;
@@ -554,46 +530,54 @@ export default function Reports() {
       const startMonthData = runningChain.find(item => item.period === startPeriod);
       const endMonthData = runningChain.find(item => item.period === endPeriod);
       
+      const yearlyChain = runningChain.filter(item => item.period >= startPeriod && item.period <= endPeriod);
+      if (!startMonthData || !endMonthData || yearlyChain.length === 0) {
+        return null;
+      }
+      
       // Sum incomes and expenses within range
       let totalIncome = 0;
       let totalExpense = 0;
-      runningChain.forEach(item => {
-        if (item.period >= startPeriod && item.period <= endPeriod) {
-          totalIncome += Number(item.totalIncome || 0);
-          totalExpense += Number(item.totalExpense || 0);
-        }
+      yearlyChain.forEach(item => {
+        totalIncome += Number(item.totalIncome || 0);
+        totalExpense += Number(item.totalExpense || 0);
       });
       
-      const opening = startMonthData ? startMonthData.openingBalance : 15000000;
-      const closing = endMonthData ? endMonthData.closingBalance : (opening + totalIncome - totalExpense);
-
       return {
         period: `${year}/${year+1}`,
         year,
         month: 0,
-        openingBalance: opening,
+        openingBalance: startMonthData.openingBalance,
         totalIncome,
         totalExpense,
-        closingBalance: closing,
+        closingBalance: endMonthData.closingBalance,
         incomeCount: 0,
         expenseCount: 0,
+        unresolvedCount: yearlyChain.reduce((sum, item) => sum + Number(item.unresolvedCount || 0), 0),
       };
     }
   }, [runningChain, year, month, reportType]);
 
-  const totalCashIn = activeBalance.totalIncome;
-  const totalExpenses = activeBalance.totalExpense;
+  const totalCashIn = activeBalance ? activeBalance.totalIncome : 0;
+  const totalExpenses = activeBalance ? activeBalance.totalExpense : 0;
   // New finance fields are optional so the existing IPL report contract and
   // baseline remain unchanged until the backend starts returning them.
-  const iplIncome = Number(activeBalance.iplIncome ?? activeBalance.ipl_income ?? report?.iplIncome ?? report?.ipl_income ?? totalCashIn);
-  const nonIplGeneralIncome = Number(activeBalance.nonIplGeneralIncome ?? activeBalance.non_ipl_general_income ?? report?.nonIplGeneralIncome ?? report?.non_ipl_general_income ?? 0);
-  const eventIncome = Number(activeBalance.eventIncome ?? activeBalance.event_income ?? report?.eventIncome ?? report?.event_income ?? 0);
-  const eventExpense = Number(activeBalance.eventExpense ?? activeBalance.event_expense ?? report?.eventExpense ?? report?.event_expense ?? 0);
+  const iplIncome = Number(activeBalance?.iplIncome ?? activeBalance?.ipl_income ?? report?.iplIncome ?? report?.ipl_income ?? totalCashIn);
+  const nonIplGeneralIncome = Number(activeBalance?.nonIplGeneralIncome ?? activeBalance?.non_ipl_general_income ?? report?.nonIplGeneralIncome ?? report?.non_ipl_general_income ?? 0);
+  const eventIncome = Number(activeBalance?.eventIncome ?? activeBalance?.event_income ?? report?.eventIncome ?? report?.event_income ?? 0);
+  const eventExpense = Number(activeBalance?.eventExpense ?? activeBalance?.event_expense ?? report?.eventExpense ?? report?.event_expense ?? 0);
   const hasFinanceBreakdown = [nonIplGeneralIncome, eventIncome, eventExpense].some((value) => value !== 0)
-    || activeBalance.iplIncome != null || activeBalance.ipl_income != null;
-  const netBalance = totalCashIn - totalExpenses;
-  const openingBalance = activeBalance.openingBalance;
-  const closingBalance = activeBalance.closingBalance;
+    || activeBalance?.iplIncome != null || activeBalance?.ipl_income != null;
+  const netBalance = activeBalance ? totalCashIn - totalExpenses : 0;
+  const openingBalance = activeBalance ? activeBalance.openingBalance : 0;
+  const closingBalance = activeBalance ? activeBalance.closingBalance : 0;
+
+  const currentUnresolvedCount = useMemo(() => {
+    if (activeBalance && typeof activeBalance.unresolvedCount === 'number') {
+      return activeBalance.unresolvedCount;
+    }
+    return unresolvedCount;
+  }, [activeBalance, unresolvedCount]);
 
   // Data tren untuk AreaChart
   const trenData = useMemo(() => {
@@ -772,7 +756,7 @@ export default function Reports() {
     );
   }
 
-  if (!report && reportType !== 'non_ipl') {
+  if ((!report || !activeBalance) && reportType !== 'non_ipl') {
     return (
       <div className="pv-card p-8 text-center text-slate-500 text-sm">
         Tidak ada data laporan keuangan untuk periode ini.
@@ -1155,6 +1139,19 @@ export default function Reports() {
           ) : (
             <>
               {/* Section A: Alur Kas (Running Balance) */}
+              {currentUnresolvedCount > 0 && (
+                <div className="no-print mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">⚠️</span>
+                    <div>
+                      <p className="font-bold">Perhatian: Terdapat {currentUnresolvedCount} transaksi belum terselesaikan (unresolved)</p>
+                      <p className="mt-0.5 text-amber-700">
+                        Transaksi ini tidak memiliki data tanggal atau status kas yang valid, sehingga tidak dimasukkan ke dalam perhitungan saldo berjalan.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
               <FinancialOverviewHero
                 openingBalance={openingBalance}
                 totalIncome={totalCashIn}
