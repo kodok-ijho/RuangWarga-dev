@@ -8,6 +8,15 @@
 
 import { supabase } from './supabaseClient';
 import { mockUnits, mockProfiles } from './mockData';
+import {
+  getTenantOpeningBalance,
+  fetchTenantFinancialRecords,
+} from './finance/financialRepository';
+import {
+  aggregatePeriodCashFlow,
+  buildContiguousBalanceChain,
+} from './finance/financialAggregation';
+import { getReportingPeriodRange } from './finance/financialDateResolver';
 
 const IS_DEMO = import.meta.env.VITE_DEMO_MODE === 'true';
 
@@ -1900,12 +1909,24 @@ export async function deleteTenantExpense(tenantId, expenseId) {
 }
 
 /**
- * Mengambil ringkasan laporan keuangan bulanan tenant
- * @param {string} tenantId - UUID tenant
+ * Mengambil ringkasan laporan keuangan bulanan tenant secara canonical cash-basis.
+ * Sub-Gate: 8.1-C5 (Service Layer Additive Migration)
+ * 
+ * Pipeline:
+ * 1. financialDateResolver.getReportingPeriodRange(year, month)
+ * 2. financialRepository.getTenantOpeningBalance({ tenantId, beforeDate, signal })
+ * 3. financialRepository.fetchTenantFinancialRecords({ tenantId, startDate, endDate, signal })
+ * 4. financialAggregation.aggregatePeriodCashFlow({ openingBalanceMinorUnits, records, periodRange })
+ * 5. Returns additive compatibility shape
+ * 
+ * @param {string} tenantId - UUID tenant (wajib)
  * @param {object} param1 - { year, month }
+ * @param {object} [options] - { signal, client }
  */
-export async function fetchTenantMonthlyFinance(tenantId, { year, month }) {
-  if (!tenantId) throw new Error('tenantId wajib disertakan.');
+export async function fetchTenantMonthlyFinance(tenantId, { year, month }, options = {}) {
+  if (!tenantId || typeof tenantId !== 'string' || !tenantId.trim()) {
+    throw new Error('tenantId wajib disertakan dan harus berupa string yang valid.');
+  }
 
   const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
   if (isDemoOrMock) {
@@ -1915,83 +1936,158 @@ export async function fetchTenantMonthlyFinance(tenantId, { year, month }) {
     const expenses = mock.getExpensesForPeriod(period);
     const totalExpense = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const totalIncome = Number(baseReport?.totalCollected || 0);
+    const netIncome = totalIncome - totalExpense;
     return {
       report: {
         ...baseReport,
+        period,
         total_income: totalIncome,
         total_expense: totalExpense,
-        net_income: totalIncome - totalExpense,
+        net_income: netIncome,
         cash_inflow: totalIncome,
         cash_outflow: totalExpense,
-        balance: totalIncome - totalExpense,
+        balance: netIncome,
+        opening_balance: 0,
+        closing_balance: netIncome,
+        unresolved_count: 0,
       },
       expenses,
       cashPayments: mock.getPaymentsByMonth(year, month),
+      nonIplIncomes: [],
+      unresolvedPayments: [],
     };
   }
 
-  const periodStr = `${year}-${String(month).padStart(2, '0')}`;
+  const { signal, client } = options;
+  const { periodStr, periodStartCalendar, periodEndCalendarExclusive } = getReportingPeriodRange(year, month);
 
-  // 1. Ambil seluruh payment completed/verified pada tenant ini
-  const { data: payments } = await supabase
-    .from('payments')
-    .select(`
-      id,
-      amount,
-      method,
-      status,
-      paid_at,
-      created_at,
-      billing_items:billing_item_id (
-        id,
-        period,
-        unit_id
-      )
-    `)
-    .eq('tenant_id', tenantId)
-    .in('status', ['completed', 'verified']);
-
-  // Filter payments untuk bulan yang bersangkutan
-  const monthlyPayments = (payments || []).filter((p) => {
-    const billPeriod = p.billing_items?.period;
-    const paidMonth = (p.paid_at || p.created_at || '').substring(0, 7);
-    return billPeriod === periodStr || paidMonth === periodStr;
+  // 1. Authoritative opening balance sebelum periodStartCalendar via RPC
+  const openingBalanceMinorUnits = await getTenantOpeningBalance({
+    tenantId,
+    beforeDate: periodStartCalendar,
+    signal,
+    client,
   });
 
-  const totalIncome = monthlyPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-
-  // 2. Ambil expenses pada bulan yang bersangkutan
-  const allExpenses = await fetchTenantExpenses(tenantId);
-  const monthlyExpenses = allExpenses.filter((e) => {
-    const expDate = e.date || e.expense_date || (e.created_at ? e.created_at.substring(0, 7) : '');
-    return expDate.startsWith(periodStr);
+  // 2. Authoritative bounded period records [periodStartCalendar, periodEndCalendarExclusive)
+  const financialData = await fetchTenantFinancialRecords({
+    tenantId,
+    startDate: periodStartCalendar,
+    endDate: periodEndCalendarExclusive,
+    signal,
+    client,
   });
 
-  const totalExpense = monthlyExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
-  const netIncome = totalIncome - totalExpense;
+  // 3. Pure cash-basis aggregation via C2 engine
+  const summary = aggregatePeriodCashFlow({
+    openingBalanceMinorUnits,
+    records: financialData.records,
+    periodRange: { periodStartCalendar, periodEndCalendarExclusive },
+  });
+
+  const toRupiah = (minorUnits) => Number((minorUnits / 100).toFixed(2));
+
+  // 4. Map to consumer-compatible response shapes
+  const mappedExpenses = (financialData.expenses || [])
+    .filter((e) => e.isRecognizedCash)
+    .map((e) => {
+      const raw = e.raw || {};
+      return {
+        ...raw,
+        id: e.id,
+        amount: toRupiah(e.amountMinorUnits),
+        date: e.canonicalDate,
+        expense_date: e.canonicalDate,
+        category: e.category,
+        description: e.description,
+      };
+    });
+
+  const mappedPayments = (financialData.payments || [])
+    .filter((p) => p.isRecognizedCash)
+    .map((p) => {
+      const raw = p.raw || {};
+      return {
+        ...raw,
+        id: p.id,
+        amount: toRupiah(p.amountMinorUnits),
+        paid_at: raw.paid_at,
+        canonicalDate: p.canonicalDate,
+        status: p.status,
+        method: raw.method,
+        billing_items: raw.billing_items,
+      };
+    });
+
+  const mappedNonIpl = (financialData.nonIplIncomes || [])
+    .filter((i) => i.isRecognizedCash)
+    .map((i) => {
+      const raw = i.raw || {};
+      return {
+        ...raw,
+        id: i.id,
+        amount: toRupiah(i.amountMinorUnits),
+        date: i.canonicalDate,
+        income_date: i.canonicalDate,
+        category: i.category,
+        description: i.description,
+      };
+    });
+
+  const mappedUnresolved = (financialData.unresolvedPayments || []).map((p) => {
+    const raw = p.raw || {};
+    return {
+      ...raw,
+      id: p.id,
+      amount: toRupiah(p.amountMinorUnits),
+      status: p.status,
+      canonicalDate: null,
+      isUnresolved: true,
+      unresolvedReason: p.unresolvedReason,
+    };
+  });
 
   return {
     report: {
       period: periodStr,
-      total_income: totalIncome,
-      total_expense: totalExpense,
-      net_income: netIncome,
-      cash_inflow: totalIncome,
-      cash_outflow: totalExpense,
-      balance: netIncome,
+      total_income: toRupiah(summary.inflowMinorUnits),
+      total_expense: toRupiah(summary.outflowMinorUnits),
+      net_income: toRupiah(summary.netMinorUnits),
+      cash_inflow: toRupiah(summary.inflowMinorUnits),
+      cash_outflow: toRupiah(summary.outflowMinorUnits),
+      balance: toRupiah(summary.netMinorUnits),
+      opening_balance: toRupiah(summary.openingBalanceMinorUnits),
+      closing_balance: toRupiah(summary.closingBalanceMinorUnits),
+      unresolved_count: summary.unresolvedCount,
+      // Formatted display strings
+      inflowFormatted: summary.inflowFormatted,
+      outflowFormatted: summary.outflowFormatted,
+      netFormatted: summary.netFormatted,
+      openingBalanceFormatted: summary.openingBalanceFormatted,
+      closingBalanceFormatted: summary.closingBalanceFormatted,
     },
-    expenses: monthlyExpenses,
-    cashPayments: monthlyPayments,
+    expenses: mappedExpenses,
+    cashPayments: mappedPayments,
+    nonIplIncomes: mappedNonIpl,
+    unresolvedPayments: mappedUnresolved,
   };
 }
 
 /**
- * Mengambil saldo kas berjalan tenant
- * @param {string} tenantId - UUID tenant
- * @param {object} param1 - { year, month }
+ * Mengambil saldo kas berjalan tenant secara berurutan dan berkesinambungan (running balance chain).
+ * Sub-Gate: 8.1-C5 (Service Layer Additive Migration)
+ * 
+ * Guarantee:
+ * Opening(M) === Closing(M - 1)
+ * 
+ * @param {string} tenantId - UUID tenant (wajib)
+ * @param {object} param1 - { year, month, startYear, startMonth, monthsCount }
+ * @param {object} [options] - { signal, client }
  */
-export async function fetchTenantRunningBalance(tenantId, { year, month }) {
-  if (!tenantId) throw new Error('tenantId wajib disertakan.');
+export async function fetchTenantRunningBalance(tenantId, { year, month, startYear, startMonth, monthsCount } = {}, options = {}) {
+  if (!tenantId || typeof tenantId !== 'string' || !tenantId.trim()) {
+    throw new Error('tenantId wajib disertakan dan harus berupa string yang valid.');
+  }
 
   const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
   if (isDemoOrMock) {
@@ -1999,25 +2095,128 @@ export async function fetchTenantRunningBalance(tenantId, { year, month }) {
     return { chain: mock.computeRunningBalance(year, month) };
   }
 
-  // Sederhanakan kalkulasi chain bulanan dari data tenant
-  const monthly = await fetchTenantMonthlyFinance(tenantId, { year, month });
-  const currentNet = monthly.report?.net_income || 0;
+  const { signal, client } = options;
+
+  const targetYear = Number(year);
+  const targetMonth = Number(month);
+
+  if (isNaN(targetYear) || isNaN(targetMonth) || targetMonth < 1 || targetMonth > 12) {
+    throw new Error(`Parameter tahun (${year}) dan bulan (${month}) tidak valid.`);
+  }
+
+  let fromYear, fromMonth;
+  if (startYear && startMonth) {
+    fromYear = Number(startYear);
+    fromMonth = Number(startMonth);
+  } else if (monthsCount && Number.isInteger(monthsCount) && monthsCount > 0) {
+    let count = monthsCount;
+    fromYear = targetYear;
+    fromMonth = targetMonth;
+    while (count > 1) {
+      fromMonth -= 1;
+      if (fromMonth < 1) {
+        fromMonth = 12;
+        fromYear -= 1;
+      }
+      count -= 1;
+    }
+  } else {
+    fromYear = targetMonth >= 7 ? targetYear : targetYear - 1;
+    fromMonth = 7;
+  }
+
+  const periodRanges = [];
+  let curY = fromYear;
+  let curM = fromMonth;
+
+  while (curY < targetYear || (curY === targetYear && curM <= targetMonth)) {
+    const range = getReportingPeriodRange(curY, curM);
+    periodRanges.push({
+      ...range,
+      year: curY,
+      month: curM,
+    });
+    curM += 1;
+    if (curM > 12) {
+      curM = 1;
+      curY += 1;
+    }
+  }
+
+  if (periodRanges.length === 0) {
+    const range = getReportingPeriodRange(targetYear, targetMonth);
+    periodRanges.push({
+      ...range,
+      year: targetYear,
+      month: targetMonth,
+    });
+  }
+
+  const firstRange = periodRanges[0];
+  const lastRange = periodRanges[periodRanges.length - 1];
+
+  // 1. Ambil opening balance awal untuk periode pertama via database RPC
+  const initialOpeningBalanceMinorUnits = await getTenantOpeningBalance({
+    tenantId,
+    beforeDate: firstRange.periodStartCalendar,
+    signal,
+    client,
+  });
+
+  // 2. Ambil seluruh transaksi dalam bentang [firstRange.start, lastRange.endExclusive)
+  const financialData = await fetchTenantFinancialRecords({
+    tenantId,
+    startDate: firstRange.periodStartCalendar,
+    endDate: lastRange.periodEndCalendarExclusive,
+    signal,
+    client,
+  });
+
+  // 3. Bangun contiguous balance chain menggunakan engine C2
+  const chainResult = buildContiguousBalanceChain({
+    initialOpeningBalanceMinorUnits,
+    periodRanges,
+    records: financialData.records,
+  });
+
+  const toRupiah = (minorUnits) => Number((minorUnits / 100).toFixed(2));
+
+  // 4. Adaptasi shape kompatibilitas consumer
+  const mappedChain = chainResult.chain.map((entry) => {
+    const opening = toRupiah(entry.openingBalanceMinorUnits);
+    const closing = toRupiah(entry.closingBalanceMinorUnits);
+    const income = toRupiah(entry.inflowMinorUnits);
+    const expense = toRupiah(entry.outflowMinorUnits);
+    const net = toRupiah(entry.netMinorUnits);
+
+    return {
+      period: entry.period,
+      year: entry.year,
+      month: entry.month,
+      openingBalance: opening,
+      totalIncome: income,
+      totalExpense: expense,
+      closingBalance: closing,
+      incomeCount: entry.incomeCount,
+      expenseCount: entry.expenseCount,
+      unresolvedCount: entry.unresolvedCount,
+      // Additive compatibility aliases (snake_case / legacy)
+      opening_balance: opening,
+      closing_balance: closing,
+      total_income: income,
+      total_expense: expense,
+      income,
+      expense,
+      balance: net,
+    };
+  });
 
   return {
-    chain: [
-      {
-        month: Number(month),
-        year: Number(year),
-        period: `${year}-${String(month).padStart(2, '0')}`,
-        income: monthly.report?.total_income || 0,
-        totalIncome: monthly.report?.total_income || 0,
-        expense: monthly.report?.total_expense || 0,
-        totalExpense: monthly.report?.total_expense || 0,
-        balance: currentNet,
-        closingBalance: currentNet,
-        openingBalance: 0,
-      },
-    ],
+    chain: mappedChain,
+    finalClosingBalance: toRupiah(chainResult.finalClosingBalanceMinorUnits),
+    totalInflow: toRupiah(chainResult.totalInflowMinorUnits),
+    totalOutflow: toRupiah(chainResult.totalOutflowMinorUnits),
+    totalUnresolvedCount: chainResult.totalUnresolvedCount,
   };
 }
 

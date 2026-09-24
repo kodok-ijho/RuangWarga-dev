@@ -181,7 +181,7 @@ export async function fetchDashboardData(token, { role, period, tenantId } = {})
         const year = Number(yearStr);
         const month = Number(monthStr);
         if (year && month) {
-          const res = await fetchMonthlyFinance(token, { year, month });
+          const res = await fetchMonthlyFinance(token, { year, month, tenantId });
           report = res?.report || null;
         }
       } catch (err) {
@@ -1405,180 +1405,24 @@ function mapCashPayment(payment, profileMap = {}, unitProfilesMap = {}) {
   };
 }
 
-async function fetchMonthlyFinanceFromSupabase(token, { year, month }) {
-  const period = `${year}-${String(month).padStart(2, '0')}`;
-  const { start, end } = monthRange(year, month);
-  const client = getAuthedSupabaseClient(token);
-
-  const [billsRes, paymentsRes, expensesRes, profilesRes, unitsRes] = await Promise.all([
-    client
-      .from('ipl_bills')
-      .select('*, units(id, block, unit_number, owner_id), profiles!ipl_bills_resident_id_fkey(full_name), payments!payments_ipl_bill_id_fkey(id, status, paid_at)')
-      .eq('period', period),
-    client
-      .from('payments')
-      .select('*, ipl_bills!payments_ipl_bill_id_fkey(period, unit_id, units(id, block, unit_number, owner_id)), profiles!payments_resident_id_fkey(full_name)')
-      .eq('status', 'completed')
-      .gte('paid_at', `${start}T00:00:00+07:00`)
-      .lt('paid_at', `${end}T00:00:00+07:00`)
-      .order('paid_at', { ascending: false }),
-    client
-      .from('expenses')
-      .select('*')
-      .gte('expense_date', start)
-      .lt('expense_date', end)
-      .is('deleted_at', null)
-      .order('expense_date', { ascending: true }),
-    client
-      .from('profiles')
-      .select('id, full_name, unit_id, role')
-      .is('deleted_at', null),
-    client
-      .from('units')
-      .select('id, block, unit_number, owner_id'),
-  ]);
-
-  const error = billsRes.error || paymentsRes.error || expensesRes.error;
-  if (error) throw error;
-
-  const isDemoUnit = (u) => !u || u.id === 5 || u.block === 'Z_DEMO' || String(u.block || '').includes('DEMO') || String(u.unit_number || '').includes('DEMO_HIDDEN');
-  const validUnits = (unitsRes.data || []).filter((u) => !isDemoUnit(u));
-  const validUnitIds = new Set(validUnits.map((u) => u.id));
-
-  const allProfiles = (profilesRes.data || []).filter((p) => p.role !== 'admin_viewer');
-  const profileMap = Object.fromEntries(allProfiles.map((p) => [p.id, p]));
-  const unitProfilesMap = {};
-  allProfiles.forEach((p) => {
-    if (p.unit_id && p.full_name && validUnitIds.has(p.unit_id)) {
-      if (!unitProfilesMap[p.unit_id]) {
-        unitProfilesMap[p.unit_id] = [];
-      }
-      unitProfilesMap[p.unit_id].push(p.full_name.trim());
-    }
-  });
-
-  const bills = (billsRes.data || []).filter((bill) => validUnitIds.has(bill.unit_id));
-  const paidBills = bills.filter((bill) => bill.status === 'paid');
-  const totalBilled = bills.reduce((sum, bill) => sum + billTotal(bill), 0);
-  const totalCollected = paidBills.reduce((sum, bill) => sum + billTotal(bill), 0);
-  const byBlockMap = {};
-
-  bills.forEach((bill) => {
-    const block = bill.units?.block || '-';
-    if (!byBlockMap[block]) {
-      byBlockMap[block] = { block, billed: 0, collected: 0, count: 0, paid: 0 };
-    }
-    byBlockMap[block].billed += billTotal(bill);
-    byBlockMap[block].count += 1;
-    if (bill.status === 'paid') {
-      byBlockMap[block].collected += billTotal(bill);
-      byBlockMap[block].paid += 1;
-    }
-  });
-
-  const report = {
-    period,
-    billCount: bills.length,
-    paidCount: paidBills.length,
-    totalBilled,
-    totalCollected,
-    totalOutstanding: totalBilled - totalCollected,
-    collectionRate: totalBilled > 0 ? (totalCollected / totalBilled) * 100 : 0,
-    byBlock: Object.values(byBlockMap).sort((a, b) => String(a.block).localeCompare(String(b.block), 'id-ID', { numeric: true })),
-    details: bills.map((b) => mapBillDetail(b, profileMap, unitProfilesMap)).sort((a, b) => {
-      const blockCompare = String(a.block || '').localeCompare(String(b.block || ''), 'id-ID', { numeric: true });
-      if (blockCompare !== 0) return blockCompare;
-      return String(a.unitNumber || '').localeCompare(String(b.unitNumber || ''), 'id-ID', { numeric: true });
-    }),
-  };
-
-  return {
-    report,
-    expenses: (expensesRes.data || []).map((expense) => ({
-      ...expense,
-      date: expense.expense_date,
-      amount: Number(expense.amount || 0),
-    })),
-    cashPayments: (paymentsRes.data || [])
-      .filter((p) => {
-        const bill = p.ipl_bills || {};
-        return validUnitIds.has(bill.unit_id);
-      })
-      .map((p) => mapCashPayment(p, profileMap, unitProfilesMap)),
-  };
+/**
+ * @deprecated Legacy single-tenant un-isolated finance calculation.
+ * Multi-tenant financial reporting requires fetchTenantMonthlyFinance with explicit tenantId.
+ */
+async function fetchMonthlyFinanceFromSupabase() {
+  throw new Error(
+    'fetchMonthlyFinanceFromSupabase is deprecated. Financial reporting requires an explicit tenantId via fetchTenantMonthlyFinance.'
+  );
 }
 
-async function fetchRunningBalanceFromSupabase(token, { year, month }) {
-  const client = getAuthedSupabaseClient(token);
-  const startYear = 2026;
-  const startMonth = 7;
-  const { end } = monthRange(year, month);
-  const start = `${startYear}-${String(startMonth).padStart(2, '0')}-01`;
-
-  const [paymentsRes, expensesRes] = await Promise.all([
-    client
-      .from('payments')
-      .select('id, amount, paid_at')
-      .eq('status', 'completed')
-      .gte('paid_at', `${start}T00:00:00+07:00`)
-      .lt('paid_at', `${end}T00:00:00+07:00`),
-    client
-      .from('expenses')
-      .select('id, amount, expense_date')
-      .gte('expense_date', start)
-      .lt('expense_date', end)
-      .is('deleted_at', null),
-  ]);
-
-  const error = paymentsRes.error || expensesRes.error;
-  if (error) throw error;
-
-  const paymentsByMonth = {};
-  (paymentsRes.data || []).forEach((payment) => {
-    const key = monthKeyFromDate(payment.paid_at);
-    if (!paymentsByMonth[key]) paymentsByMonth[key] = { total: 0, count: 0 };
-    paymentsByMonth[key].total += Number(payment.amount || 0);
-    paymentsByMonth[key].count += 1;
-  });
-
-  const expensesByMonth = {};
-  (expensesRes.data || []).forEach((expense) => {
-    const key = monthKeyFromDate(expense.expense_date);
-    if (!expensesByMonth[key]) expensesByMonth[key] = { total: 0, count: 0 };
-    expensesByMonth[key].total += Number(expense.amount || 0);
-    expensesByMonth[key].count += 1;
-  });
-
-  const chain = [];
-  let openingBalance = 15000000;
-  let cursorYear = startYear;
-  let cursorMonth = startMonth;
-
-  while (cursorYear < year || (cursorYear === year && cursorMonth <= month)) {
-    const period = `${cursorYear}-${String(cursorMonth).padStart(2, '0')}`;
-    const income = paymentsByMonth[period] || { total: 0, count: 0 };
-    const expense = expensesByMonth[period] || { total: 0, count: 0 };
-    const closingBalance = openingBalance + income.total - expense.total;
-    chain.push({
-      period,
-      year: cursorYear,
-      month: cursorMonth,
-      openingBalance,
-      totalIncome: income.total,
-      totalExpense: expense.total,
-      closingBalance,
-      incomeCount: income.count,
-      expenseCount: expense.count,
-    });
-    openingBalance = closingBalance;
-    cursorMonth += 1;
-    if (cursorMonth > 12) {
-      cursorMonth = 1;
-      cursorYear += 1;
-    }
-  }
-
-  return { chain };
+/**
+ * @deprecated Legacy single-tenant un-isolated balance calculation.
+ * Multi-tenant financial reporting requires fetchTenantRunningBalance with explicit tenantId.
+ */
+async function fetchRunningBalanceFromSupabase() {
+  throw new Error(
+    'fetchRunningBalanceFromSupabase is deprecated. Financial reporting requires an explicit tenantId via fetchTenantRunningBalance.'
+  );
 }
 
 export async function fetchRunningBalance(token, { year, month, tenantId } = {}) {
@@ -1597,13 +1441,9 @@ export async function fetchRunningBalance(token, { year, month, tenantId } = {})
     });
   } catch (error) {
     if (isEmptyOkResponse(error)) {
-      if (!isSupabaseJwt(token)) {
-        throw new PortalApiError('API saldo berjalan mengembalikan response kosong. Token portal tidak dapat dipakai langsung ke Supabase.', {
-          code: 'REPORT_API_EMPTY_RESPONSE',
-        });
-      }
-      console.warn('Running balance API returned an empty 200 response; falling back to Supabase.');
-      return fetchRunningBalanceFromSupabase(token, { year, month });
+      throw new PortalApiError('API saldo berjalan mengembalikan response kosong. Mohon sertakan tenantId untuk memuat data multi-tenant.', {
+        code: 'REPORT_API_EMPTY_RESPONSE',
+      });
     }
     throw error;
   }
@@ -1630,21 +1470,9 @@ export async function fetchMonthlyFinance(token, { year, month, tenantId } = {})
     });
   } catch (error) {
     if (isEmptyOkResponse(error)) {
-      if (!isSupabaseJwt(token)) {
-        throw new PortalApiError('API laporan keuangan mengembalikan response kosong. Token portal tidak dapat dipakai langsung ke Supabase.', {
-          code: 'REPORT_API_EMPTY_RESPONSE',
-        });
-      }
-      console.warn('Monthly finance API returned an empty 200 response; falling back to Supabase.');
-      try {
-        return await fetchMonthlyFinanceFromSupabase(token, { year, month });
-      } catch (fallbackError) {
-        console.warn('Monthly finance Supabase fallback failed:', fallbackError);
-        throw new PortalApiError('API laporan kosong dan fallback Supabase gagal memuat data laporan.', {
-          code: 'REPORT_FALLBACK_FAILED',
-          details: fallbackError,
-        });
-      }
+      throw new PortalApiError('API laporan keuangan mengembalikan response kosong. Mohon sertakan tenantId untuk memuat data multi-tenant.', {
+        code: 'REPORT_API_EMPTY_RESPONSE',
+      });
     }
     throw error;
   }
