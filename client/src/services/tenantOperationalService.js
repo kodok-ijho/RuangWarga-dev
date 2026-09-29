@@ -17,6 +17,7 @@ import {
   buildContiguousBalanceChain,
 } from './finance/financialAggregation';
 import { getReportingPeriodRange } from './finance/financialDateResolver';
+import { buildCanonicalExpenseReceiptPath } from '../utils/storagePolicy';
 
 const IS_DEMO = import.meta.env.VITE_DEMO_MODE === 'true';
 
@@ -1747,8 +1748,9 @@ export async function fetchTenantExpenses(tenantId, filters = {}) {
 
   let query = supabase
     .from('expenses')
-    .select('id, tenant_id, category, amount, description, receipt_url, recorded_by, metadata, created_at, updated_at')
+    .select('id, tenant_id, category, amount, description, receipt_url, recorded_by, metadata, expense_date, is_date_proxy, created_at, updated_at')
     .eq('tenant_id', tenantId)
+    .order('expense_date', { ascending: false })
     .order('created_at', { ascending: false });
 
   if (filters.category) {
@@ -1763,14 +1765,13 @@ export async function fetchTenantExpenses(tenantId, filters = {}) {
   }
 
   return (data || []).map((exp) => {
-    const meta = exp.metadata || {};
-    const date = meta.date || (exp.created_at ? exp.created_at.substring(0, 10) : '');
+    const canonicalExpenseDate = exp.expense_date || '';
     const receiptFile = exp.receipt_url ? exp.receipt_url.split('/').pop().split('?')[0] : '';
     return {
       ...exp,
       amount: Number(exp.amount || 0),
-      date,
-      expense_date: date,
+      date: canonicalExpenseDate,
+      expense_date: canonicalExpenseDate,
       receipt_file_url: exp.receipt_url || '',
       file_url: exp.receipt_url || '',
       receipt_file: receiptFile,
@@ -1794,23 +1795,55 @@ export async function createTenantExpense(tenantId, { date, category, amount, de
       category,
       amount,
       description,
-      receipt_file: file ? file.name : null,
+      receipt_file: file ? (file.name || file) : null,
     });
   }
 
   const expenseDate = date || new Date().toISOString().substring(0, 10);
+  const numAmount = Number(amount);
+  if (isNaN(numAmount) || numAmount <= 0) {
+    throw new Error('Nominal pengeluaran harus berupa angka lebih besar dari 0.');
+  }
+
+  let receiptPath = null;
+  if (file && typeof file === 'object' && (file.size || file.name)) {
+    try {
+      const storagePath = buildCanonicalExpenseReceiptPath({
+        tenantId,
+        expenseDate,
+        fileName: file.name || 'receipt.jpg',
+      });
+      const { data: uploadData, error: uploadErr } = await supabase.storage
+        .from('expense-receipts')
+        .upload(storagePath, file, { upsert: false });
+
+      if (uploadErr) {
+        // eslint-disable-next-line no-console
+        console.error('[tenantOperationalService] Upload receipt error:', uploadErr);
+        throw uploadErr;
+      }
+      receiptPath = uploadData?.path || storagePath;
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[tenantOperationalService] Failed to upload receipt to expense-receipts:', err);
+      throw err;
+    }
+  } else if (typeof file === 'string' && file) {
+    receiptPath = file;
+  }
+
   const payload = {
     tenant_id: tenantId,
     category: category || 'Lain-lain',
-    amount: Number(amount || 0),
+    amount: numAmount,
     description: description ? description.trim() : null,
-    receipt_url: file ? file.name : null,
+    receipt_url: receiptPath,
     recorded_by: recordedBy || null,
+    expense_date: expenseDate,
     metadata: {
       date: expenseDate,
-      file_name: file ? file.name : null,
+      file_name: file ? (file.name || (typeof file === 'string' ? file : null)) : null,
     },
-    created_at: new Date(expenseDate).toISOString(),
   };
 
   const { data, error } = await supabase
@@ -1845,7 +1878,7 @@ export async function updateTenantExpense(tenantId, expenseId, { date, category,
       category,
       amount,
       description,
-      receipt_file: file ? file.name : null,
+      receipt_file: file ? (file.name || file) : null,
     });
   }
 
@@ -1853,13 +1886,39 @@ export async function updateTenantExpense(tenantId, expenseId, { date, category,
     updated_at: new Date().toISOString(),
   };
   if (category) updateFields.category = category;
-  if (amount !== undefined && amount !== '') updateFields.amount = Number(amount);
+  if (amount !== undefined && amount !== '') {
+    const numAmount = Number(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      throw new Error('Nominal pengeluaran harus berupa angka lebih besar dari 0.');
+    }
+    updateFields.amount = numAmount;
+  }
   if (description !== undefined) updateFields.description = description ? description.trim() : null;
-  if (file) updateFields.receipt_url = file.name;
 
   if (date) {
+    updateFields.expense_date = date;
     updateFields.metadata = { date };
-    updateFields.created_at = new Date(date).toISOString();
+  }
+
+  if (file && typeof file === 'object' && (file.size || file.name)) {
+    const expenseDate = date || new Date().toISOString().substring(0, 10);
+    const storagePath = buildCanonicalExpenseReceiptPath({
+      tenantId,
+      expenseDate,
+      fileName: file.name || 'receipt.jpg',
+    });
+    const { data: uploadData, error: uploadErr } = await supabase.storage
+      .from('expense-receipts')
+      .upload(storagePath, file, { upsert: false });
+
+    if (uploadErr) {
+      // eslint-disable-next-line no-console
+      console.error('[tenantOperationalService] Upload receipt error on update:', uploadErr);
+      throw uploadErr;
+    }
+    updateFields.receipt_url = uploadData?.path || storagePath;
+  } else if (typeof file === 'string' && file) {
+    updateFields.receipt_url = file;
   }
 
   const { data, error } = await supabase

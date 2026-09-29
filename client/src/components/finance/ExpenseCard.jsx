@@ -42,7 +42,7 @@ export default function ExpenseCard({
       {/* Baris Atas: Kategori, Scope, dan Nominal */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-forest-800 font-extrabold text-xs border border-slate-200 shadow-2xs">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-800 font-extrabold text-xs border border-slate-200 shadow-2xs">
             {initial}
           </span>
           <div className="min-w-0">

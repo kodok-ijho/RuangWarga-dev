@@ -1,10 +1,12 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import {
   AiOutlinePlus,
   AiOutlineEdit,
   AiOutlineDelete,
   AiOutlinePaperClip,
+  AiOutlineReload,
+  AiOutlineFilePdf,
 } from 'react-icons/ai';
 import { useAuth } from '../hooks/useAuth';
 import { useTenant } from '../context/TenantContext';
@@ -12,7 +14,7 @@ import { useSubscriptionGate } from '../hooks/useSubscriptionGate';
 import { useTenantTemplate } from '../hooks/useTenantTemplate';
 import { useToast } from '../hooks/useToast';
 import Modal from '../components/Modal';
-import { MobileList, EmptyState, SkeletonTable } from '../components/ui';
+import { MobileList, EmptyState, SkeletonTable, SkeletonCard } from '../components/ui';
 import { ExpenseCard, ExpenseDetailDrawer } from '../components/finance';
 import {
   fetchExpenses,
@@ -30,6 +32,8 @@ import {
   canModifyData,
 } from '../services/dataHelpers';
 import { compressImage } from '../utils/imageCompressor';
+import { createReceiptSignedUrl, isValidExpenseReceiptPath } from '../utils/storagePolicy';
+import { supabase } from '../services/supabaseClient';
 
 const EXPENSE_CATEGORIES = [
   'Kebersihan',
@@ -57,8 +61,8 @@ function getGoogleDriveThumbnail(url) {
 export default function Expenses() {
   const params = useParams();
   const { role, profile, session, isReadOnly: authReadOnly, isAuthenticated } = useAuth();
-  const { currentTenant, userTenants } = useTenant();
-  const activeTenantId = params.tenantId || currentTenant?.id || userTenants?.[0]?.id || null;
+  const { currentTenant } = useTenant();
+  const activeTenantId = params.tenantId || currentTenant?.id || null;
   const { canWrite: subCanWrite, isReadOnly: subReadOnly } = useSubscriptionGate(activeTenantId);
   const template = useTenantTemplate(currentTenant?.type || 'rt_rw');
 
@@ -76,8 +80,10 @@ export default function Expenses() {
   const canEdit = canEditGeneral || manageableEventIds.size > 0;
   const canWrite = (canModifyData(role) || manageableEventIds.size > 0) && !authReadOnly && subCanWrite;
 
+  const requestIdRef = useRef(0);
   const [expenses, setExpenses] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(Boolean(activeTenantId));
+  const [loadError, setLoadError] = useState(null);
   const [filterCategory, setFilterCategory] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
   const [modalForm, setModalForm] = useState(null); // null | 'add' | expense obj
@@ -85,45 +91,118 @@ export default function Expenses() {
   const [receiptImageError, setReceiptImageError] = useState(false);
   const [selectedExpenseForDrawer, setSelectedExpenseForDrawer] = useState(null);
 
+  // Signed URL state for private receipt storage
+  const [signedReceiptUrl, setSignedReceiptUrl] = useState(null);
+  const [isLoadingSignedReceipt, setIsLoadingSignedReceipt] = useState(false);
+  const [signedReceiptError, setSignedReceiptError] = useState(null);
+
   const loadExpenses = useCallback(async () => {
     if (!isAuthenticated) return;
+    if (!activeTenantId) {
+      setIsLoading(false);
+      setExpenses([]);
+      setLoadError(null);
+      return;
+    }
+
+    const currentRequestId = ++requestIdRef.current;
+    setIsLoading(true);
+    setLoadError(null);
+
     try {
-      setIsLoading(true);
-      // Keep the existing expense flow independent from the additive event
-      // endpoints. This prevents a staged backend rollout from breaking the
-      // production Expenses page.
       const data = await fetchExpenses(token, { tenantId: activeTenantId });
-      setExpenses(data);
+      if (requestIdRef.current !== currentRequestId) return;
+      setExpenses(Array.isArray(data) ? data : []);
+
       try {
         const [events, access] = await Promise.all([
           fetchEvents(token, { role, profileId: profile?.id }),
           fetchMyEventAccess(token, { role, profileId: profile?.id }),
         ]);
+        if (requestIdRef.current !== currentRequestId) return;
         setEventOptions(events || []);
         setEventAccess(access || { events: [] });
       } catch {
+        if (requestIdRef.current !== currentRequestId) return;
         setEventOptions([]);
         setEventAccess({ events: [] });
       }
     } catch (err) {
-      // A 401 is handled centrally by AuthContext. Avoid showing a second,
-      // misleading data error while the app redirects to the login page.
+      if (requestIdRef.current !== currentRequestId) return;
       if (err?.status !== 401) {
         const message = err?.code === 'API_TIMEOUT'
           ? 'Koneksi ke layanan pengeluaran terlalu lama. Silakan coba lagi.'
           : err?.code === 'INVALID_API_RESPONSE' || err?.code === 'INVALID_EXPENSES_RESPONSE'
             ? 'Layanan pengeluaran mengembalikan respons yang tidak valid.'
             : err?.message || 'Gagal mengambil data pengeluaran.';
+        setLoadError(message);
         toast.error(message);
       }
     } finally {
-      setIsLoading(false);
+      if (requestIdRef.current === currentRequestId) {
+        setIsLoading(false);
+      }
     }
   }, [isAuthenticated, profile?.id, role, token, activeTenantId, toast]);
 
   useEffect(() => {
     loadExpenses();
   }, [loadExpenses]);
+
+  // Load private signed URL when a receipt is inspected
+  useEffect(() => {
+    let isCancelled = false;
+    if (!viewReceipt) {
+      setSignedReceiptUrl(null);
+      setSignedReceiptError(null);
+      setIsLoadingSignedReceipt(false);
+      return;
+    }
+
+    const receiptRef = viewReceipt.receipt_url || viewReceipt.receipt_file_url || '';
+    if (!receiptRef) {
+      setSignedReceiptUrl(null);
+      setSignedReceiptError(null);
+      setIsLoadingSignedReceipt(false);
+      return;
+    }
+
+    if (receiptRef.startsWith('http://') || receiptRef.startsWith('https://')) {
+      setSignedReceiptUrl(receiptRef);
+      setIsLoadingSignedReceipt(false);
+      return;
+    }
+
+    if (isValidExpenseReceiptPath(receiptRef)) {
+      setIsLoadingSignedReceipt(true);
+      setSignedReceiptError(null);
+      createReceiptSignedUrl(supabase, receiptRef, 3600)
+        .then((url) => {
+          if (!isCancelled) {
+            setSignedReceiptUrl(url);
+          }
+        })
+        .catch((err) => {
+          if (!isCancelled) {
+            // eslint-disable-next-line no-console
+            console.error('Failed to create signed receipt URL:', err);
+            setSignedReceiptError('Gagal memuat URL aman bukti pengeluaran.');
+          }
+        })
+        .finally(() => {
+          if (!isCancelled) {
+            setIsLoadingSignedReceipt(false);
+          }
+        });
+    } else {
+      setSignedReceiptUrl(null);
+      setIsLoadingSignedReceipt(false);
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [viewReceipt]);
 
   // Bulan tersedia dari data
   const availableMonths = useMemo(() => {
@@ -146,7 +225,7 @@ export default function Expenses() {
 
   // Staff-only (pengurus, bendahara, admin)
   if (!isStaff && eventAccess === null) {
-    return <div className="pv-card p-8 text-center text-sm text-forest-500">Memeriksa akses event...</div>;
+    return <div className="pv-card p-8 text-center text-sm text-slate-500">Memeriksa akses event...</div>;
   }
 
   if (!isStaff && manageableEventIds.size === 0) {
@@ -154,6 +233,10 @@ export default function Expenses() {
   }
 
   const handleSave = async (data, file) => {
+    if (authReadOnly || subReadOnly || !canWrite) {
+      toast.warning('⚠️ Tindakan tidak diizinkan dalam mode Read-Only.');
+      return;
+    }
     try {
       setIsLoading(true);
       if (modalForm === 'add') {
@@ -173,7 +256,7 @@ export default function Expenses() {
   };
 
   const handleDelete = async (exp) => {
-    if (authReadOnly || !canWrite) {
+    if (authReadOnly || subReadOnly || !canWrite) {
       toast.warning('⚠️ Tindakan tidak diizinkan dalam mode Read-Only.');
       return;
     }
@@ -260,7 +343,40 @@ export default function Expenses() {
 
       {/* Daftar pengeluaran */}
       {isLoading ? (
-        <SkeletonTable cols={6} rows={5} />
+        <>
+          <div className="space-y-3 md:hidden">
+            <SkeletonCard rows={2} />
+            <SkeletonCard rows={2} />
+            <SkeletonCard rows={2} />
+          </div>
+          <div className="hidden md:block">
+            <SkeletonTable cols={6} rows={5} />
+          </div>
+        </>
+      ) : loadError ? (
+        <div className="pv-card p-6 border-rose-200 bg-rose-50/50 text-center space-y-3">
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 text-xl font-bold">
+            ⚠️
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base font-bold text-slate-900">Gagal Memuat Data Pengeluaran</h3>
+            <p className="text-xs text-slate-600 max-w-md mx-auto">{loadError}</p>
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={() => loadExpenses()}
+              className="pv-btn-primary inline-flex items-center gap-2 text-xs"
+            >
+              <AiOutlineReload className="text-sm" />
+              <span>Coba Lagi</span>
+            </button>
+          </div>
+        </div>
+      ) : !activeTenantId ? (
+        <div className="pv-card p-8 text-center text-sm text-slate-500">
+          Silakan pilih tenant terlebih dahulu untuk mengelola data pengeluaran.
+        </div>
       ) : filtered.length === 0 ? (
         <EmptyState
           icon="💸"
@@ -470,28 +586,64 @@ export default function Expenses() {
 
       {/* Modal lihat bukti */}
       {viewReceipt && (
-        <Modal open onClose={() => { setViewReceipt(null); setReceiptImageError(false); }} title="Bukti Pembayaran" size="md">
+        <Modal
+          open
+          onClose={() => {
+            setViewReceipt(null);
+            setReceiptImageError(false);
+            setSignedReceiptUrl(null);
+            setSignedReceiptError(null);
+          }}
+          title="Bukti Kwitansi / Pembayaran"
+          size="md"
+        >
           <div className="space-y-3">
             <p className="text-sm text-slate-600">
-              <strong className="text-slate-900 font-bold">{viewReceipt.category}</strong> · {formatDate(viewReceipt.date)}
+              <strong className="text-slate-900 font-bold">{viewReceipt.category}</strong> · {formatDate(viewReceipt.date || viewReceipt.expense_date)}
             </p>
             <p className="text-xl font-extrabold text-slate-900">{formatRupiah(viewReceipt.amount)}</p>
-            <p className="text-sm text-slate-600">{viewReceipt.description}</p>
+            {viewReceipt.description && (
+              <p className="text-sm text-slate-600">{viewReceipt.description}</p>
+            )}
 
-            {/* Tampilan link Google Drive or placeholder */}
-            {viewReceipt.receipt_file && (viewReceipt.receipt_file.startsWith('http://') || viewReceipt.receipt_file.startsWith('https://')) ? (
+            {isLoadingSignedReceipt ? (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-8 text-center space-y-2">
+                <div className="h-6 w-6 border-2 border-slate-300 border-t-slate-800 rounded-full animate-spin mx-auto" />
+                <p className="text-xs text-slate-500 font-medium">Memuat tautan aman bukti transaksi...</p>
+              </div>
+            ) : signedReceiptError ? (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-center text-xs text-rose-700">
+                ⚠️ {signedReceiptError}
+              </div>
+            ) : signedReceiptUrl ? (
               <div className="space-y-4">
                 {(() => {
-                  const thumb = getGoogleDriveThumbnail(viewReceipt.receipt_file);
-                  if (thumb && !receiptImageError) {
+                  const isPdf = signedReceiptUrl.toLowerCase().includes('.pdf') || (viewReceipt.receipt_file || '').toLowerCase().endsWith('.pdf');
+                  const thumb = getGoogleDriveThumbnail(signedReceiptUrl);
+                  const imageSrc = thumb || signedReceiptUrl;
+
+                  if (isPdf) {
+                    return (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center space-y-3">
+                        <AiOutlineFilePdf size={44} className="mx-auto text-rose-500" />
+                        <div>
+                          <p className="text-sm font-bold text-slate-900">Dokumen Nota (PDF)</p>
+                          <p className="text-xs text-slate-500 font-mono mt-0.5">{viewReceipt.receipt_file || 'nota.pdf'}</p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (!receiptImageError) {
                     return (
                       <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center p-2 max-h-[360px]">
                         <img
-                          src={thumb}
+                          src={imageSrc}
                           alt="Bukti Kwitansi"
                           referrerPolicy="no-referrer"
                           className="object-contain max-h-[340px] w-full rounded-lg shadow-xs"
                           onError={() => {
+                            // eslint-disable-next-line no-console
                             console.error('Failed to load image preview');
                             setReceiptImageError(true);
                           }}
@@ -499,36 +651,37 @@ export default function Expenses() {
                       </div>
                     );
                   }
+
                   return (
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center space-y-2">
                       <AiOutlinePaperClip size={36} className="mx-auto text-slate-500" />
-                      <p className="text-sm font-semibold text-slate-800">Bukti Kwitansi Tersimpan di Google Drive</p>
+                      <p className="text-sm font-semibold text-slate-800">Lampiran Bukti Kwitansi</p>
                       {receiptImageError && (
-                        <p className="text-[11px] text-amber-700 font-medium">⚠️ Gagal memuat gambar preview secara langsung.</p>
+                        <p className="text-[11px] text-amber-700 font-medium">⚠️ Gagal memuat pratinjau gambar secara langsung.</p>
                       )}
                     </div>
                   );
                 })()}
                 <div className="flex justify-center">
                   <a
-                    href={viewReceipt.receipt_file}
+                    href={signedReceiptUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-xl bg-forest-800 px-4 py-2.5 text-sm font-semibold text-gold-400 shadow-xs hover:bg-forest-900 transition-colors w-full justify-center"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors w-full"
                   >
-                    👁️ Buka di Google Drive (Tab Baru)
+                    👁️ Buka Bukti Nota di Tab Baru
                   </a>
                 </div>
               </div>
-            ) : (
+            ) : viewReceipt.receipt_file ? (
               <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-8 text-center">
                 <AiOutlinePaperClip size={32} className="mx-auto text-slate-400" />
                 <p className="text-sm font-semibold text-slate-700 mt-2">{viewReceipt.receipt_file}</p>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Preview file tidak tersedia di mode demo.
+                  Bukti tersimpan. Pratinjau berkas hanya tersedia pada sistem penyimpanan aktif.
                 </p>
               </div>
-            )}
+            ) : null}
           </div>
         </Modal>
       )}
@@ -551,8 +704,8 @@ function ExpenseFormModal({ expense, initialScope = 'general', eventOptions = []
   });
   const [fileName, setFileName] = useState(expense?.receipt_file || '');
 
-  const ACCEPTED_TYPES = ['image/jpeg', 'image/png'];
-  const MAX_SIZE = 2 * 1024 * 1024; // 2 MB
+  const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+  const MAX_SIZE = 5 * 1024 * 1024; // 5 MB canonical storage limit
   const [uploadError, setUploadError] = useState('');
 
   const handleFile = async (e) => {
@@ -565,17 +718,32 @@ function ExpenseFormModal({ expense, initialScope = 'general', eventOptions = []
       return;
     }
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      setUploadError('Format tidak didukung. Gunakan JPG atau PNG.');
+      setUploadError('Format tidak didukung. Gunakan JPG, PNG, WebP, atau PDF.');
       setFileName('');
       setSelectedFile(null);
       e.target.value = '';
       return;
     }
+    if (file.size > MAX_SIZE) {
+      setUploadError('Ukuran file melebihi batas 5 MB.');
+      setFileName('');
+      setSelectedFile(null);
+      e.target.value = '';
+      return;
+    }
+
+    if (file.type === 'application/pdf') {
+      setFileName(file.name);
+      setForm({ ...form, receipt_file: file.name });
+      setSelectedFile(file);
+      return;
+    }
+
     try {
       const result = await compressImage(file);
       const compressedFile = result.file;
       if (compressedFile.size > MAX_SIZE) {
-        setUploadError('Ukuran file melebihi 2 MB setelah kompresi.');
+        setUploadError('Ukuran file melebihi batas 5 MB setelah kompresi.');
         setFileName('');
         setSelectedFile(null);
         e.target.value = '';
@@ -584,14 +752,7 @@ function ExpenseFormModal({ expense, initialScope = 'general', eventOptions = []
       setFileName(compressedFile.name);
       setForm({ ...form, receipt_file: compressedFile.name });
       setSelectedFile(compressedFile);
-    } catch (err) {
-      if (file.size > MAX_SIZE) {
-        setUploadError('Ukuran file melebihi 2 MB.');
-        setFileName('');
-        setSelectedFile(null);
-        e.target.value = '';
-        return;
-      }
+    } catch {
       setFileName(file.name);
       setForm({ ...form, receipt_file: file.name });
       setSelectedFile(file);
@@ -606,7 +767,11 @@ function ExpenseFormModal({ expense, initialScope = 'general', eventOptions = []
     if (form.scope === 'event' && !form.event_id) {
       return;
     }
-    onSave({ ...form, description: form.description.trim() }, selectedFile);
+    const numAmount = Number(form.amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      return;
+    }
+    onSave({ ...form, amount: numAmount, description: form.description.trim() }, selectedFile);
   };
 
   return (
@@ -672,12 +837,12 @@ function ExpenseFormModal({ expense, initialScope = 'general', eventOptions = []
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Rp</span>
             <input
               type="number"
-              inputMode="numeric"
+              inputMode="decimal"
               value={form.amount}
               onChange={(e) => setForm({ ...form, amount: e.target.value })}
               required
-              min="1"
-              step="100"
+              min="0.01"
+              step="any"
               className="pv-input pl-10 text-xs font-bold font-mono"
               placeholder="Contoh: 150000"
             />
@@ -702,12 +867,12 @@ function ExpenseFormModal({ expense, initialScope = 'general', eventOptions = []
           <label className="block text-xs font-semibold text-slate-700 mb-1">
             Bukti Pembayaran <span className="text-slate-400 font-normal">(opsional)</span>
           </label>
-          <label className={`flex items-center gap-3 p-3.5 border-2 border-dashed border-slate-200 rounded-xl transition-colors ${isSaving ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-gold-400 hover:bg-slate-50'}`}>
+          <label className={`flex items-center gap-3 p-3.5 border-2 border-dashed border-slate-200 rounded-xl transition-colors ${isSaving ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-slate-400 hover:bg-slate-50'}`}>
             <AiOutlinePaperClip size={20} className="text-slate-400 shrink-0" />
             <span className="text-xs text-slate-600 flex-1 truncate font-medium">
-              {fileName || 'Pilih file bukti (foto kwitansi, JPG/PNG, maks 2 MB)'}
+              {fileName || 'Pilih file bukti (JPG, PNG, WebP, PDF, maks 5 MB)'}
             </span>
-            <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={handleFile} disabled={isSaving} />
+            <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={handleFile} disabled={isSaving} />
           </label>
           {uploadError && (
             <p className="text-[11px] text-red-600 mt-1">⚠️ {uploadError}</p>

@@ -87,7 +87,7 @@ export default function ExpenseDetailDrawer({
                   onClick={() => {
                     onViewReceipt(expense);
                   }}
-                  className="rounded-lg bg-white border border-slate-200 hover:bg-slate-50 px-3 py-1.5 text-xs font-bold text-forest-800 shadow-xs transition-colors"
+                  className="rounded-lg bg-white border border-slate-200 hover:bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-800 hover:text-slate-900 shadow-xs transition-colors"
                 >
                   Lihat Nota
                 </button>
@@ -109,7 +109,7 @@ export default function ExpenseDetailDrawer({
                   onClose();
                   onEdit(expense);
                 }}
-                className="flex-1 min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 font-bold text-sm shadow-xs transition-colors"
+                className="flex-1 min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-xs transition-colors"
               >
                 <AiOutlineEdit className="text-base" />
                 <span>Edit Pengeluaran</span>
