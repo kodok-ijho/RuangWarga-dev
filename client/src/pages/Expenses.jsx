@@ -145,6 +145,16 @@ export default function Expenses() {
     }
   }, [isAuthenticated, profile?.id, role, token, activeTenantId, toast]);
 
+  // Reset tenant-specific transient UI state when switching tenants (F-01)
+  useEffect(() => {
+    setSelectedExpenseForDrawer(null);
+    setViewReceipt(null);
+    setModalForm(null);
+    setSignedReceiptUrl(null);
+    setSignedReceiptError(null);
+    setReceiptImageError(false);
+  }, [activeTenantId]);
+
   useEffect(() => {
     loadExpenses();
   }, [loadExpenses]);
@@ -568,6 +578,7 @@ export default function Expenses() {
           setReceiptImageError(false);
           setViewReceipt(item);
         }}
+        eventOptions={eventOptions}
       />
 
       {/* Modal form */}

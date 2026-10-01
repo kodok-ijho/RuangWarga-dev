@@ -431,4 +431,137 @@ describe('TASK-080 Expenses Implementation (Sub-Gate 8.2-B)', () => {
       updateTenantExpense(mockTenantId, 'exp-1', { amount: -100 })
     ).rejects.toThrow('Nominal pengeluaran harus berupa angka lebih besar dari 0.');
   });
+
+  // N. TASK-081 (F-05) Canonical expense_date priority
+  it('N. Canonical expense_date priority — ExpenseDetailDrawer prioritizes expense_date over legacy date', () => {
+    const rawHtml = renderToString(
+      <ExpenseDetailDrawer
+        isOpen={true}
+        onClose={() => {}}
+        expense={{
+          id: 'exp-n',
+          category: 'Konsumsi',
+          amount: 50000,
+          date: '2020-01-01',          // Stale legacy date
+          expense_date: '2026-03-28',  // Canonical business date
+          scope: 'general',
+        }}
+      />
+    );
+    const html = cleanHtml(rawHtml);
+    expect(html).toContain('28 Mar 2026');
+    expect(html).not.toContain('1 Jan 2020');
+  });
+
+  // O. TASK-081 (F-02) Tenant neutrality in budget scope
+  it('O. Tenant neutrality — ExpenseDetailDrawer renders neutral budget scope and avoids "Kas Umum Paguyuban"', () => {
+    const rawHtml = renderToString(
+      <ExpenseDetailDrawer
+        isOpen={true}
+        onClose={() => {}}
+        expense={{
+          id: 'exp-o',
+          category: 'Operasional',
+          amount: 100000,
+          expense_date: '2026-03-28',
+          scope: 'general',
+        }}
+      />
+    );
+    const html = cleanHtml(rawHtml);
+    expect(html).toContain('Kas Umum Komunitas');
+    expect(html).not.toContain('Kas Umum Paguyuban');
+
+    const eventHtml = renderToString(
+      <ExpenseDetailDrawer
+        isOpen={true}
+        onClose={() => {}}
+        expense={{
+          id: 'exp-o2',
+          category: 'Pentas Seni',
+          amount: 200000,
+          expense_date: '2026-03-28',
+          scope: 'event',
+        }}
+      />
+    );
+    expect(cleanHtml(eventHtml)).toContain('Kegiatan / Acara Komunitas');
+  });
+
+  // P. TASK-081 (F-03) Audit trail and proxy date indicator
+  it('P. Audit trail & proxy indicator — displays created_at, updated_at, and is_date_proxy indicator', () => {
+    const rawHtml = renderToString(
+      <ExpenseDetailDrawer
+        isOpen={true}
+        onClose={() => {}}
+        expense={{
+          id: 'exp-p',
+          category: 'Kebersihan',
+          amount: 150000,
+          expense_date: '2026-03-20',
+          created_at: '2026-03-20T08:30:00Z',
+          updated_at: '2026-03-21T10:15:00Z',
+          is_date_proxy: true,
+          scope: 'general',
+        }}
+      />
+    );
+    const html = cleanHtml(rawHtml);
+    expect(html).toContain('Informasi Audit Sistem');
+    expect(html).toContain('Waktu pencatatan sistem');
+    expect(html).toContain('Terakhir diperbarui');
+    expect(html).toContain('Tanggal Estimasi');
+  });
+
+  // Q. TASK-081 (F-06) Event title resolution
+  it('Q. Event title resolution — resolves human-readable event title from eventOptions', () => {
+    const mockEvents = [
+      { id: 'evt-uuid-1', title: 'Bazar Ramadhan 2026' },
+      { id: 'evt-uuid-2', title: 'Kerja Bakti Akbar' },
+    ];
+
+    const rawHtml = renderToString(
+      <ExpenseDetailDrawer
+        isOpen={true}
+        onClose={() => {}}
+        expense={{
+          id: 'exp-q',
+          category: 'Logistik',
+          amount: 300000,
+          expense_date: '2026-03-25',
+          scope: 'event',
+          event_id: 'evt-uuid-1',
+        }}
+        eventOptions={mockEvents}
+      />
+    );
+    const html = cleanHtml(rawHtml);
+    expect(html).toContain('Bazar Ramadhan 2026');
+    expect(html).not.toContain('evt-uuid-1');
+  });
+
+  // R. TASK-081 (F-01) Tenant switch state reset
+  it('R. Tenant switch state reset — Expenses.jsx purges drawer and modal state when activeTenantId changes', () => {
+    const expensesSource = fs.readFileSync(
+      path.resolve(__dirname, 'Expenses.jsx'),
+      'utf8'
+    );
+    expect(expensesSource).toContain('// Reset tenant-specific transient UI state when switching tenants (F-01)');
+    expect(expensesSource).toContain('setSelectedExpenseForDrawer(null)');
+    expect(expensesSource).toContain('setViewReceipt(null)');
+    expect(expensesSource).toContain('setModalForm(null)');
+    expect(expensesSource).toContain('}, [activeTenantId]);');
+  });
+
+  // S. TASK-081 (F-04 & F-07) Focus management and accessibility in Drawer primitive
+  it('S. Focus trap & restoration — Drawer primitive contains focus trap and restoration logic', () => {
+    const drawerSource = fs.readFileSync(
+      path.resolve(__dirname, '../components/ui/Drawer.jsx'),
+      'utf8'
+    );
+    expect(drawerSource).toContain('previouslyFocusedElementRef');
+    expect(drawerSource).toContain("if (e.key === 'Tab' && panelRef.current)");
+    expect(drawerSource).toContain('focusableSelectors');
+    expect(drawerSource).toContain('previouslyFocusedElementRef.current.focus()');
+  });
 });

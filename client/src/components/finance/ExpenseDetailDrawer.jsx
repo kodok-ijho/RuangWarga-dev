@@ -1,9 +1,9 @@
 import React from 'react';
-import { AiOutlinePaperClip, AiOutlineEdit, AiOutlineDelete, AiOutlineClose } from 'react-icons/ai';
+import { AiOutlinePaperClip, AiOutlineEdit, AiOutlineDelete } from 'react-icons/ai';
 import Drawer from '../ui/Drawer';
 import DataRow from '../ui/DataRow';
 import Badge from '../ui/Badge';
-import { formatRupiah, formatDate } from '../../services/dataHelpers';
+import { formatRupiah, formatDate, formatDateTime } from '../../services/dataHelpers';
 
 /**
  * ExpenseDetailDrawer
@@ -17,6 +17,7 @@ export default function ExpenseDetailDrawer({
   onEdit,
   onDelete,
   onViewReceipt,
+  eventOptions = [],
 }) {
   if (!expense) return null;
 
@@ -25,6 +26,9 @@ export default function ExpenseDetailDrawer({
     amount,
     date,
     expense_date,
+    is_date_proxy,
+    created_at,
+    updated_at,
     description,
     recorded_by,
     scope = 'general',
@@ -32,7 +36,14 @@ export default function ExpenseDetailDrawer({
     receipt_file,
   } = expense;
 
-  const displayDate = date || expense_date;
+  // Canonical date takes precedence over legacy date fallback (F-05)
+  const displayDate = expense_date || date;
+
+  // Resolve human-readable event label if available (F-06)
+  const matchedEvent = event_id && Array.isArray(eventOptions)
+    ? eventOptions.find((ev) => ev.id === event_id)
+    : null;
+  const eventLabel = matchedEvent?.title || matchedEvent?.name || event_id;
 
   return (
     <Drawer
@@ -60,15 +71,67 @@ export default function ExpenseDetailDrawer({
 
         {/* Detail Rows */}
         <div className="rounded-xl border border-slate-200 bg-white divide-y divide-slate-100">
-          <DataRow label="Tanggal Transaksi" value={formatDate(displayDate)} />
+          <DataRow
+            label="Tanggal Transaksi"
+            value={
+              <div className="flex items-center gap-1.5 justify-end">
+                <span>{formatDate(displayDate)}</span>
+                {is_date_proxy && (
+                  <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200" title="Tanggal merupakan estimasi sistem">
+                    Estimasi
+                  </span>
+                )}
+              </div>
+            }
+          />
           <DataRow label="Kategori" value={category} />
-          <DataRow label="Lingkup Anggaran" value={scope === 'event' ? 'Kegiatan / Acara Warga' : 'Kas Umum Paguyuban'} />
-          {event_id && <DataRow label="ID Kegiatan" value={event_id} />}
-          <DataRow label="Dicatat Oleh" value={recorded_by || 'Bendahara'} />
+          {/* Tenant-neutral budget scope label (F-02) */}
+          <DataRow
+            label="Lingkup Anggaran"
+            value={scope === 'event' ? 'Kegiatan / Acara Komunitas' : 'Kas Umum Komunitas'}
+          />
+          {event_id && (
+            <DataRow label="Kegiatan / Acara" value={eventLabel} />
+          )}
+          <DataRow label="Dicatat Oleh" value={recorded_by || '-'} />
           <DataRow
             label="Keterangan"
-            value={<span className="text-right text-slate-700">{description || '-'}</span>}
+            value={
+              <span className="text-right sm:max-w-xs break-words text-slate-700">
+                {description || '-'}
+              </span>
+            }
           />
+        </div>
+
+        {/* Audit Trail & Sistem (F-03) */}
+        <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4 space-y-2">
+          <div className="flex items-center justify-between pb-1.5 border-b border-slate-200/60">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              Informasi Audit Sistem
+            </span>
+            {is_date_proxy && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                ⚠️ Tanggal Estimasi
+              </span>
+            )}
+          </div>
+          <div className="space-y-1.5 text-xs">
+            <div className="flex items-center justify-between text-slate-600">
+              <span className="text-slate-400">Waktu pencatatan sistem</span>
+              <span className="font-mono text-slate-700">
+                {created_at ? formatDateTime(created_at) : '-'}
+              </span>
+            </div>
+            {updated_at && updated_at !== created_at && (
+              <div className="flex items-center justify-between text-slate-600">
+                <span className="text-slate-400">Terakhir diperbarui</span>
+                <span className="font-mono text-slate-700">
+                  {formatDateTime(updated_at)}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Bukti Kwitansi / Nota */}
