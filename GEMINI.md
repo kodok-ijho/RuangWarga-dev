@@ -6,18 +6,20 @@
 - **Repository asal (read-only):** https://github.com/kodok-ijho/PortalWarga
 - **Misi:** Transformasi PortalWarga (single-tenant) → RuangWarga (multi-tenant SaaS platform)
 
-## Dokumen Perencanaan
-Selalu baca ketiga dokumen ini sebelum mulai mengerjakan task apapun:
-- `requirement.md` — Business requirements, FR-0 s/d FR-30, NFR, prioritas
-- `specification.md` — Spesifikasi teknis, database schema, RLS, routing, billing
-- `task.md` — 12-phase implementation plan (Phase 0–11), ~60 tasks
+## Dokumen Perencanaan & Sumber Tugas
+- Sumber tugas aktif berada di `docs/handoff/` (lihat file batch aktif seperti `SEC-1.md` dan panduan di `docs/handoff/README.md`)
+- Backlog tugas lanjutan tercatat di `docs/handoff/BACKLOG.md`
+
+## Pembagian Peran
+- **Orchestrator:** Claude (menulis batch tugas, review, QA, apply migration ke Supabase dev)
+- **Executor:** Antigravity (mengerjakan task di repo, commit, push, tulis laporan)
 
 ## Architecture (Target — Supabase-First)
 - **Frontend:** React 18 + Vite 5 + TailwindCSS (SPA, PWA)
 - **Auth:** Supabase Auth (Google OAuth)
 - **Database:** Supabase PostgreSQL + Row Level Security (RLS)
 - **Server-side logic:** Supabase Edge Functions (Deno/TypeScript)
-- **Background jobs:** n8n (notifikasi, scheduled tasks, automation)
+- **Background jobs:** n8n (notifikasi, scheduled tasks, automation — bertahap dimigrasi)
 - **Payment:** Mayar QRIS
 - **Hosting:** Vercel
 - **Demo mode:** `VITE_DEMO_MODE=true` dengan `mockData.js`
@@ -29,14 +31,14 @@ Selalu baca ketiga dokumen ini sebelum mulai mengerjakan task apapun:
 
 ## Konvensi Koding
 - **Bahasa komunikasi:** Bahasa Indonesia
-- **Commit message:** Bahasa Indonesia, format: `<type>: <deskripsi>`
-- **Setiap task = 1 PR/commit terpisah** agar mudah di-review
+- **Commit message:** Bahasa Indonesia, format: `<type>: <deskripsi>` (sebut ID task)
+- **Setiap task = 1 commit terpisah** agar mudah di-review
 - **Jangan ubah kode yang bukan bagian dari task aktif**
 - **Pertahankan semua comment dan docstring** yang tidak terkait perubahan
 
 ## Prinsip Utama
-1. **Platform-first:** Fondasi multi-tenant (Phase 1–5) harus selesai sebelum modul vertikal
-2. **Ikuti kode actual:** Bila ada konflik antara spec dan kode existing, ikuti kode actual dan catat penyimpangan di `docs/audit-notes.md`
+1. **Platform-first:** Fondasi multi-tenant harus selesai sebelum modul vertikal
+2. **Ikuti kode actual:** Bila ada perbedaan antara dokumentasi dan kode existing, ikuti kode actual
 3. **RLS sebagai keamanan utama:** Isolasi tenant di-enforce di level database, bukan di application code
 4. **Backward compatible:** Perubahan skema harus punya migration path, jangan break data existing
 
@@ -60,9 +62,9 @@ Selalu baca ketiga dokumen ini sebelum mulai mengerjakan task apapun:
 
 ## File Penting di Codebase
 - `client/src/App.jsx` — Route definitions, RoleGuard
-- `client/src/context/AuthContext.jsx` — Auth system (606 baris)
-- `client/src/services/dataService.js` — Unified data layer (2038 baris)
-- `client/src/services/dataHelpers.js` — RBAC functions (340 baris)
-- `client/src/services/apiClient.js` — API client (151 baris)
-- `supabase/migrations/202607080001_initial_production_schema.sql` — Production DB schema
+- `client/src/context/AuthContext.jsx` — Auth system
+- `client/src/services/dataService.js` — Unified data layer
+- `client/src/services/dataHelpers.js` — RBAC functions
+- `client/src/services/apiClient.js` — API client
+- `supabase/migrations/` — Database schema & migrations
 - `api/n8n.js` — Vercel serverless proxy ke n8n
