@@ -1,6 +1,6 @@
 # Backlog (belum untuk dikerjakan executor)
 
-Urutan rencana: **SEC-1 → BRAND-1 → SEC-2 → DEBT-1 → N8N-RETIRE**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
+Urutan rencana: **SEC-1 ✅ → SEC-2 (aktif) → BRAND-1 → SEC-3 → DEBT-1 → N8N-RETIRE**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
 
 ## Keputusan user yang mengikat
 - Palm Village **tetap tenant**. Branding-nya (nama, logo, warna, peta) hanya dari data tenant dan hanya tampil di `/t/:tenantId`. Lapisan global (login, beranda, `/account`, `/platform`, `/listing`, PWA) netral "RuangWarga".
@@ -13,7 +13,7 @@ Urutan rencana: **SEC-1 → BRAND-1 → SEC-2 → DEBT-1 → N8N-RETIRE**. Batch
 - Favicon/logo global → aset RuangWarga (**butuh file dari user**).
 - Data mock (`services/mockData.js`, `services/eventMockData.js`) memakai tenant contoh generik.
 
-## SEC-2 — n8n & webhook DOKU (dikerjakan Claude via MCP, dengan persetujuan user)
+## SEC-3 — n8n & webhook DOKU (dikerjakan Claude via MCP, dengan persetujuan user)
 - Workflow "PV API - Payments QRIS DOKU Webhook": tambah verifikasi signature DOKU, ganti `getAll payments` dengan filter by reference, hapus ID bill hardcode.
 - "PV ADMIN - Cleanup All Transactions" (aktif): nonaktifkan atau lindungi.
 - `api/n8n.js`: batasi ke allowlist path.

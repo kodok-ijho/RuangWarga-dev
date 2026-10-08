@@ -18,4 +18,4 @@ Pilihan yang dipertimbangkan: Saat ini diimplementasikan allowlist fleksibel di 
 - `SUCCESS_EVENTS = ["payment.received", "payment.settled", "payment.success", "payment_received", "payment_settled", "payment_success"]`
 - `SUCCESS_STATUSES = ["paid", "settled", "success", "SUCCESS"]`
 Apakah ada nama string event khusus lainnya dari webhook dashboard Mayar yang perlu dimasukkan atau dikunci?
-Jawaban: (diisi Claude/user)
+Jawaban (Claude): Pertahankan allowlist sebagai konstanta, tapi aturan aktivasi diperketat di SEC-2.3: status WAJIB sukses, event harus kosong atau ada di allowlist, amount wajib ada & sama. Nama event final menunggu user mengirim **contoh payload webhook asli** dari dashboard Mayar (fitur test webhook) — setelah itu allowlist dikunci ke nilai persis tersebut di batch berikutnya.
