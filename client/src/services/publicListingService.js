@@ -366,6 +366,23 @@ export async function updateListingStatus(listingId, newStatus) {
     return { id: listingId, status: newStatus };
   }
 
+  // Non-demo: validasi transisi status konsisten dengan trigger database
+  if (newStatus === 'active') {
+    const { data: existing, error: fetchErr } = await supabase
+      .from('public_listings')
+      .select('expires_at')
+      .eq('id', listingId)
+      .single();
+
+    if (fetchErr || !existing) {
+      throw new Error(`Listing tidak ditemukan: ${fetchErr?.message || ''}`);
+    }
+
+    if (new Date(existing.expires_at) <= new Date()) {
+      throw new Error('Listing yang sudah kedaluwarsa tidak dapat diaktifkan kembali tanpa perpanjangan pembayaran.');
+    }
+  }
+
   const { data, error } = await supabase
     .from('public_listings')
     .update({ status: newStatus, updated_at: new Date().toISOString() })
@@ -392,20 +409,20 @@ export async function renewListing(listingId, { durationDays = 30, isFeatured = 
     throw new Error('Listing ID wajib disertakan.');
   }
 
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000).toISOString();
-
-  const updateData = {
-    status: 'active',
-    expires_at: expiresAt,
-    is_featured: Boolean(isFeatured),
-    featured_until: Boolean(isFeatured) ? expiresAt : null,
-    updated_at: now.toISOString(),
-  };
-
   const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
 
   if (!isSupabaseConfigured() || isDemo || String(listingId).startsWith('listing-') || String(listingId).startsWith('mock-')) {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000).toISOString();
+
+    const updateData = {
+      status: 'active',
+      expires_at: expiresAt,
+      is_featured: Boolean(isFeatured),
+      featured_until: Boolean(isFeatured) ? expiresAt : null,
+      updated_at: now.toISOString(),
+    };
+
     const idx = inMemoryListings.findIndex((l) => String(l.id) === String(listingId));
     if (idx !== -1) {
       inMemoryListings[idx] = {
@@ -417,18 +434,11 @@ export async function renewListing(listingId, { durationDays = 30, isFeatured = 
     return { id: listingId, ...updateData };
   }
 
-  const { data, error } = await supabase
-    .from('public_listings')
-    .update(updateData)
-    .eq('id', listingId)
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(`Gagal memperpanjang listing: ${error.message}`);
-  }
-
-  return data;
+  // Non-demo: Dilarang update kolom masa tayang secara langsung dari klien.
+  // Wajib melalui alur pembuatan invoice pembayaran (createListingPayment) dan webhook gateway.
+  throw new Error(
+    'Perpanjangan masa tayang di lingkungan live hanya dapat dilakukan melalui alur pembayaran resmi (createListingPayment).'
+  );
 }
 
 /**
@@ -563,7 +573,6 @@ export async function createListingPayment(listingId, { isFeatured = false, dura
     .insert({
       listing_id: listingId,
       amount,
-      status: 'pending',
       is_featured: Boolean(isFeatured),
       duration_days: Number(durationDays),
       qris_ref: gatewayRef,

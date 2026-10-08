@@ -424,6 +424,23 @@ describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () =>
       await expect(renewListing('')).rejects.toThrow('Listing ID wajib disertakan.');
     });
 
+    it('non-demo renewListing tidak memanggil .update() kolom masa tayang dan melempar error proteksi', async () => {
+      vi.stubEnv('VITE_DEMO_MODE', 'false');
+      vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co');
+      vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY', 'valid-key-xyz');
+
+      const fromSpy = vi.spyOn(supabase, 'from');
+
+      await expect(renewListing('live-listing-uuid-1', { durationDays: 30 })).rejects.toThrow(
+        'Perpanjangan masa tayang di lingkungan live hanya dapat dilakukan melalui alur pembayaran resmi (createListingPayment).'
+      );
+
+      expect(fromSpy).not.toHaveBeenCalled();
+
+      fromSpy.mockRestore();
+      vi.unstubAllEnvs();
+    });
+
     it('deleteListing berhasil menghapus listing dari daftar', async () => {
       const item = await createPublicListing('demo-tenant-rtrw', {
         title: 'Listing Untuk Dihapus',
