@@ -4,7 +4,9 @@
 
 ## Keputusan user
 - **DOKU saja.** Mayar dan Midtrans dibuang seluruhnya.
-- **Satu akun merchant DOKU milik platform** untuk semua pembayaran. Uang tenant masuk ke rekening platform, lalu ditransfer manual ke tenant. Tidak ada kredensial DOKU per-tenant.
+- **Cakupan batch ini hanya uang yang tenant bayar ke platform**: langganan (`subscription_payments`) dan iklan listing (`listing_payments`), lewat akun merchant DOKU milik platform.
+- **DI LUAR cakupan:** pembayaran warga ke tenant (`payments`, iuran/sewa). Itu tetap `bank_transfer`/`cash` ke rekening tenant sendiri — jangan diubah di batch ini. Platform tidak menampung dana tenant, jadi tidak ada payout/disbursement.
+- Alur QRIS warga Palm Village lewat n8n **dibiarkan apa adanya**; jangan disentuh.
 
 ## Referensi: SNAP DOKU yang SUDAH TERBUKTI JALAN
 
@@ -110,7 +112,7 @@ Tulis ulang sebagai penerima notifikasi DOKU. Aturan **wajib** (menggantikan SEC
 ## Pertanyaan terbuka (jawab sebelum PAY-1.2 dikerjakan)
 Catat jawaban di `questions.md`.
 
-1. **Biaya QRIS 0,7% untuk langganan platform & iklan** — dibebankan ke pembayar (tenant bayar Rp X + 0,7%) atau ditanggung platform (tenant bayar tepat Rp X)? *Default bila user tidak menjawab: dibebankan ke pembayar, konsisten dengan alur warga yang sudah jalan — tapi harga yang ditampilkan di UI harus ikut menampilkan rinciannya.*
+1. **Biaya QRIS 0,7%** untuk langganan & iklan — dibebankan ke tenant (bayar Rp X + 0,7%) atau ditanggung platform (tenant bayar tepat Rp X)? *Default bila user tidak menjawab: dibebankan ke tenant, dan UI wajib menampilkan rinciannya.*
 2. **Format `DOKU_PRIVATE_KEY`** — PKCS#8 atau PKCS#1? (lihat PAY-1.1)
 3. **Path endpoint status/query SNAP DOKU** — konfirmasi dari dokumentasi DOKU.
 

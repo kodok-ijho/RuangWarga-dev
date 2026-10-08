@@ -24,6 +24,7 @@ Jawaban (Claude): Pertahankan allowlist sebagai konstanta, tapi aturan aktivasi 
 Konteks: Alur QRIS warga yang sudah jalan (n8n DOKU) membebankan MDR 0,7% ke pembayar:
 `fee = ceil(base * 0.007)`, `total = base + fee`.
 Pilihan: (a) dibebankan ke tenant — tenant bayar Rp X + 0,7%; (b) ditanggung platform — tenant bayar tepat Rp X, margin platform berkurang 0,7%.
+Catatan: hanya berlaku untuk langganan & iklan. Iuran warga tidak lewat QRIS platform (keputusan user: ke rekening tenant sendiri).
 Jawaban (user): (belum dijawab — default sementara: (a), dan UI wajib menampilkan rincian biaya)
 
 ## [PAY-1] Format DOKU_PRIVATE_KEY
