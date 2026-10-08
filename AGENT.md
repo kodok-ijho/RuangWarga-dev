@@ -43,7 +43,7 @@ modul vertikal difinalisasi.
 | Backend & Auth   | Supabase (PostgreSQL + Auth + RLS)                 |
 | Edge Functions   | Supabase (Deno/TypeScript)                         |
 | Payment Gateway  | **Mayar QRIS**                                     |
-| Automation       | n8n (akan dipensiunkan/migrasi ke Supabase)        |
+| Automation       | n8n — **JANGAN DISENTUH**, masih dipakai Portal Warga live di repo lain (baca saja) |
 | Deployment       | Vercel (frontend) + Supabase Cloud (backend)       |
 
 `legacy-backend/` (Express + MongoDB) tetap **DEPRECATED**, jangan disentuh.

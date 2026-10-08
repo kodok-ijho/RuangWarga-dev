@@ -18,8 +18,9 @@
 
 ## Referensi: SNAP DOKU yang SUDAH TERBUKTI JALAN
 
-Jangan menebak protokolnya. Pola di bawah disalin dari workflow n8n produksi
-`PV API - Payments QRIS Create DOKU Production` (aktif, dipakai Palm Village).
+Jangan menebak protokolnya. Pola di bawah sudah disalin oleh Claude dari workflow n8n produksi
+`PV API - Payments QRIS Create DOKU Production`. **Workflow itu dilarang diubah** — ia melayani
+Portal Warga yang sudah live di repo lain. Yang dipakai di sini hanya polanya, bukan workflow-nya.
 
 ### 1. Ambil B2B access token
 - `POST {DOKU_BASE_URL}/authorization/v1/access-token/b2b`
@@ -107,8 +108,11 @@ Tulis ulang sebagai penerima notifikasi DOKU. Aturan **wajib** (menggantikan SEC
 
 ### PAY-1.5 — Bersihkan sisa Mayar & Midtrans
 - `grep -rn "mayar\|midtrans" -i client/src supabase api --include=*.js --include=*.jsx --include=*.ts --include=*.sql` → kosong (kecuali `supabase/migrations/*` lama yang **tidak boleh diubah**; migration yang sudah pernah jalan jangan disentuh — kalau ada komentar/nilai default Mayar di skema, perbaiki lewat migration **baru**).
-- Hapus `MIDTRANS_*` dari `.env.server.example` / `.env.uat.server.example`, tambahkan daftar `DOKU_*` (nama variabel saja, **tanpa nilai**).
-- `client/src/services/dataService.js`: `normalizeQrisProvider` cukup mengembalikan `'doku'`; hapus cabang Midtrans. Hati-hati, file ini legacy dan dipakai 16 file — jangan ubah hal lain.
+- Hapus `MIDTRANS_*` dari `.env.server.example` / `.env.uat.server.example`, tambahkan daftar `DOKU_PLATFORM_*` (nama variabel saja, **tanpa nilai**).
+- `client/src/services/dataService.js`: `normalizeQrisProvider` cukup mengembalikan `'doku'`; hapus cabang Midtrans. ⚠️ **Sangat hati-hati:** file ini legacy, dipakai 16 file, dan memanggil endpoint **n8n** untuk alur QRIS warga Palm Village yang masih LIVE.
+  - Fungsi pembentuk path n8n (`/payments/qris/doku/...`) **jangan diubah sama sekali**.
+  - Perilaku untuk provider `doku` harus persis sama sebelum dan sesudah perubahan; yang dihapus hanya cabang `midtrans` yang memang tidak terpakai lagi.
+  - Kalau ragu apakah suatu baris memengaruhi alur n8n → **lewati, tulis di `questions.md`**.
 - Perbarui `AGENT.md` §3 (baris Payment Gateway) → "DOKU QRIS (SNAP)".
 
 ### PAY-1.6 — Test

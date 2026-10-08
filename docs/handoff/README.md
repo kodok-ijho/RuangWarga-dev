@@ -4,7 +4,7 @@ Folder ini adalah satu-satunya jalur serah-terima tugas di repo ini.
 
 | Peran | Siapa | Tugas |
 |---|---|---|
-| Orchestrator | Claude | Menulis batch tugas, review diff, QA, menerapkan migration ke Supabase **dev**, cek advisor/grant, mengubah n8n (dengan persetujuan user), menerbitkan batch berikutnya |
+| Orchestrator | Claude | Menulis batch tugas, review diff, QA, menerapkan migration ke Supabase **dev**, cek advisor/grant, menerbitkan batch berikutnya. **Tidak mengubah n8n.** |
 | Executor | Antigravity | Mengerjakan task di batch aktif: hanya mengubah file di repo, commit, push |
 | Owner | User | Memberi perintah ke masing-masing agent, menyetujui perubahan production |
 
@@ -22,7 +22,8 @@ Folder ini adalah satu-satunya jalur serah-terima tugas di repo ini.
 ## Aturan untuk Executor
 
 - Kerja di branch `claude/eloquent-tesla-f0ddcr`. Jangan push ke `main`.
-- **Jangan** menjalankan migration ke Supabase, mengubah n8n, Vercel, atau secret apa pun. Cukup tulis file migration/kode; penerapan & verifikasi live dilakukan Claude.
+- **Jangan** menjalankan migration ke Supabase, Vercel, atau secret apa pun. Cukup tulis file migration/kode; penerapan & verifikasi live dilakukan Claude.
+- 🚫 **n8n dilarang disentuh, oleh siapa pun.** Instance n8n dan workflow-nya masih dipakai Portal Warga yang sudah LIVE di repo lain. Membaca definisi workflow sebagai referensi boleh; mengubah, menonaktifkan, atau menyentuh kredensial/path webhook-nya tidak boleh. `api/n8n.js` di repo ini juga jangan diubah tanpa persetujuan eksplisit user.
 - Jangan mengubah hal di luar task. Jangan install package kecuali task memintanya (sebut alasan di commit).
 - Jangan menulis secret/API key/token ke kode, `VITE_*`, atau commit.
 - Jika ada keputusan yang tidak jelas: **jangan menebak**. Tulis di `questions.md`, lewati bagian itu, lanjutkan task lain.

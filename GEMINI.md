@@ -19,14 +19,14 @@
 - **Auth:** Supabase Auth (Google OAuth)
 - **Database:** Supabase PostgreSQL + Row Level Security (RLS)
 - **Server-side logic:** Supabase Edge Functions (Deno/TypeScript)
-- **Background jobs:** n8n (notifikasi, scheduled tasks, automation — bertahap dimigrasi)
+- **Background jobs:** n8n (notifikasi, scheduled tasks) — **JANGAN DISENTUH**, masih dipakai Portal Warga live di repo lain
 - **Payment:** Mayar QRIS
 - **Hosting:** Vercel
 - **Demo mode:** `VITE_DEMO_MODE=true` dengan `mockData.js`
 
 ## Architecture (Current — Sedang Dimigrasi)
-- Auth via n8n (custom App JWT) — akan dimigrasi ke Supabase Auth
-- API via `api/n8n.js` proxy → n8n webhooks — akan dimigrasi ke akses langsung Supabase
+- Auth via n8n (custom App JWT) untuk alur lama Palm Village; RuangWarga memakai Supabase Auth
+- API via `api/n8n.js` proxy → n8n webhooks (alur Palm Village; jangan diubah tanpa persetujuan user)
 - RLS ada di schema tapi di-bypass oleh n8n service role key
 
 ## Konvensi Koding

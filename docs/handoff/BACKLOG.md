@@ -1,6 +1,6 @@
 # Backlog (belum untuk dikerjakan executor)
 
-Urutan rencana: **SEC-1 ✅ → SEC-2 (aktif) → PAY-2 (rekening tenant) → PAY-1 (DOKU langganan) → BRAND-1 → SEC-3 → DEBT-1 → N8N-RETIRE**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
+Urutan rencana: **SEC-1 ✅ → SEC-2 (aktif) → PAY-2 (rekening tenant) → PAY-1 (DOKU langganan) → BRAND-1 → DEBT-1**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
 
 ## Keputusan user yang mengikat
 - Palm Village **tetap tenant**. Branding-nya (nama, logo, warna, peta) hanya dari data tenant dan hanya tampil di `/t/:tenantId`. Lapisan global (login, beranda, `/account`, `/platform`, `/listing`, PWA) netral "RuangWarga".
@@ -14,7 +14,12 @@ Urutan rencana: **SEC-1 ✅ → SEC-2 (aktif) → PAY-2 (rekening tenant) → PA
   - Merchant DOKU **baru milik platform**, khusus langganan SaaS + iklan listing. Kredensialnya disimpan di Supabase Edge Function secrets dengan awalan `DOKU_PLATFORM_*` supaya mustahil tertukar dengan punya Palm Village.
   - Jadi Palm Village adalah contoh pertama pola "tenant pakai merchant DOKU sendiri".
 - Kalau nanti ada tenant yang minta QRIS otomatis: tenant mendaftar merchant DOKU sendiri, kredensial disimpan terenkripsi per tenant. Ditambahkan belakangan, tidak membongkar arsitektur ini.
-- Penamaan internal **dibiarkan dulu**: class `.pv-*`, nama workflow n8n "PV API", prefix order `PV-QRIS`. n8n akan dipensiunkan nanti.
+- 🚫 **n8n DILARANG DISENTUH — ini aturan keras.** Instance n8n (`n8n-icyxwmjq.runner.web.id`) dan seluruh workflow di dalamnya masih dipakai **Portal Warga yang sudah LIVE di repo lain**. Mengubah workflow, menonaktifkan, mengganti kredensial, atau mengubah path webhook di sana bisa mematikan aplikasi produksi milik orang lain.
+  - Tidak boleh: mengubah/menghapus/menonaktifkan workflow, mengubah kredensial atau env n8n, mengubah path webhook.
+  - Boleh: **membaca saja** (lihat definisi workflow sebagai referensi, mis. untuk mencontek protokol SNAP DOKU).
+  - Berlaku untuk Claude maupun Antigravity. Tidak ada batch n8n di roadmap ini.
+- **Tidak ada rencana memensiunkan n8n** di repo ini. RuangWarga membangun jalur barunya sendiri (Supabase Edge Functions) **berdampingan** dengan n8n, tanpa mengganggunya.
+- Penamaan internal **dibiarkan**: class `.pv-*`, nama workflow n8n "PV API", prefix order `PV-QRIS`.
 
 ## PAY-2 — Rekening tenant: isi & tampilkan ke warga  ← berikutnya setelah SEC-2
 Dokumen task lengkap: `docs/handoff/PAY-2.md`. Tanpa ini tenant baru tidak bisa memungut iuran sama sekali, karena warganya tidak tahu harus transfer ke mana.
@@ -29,15 +34,18 @@ Dokumen task lengkap: `docs/handoff/PAY-1.md`. Ringkas: modul SNAP DOKU bersama 
 - Favicon/logo global → aset RuangWarga (**butuh file dari user**).
 - Data mock (`services/mockData.js`, `services/eventMockData.js`) memakai tenant contoh generik.
 
-## SEC-3 — n8n & webhook DOKU (dikerjakan Claude via MCP, dengan persetujuan user)
-- Workflow "PV API - Payments QRIS DOKU Webhook": tambah verifikasi signature DOKU, ganti `getAll payments` dengan filter by reference, hapus ID bill hardcode.
-- "PV ADMIN - Cleanup All Transactions" (aktif): nonaktifkan atau lindungi.
-- `api/n8n.js`: batasi ke allowlist path.
-
 ## DEBT-1 — Utang teknis
 - Pecah `client/src/services/tenantOperationalService.js` (±3.3k baris) per domain.
-- Pensiunkan `client/src/services/dataService.js` (legacy single-tenant, dipakai 16 file).
+- `client/src/services/dataService.js` (legacy single-tenant, dipakai 16 file): **jangan dipensiunkan dulu.** File ini memanggil endpoint n8n lewat `api/n8n.js` untuk alur Palm Village. Paling jauh: rapikan tanpa mengubah perilaku, dan jangan putus jalur n8n-nya.
 - Keluarkan `mockData.js` dari bundle production (dynamic import saat demo).
+
+## Risiko yang DIKETAHUI tapi SENGAJA TIDAK DIKERJAKAN
+Ditemukan saat review SEC-1, dicatat supaya tidak hilang. Semua menyangkut n8n yang
+dilarang disentuh, jadi **bukan pekerjaan di repo ini**. Keputusan penanganannya ada
+di pemilik Portal Warga live (repo lain), bukan di batch RuangWarga.
+- Workflow `PV API - Payments QRIS DOKU Webhook` (aktif, kredensial service role): `authentication: none`, tanpa verifikasi signature DOKU. Siapa pun yang tahu URL-nya bisa mengirim notifikasi palsu dan menandai pembayaran `completed`. Juga mengambil SELURUH baris tabel `payments` tiap request, dan memuat beberapa ID tagihan hardcode.
+- Workflow `PV ADMIN - Cleanup All Transactions` aktif.
+- `api/n8n.js` di repo ini meneruskan request apa pun ke n8n memakai basic auth server, tanpa allowlist path. **Jangan diubah tanpa persetujuan eksplisit user**, karena bisa memutus alur Palm Village.
 
 ## N8N-RETIRE — (menunggu keputusan user)
 - Pindahkan workflow "PV API" ke Edge Functions / RPC Supabase, lalu matikan proxy `api/n8n.js`.
