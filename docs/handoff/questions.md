@@ -27,10 +27,10 @@ Pilihan: (a) dibebankan ke tenant — tenant bayar Rp X + 0,7%; (b) ditanggung p
 Catatan: hanya berlaku untuk langganan & iklan. Iuran warga tidak lewat QRIS platform (keputusan user: ke rekening tenant sendiri).
 Jawaban (user): (belum dijawab — default sementara: (a), dan UI wajib menampilkan rincian biaya)
 
-## [PAY-1] Format DOKU_PRIVATE_KEY
+## [PAY-1] Format DOKU_PLATFORM_PRIVATE_KEY
 Konteks: Web Crypto di Deno hanya bisa mengimpor kunci privat PKCS#8 (`-----BEGIN PRIVATE KEY-----`).
 Pilihan: kalau kunci dari DOKU berformat PKCS#1 (`-----BEGIN RSA PRIVATE KEY-----`), perlu dikonversi: `openssl pkcs8 -topk8 -nocrypt -in doku.pem -out doku-pkcs8.pem`.
-Jawaban (user): (belum dijawab — cek baris pertama file kunci dari dashboard DOKU)
+Jawaban (user): (belum dijawab — cek baris pertama file kunci dari dashboard DOKU merchant PLATFORM yang baru, bukan punya Palm Village)
 
 ## [PAY-1] Path endpoint status/query QRIS SNAP DOKU
 Konteks: Webhook tidak boleh dipercaya; sebelum aktivasi, status harus dikonfirmasi ulang ke DOKU.

@@ -1,27 +1,26 @@
 # Backlog (belum untuk dikerjakan executor)
 
-Urutan rencana: **SEC-1 ✅ → SEC-2 (aktif) → PAY-1 (DOKU) → BRAND-1 → SEC-3 → DEBT-1 → N8N-RETIRE**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
+Urutan rencana: **SEC-1 ✅ → SEC-2 (aktif) → PAY-2 (rekening tenant) → PAY-1 (DOKU langganan) → BRAND-1 → SEC-3 → DEBT-1 → N8N-RETIRE**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
 
 ## Keputusan user yang mengikat
 - Palm Village **tetap tenant**. Branding-nya (nama, logo, warna, peta) hanya dari data tenant dan hanya tampil di `/t/:tenantId`. Lapisan global (login, beranda, `/account`, `/platform`, `/listing`, PWA) netral "RuangWarga".
 - **Payment gateway: DOKU saja.** Mayar & Midtrans dibuang.
 - **Dua jenis uang dipisah tegas:**
-  - *Tenant bayar ke platform* (langganan + iklan listing) → QRIS lewat akun merchant **DOKU milik platform**. Ini pendapatan platform sendiri.
+  - *Tenant bayar ke platform* (langganan + iklan listing) → QRIS lewat **merchant DOKU BARU milik platform**, terpisah dari merchant DOKU mana pun yang dipakai tenant.
   - *Warga bayar ke tenant* (iuran/sewa/kontribusi) → **rekening milik tenant sendiri**, metode `bank_transfer`/`cash` + unggah bukti + verifikasi admin tenant. Platform **tidak** menampung dana tenant.
 - Konsekuensi: **tidak ada** batch payout/disbursement, tidak ada buku utang per tenant, tidak ada kredensial DOKU per-tenant. Platform tidak pernah memegang uang milik tenant.
-- Pengecualian: Palm Village sudah memakai QRIS DOKU lewat n8n dengan merchant platform. Dibiarkan apa adanya (grandfathered) sampai N8N-RETIRE; perlu dikonfirmasi apakah merchant DOKU itu memang milik pihak yang sama dengan kas RT Palm Village.
+- **DUA MERCHANT DOKU YANG BERBEDA — jangan tertukar:**
+  - Merchant DOKU yang sekarang ada di env n8n (`DOKU_CLIENT_ID`, `DOKU_PRIVATE_KEY`, dst.) adalah **milik Palm Village**, untuk iuran warganya. Settle ke rekening Palm Village. Dibiarkan apa adanya sampai N8N-RETIRE. **Jangan pernah dipakai untuk pendapatan platform.**
+  - Merchant DOKU **baru milik platform**, khusus langganan SaaS + iklan listing. Kredensialnya disimpan di Supabase Edge Function secrets dengan awalan `DOKU_PLATFORM_*` supaya mustahil tertukar dengan punya Palm Village.
+  - Jadi Palm Village adalah contoh pertama pola "tenant pakai merchant DOKU sendiri".
 - Kalau nanti ada tenant yang minta QRIS otomatis: tenant mendaftar merchant DOKU sendiri, kredensial disimpan terenkripsi per tenant. Ditambahkan belakangan, tidak membongkar arsitektur ini.
 - Penamaan internal **dibiarkan dulu**: class `.pv-*`, nama workflow n8n "PV API", prefix order `PV-QRIS`. n8n akan dipensiunkan nanti.
 
-## PAY-1 — Migrasi gateway ke DOKU (batch berikutnya)
-Lihat `docs/handoff/PAY-1.md` (ditulis bersamaan dengan keputusan ini). Ringkas: modul SNAP DOKU bersama di `supabase/functions/_shared/doku.ts`, tulis ulang 4 Edge Function pembayaran, buang sisa Mayar/Midtrans.
+## PAY-2 — Rekening tenant: isi & tampilkan ke warga  ← berikutnya setelah SEC-2
+Dokumen task lengkap: `docs/handoff/PAY-2.md`. Tanpa ini tenant baru tidak bisa memungut iuran sama sekali, karena warganya tidak tahu harus transfer ke mana.
 
-## PAY-2 — Rekening tenant: isi & tampilkan ke warga
-**Celah yang ditemukan saat review alur uang:** jalur yang dipilih mengharuskan warga transfer ke rekening tenant, tapi aplikasi belum bisa menyimpan maupun menampilkan rekening itu.
-- `settings.bank_account` (bank_name / account_number / account_holder) hanya ada di bentuk data mock `tenantOperationalService.js`; di mode nyata tidak ada UI yang menulisnya.
-- `components/payment/PaymentFlowModal.jsx:226` hanya menulis "Transfer ke rekening pengelola/bendahara" tanpa nomor rekening.
-- `pages/NonIplIncomes.jsx:505-508` menampilkan rekening Palm Village hardcode.
-Perlu: form rekening di pengaturan tenant (permission `manage_settings`), tampilkan rekening tenant aktif di layar bayar warga, hapus hardcode. Tanpa ini tenant baru tidak bisa memungut iuran sama sekali.
+## PAY-1 — Langganan & iklan lewat DOKU platform
+Dokumen task lengkap: `docs/handoff/PAY-1.md`. Ringkas: modul SNAP DOKU bersama di `supabase/functions/_shared/doku.ts`, tulis ulang 4 Edge Function langganan/iklan pakai merchant `DOKU_PLATFORM_*`, buang sisa Mayar/Midtrans.
 
 ## BRAND-1 — Netralkan branding yang terlihat pengguna
 - PWA manifest `client/vite.config.js` (`name`, `short_name`, `description`) → RuangWarga.

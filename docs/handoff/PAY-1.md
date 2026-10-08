@@ -8,6 +8,14 @@
 - **DI LUAR cakupan:** pembayaran warga ke tenant (`payments`, iuran/sewa). Itu tetap `bank_transfer`/`cash` ke rekening tenant sendiri — jangan diubah di batch ini. Platform tidak menampung dana tenant, jadi tidak ada payout/disbursement.
 - Alur QRIS warga Palm Village lewat n8n **dibiarkan apa adanya**; jangan disentuh.
 
+### ⚠️ DUA MERCHANT DOKU BERBEDA — jangan tertukar
+- Kredensial DOKU yang ada di **env n8n** (`DOKU_CLIENT_ID`, `DOKU_PRIVATE_KEY`, `DOKU_MERCHANT_ID`, dst.) adalah **milik Palm Village**, untuk iuran warganya, settle ke rekening Palm Village. **Dilarang dipakai untuk pendapatan platform.**
+- Batch ini memakai **merchant DOKU baru milik platform**. Semua secret-nya diberi awalan **`DOKU_PLATFORM_`** supaya mustahil tertukar:
+  `DOKU_PLATFORM_BASE_URL`, `DOKU_PLATFORM_CLIENT_ID`, `DOKU_PLATFORM_CLIENT_SECRET`,
+  `DOKU_PLATFORM_MERCHANT_ID`, `DOKU_PLATFORM_TERMINAL_ID`, `DOKU_PLATFORM_POSTAL_CODE`,
+  `DOKU_PLATFORM_PRIVATE_KEY`, `DOKU_PLATFORM_CHANNEL_ID`, `DOKU_PLATFORM_WEBHOOK_SECRET`.
+- Jangan membaca env tanpa awalan itu di Edge Function mana pun.
+
 ## Referensi: SNAP DOKU yang SUDAH TERBUKTI JALAN
 
 Jangan menebak protokolnya. Pola di bawah disalin dari workflow n8n produksi
@@ -41,8 +49,8 @@ Jangan menebak protokolnya. Pola di bawah disalin dari workflow n8n produksi
 `new Date().toISOString().split('.')[0] + 'Z'` → `2026-10-09T03:15:00Z` (tanpa milidetik).
 
 ### 4. Env / secrets (Supabase Edge Function secrets, JANGAN di repo)
-`DOKU_BASE_URL`, `DOKU_CLIENT_ID`, `DOKU_CLIENT_SECRET`, `DOKU_MERCHANT_ID`,
-`DOKU_TERMINAL_ID`, `DOKU_POSTAL_CODE`, `DOKU_PRIVATE_KEY`, `DOKU_CHANNEL_ID`.
+Pakai awalan `DOKU_PLATFORM_*` seperti daftar di bagian "DUA MERCHANT DOKU BERBEDA" di atas.
+Nama tanpa awalan (`DOKU_CLIENT_ID`, dst.) milik Palm Village di n8n — jangan dibaca di sini.
 
 ### 5. Biaya QRIS
 Workflow lama membebankan MDR 0,7% ke pembayar:
@@ -113,7 +121,7 @@ Tulis ulang sebagai penerima notifikasi DOKU. Aturan **wajib** (menggantikan SEC
 Catat jawaban di `questions.md`.
 
 1. **Biaya QRIS 0,7%** untuk langganan & iklan — dibebankan ke tenant (bayar Rp X + 0,7%) atau ditanggung platform (tenant bayar tepat Rp X)? *Default bila user tidak menjawab: dibebankan ke tenant, dan UI wajib menampilkan rinciannya.*
-2. **Format `DOKU_PRIVATE_KEY`** — PKCS#8 atau PKCS#1? (lihat PAY-1.1)
+2. **Format `DOKU_PLATFORM_PRIVATE_KEY`** — PKCS#8 atau PKCS#1? (lihat PAY-1.1)
 3. **Path endpoint status/query SNAP DOKU** — konfirmasi dari dokumentasi DOKU.
 
 ## Definition of Done
