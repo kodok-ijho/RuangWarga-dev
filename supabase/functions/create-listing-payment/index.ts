@@ -108,24 +108,21 @@ serve(async (req) => {
     }
 
     // 4. Tentukan harga dari listing_pricing
-    const { data: pricingRows } = await adminClient
+    const { data: pricingRows, error: pricingErr } = await adminClient
       .from("listing_pricing")
       .select("id, price")
       .eq("listing_type", listing.type)
       .eq("is_featured", Boolean(isFeatured))
       .eq("duration_days", Number(durationDays));
 
-    let finalPrice = 0;
-    if (pricingRows && pricingRows.length > 0) {
-      finalPrice = Number(pricingRows[0].price);
-    } else {
-      // Fallback default pricing sesuai seed specification.md
-      if (listing.type === "room_vacancy") {
-        finalPrice = isFeatured ? 35000 : 15000;
-      } else {
-        finalPrice = isFeatured ? 25000 : 10000;
-      }
+    if (pricingErr || !pricingRows || pricingRows.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "Konfigurasi tarif listing tidak ditemukan" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
+
+    const finalPrice = Number(pricingRows[0].price);
 
     // 5. Buat record transaksi pending di listing_payments
     const { data: paymentRecord, error: payErr } = await adminClient
@@ -152,13 +149,42 @@ serve(async (req) => {
       throw new Error("Gagal membuat catatan pembayaran listing: " + payErr?.message);
     }
 
-    // 6. Integrasi Mayar API (atau fallback simulated QRIS jika key tidak tersedia)
+    // 6. Integrasi Gateway Mayar
     const mayarApiKey = Deno.env.get("MAYAR_API_KEY");
-    let gatewayRef = `MYR-LST-${paymentRecord.id.substring(0, 8).toUpperCase()}`;
+    const allowSimulated = Deno.env.get("ALLOW_SIMULATED_PAYMENTS") === "true";
+    let gatewayRef = "";
     let paymentUrl = "";
     let qrisString = "";
 
-    if (mayarApiKey) {
+    if (!mayarApiKey) {
+      if (!allowSimulated) {
+        return new Response(
+          JSON.stringify({ error: "Payment gateway not configured" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      gatewayRef = `MYR-SIM-${paymentRecord.id.substring(0, 8).toUpperCase()}`;
+      paymentUrl = `/t/${listing.tenant_id}/listings?payRef=${gatewayRef}`;
+    } else {
+      const userPhone = user.user_metadata?.phone || user.phone || null;
+      const mayarPayload: Record<string, any> = {
+        name: user.user_metadata?.full_name || user.email || "Pemasang Iklan",
+        email: user.email,
+        amount: finalPrice,
+        description: `Iklan RuangWarga: ${listing.title} (${isFeatured ? "Unggulan" : "Standar"}, ${durationDays} Hari)`,
+        redirectUrl: `${req.headers.get("origin") || ""}/t/${listing.tenant_id}/listings?paymentId=${paymentRecord.id}`,
+        metadata: {
+          payment_id: paymentRecord.id,
+          listing_id: listing.id,
+          tenant_id: listing.tenant_id,
+          type: "listing_payment",
+        },
+      };
+
+      if (userPhone) {
+        mayarPayload.mobile = userPhone;
+      }
+
       try {
         const mayarRes = await fetch("https://api.mayar.id/hl/v1/payment/create", {
           method: "POST",
@@ -166,31 +192,54 @@ serve(async (req) => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${mayarApiKey}`,
           },
-          body: JSON.stringify({
-            name: user.user_metadata?.full_name || user.email || "Pemasang Iklan",
-            email: user.email,
-            amount: finalPrice,
-            description: `Iklan RuangWarga: ${listing.title} (${isFeatured ? "Unggulan" : "Standar"}, ${durationDays} Hari)`,
-            mobile: user.user_metadata?.phone || "081234567890",
-            redirectUrl: `${req.headers.get("origin") || ""}/t/${listing.tenant_id}/listings?paymentId=${paymentRecord.id}`,
-            metadata: {
-              payment_id: paymentRecord.id,
-              listing_id: listing.id,
-              tenant_id: listing.tenant_id,
-              type: "listing_payment",
-            },
-          }),
+          body: JSON.stringify(mayarPayload),
         });
 
-        const mayarData = await mayarRes.json();
-        if (mayarData?.data) {
-          gatewayRef = mayarData.data.id || gatewayRef;
-          paymentUrl = mayarData.data.link || "";
-          qrisString = mayarData.data.qrCodeString || "";
+        if (!mayarRes.ok) {
+          const errText = await mayarRes.text();
+          // eslint-disable-next-line no-console
+          console.error("[Mayar API] Create listing payment HTTP error:", mayarRes.status, errText);
+          await adminClient
+            .from("listing_payments")
+            .update({ status: "failed", updated_at: new Date().toISOString() })
+            .eq("id", paymentRecord.id);
+
+          return new Response(
+            JSON.stringify({ error: "Payment gateway rejected request" }),
+            { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
         }
-      } catch (mErr) {
+
+        const mayarData = await mayarRes.json();
+        if (!mayarData?.data) {
+          // eslint-disable-next-line no-console
+          console.error("[Mayar API] Create listing payment missing data:", mayarData);
+          await adminClient
+            .from("listing_payments")
+            .update({ status: "failed", updated_at: new Date().toISOString() })
+            .eq("id", paymentRecord.id);
+
+          return new Response(
+            JSON.stringify({ error: "Invalid payment response from provider" }),
+            { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        gatewayRef = mayarData.data.id || `MYR-${paymentRecord.id.substring(0, 8).toUpperCase()}`;
+        paymentUrl = mayarData.data.link || "";
+        qrisString = mayarData.data.qrCodeString || "";
+      } catch (fetchErr: any) {
         // eslint-disable-next-line no-console
-        console.warn("[Mayar API] Listing payment request failed, fallback:", mErr);
+        console.error("[Mayar API] Request failed with network/runtime error:", fetchErr);
+        await adminClient
+          .from("listing_payments")
+          .update({ status: "failed", updated_at: new Date().toISOString() })
+          .eq("id", paymentRecord.id);
+
+        return new Response(
+          JSON.stringify({ error: "Failed to connect to payment gateway" }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
     }
 
@@ -220,8 +269,10 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
+    // eslint-disable-next-line no-console
+    console.error("[create-listing-payment] Unexpected internal error:", err);
     return new Response(
-      JSON.stringify({ error: err?.message || "Internal Server Error" }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

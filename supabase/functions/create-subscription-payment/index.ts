@@ -120,11 +120,36 @@ serve(async (req) => {
       );
     }
 
+    const b10 = Math.max(0, parseInt(blocks10, 10) || 0);
+    const b5 = Math.max(0, parseInt(blocks5, 10) || 0);
+    const totalCapacity = (b10 * 10) + (b5 * 5);
+
+    if (totalCapacity < 5) {
+      return new Response(
+        JSON.stringify({ error: "Kapasitas langganan minimal adalah 5 unit" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const price10Row = pricingRows.find((p) => p.block_size === 10);
     const price5Row = pricingRows.find((p) => p.block_size === 5);
 
-    const price10 = Number(price10Row?.price_per_block ?? 12500);
-    const price5 = Number(price5Row?.price_per_block ?? 8750);
+    if (b10 > 0 && !price10Row) {
+      return new Response(
+        JSON.stringify({ error: "Konfigurasi tarif untuk blok 10 unit tidak ditemukan" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (b5 > 0 && !price5Row) {
+      return new Response(
+        JSON.stringify({ error: "Konfigurasi tarif untuk blok 5 unit tidak ditemukan" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const price10 = price10Row ? Number(price10Row.price_per_block) : 0;
+    const price5 = price5Row ? Number(price5Row.price_per_block) : 0;
 
     const { data: periodRow, error: periodErr } = await adminClient
       .from("subscription_periods")
@@ -136,17 +161,6 @@ serve(async (req) => {
     if (periodErr || !periodRow) {
       return new Response(
         JSON.stringify({ error: "Durasi periode yang dipilih tidak valid" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const b10 = Math.max(0, parseInt(blocks10, 10) || 0);
-    const b5 = Math.max(0, parseInt(blocks5, 10) || 0);
-    const totalCapacity = (b10 * 10) + (b5 * 5);
-
-    if (totalCapacity < 5) {
-      return new Response(
-        JSON.stringify({ error: "Kapasitas langganan minimal adalah 5 unit" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -210,13 +224,41 @@ serve(async (req) => {
       await adminClient.from("tenant_subscription_blocks").insert(blocksToInsert);
     }
 
-    // 7. Integrasi Mayar API (atau mock mode bila key belum diset)
+    // 7. Integrasi Gateway Mayar
     const mayarApiKey = Deno.env.get("MAYAR_API_KEY");
-    let gatewayRef = `MYR-${paymentRecord.id.substring(0, 8).toUpperCase()}`;
+    const allowSimulated = Deno.env.get("ALLOW_SIMULATED_PAYMENTS") === "true";
+    let gatewayRef = "";
     let paymentUrl = "";
     let qrisString = "";
 
-    if (mayarApiKey) {
+    if (!mayarApiKey) {
+      if (!allowSimulated) {
+        return new Response(
+          JSON.stringify({ error: "Payment gateway not configured" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      gatewayRef = `MYR-SIM-${paymentRecord.id.substring(0, 8).toUpperCase()}`;
+      paymentUrl = `/account/subscription/qris?ref=${gatewayRef}`;
+    } else {
+      const userPhone = user.user_metadata?.phone || user.phone || null;
+      const mayarPayload: Record<string, any> = {
+        name: user.user_metadata?.full_name || user.email || "Tenant Admin",
+        email: user.email,
+        amount: finalAmount,
+        description: `Langganan RuangWarga: ${tenant.name} (${periodRow.duration_months} Bulan, ${totalCapacity} Unit)`,
+        redirectUrl: `${req.headers.get("origin") || ""}/account/subscription/status?paymentId=${paymentRecord.id}`,
+        metadata: {
+          payment_id: paymentRecord.id,
+          tenant_id: tenant.id,
+        },
+      };
+
+      // Hanya kirim nomor telepon jika user benar-benar memilikinya (jangan nomor palsu)
+      if (userPhone) {
+        mayarPayload.mobile = userPhone;
+      }
+
       try {
         const mayarRes = await fetch("https://api.mayar.id/hl/v1/payment/create", {
           method: "POST",
@@ -224,29 +266,54 @@ serve(async (req) => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${mayarApiKey}`,
           },
-          body: JSON.stringify({
-            name: user.user_metadata?.full_name || user.email || "Tenant Admin",
-            email: user.email,
-            amount: finalAmount,
-            description: `Langganan RuangWarga: ${tenant.name} (${periodRow.duration_months} Bulan, ${totalCapacity} Unit)`,
-            mobile: user.user_metadata?.phone || "081234567890",
-            redirectUrl: `${req.headers.get("origin") || ""}/account/subscription/status?paymentId=${paymentRecord.id}`,
-            metadata: {
-              payment_id: paymentRecord.id,
-              tenant_id: tenant.id,
-            },
-          }),
+          body: JSON.stringify(mayarPayload),
         });
 
-        const mayarData = await mayarRes.json();
-        if (mayarData?.data) {
-          gatewayRef = mayarData.data.id || gatewayRef;
-          paymentUrl = mayarData.data.link || "";
-          qrisString = mayarData.data.qrCodeString || "";
+        if (!mayarRes.ok) {
+          const errText = await mayarRes.text();
+          // eslint-disable-next-line no-console
+          console.error("[Mayar API] Create payment HTTP error:", mayarRes.status, errText);
+          await adminClient
+            .from("subscription_payments")
+            .update({ status: "failed", updated_at: new Date().toISOString() })
+            .eq("id", paymentRecord.id);
+
+          return new Response(
+            JSON.stringify({ error: "Payment gateway rejected request" }),
+            { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
         }
-      } catch (mErr) {
+
+        const mayarData = await mayarRes.json();
+        if (!mayarData?.data) {
+          // eslint-disable-next-line no-console
+          console.error("[Mayar API] Create payment response missing data:", mayarData);
+          await adminClient
+            .from("subscription_payments")
+            .update({ status: "failed", updated_at: new Date().toISOString() })
+            .eq("id", paymentRecord.id);
+
+          return new Response(
+            JSON.stringify({ error: "Invalid payment response from provider" }),
+            { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        gatewayRef = mayarData.data.id || `MYR-${paymentRecord.id.substring(0, 8).toUpperCase()}`;
+        paymentUrl = mayarData.data.link || "";
+        qrisString = mayarData.data.qrCodeString || "";
+      } catch (fetchErr: any) {
         // eslint-disable-next-line no-console
-        console.warn("[Mayar API] Request failed, fallback to simulated reference:", mErr);
+        console.error("[Mayar API] Request failed with network/runtime error:", fetchErr);
+        await adminClient
+          .from("subscription_payments")
+          .update({ status: "failed", updated_at: new Date().toISOString() })
+          .eq("id", paymentRecord.id);
+
+        return new Response(
+          JSON.stringify({ error: "Failed to connect to payment gateway" }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
     }
 
@@ -274,8 +341,10 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
+    // eslint-disable-next-line no-console
+    console.error("[create-subscription-payment] Unexpected internal error:", err);
     return new Response(
-      JSON.stringify({ error: err?.message || "Internal Server Error" }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
