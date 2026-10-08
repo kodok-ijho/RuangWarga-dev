@@ -51,15 +51,18 @@ Acceptance: migration valid; tidak mengubah logika lain.
 
 Acceptance: vitest & build hijau.
 
-## SEC-2.3 — Webhook Mayar lebih ketat (F4)  ⚠️ sensitif
+## SEC-2.3 — DIBATALKAN (gateway pindah ke DOKU)
 
-File: `supabase/functions/verify-subscription-payment/index.ts`, `verify-listing-payment/index.ts`.
-1. Aktivasi hanya jika: `isSuccessStatus === true` **dan** (event kosong **atau** `isSuccessEvent`). Jika event ada tapi bukan event sukses → 200 "ignored".
-2. `amount` dari payload **wajib** ada dan > 0; tidak ada → 400 `{"error":"Missing amount"}`; tidak sama → 409 (sudah ada).
-3. Setelah RPC: jika `result?.success !== true` → 409 dengan `{ error: result?.error ?? "Activation rejected" }`, bukan 200.
-4. Ekstrak helper bersama (`timingSafeEqual`, validasi event/status/amount) ke `supabase/functions/_shared/mayar.ts` dan impor dari kedua webhook (hindari duplikasi).
+Keputusan user: **Mayar & Midtrans dibuang, pakai DOKU saja**. Jadi jangan sentuh
+`verify-subscription-payment` / `verify-listing-payment` di batch ini — kedua file akan
+ditulis ulang untuk DOKU di batch **PAY-1** (`docs/handoff/PAY-1.md`), termasuk semua
+pengetatan yang tadinya direncanakan di sini (status wajib sukses, nominal wajib cocok,
+hasil aktivasi `success:false` → 409, helper bersama).
 
-Acceptance: logika kedua webhook identik selain tabel/RPC; jelaskan perilaku baru di badan commit.
+Aman dilewati sekarang: keempat Edge Function **belum pernah di-deploy**, dan webhook
+sudah fail-closed (tanpa secret semua request ditolak). Tidak ada risiko live.
+
+Tulis di report: `SEC-2.3 | - | skipped | dibatalkan, dipindah ke PAY-1`.
 
 ## SEC-2.4 — Hidupkan lagi aturan lint penting (F5)
 
