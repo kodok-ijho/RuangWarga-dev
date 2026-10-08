@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { supabase } from './supabaseClient';
 import {
   isListingVisibleToPublic,
   canMemberPostListing,
@@ -528,6 +529,38 @@ describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () =>
 
     it('verifyListingPayment melempar error jika paymentId kosong', async () => {
       await expect(verifyListingPayment('')).rejects.toThrow('Payment ID wajib disertakan.');
+    });
+
+    it('verifyListingPayment pada mode non-demo membaca status tabel dan tidak memanggil activate_listing_payment RPC', async () => {
+      vi.stubEnv('VITE_DEMO_MODE', 'false');
+      vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co');
+      vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'anon-key-123');
+
+      const rpcSpy = vi.spyOn(supabase, 'rpc');
+      const fromSpy = vi.spyOn(supabase, 'from').mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { status: 'paid' },
+              error: null,
+            }),
+          }),
+        }),
+      });
+
+      try {
+        const res = await verifyListingPayment('550e8400-e29b-41d4-a716-446655440000');
+        expect(res).toEqual({
+          success: true,
+          status: 'paid',
+        });
+        expect(rpcSpy).not.toHaveBeenCalledWith('activate_listing_payment', expect.anything());
+        expect(fromSpy).toHaveBeenCalledWith('listing_payments');
+      } finally {
+        rpcSpy.mockRestore();
+        fromSpy.mockRestore();
+        vi.unstubAllEnvs();
+      }
     });
   });
 

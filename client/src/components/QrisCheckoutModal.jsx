@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Modal from './Modal';
+import { EmptyState } from './ui';
 import { useToast } from '../hooks/useToast';
 import { formatPeriodShort, formatRupiah, getQrisProviderLabel } from '../services/dataHelpers';
 import { AiOutlineDownload } from 'react-icons/ai';
@@ -27,8 +28,8 @@ export default function QrisCheckoutModal({
   const orderId = data.parent_order_id || data.order_id || data.id || `TRX-QRIS-${Date.now()}`;
   const redirectUrl = data.redirect_url;
   
-  // Dynamic or standard QRIS payload fallback
-  const qrContent = data.qr_content || data.qrContent || data.raw?.qrContent || `00020101021226670016ID.CO.PALMVILLAGE.WWW01189360099900000000000215${orderId}520458125303360540${total}5802ID5920PAGUYUBAN PALM VILLAGE6007BANDUNG6304`;
+  // Konten QRIS aktual dari payment gateway (tanpa fallback string palsu)
+  const qrContent = data.qr_content || data.qrContent || data.raw?.qrContent || null;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -211,7 +212,7 @@ export default function QrisCheckoutModal({
           </p>
         </div>
 
-        {qrImageUrl && (
+        {qrImageUrl ? (
           <div className="flex flex-col items-center justify-center py-2 bg-white rounded-xl border border-forest-100 shadow-sm p-4">
             <img
               src={qrImageUrl}
@@ -244,6 +245,14 @@ export default function QrisCheckoutModal({
               </p>
             </div>
           </div>
+        ) : (
+          <EmptyState
+            compact
+            icon="⚠️"
+            title="Kode QRIS Tidak Tersedia"
+            description="Konten kode QRIS tidak ditemukan dari data transaksi atau gagal dimuat dari gateway. Silakan coba kembali atau gunakan tautan pembayaran bila tersedia."
+            className="border-red-200 bg-red-50/50 my-2"
+          />
         )}
 
         {/* Ringkasan Nominal & Biaya QRIS */}

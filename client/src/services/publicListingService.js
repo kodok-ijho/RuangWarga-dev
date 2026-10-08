@@ -631,34 +631,21 @@ export async function verifyListingPayment(paymentId, gatewayRef = null) {
     };
   }
 
-  // Coba Edge Function verify-listing-payment
-  try {
-    const { data, error } = await supabase.functions.invoke('verify-listing-payment', {
-      body: { paymentId, gatewayRef },
-    });
+  // Non-demo: baca status listing_payments by id
+  const { data: payRecord, error: payError } = await supabase
+    .from('listing_payments')
+    .select('status')
+    .eq('id', paymentId)
+    .single();
 
-    if (!error && data?.success) {
-      return data;
-    }
-  } catch (edgeErr) {
-    // eslint-disable-next-line no-console
-    console.warn('[verifyListingPayment] Edge function invoke failed, fallback to RPC activate_listing_payment:', edgeErr);
+  if (payError) {
+    throw new Error(`Gagal membaca status pembayaran listing: ${payError.message}`);
   }
 
-  // Fallback ke RPC database activate_listing_payment
-  const { data: rpcResult, error: rpcError } = await supabase.rpc('activate_listing_payment', {
-    p_payment_id: paymentId,
-    p_gateway_ref: gatewayRef || null,
-  });
-
-  if (rpcError) {
-    throw new Error(`Gagal aktivasi pembayaran listing via database: ${rpcError.message}`);
-  }
-
+  const status = payRecord?.status;
   return {
-    success: true,
-    message: 'Pembayaran iklan berhasil diverifikasi',
-    activationResult: rpcResult,
+    success: status === 'paid',
+    status,
   };
 }
 
