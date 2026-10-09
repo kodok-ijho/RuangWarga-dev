@@ -103,6 +103,7 @@ Tulis ulang sebagai penerima notifikasi DOKU. Aturan **wajib** (menggantikan SEC
 - `client/src/pages/account/SubscriptionCheckout.jsx`: tampilkan QR dari `qrContent` yang dikembalikan `create-subscription-payment`; polling status (hasil SEC-1.3) dipertahankan. Hapus teks/variabel Mayar.
 - `client/src/components/QrisCheckoutModal.jsx`: hanya DOKU; hapus parameter/percabangan provider lain. Jangan kembalikan fallback QR palsu (hasil SEC-1.3 dipertahankan).
 - `client/src/services/publicListingService.js`: alur bayar iklan pakai `qrContent` DOKU.
+  Termasuk temuan F7 review SEC-2: **hapus seluruh jalur fallback** di `createListingPayment()` (±baris 544-595) yang membuat `qris_ref` `MYR-DIR-...`, string QR palsu `ID.CO.MAYAR...`, dan harga hardcode `35000/15000/25000/10000`. Kalau Edge Function gagal → tampilkan error, jangan buat QR palsu.
 - Hapus referensi Mayar yang terlihat pengguna di `pages/Home.jsx`, `pages/account/ChoosePlan.jsx`, `pages/account/SubscriptionStatus.jsx`, `pages/platform/PlatformRevenue.jsx` → ganti "QRIS" atau "DOKU".
 - Update test terkait.
 
