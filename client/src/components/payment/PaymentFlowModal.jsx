@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Dialog, Button } from '../ui';
 import { formatRupiah, formatPeriod } from '../../services/dataHelpers';
 import { compressImage } from '../../utils/imageCompressor';
 import { IS_DEMO } from '../../services/dataService';
+import { getTenantBankAccount } from '../../services/tenantOperationalService';
+import { TenantContext } from '../../context/TenantContext';
 import {
   AiOutlineCreditCard,
   AiOutlineBank,
@@ -11,6 +13,7 @@ import {
   AiOutlineWarning,
   AiOutlineInfoCircle,
   AiOutlineClockCircle,
+  AiOutlineCopy,
 } from 'react-icons/ai';
 
 /**
@@ -29,9 +32,16 @@ export function PaymentFlowModal({
   total = 0,
   canUseQris = true,
   billLabel = 'Tagihan',
+  bankAccount: bankAccountProp = null,
+  tenant: tenantProp = null,
   onConfirm,
   onClose,
 }) {
+  const tenantCtx = useContext(TenantContext);
+  const activeTenant = tenantProp || tenantCtx?.activeTenant || null;
+  const resolvedBankAccount = bankAccountProp || getTenantBankAccount(activeTenant);
+  const [copied, setCopied] = useState(false);
+
   const [method, setMethod] = useState(canUseQris ? 'qris' : 'bank_transfer');
   const [receiptFile, setReceiptFile] = useState(null);
   const [uploadError, setUploadError] = useState('');
@@ -75,9 +85,15 @@ export function PaymentFlowModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (method === 'bank_transfer' && !receiptFile) {
-      setUploadError('Bukti transfer pembayaran wajib diunggah.');
-      return;
+    if (method === 'bank_transfer') {
+      if (!resolvedBankAccount) {
+        setUploadError('Rekening transfer belum tersedia dari pengelola.');
+        return;
+      }
+      if (!receiptFile) {
+        setUploadError('Bukti transfer pembayaran wajib diunggah.');
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -213,49 +229,105 @@ export function PaymentFlowModal({
 
         {/* 3. Detail Metode Tertentu */}
         {method === 'bank_transfer' && (
-          <div className="space-y-2.5 p-3.5 rounded-xl border border-slate-200/90 bg-slate-50/50">
-            <div className="flex items-center gap-1.5 text-[11px] text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
-              <AiOutlineClockCircle className="shrink-0 text-amber-700 text-sm" />
-              <span>Bukti transfer akan diverifikasi oleh bendahara sebelum status tagihan dinyatakan Lunas.</span>
-            </div>
+          <div className="space-y-3 p-3.5 rounded-xl border border-slate-200/90 bg-slate-50/50">
+            {resolvedBankAccount ? (
+              <>
+                <div className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-2">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    Rekening Tujuan Transfer
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                    <div>
+                      <div className="text-xs font-semibold text-slate-600">
+                        Bank {resolvedBankAccount.bank_name}
+                      </div>
+                      <div className="text-base font-mono font-bold text-slate-900 tracking-wide">
+                        {resolvedBankAccount.account_number}
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        a.n. {resolvedBankAccount.account_holder}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (navigator?.clipboard?.writeText) {
+                          navigator.clipboard.writeText(resolvedBankAccount.account_number);
+                        }
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      }}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-xs font-semibold text-slate-700 flex items-center gap-1.5 self-start sm:self-center transition-colors min-h-[36px]"
+                    >
+                      {copied ? (
+                        <>
+                          <AiOutlineCheck className="text-emerald-600" />
+                          <span className="text-emerald-600 font-bold">Nomor Rekening Disalin!</span>
+                        </>
+                      ) : (
+                        <>
+                          <AiOutlineCopy />
+                          <span>Salin Nomor Rekening</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Transfer ke rekening pengelola di atas, lalu unggah foto struk ATM atau screenshot e-wallet/m-banking.
+                  </p>
+                </div>
 
-            <label className="block text-xs font-bold text-slate-700">
-              Unggah Bukti Transfer <span className="text-rose-500">*</span>
-            </label>
-            <p className="text-[11px] text-slate-500">
-              Transfer ke rekening pengelola/bendahara, lalu unggah foto struk ATM atau screenshot e-wallet/m-banking.
-            </p>
+                <div className="flex items-center gap-1.5 text-[11px] text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+                  <AiOutlineClockCircle className="shrink-0 text-amber-700 text-sm" />
+                  <span>Bukti transfer akan diverifikasi oleh bendahara sebelum status tagihan dinyatakan Lunas.</span>
+                </div>
 
-            <div className="mt-1">
-              <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-300 hover:border-slate-800 rounded-xl bg-white cursor-pointer transition-colors min-h-[44px]">
-                <AiOutlineCloudUpload className="text-2xl text-slate-400 mb-1" />
-                <span className="text-xs font-bold text-slate-900">
-                  {receiptFile ? 'Ganti File Bukti' : 'Pilih File Bukti Transfer'}
-                </span>
-                <span className="text-[10px] text-slate-400 mt-0.5">JPG atau PNG, maks 2 MB</span>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png"
-                  onChange={handleFile}
-                  className="hidden"
-                />
-              </label>
-            </div>
+                <label className="block text-xs font-bold text-slate-700">
+                  Unggah Bukti Transfer <span className="text-rose-500">*</span>
+                </label>
 
-            {receiptFile && (
-              <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
-                <AiOutlineCheck className="shrink-0" />
-                <span className="truncate">{receiptFile.name}</span>
-                <span className="text-[10px] text-emerald-600 shrink-0">
-                  ({(receiptFile.size / 1024).toFixed(0)} KB)
-                </span>
-              </div>
-            )}
+                <div className="mt-1">
+                  <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-300 hover:border-slate-800 rounded-xl bg-white cursor-pointer transition-colors min-h-[44px]">
+                    <AiOutlineCloudUpload className="text-2xl text-slate-400 mb-1" />
+                    <span className="text-xs font-bold text-slate-900">
+                      {receiptFile ? 'Ganti File Bukti' : 'Pilih File Bukti Transfer'}
+                    </span>
+                    <span className="text-[10px] text-slate-400 mt-0.5">JPG atau PNG, maks 2 MB</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      onChange={handleFile}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
 
-            {uploadError && (
-              <div className="flex items-center gap-1.5 text-xs text-rose-600 font-medium">
-                <AiOutlineWarning className="shrink-0" />
-                <span>{uploadError}</span>
+                {receiptFile && (
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
+                    <AiOutlineCheck className="shrink-0" />
+                    <span className="truncate">{receiptFile.name}</span>
+                    <span className="text-[10px] text-emerald-600 shrink-0">
+                      ({(receiptFile.size / 1024).toFixed(0)} KB)
+                    </span>
+                  </div>
+                )}
+
+                {uploadError && (
+                  <div className="flex items-center gap-1.5 text-xs text-rose-600 font-medium">
+                    <AiOutlineWarning className="shrink-0" />
+                    <span>{uploadError}</span>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3.5 text-xs text-amber-900 space-y-1.5">
+                <div className="flex items-center gap-1.5 font-bold text-amber-950">
+                  <AiOutlineWarning className="text-base shrink-0 text-amber-600" />
+                  <span>Rekening Transfer Belum Tersedia</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-amber-800">
+                  Pengelola belum mencantumkan rekening bank tujuan pembayaran. Silakan hubungi pengurus/bendahara untuk konfirmasi pembayaran tunai atau nomor rekening.
+                </p>
               </div>
             )}
           </div>
@@ -301,13 +373,15 @@ export function PaymentFlowModal({
           <Button
             type="submit"
             variant="primary"
-            disabled={isSubmitting}
+            disabled={isSubmitting || (method === 'bank_transfer' && !resolvedBankAccount)}
             className="flex-1 text-xs font-bold min-h-[44px]"
           >
             {isSubmitting
               ? 'Memproses...'
               : method === 'qris'
               ? 'Lanjut ke QRIS →'
+              : !resolvedBankAccount
+              ? 'Rekening Belum Tersedia'
               : 'Kirim Bukti Transfer'}
           </Button>
         </div>

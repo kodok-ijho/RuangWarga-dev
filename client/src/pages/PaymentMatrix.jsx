@@ -1392,6 +1392,7 @@ export default function PaymentMatrix() {
           total={totalToPay}
           canUseQris={canUseQris}
           billLabel={template.billLabel}
+          tenant={activeTenant}
           onConfirm={confirmPay}
           onClose={() => setPayModal(null)}
         />

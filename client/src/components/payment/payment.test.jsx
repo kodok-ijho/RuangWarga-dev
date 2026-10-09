@@ -395,6 +395,11 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
               total={150000}
               canUseQris={false} // force bank transfer
               billLabel="IPL"
+              bankAccount={{
+                bank_name: 'BCA',
+                account_number: '1234567890',
+                account_holder: 'Kas RT',
+              }}
               onConfirm={() => {}}
               onClose={() => {}}
             />
