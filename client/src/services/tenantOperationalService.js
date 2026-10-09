@@ -139,6 +139,127 @@ export async function updateTenantProfileAndSettings(tenantId, { name, address, 
 }
 
 /**
+ * Membaca rekening bank tenant dari objek tenant atau settings tenant.
+ * Mengembalikan objek bersih { bank_name, account_number, account_holder } bila terisi lengkap,
+ * atau null jika belum diisi atau tidak lengkap. Tidak pernah mengembalikan undefined atau objek setengah isi.
+ *
+ * @param {Object} [tenantOrSettings]
+ * @returns {{ bank_name: string, account_number: string, account_holder: string } | null}
+ */
+export function getTenantBankAccount(tenantOrSettings) {
+  if (!tenantOrSettings || typeof tenantOrSettings !== 'object') {
+    return null;
+  }
+
+  const settings = tenantOrSettings.settings || tenantOrSettings;
+  const bankAccount = settings?.bank_account;
+
+  if (!bankAccount || typeof bankAccount !== 'object') {
+    return null;
+  }
+
+  const bankName = typeof bankAccount.bank_name === 'string' ? bankAccount.bank_name.trim() : '';
+  const accountNumber =
+    typeof bankAccount.account_number === 'string' || typeof bankAccount.account_number === 'number'
+      ? String(bankAccount.account_number).trim()
+      : '';
+  const accountHolder =
+    typeof bankAccount.account_holder === 'string' ? bankAccount.account_holder.trim() : '';
+
+  if (!bankName || !accountNumber || !accountHolder) {
+    return null;
+  }
+
+  return {
+    bank_name: bankName,
+    account_number: accountNumber,
+    account_holder: accountHolder,
+  };
+}
+
+/**
+ * Menyimpan / memperbarui rekening bank tenant ke dalam settings tenant.
+ * Memakai updateTenantProfileAndSettings yang sudah ada (tidak membuat query update baru).
+ *
+ * @param {string} tenantId
+ * @param {Object} bankAccount - { bank_name, account_number, account_holder }
+ * @param {Object} [currentSettings=null] - settings yang ada saat ini (opsional)
+ * @returns {Promise<Object>}
+ */
+export async function saveTenantBankAccount(tenantId, bankAccount, currentSettings = null) {
+  if (!tenantId) {
+    throw new Error('Tenant ID wajib disertakan.');
+  }
+
+  if (!bankAccount || typeof bankAccount !== 'object') {
+    throw new Error('Data rekening bank wajib disertakan.');
+  }
+
+  const rawBankName =
+    bankAccount.bank_name !== undefined && bankAccount.bank_name !== null
+      ? String(bankAccount.bank_name).trim()
+      : '';
+  const rawAccountNumber =
+    bankAccount.account_number !== undefined && bankAccount.account_number !== null
+      ? String(bankAccount.account_number).trim()
+      : '';
+  const rawAccountHolder =
+    bankAccount.account_holder !== undefined && bankAccount.account_holder !== null
+      ? String(bankAccount.account_holder).trim()
+      : '';
+
+  // Validasi bank_name: wajib, 2-50 karakter
+  if (!rawBankName) {
+    throw new Error('Nama bank wajib diisi.');
+  }
+  if (rawBankName.length < 2 || rawBankName.length > 50) {
+    throw new Error('Nama bank harus terdiri dari 2 hingga 50 karakter.');
+  }
+
+  // Validasi account_number: wajib, hanya angka (boleh spasi/strip saat input, disimpan tanpa pemisah), 6-20 digit
+  if (!rawAccountNumber) {
+    throw new Error('Nomor rekening wajib diisi.');
+  }
+  const cleanAccountNumber = rawAccountNumber.replace(/[\s-]/g, '');
+  if (!/^\d+$/.test(cleanAccountNumber)) {
+    throw new Error('Nomor rekening hanya boleh berisi angka.');
+  }
+  if (cleanAccountNumber.length < 6 || cleanAccountNumber.length > 20) {
+    throw new Error('Nomor rekening harus terdiri dari 6 hingga 20 digit angka.');
+  }
+
+  // Validasi account_holder: wajib, 2-100 karakter
+  if (!rawAccountHolder) {
+    throw new Error('Nama pemilik rekening wajib diisi.');
+  }
+  if (rawAccountHolder.length < 2 || rawAccountHolder.length > 100) {
+    throw new Error('Nama pemilik rekening harus terdiri dari 2 hingga 100 karakter.');
+  }
+
+  // Resolusi settings dasar agar tidak menimpa field setting lainnya
+  let baseSettings = currentSettings;
+  if (!baseSettings) {
+    try {
+      const tenantDetails = await fetchTenantDetails(tenantId);
+      baseSettings = tenantDetails?.settings || {};
+    } catch {
+      baseSettings = {};
+    }
+  }
+
+  const updatedSettings = {
+    ...baseSettings,
+    bank_account: {
+      bank_name: rawBankName,
+      account_number: cleanAccountNumber,
+      account_holder: rawAccountHolder,
+    },
+  };
+
+  return await updateTenantProfileAndSettings(tenantId, { settings: updatedSettings });
+}
+
+/**
  * Mengambil daftar unit milik tenant
  */
 export async function fetchTenantUnits(tenantId) {
