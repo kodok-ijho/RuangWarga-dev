@@ -54,7 +54,7 @@ import {
   downloadDigitalReceipt,
   sendEmailReceipt,
 } from '../services/mockData';
-import { autoGenerateKosBilling, generateKelasSppBilling, fetchTenantMembers } from '../services/tenantOperationalService';
+import { autoGenerateKosBilling, generateKelasSppBilling, fetchTenantMembers, isLegacyQrisEnabled } from '../services/tenantOperationalService';
 import { compressImage } from '../utils/imageCompressor';
 import { AiOutlineDownload } from 'react-icons/ai';
 import { ResidentIplOverview, PaymentFlowModal, PaymentHistoryList } from '../components/payment';
@@ -120,7 +120,7 @@ export default function PaymentMatrix() {
   // Admin Demo memakai role internal admin_viewer dan tetap read-only untuk
   // seluruh fitur lain. QRIS adalah satu-satunya pengecualian sementara.
   const isDemoAdmin = isReadOnly && (role === 'admin' || role === 'admin_viewer');
-  const canUseQris = true;
+  const canUseQris = isLegacyQrisEnabled(activeTenant);
   const [resolvedMyUnitId, setResolvedMyUnitId] = useState(null);
   const [isUnitResolving, setIsUnitResolving] = useState(true);
 

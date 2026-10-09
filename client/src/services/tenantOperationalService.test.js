@@ -34,6 +34,7 @@ import {
   generateKelasSppBilling,
   getTenantBankAccount,
   saveTenantBankAccount,
+  isLegacyQrisEnabled,
 } from './tenantOperationalService';
 
 describe('tenantOperationalService - Unit Tests', () => {
@@ -644,6 +645,22 @@ describe('tenantOperationalService - Unit Tests', () => {
             bank_account: { bank_name: '', account_number: '12345678', account_holder: '' },
           },
         })).toBeNull();
+      });
+    });
+
+    describe('isLegacyQrisEnabled (PAY-2F.2)', () => {
+      it('mengembalikan true hanya jika settings.legacy_qris_enabled bernilai true', () => {
+        expect(isLegacyQrisEnabled({ settings: { legacy_qris_enabled: true } })).toBe(true);
+        expect(isLegacyQrisEnabled({ legacy_qris_enabled: true })).toBe(true);
+      });
+
+      it('mengembalikan false sebagai default untuk objek tanpa flag atau dengan flag false', () => {
+        expect(isLegacyQrisEnabled(null)).toBe(false);
+        expect(isLegacyQrisEnabled(undefined)).toBe(false);
+        expect(isLegacyQrisEnabled({})).toBe(false);
+        expect(isLegacyQrisEnabled({ settings: {} })).toBe(false);
+        expect(isLegacyQrisEnabled({ settings: { legacy_qris_enabled: false } })).toBe(false);
+        expect(isLegacyQrisEnabled({ settings: { legacy_qris_enabled: 'true' } })).toBe(false);
       });
     });
 

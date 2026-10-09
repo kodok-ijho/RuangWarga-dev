@@ -31,6 +31,14 @@ export const DEMO_TENANTS = [
     role_name: 'Admin',
     permissions: ALL_PLATFORM_PERMISSIONS,
     owner_id: 'demo-admin',
+    settings: {
+      legacy_qris_enabled: true,
+      bank_account: {
+        bank_name: 'BCA',
+        account_number: '8830123456',
+        account_holder: 'Kas RT 05 Palm Village',
+      },
+    },
     subscription: {
       id: 'sub-demo-rtrw',
       status: 'active',

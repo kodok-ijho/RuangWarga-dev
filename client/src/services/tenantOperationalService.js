@@ -70,6 +70,7 @@ export async function fetchTenantDetails(tenantId) {
       address: 'Jl. Boulevard Palm No. 1',
       contact_phone: '081234567890',
       settings: {
+        legacy_qris_enabled: true,
         ipl_components: [
           { name: 'Keamanan', amount: 80000 },
           { name: 'Kebersihan', amount: 30000 },
@@ -175,6 +176,21 @@ export function getTenantBankAccount(tenantOrSettings) {
     account_number: accountNumber,
     account_holder: accountHolder,
   };
+}
+
+/**
+ * Mengecek apakah pembayaran QRIS legacy (jalur n8n/DOKU Palm Village)
+ * diizinkan untuk tenant yang bersangkutan. Default false.
+ *
+ * @param {Object} [tenantOrSettings]
+ * @returns {boolean}
+ */
+export function isLegacyQrisEnabled(tenantOrSettings) {
+  if (!tenantOrSettings || typeof tenantOrSettings !== 'object') {
+    return false;
+  }
+  const settings = tenantOrSettings.settings || tenantOrSettings;
+  return settings?.legacy_qris_enabled === true;
 }
 
 /**

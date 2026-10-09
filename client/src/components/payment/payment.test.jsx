@@ -468,6 +468,71 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
       expect(html).toContain('Rekening Belum Tersedia');
     });
 
+    it('20c. payment flow modal tanpa flag legacy_qris_enabled — opsi QRIS tidak dirender dan modal mulai di bank_transfer', () => {
+      const html = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <PaymentFlowModal
+              open={true}
+              bills={[{ id: 'b1', period: '2026-09', amount: 150000 }]}
+              total={150000}
+              billLabel="IPL"
+              tenant={{
+                id: 'tenant-no-qris',
+                name: 'Kos Bunga Melati',
+                settings: {
+                  bank_account: {
+                    bank_name: 'BCA',
+                    account_number: '1234567890',
+                    account_holder: 'Pengelola',
+                  },
+                },
+              }}
+              onConfirm={() => {}}
+              onClose={() => {}}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      expect(html).not.toContain('QRIS Otomatis');
+      expect(html).toContain('Transfer Bank');
+      expect(html).toContain('Rekening Tujuan Transfer');
+    });
+
+    it('20d. payment flow modal dengan flag legacy_qris_enabled: true — opsi QRIS tampil dan aktif', () => {
+      const html = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <PaymentFlowModal
+              open={true}
+              bills={[{ id: 'b1', period: '2026-09', amount: 150000 }]}
+              total={150000}
+              billLabel="IPL"
+              tenant={{
+                id: 'demo-tenant-rtrw',
+                name: 'Palm Village RT 05',
+                settings: {
+                  legacy_qris_enabled: true,
+                  bank_account: {
+                    bank_name: 'BCA',
+                    account_number: '8830123456',
+                    account_holder: 'Kas RT 05',
+                  },
+                },
+              }}
+              onConfirm={() => {}}
+              onClose={() => {}}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      expect(html).toContain('QRIS Otomatis');
+      expect(html).toContain('Transfer Bank');
+      expect(html).toContain('Biaya Transaksi QRIS (MDR 0,7%)');
+    });
+
     it('21. empty history — menampilkan status kosong yang jelas tanpa baris palsu', () => {
       const html = cleanHtml(
         renderToString(

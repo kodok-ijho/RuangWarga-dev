@@ -5,7 +5,7 @@ import { useToast } from '../hooks/useToast';
 import QrisCheckoutModal from '../components/QrisCheckoutModal';
 import { MobileList, EmptyState, SkeletonTable } from '../components/ui';
 import { IncomeCard, IncomeDetailDrawer } from '../components/finance';
-import { getTenantBankAccount } from '../services/tenantOperationalService';
+import { getTenantBankAccount, isLegacyQrisEnabled } from '../services/tenantOperationalService';
 import {
   createNonIplIncome,
   updateNonIplIncome,
@@ -43,6 +43,7 @@ export default function NonIplIncomes() {
   const toast = useToast();
   const token = session?.access_token;
   const tenantBankAccount = getTenantBankAccount(activeTenant);
+  const canUseQris = isLegacyQrisEnabled(activeTenant);
 
   const isStaff = isBendaharaOrAbove(role) && !isReadOnly;
   const isWarga = role === 'warga';
@@ -123,10 +124,18 @@ export default function NonIplIncomes() {
       return;
     }
 
-    // Role Rule Guard: Warga only allowed bank_transfer or qris
-    if (isWarga && !['bank_transfer', 'qris'].includes(form.payment_method)) {
-      toast.error('Warga hanya dapat memilih metode Transfer Bank atau QRIS.');
+    // Role Rule Guard: Warga only allowed bank_transfer or qris (if enabled)
+    if (form.payment_method === 'qris' && !canUseQris) {
+      toast.error('Metode pembayaran QRIS tidak tersedia untuk tenant ini.');
       return;
+    }
+
+    if (isWarga) {
+      const allowedMethods = canUseQris ? ['bank_transfer', 'qris'] : ['bank_transfer'];
+      if (!allowedMethods.includes(form.payment_method)) {
+        toast.error('Warga hanya dapat memilih metode Transfer Bank' + (canUseQris ? ' atau QRIS.' : '.'));
+        return;
+      }
     }
 
     // If QRIS is chosen -> Generate Authentic DOKU Production QRIS & Open Modal
@@ -497,7 +506,7 @@ export default function NonIplIncomes() {
             >
               {isStaff && <option value="cash">💵 Tunai / Cash (Langsung)</option>}
               <option value="bank_transfer">🏦 Transfer Bank (Manual)</option>
-              <option value="qris">📱 QRIS</option>
+              {canUseQris && <option value="qris">📱 QRIS</option>}
               {isStaff && <option value="other">Lainnya</option>}
             </select>
           </label>
@@ -534,7 +543,7 @@ export default function NonIplIncomes() {
             </div>
           )}
 
-          {form.payment_method === 'qris' && (() => {
+          {canUseQris && form.payment_method === 'qris' && (() => {
             const nonIplAmount = Number(form.amount || 0);
             const nonIplFee = Math.ceil(nonIplAmount * 0.007);
             const nonIplTotal = nonIplAmount + nonIplFee;

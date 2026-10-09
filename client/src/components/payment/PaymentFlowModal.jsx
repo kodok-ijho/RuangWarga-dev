@@ -3,7 +3,7 @@ import { Dialog, Button } from '../ui';
 import { formatRupiah, formatPeriod } from '../../services/dataHelpers';
 import { compressImage } from '../../utils/imageCompressor';
 import { IS_DEMO } from '../../services/dataService';
-import { getTenantBankAccount } from '../../services/tenantOperationalService';
+import { getTenantBankAccount, isLegacyQrisEnabled } from '../../services/tenantOperationalService';
 import { TenantContext } from '../../context/TenantContext';
 import {
   AiOutlineCreditCard,
@@ -30,7 +30,7 @@ export function PaymentFlowModal({
   open = true,
   bills = [],
   total = 0,
-  canUseQris = true,
+  canUseQris: canUseQrisProp,
   billLabel = 'Tagihan',
   bankAccount: bankAccountProp = null,
   tenant: tenantProp = null,
@@ -40,6 +40,9 @@ export function PaymentFlowModal({
   const tenantCtx = useContext(TenantContext);
   const activeTenant = tenantProp || tenantCtx?.activeTenant || null;
   const resolvedBankAccount = bankAccountProp || getTenantBankAccount(activeTenant);
+  const canUseQris = canUseQrisProp !== undefined
+    ? Boolean(canUseQrisProp)
+    : isLegacyQrisEnabled(activeTenant);
   const [copied, setCopied] = useState(false);
 
   const [method, setMethod] = useState(canUseQris ? 'qris' : 'bank_transfer');
