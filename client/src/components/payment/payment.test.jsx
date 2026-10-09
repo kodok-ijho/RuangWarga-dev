@@ -412,6 +412,62 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
       expect(html).toContain('Pilih File Bukti Transfer');
     });
 
+    it('20a. payment flow modal dengan rekening terisi — menampilkan nomor rekening, nama bank, atas nama, dan form unggah bukti', () => {
+      const html = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <PaymentFlowModal
+              open={true}
+              bills={[{ id: 'b1', period: '2026-09', amount: 150000 }]}
+              total={150000}
+              canUseQris={false}
+              billLabel="IPL"
+              bankAccount={{
+                bank_name: 'BCA',
+                account_number: '8830123456',
+                account_holder: 'Kas RT 05 Palm Village',
+              }}
+              onConfirm={() => {}}
+              onClose={() => {}}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      expect(html).toContain('Bank BCA');
+      expect(html).toContain('8830123456');
+      expect(html).toContain('Kas RT 05 Palm Village');
+      expect(html).toContain('Salin Nomor Rekening');
+      expect(html).toContain('Unggah Bukti Transfer');
+      expect(html).toContain('Pilih File Bukti Transfer');
+      expect(html).toContain('Kirim Bukti Transfer');
+    });
+
+    it('20b. payment flow modal tanpa rekening — menyembunyikan form unggah bukti dan menampilkan peringatan rekening belum tersedia', () => {
+      const html = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <PaymentFlowModal
+              open={true}
+              bills={[{ id: 'b1', period: '2026-09', amount: 150000 }]}
+              total={150000}
+              canUseQris={false}
+              billLabel="IPL"
+              bankAccount={null}
+              onConfirm={() => {}}
+              onClose={() => {}}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      expect(html).toContain('Rekening Transfer Belum Tersedia');
+      expect(html).toContain('Pengelola belum mencantumkan rekening bank tujuan pembayaran');
+      expect(html).not.toContain('Unggah Bukti Transfer');
+      expect(html).not.toContain('Pilih File Bukti Transfer');
+      expect(html).toContain('Rekening Belum Tersedia');
+    });
+
     it('21. empty history — menampilkan status kosong yang jelas tanpa baris palsu', () => {
       const html = cleanHtml(
         renderToString(

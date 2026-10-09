@@ -31,6 +31,8 @@ import {
   drawArisanWinner,
   startNewArisanCycle,
   generateKelasSppBilling,
+  getTenantBankAccount,
+  saveTenantBankAccount,
 } from './tenantOperationalService';
 
 describe('tenantOperationalService - Unit Tests', () => {
@@ -604,6 +606,125 @@ describe('tenantOperationalService - Unit Tests', () => {
       // Validasi error jika tenantId atau period tidak valid
       await expect(generateKelasSppBilling('', { period: '2026-11' })).rejects.toThrow('Tenant ID wajib disertakan.');
       await expect(generateKelasSppBilling('demo-tenant-id', { period: 'invalid' })).rejects.toThrow('Format periode harus YYYY-MM.');
+    });
+  });
+
+  describe('PAY-2 Bank Account Helpers & Validation Tests (PAY-2.1 / PAY-2.5)', () => {
+    describe('getTenantBankAccount', () => {
+      it('mengembalikan objek bank account bila data lengkap', () => {
+        const tenant = {
+          settings: {
+            bank_account: {
+              bank_name: 'BCA',
+              account_number: '8830123456',
+              account_holder: 'Kas RT 05',
+            },
+          },
+        };
+        const result = getTenantBankAccount(tenant);
+        expect(result).toEqual({
+          bank_name: 'BCA',
+          account_number: '8830123456',
+          account_holder: 'Kas RT 05',
+        });
+      });
+
+      it('mengembalikan null jika field tidak lengkap atau kosong', () => {
+        expect(getTenantBankAccount(null)).toBeNull();
+        expect(getTenantBankAccount({})).toBeNull();
+        expect(getTenantBankAccount({ settings: {} })).toBeNull();
+        expect(getTenantBankAccount({
+          settings: {
+            bank_account: { bank_name: 'BCA', account_number: '', account_holder: 'Kas' },
+          },
+        })).toBeNull();
+        expect(getTenantBankAccount({
+          settings: {
+            bank_account: { bank_name: '', account_number: '12345678', account_holder: '' },
+          },
+        })).toBeNull();
+      });
+    });
+
+    describe('saveTenantBankAccount validation', () => {
+      it('menolak nomor rekening yang memuat huruf atau karakter non-angka', async () => {
+        await expect(
+          saveTenantBankAccount('demo-tenant-1', {
+            bank_name: 'Mandiri',
+            account_number: '1234ABCD5678',
+            account_holder: 'Budi Santoso',
+          })
+        ).rejects.toThrow('Nomor rekening hanya boleh berisi angka');
+      });
+
+      it('membersihkan spasi dan strip pada nomor rekening saat disimpan', async () => {
+        const result = await saveTenantBankAccount('demo-tenant-1', {
+          bank_name: 'Bank Mandiri',
+          account_number: ' 123-456-7890 12 ',
+          account_holder: 'Budi Santoso',
+        });
+        expect(result.settings.bank_account.account_number).toBe('123456789012');
+        expect(result.settings.bank_account.bank_name).toBe('Bank Mandiri');
+        expect(result.settings.bank_account.account_holder).toBe('Budi Santoso');
+      });
+
+      it('menolak jika field wajib kosong atau hanya whitespace', async () => {
+        // bank_name kosong
+        await expect(
+          saveTenantBankAccount('demo-tenant-1', {
+            bank_name: '   ',
+            account_number: '123456789',
+            account_holder: 'Budi Santoso',
+          })
+        ).rejects.toThrow('Nama bank wajib diisi.');
+
+        // account_number kosong
+        await expect(
+          saveTenantBankAccount('demo-tenant-1', {
+            bank_name: 'BCA',
+            account_number: '   ',
+            account_holder: 'Budi Santoso',
+          })
+        ).rejects.toThrow('Nomor rekening wajib diisi.');
+
+        // account_holder kosong
+        await expect(
+          saveTenantBankAccount('demo-tenant-1', {
+            bank_name: 'BCA',
+            account_number: '123456789',
+            account_holder: '   ',
+          })
+        ).rejects.toThrow('Nama pemilik rekening wajib diisi.');
+      });
+
+      it('menolak panjang karakter yang tidak valid (panjang digit & nama)', async () => {
+        // digit rekening kurang dari 6
+        await expect(
+          saveTenantBankAccount('demo-tenant-1', {
+            bank_name: 'BCA',
+            account_number: '12345',
+            account_holder: 'Kas RT',
+          })
+        ).rejects.toThrow('Nomor rekening harus terdiri dari 6 hingga 20 digit angka.');
+
+        // digit rekening lebih dari 20
+        await expect(
+          saveTenantBankAccount('demo-tenant-1', {
+            bank_name: 'BCA',
+            account_number: '123456789012345678901',
+            account_holder: 'Kas RT',
+          })
+        ).rejects.toThrow('Nomor rekening harus terdiri dari 6 hingga 20 digit angka.');
+
+        // nama bank terlalu pendek (< 2 chars)
+        await expect(
+          saveTenantBankAccount('demo-tenant-1', {
+            bank_name: 'B',
+            account_number: '123456789',
+            account_holder: 'Kas RT',
+          })
+        ).rejects.toThrow('Nama bank harus terdiri dari 2 hingga 50 karakter.');
+      });
     });
   });
 });
