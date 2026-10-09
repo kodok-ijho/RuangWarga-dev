@@ -15,6 +15,19 @@ import { supabase } from '../../services/supabaseClient';
 import { useTenant } from '../../hooks/useTenant';
 import { useTenantTemplate } from '../../hooks/useTenantTemplate';
 
+export function resolveSubscriptionExpiryDate(subData) {
+  if (!subData) return '-';
+  const expiry = subData.status === 'trial' ? subData.trial_ends_at : subData.current_period_end;
+  if (!expiry) return '-';
+  const d = new Date(expiry);
+  if (isNaN(d.getTime())) return '-';
+  return d.toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
 export default function SubscriptionStatus() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -270,13 +283,7 @@ export default function SubscriptionStatus() {
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
                   <span className="text-slate-500">Masa Aktif Berakhir:</span>
                   <strong className="text-slate-900 font-mono">
-                    {subData?.trial_ends_at || subData?.current_period_end
-                      ? new Date(subData.trial_ends_at || subData.current_period_end).toLocaleDateString('id-ID', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                        })
-                      : '-'}
+                    {resolveSubscriptionExpiryDate(subData)}
                   </strong>
                 </div>
               </div>
