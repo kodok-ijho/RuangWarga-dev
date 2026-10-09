@@ -59,16 +59,18 @@ export default function Settings() {
   const [schemas, setSchemas] = useState([]);
   const [smokeTest, setSmokeTest] = useState(null);
 
-  // Local state untuk rekening penerima pembayaran (PAY-2.2)
+  // Local state untuk rekening penerima pembayaran (PAY-2.2 / PAY-2F.1)
   const [bankName, setBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [accountHolder, setAccountHolder] = useState('');
   const [isSavingBank, setIsSavingBank] = useState(false);
   const [tenantSettings, setTenantSettings] = useState({});
   const [savedBankAccount, setSavedBankAccount] = useState(null);
+  const [isTenantDetailsLoaded, setIsTenantDetailsLoaded] = useState(false);
 
   const loadSettings = useCallback(async () => {
     setIsLoading(true);
+    setIsTenantDetailsLoaded(false);
     setLoadError('');
     try {
       const data = await fetchSettings(session?.access_token);
@@ -91,7 +93,7 @@ export default function Settings() {
         }))
       );
 
-      // Muat data rekening bank tenant aktif (PAY-2.2)
+      // Muat data rekening bank tenant aktif (PAY-2.2 / PAY-2F.1)
       if (activeTenantId) {
         try {
           const tenantDetails = await fetchTenantDetails(activeTenantId);
@@ -107,6 +109,7 @@ export default function Settings() {
             setAccountNumber('');
             setAccountHolder('');
           }
+          setIsTenantDetailsLoaded(Boolean(tenantDetails && typeof tenantDetails.settings === 'object' && tenantDetails.settings !== null));
         } catch {
           if (activeTenant) {
             setTenantSettings(activeTenant.settings || {});
@@ -117,6 +120,9 @@ export default function Settings() {
               setAccountNumber(bank.account_number || '');
               setAccountHolder(bank.account_holder || '');
             }
+            setIsTenantDetailsLoaded(Boolean(activeTenant && typeof activeTenant.settings === 'object' && activeTenant.settings !== null));
+          } else {
+            setIsTenantDetailsLoaded(false);
           }
         }
       } else if (activeTenant) {
@@ -128,6 +134,9 @@ export default function Settings() {
           setAccountNumber(bank.account_number || '');
           setAccountHolder(bank.account_holder || '');
         }
+        setIsTenantDetailsLoaded(Boolean(activeTenant && typeof activeTenant.settings === 'object' && activeTenant.settings !== null));
+      } else {
+        setIsTenantDetailsLoaded(false);
       }
     } catch (err) {
       const msg = err.message || 'Gagal memuat pengaturan IPL.';
@@ -246,8 +255,7 @@ export default function Settings() {
           bank_name: bankName,
           account_number: accountNumber,
           account_holder: accountHolder,
-        },
-        tenantSettings
+        }
       );
       const cleanAcc = accountNumber.replace(/[\s-]/g, '').trim();
       const cleanBank = bankName.trim();
@@ -699,7 +707,7 @@ export default function Settings() {
             <button
               type="button"
               onClick={handleSaveBankAccount}
-              disabled={!canEdit || isSavingBank}
+              disabled={!canEdit || isSavingBank || !isTenantDetailsLoaded || !activeTenantId}
               className="pv-btn-primary px-4 py-2 text-xs font-bold shadow-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
             >
               <AiOutlineSave size={16} />

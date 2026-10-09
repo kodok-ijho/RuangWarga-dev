@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { supabase } from './supabaseClient';
 import {
   generateInviteCode,
   calculateBillingPreview,
@@ -724,6 +725,108 @@ describe('tenantOperationalService - Unit Tests', () => {
             account_holder: 'Kas RT',
           })
         ).rejects.toThrow('Nama bank harus terdiri dari 2 hingga 50 karakter.');
+      });
+    });
+
+    describe('PAY-2F.1 saveTenantBankAccount isolation & preservation (F10)', () => {
+      it('melempar error dan TIDAK memanggil update jika fetchTenantDetails gagal', async () => {
+        const updateSpy = vi.fn();
+        const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+          if (table === 'tenants') {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: null,
+                    error: new Error('Database connection failed'),
+                  }),
+                }),
+              }),
+              update: updateSpy,
+            };
+          }
+          return {};
+        });
+
+        await expect(
+          saveTenantBankAccount('prod-tenant-uuid-1', {
+            bank_name: 'BCA',
+            account_number: '1234567890',
+            account_holder: 'Kas RT',
+          })
+        ).rejects.toThrow('Gagal memuat pengaturan tenant, rekening tidak disimpan.');
+
+        expect(updateSpy).not.toHaveBeenCalled();
+        fromSpy.mockRestore();
+      });
+
+      it('mempertahankan settings lama (invite_code, due_day, ipl_schemas) saat menyimpan rekening', async () => {
+        let capturedUpdatePayload = null;
+        const oldSettings = {
+          invite_code: 'RW-TEST-1234',
+          due_day: 15,
+          ipl_schemas: [{ id: 1, name: 'Reguler', amount: 100000 }],
+        };
+
+        const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+          if (table === 'tenants') {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: {
+                      id: 'prod-tenant-uuid-2',
+                      name: 'Komunitas Harmoni',
+                      settings: oldSettings,
+                    },
+                    error: null,
+                  }),
+                }),
+              }),
+              update: vi.fn((payload) => {
+                capturedUpdatePayload = payload;
+                return {
+                  eq: vi.fn().mockReturnValue({
+                    select: vi.fn().mockReturnValue({
+                      single: vi.fn().mockResolvedValue({
+                        data: {
+                          id: 'prod-tenant-uuid-2',
+                          settings: payload.settings,
+                        },
+                        error: null,
+                      }),
+                    }),
+                  }),
+                };
+              }),
+            };
+          }
+          return {};
+        });
+
+        const result = await saveTenantBankAccount('prod-tenant-uuid-2', {
+          bank_name: 'Bank Mandiri',
+          account_number: '9876543210',
+          account_holder: 'Pengurus Komunitas',
+        });
+
+        expect(capturedUpdatePayload).toBeDefined();
+        expect(capturedUpdatePayload.settings).toBeDefined();
+        // Semua key lama wajib ada
+        expect(capturedUpdatePayload.settings.invite_code).toBe('RW-TEST-1234');
+        expect(capturedUpdatePayload.settings.due_day).toBe(15);
+        expect(capturedUpdatePayload.settings.ipl_schemas).toEqual([
+          { id: 1, name: 'Reguler', amount: 100000 },
+        ]);
+        // Key bank_account baru terpasang
+        expect(capturedUpdatePayload.settings.bank_account).toEqual({
+          bank_name: 'Bank Mandiri',
+          account_number: '9876543210',
+          account_holder: 'Pengurus Komunitas',
+        });
+
+        expect(result.settings.bank_account.bank_name).toBe('Bank Mandiri');
+        fromSpy.mockRestore();
       });
     });
   });

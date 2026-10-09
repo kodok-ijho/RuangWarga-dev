@@ -180,13 +180,14 @@ export function getTenantBankAccount(tenantOrSettings) {
 /**
  * Menyimpan / memperbarui rekening bank tenant ke dalam settings tenant.
  * Memakai updateTenantProfileAndSettings yang sudah ada (tidak membuat query update baru).
+ * Selalu mengambil settings terbaru lewat fetchTenantDetails tepat sebelum menyimpan
+ * untuk mencegah penimpaan setting lain (F10).
  *
  * @param {string} tenantId
  * @param {Object} bankAccount - { bank_name, account_number, account_holder }
- * @param {Object} [currentSettings=null] - settings yang ada saat ini (opsional)
  * @returns {Promise<Object>}
  */
-export async function saveTenantBankAccount(tenantId, bankAccount, currentSettings = null) {
+export async function saveTenantBankAccount(tenantId, bankAccount) {
   if (!tenantId) {
     throw new Error('Tenant ID wajib disertakan.');
   }
@@ -236,16 +237,19 @@ export async function saveTenantBankAccount(tenantId, bankAccount, currentSettin
     throw new Error('Nama pemilik rekening harus terdiri dari 2 hingga 100 karakter.');
   }
 
-  // Resolusi settings dasar agar tidak menimpa field setting lainnya
-  let baseSettings = currentSettings;
-  if (!baseSettings) {
-    try {
-      const tenantDetails = await fetchTenantDetails(tenantId);
-      baseSettings = tenantDetails?.settings || {};
-    } catch {
-      baseSettings = {};
-    }
+  // F10: Selalu ambil settings terbaru tepat sebelum menyimpan agar tidak menimpa setting lain.
+  let tenantDetails;
+  try {
+    tenantDetails = await fetchTenantDetails(tenantId);
+  } catch {
+    throw new Error('Gagal memuat pengaturan tenant, rekening tidak disimpan.');
   }
+
+  if (!tenantDetails || typeof tenantDetails.settings !== 'object' || tenantDetails.settings === null) {
+    throw new Error('Gagal memuat pengaturan tenant, rekening tidak disimpan.');
+  }
+
+  const baseSettings = tenantDetails.settings;
 
   const updatedSettings = {
     ...baseSettings,
