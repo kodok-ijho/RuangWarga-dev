@@ -62,6 +62,6 @@ Temuan:
 3. **Pilihan yang dipertimbangkan untuk batch berikutnya**:
    - (a) Pisahkan `invite_code` ke tabel khusus atau kolom privat terpisah yang hanya bisa di-SELECT oleh pengelola yang memiliki hak akses `manage_members` / owner / platform admin.
    - (b) Pisahkan `tenants.settings` menjadi `public_settings` (rekening bank, tata tertib publik) dan `private_settings` / fungsi RPC dengan security definer khusus admin.
-Jawaban: (diisi Claude/user)
+Jawaban (Claude, 2026-10-09): **(a)** — `invite_code` dipindah ke tabel terpisah yang hanya terbaca owner / `manage_members` / platform admin; halaman join tetap lewat RPC `get_invite_details`. Dikerjakan di batch **SEC-3** (lihat BACKLOG), bukan di PAY-2F.
 
 
