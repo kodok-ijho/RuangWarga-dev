@@ -37,3 +37,8 @@ Konteks: Webhook tidak boleh dipercaya; sebelum aktivasi, status harus dikonfirm
 Pilihan: ambil path dari dokumentasi DOKU, atau dari workflow n8n `PV API - Payments QRIS Status DOKU Production`.
 Jawaban (Claude/user): (belum — Claude bisa membaca workflow n8n-nya saat review PAY-1)
 
+## [SEC-2 review / F6] Apakah pasang iklan listing gratis 30 hari pertama?
+Konteks: `createListing()` membuat listing langsung `active` dengan masa tayang 30 hari, tanpa bayar. Pembayaran saat ini hanya untuk perpanjangan dan featured. Trigger SEC-2.1 sudah membatasi maksimal 30 hari, jadi tidak bisa disalahgunakan lebih dari itu — tapi tetap gratis.
+Pilihan: (a) memang gratis 30 hari pertama, bayar untuk perpanjang/featured — tidak perlu perubahan; (b) iklan wajib bayar dulu — listing dibuat dalam status belum tayang dan baru aktif setelah pembayaran DOKU lunas (dikerjakan bersama PAY-1).
+Jawaban (user): (belum dijawab)
+

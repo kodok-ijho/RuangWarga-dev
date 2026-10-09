@@ -74,6 +74,13 @@ Acceptance: fungsi bisa dipanggil dari UI dan dari test tanpa menyentuh Supabase
   form unggah bukti tidak dirender dan pesan peringatan tampil.
 - Ikuti pola test yang sudah ada di `client/src/components/payment/payment.test.jsx`.
 
+## PAY-2.6 — Perbaikan kecil dari review SEC-2 (F8)
+`client/src/pages/account/SubscriptionStatus.jsx`: tanggal "Masa Aktif Berakhir" sekarang memakai
+`subData.trial_ends_at || subData.current_period_end`. Untuk tenant yang dulu trial lalu berlangganan,
+yang tampil jadi tanggal akhir trial yang sudah lewat. Ganti jadi:
+`status === 'trial' ? trial_ends_at : current_period_end` (tampilkan "-" bila kosong).
+Tambah test kecil untuk kedua kasus.
+
 ---
 
 ## Definition of Done
