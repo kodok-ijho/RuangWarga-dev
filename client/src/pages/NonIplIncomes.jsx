@@ -138,6 +138,11 @@ export default function NonIplIncomes() {
       }
     }
 
+    if (form.payment_method === 'bank_transfer' && !tenantBankAccount) {
+      toast.error('Rekening pengelola belum dikonfigurasi.');
+      return;
+    }
+
     // If QRIS is chosen -> Generate Authentic DOKU Production QRIS & Open Modal
     if (form.payment_method === 'qris') {
       setSubmitting(true);
@@ -518,28 +523,30 @@ export default function NonIplIncomes() {
                 🏦 Instruksi Transfer Rekening Pengurus
               </h4>
               {tenantBankAccount ? (
-                <p className="text-xs text-blue-800 mb-2">
-                  Silakan transfer ke rekening resmi pengelola:
-                  <span className="block font-semibold mt-1">
-                    Bank {tenantBankAccount.bank_name}: {tenantBankAccount.account_number} (a/n {tenantBankAccount.account_holder})
-                  </span>
-                </p>
+                <>
+                  <p className="text-xs text-blue-800 mb-2">
+                    Silakan transfer ke rekening resmi pengelola:
+                    <span className="block font-semibold mt-1">
+                      Bank {tenantBankAccount.bank_name}: {tenantBankAccount.account_number} (a/n {tenantBankAccount.account_holder})
+                    </span>
+                  </p>
+                  <label className="block text-xs font-bold text-blue-900 mt-2 uppercase tracking-wider">
+                    Upload Foto / Screenshot Bukti Transfer <span className="text-red-500">*</span>
+                    <input
+                      className="pv-input mt-1 text-xs bg-white border-blue-200"
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      onChange={(e) => setFile(e.target.files?.[0] || null)}
+                      required={!editingId}
+                    />
+                    <span className="text-[11px] text-blue-600 font-normal normal-case block mt-0.5">Format: JPG, PNG. Maksimal 2MB.</span>
+                  </label>
+                </>
               ) : (
                 <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5 mb-2">
                   Rekening pengelola belum dikonfigurasi. Silakan hubungi pengurus untuk informasi rekening transfer atau lakukan pembayaran tunai.
                 </p>
               )}
-              <label className="block text-xs font-bold text-blue-900 mt-2 uppercase tracking-wider">
-                Upload Foto / Screenshot Bukti Transfer <span className="text-red-500">*</span>
-                <input
-                  className="pv-input mt-1 text-xs bg-white border-blue-200"
-                  type="file"
-                  accept="image/jpeg,image/png"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
-                  required={!editingId}
-                />
-                <span className="text-[11px] text-blue-600 font-normal normal-case block mt-0.5">Format: JPG, PNG. Maksimal 2MB.</span>
-              </label>
             </div>
           )}
 
@@ -596,7 +603,11 @@ export default function NonIplIncomes() {
             <button
               className="pv-btn-primary px-6"
               type="submit"
-              disabled={submitting || (!isWarga && !canManageForm)}
+              disabled={
+                submitting ||
+                (!isWarga && !canManageForm) ||
+                (form.payment_method === 'bank_transfer' && !tenantBankAccount)
+              }
             >
               {submitting
                 ? 'Memproses...'
@@ -604,6 +615,8 @@ export default function NonIplIncomes() {
                 ? 'Simpan Perubahan'
                 : form.payment_method === 'qris'
                 ? '💳 Buka Pembayaran QRIS →'
+                : form.payment_method === 'bank_transfer' && !tenantBankAccount
+                ? 'Rekening Belum Tersedia'
                 : isWarga
                 ? 'Kirim Bukti Transfer'
                 : 'Simpan Pemasukan'}
