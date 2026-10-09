@@ -42,3 +42,26 @@ Konteks: `createListing()` membuat listing langsung `active` dengan masa tayang 
 Pilihan: (a) memang gratis 30 hari pertama, bayar untuk perpanjang/featured — tidak perlu perubahan; (b) iklan wajib bayar dulu — listing dibuat dalam status belum tayang dan baru aktif setelah pembayaran DOKU lunas (dikerjakan bersama PAY-1).
 Jawaban (user, 2026-10-09): **(b) iklan harus bayar dulu.** Listing baru berstatus `pending_payment` (nilai enum baru), tidak tampil publik, dan baru `active` setelah pembayaran DOKU lunas. Dikerjakan di **PAY-1.7**.
 
+## [PAY-2.4] Audit Akses RLS `tenants.settings` & Kebocoran `invite_code`
+Konteks: Policy RLS `tenants_select` pada `supabase/migrations/202609170006_refactor_rls_to_has_permission.sql`:
+```sql
+CREATE POLICY "tenants_select" ON public.tenants
+  FOR SELECT USING (
+    public.is_platform_admin()
+    OR id IN (SELECT public.current_tenant_ids())
+    OR owner_id = auth.uid()
+  );
+```
+Fungsi `public.current_tenant_ids()` mengembalikan tenant_id semua anggota tenant aktif (`status = 'approved'`).
+Temuan:
+1. **Siapa saja yang bisa SELECT `tenants.settings`**:
+   - Platform Admin (`public.is_platform_admin()`)
+   - Tenant Owner (`owner_id = auth.uid()`)
+   - **Seluruh anggota tenant yang berstatus 'approved'** (`id IN (SELECT public.current_tenant_ids())`), termasuk warga biasa, penyewa kos, siswa kelas, dan peserta arisan.
+2. **Implikasi Kebocoran `invite_code`**: Kolom `tenants.settings` (JSONB) menyimpan `bank_account`, `due_day`, komponen/skema IPL, DAN `invite_code` (kode undangan pendaftaran anggota baru). Karena PostgreSQL RLS berada pada level baris (bukan level kolom), seluruh anggota biasa dapat membaca `invite_code` langsung dari tabel `tenants`.
+3. **Pilihan yang dipertimbangkan untuk batch berikutnya**:
+   - (a) Pisahkan `invite_code` ke tabel khusus atau kolom privat terpisah yang hanya bisa di-SELECT oleh pengelola yang memiliki hak akses `manage_members` / owner / platform admin.
+   - (b) Pisahkan `tenants.settings` menjadi `public_settings` (rekening bank, tata tertib publik) dan `private_settings` / fungsi RPC dengan security definer khusus admin.
+Jawaban: (diisi Claude/user)
+
+
