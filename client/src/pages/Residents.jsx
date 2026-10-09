@@ -343,7 +343,7 @@ export default function Residents() {
 
   const handleExportCSV = () => {
     const header = ['Nama', 'Email', 'Telepon', 'Blok', 'Unit', 'Status', 'Status Tinggal', 'Pemilik', 'Role'];
-    const rows = filtered.map((p) => {
+    const rows = filteredAndSorted.map((p) => {
       const unit = getUnitById(p.unit_id);
       // Pemilik unit: kalau profil ini BUKAN owner, tampilkan nama pemilik
       const owner =

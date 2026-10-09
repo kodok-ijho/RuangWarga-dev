@@ -240,17 +240,28 @@ export default function SubscriptionStatus() {
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                     Status Langganan
                   </span>
-                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase ${badge.style}`}>
-                    {badge.label}
-                  </span>
+                  {(() => {
+                    const badgeMap = {
+                      active: { label: 'Aktif', style: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                      trial: { label: 'Masa Uji Coba', style: 'bg-amber-50 text-amber-700 border-amber-200' },
+                      grace_period: { label: 'Masa Tenggang', style: 'bg-orange-50 text-orange-700 border-orange-200' },
+                      read_only: { label: 'Read Only', style: 'bg-rose-50 text-rose-700 border-rose-200' },
+                    };
+                    const badge = badgeMap[status] || { label: status || 'Status', style: 'bg-slate-100 text-slate-700 border-slate-200' };
+                    return (
+                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase ${badge.style}`}>
+                        {badge.label}
+                      </span>
+                    );
+                  })()}
                 </div>
 
                 <div className="space-y-2">
                   <h3 className="text-2xl font-extrabold text-slate-900 font-display">
-                    {sub?.status === 'trial' ? 'Masa Percobaan Aktif' : 'Paket Berlangganan Aktif'}
+                    {subData?.status === 'trial' ? 'Masa Percobaan Aktif' : 'Paket Berlangganan Aktif'}
                   </h3>
                   <p className="text-xs text-slate-600 leading-relaxed">
-                    {sub?.status === 'trial'
+                    {subData?.status === 'trial'
                       ? 'Anda sedang menikmati fitur penuh platform dengan kuota trial gratis.'
                       : 'Komunitas Anda memiliki akses penuh ke fitur operasional RuangWarga.'}
                   </p>
@@ -259,8 +270,8 @@ export default function SubscriptionStatus() {
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
                   <span className="text-slate-500">Masa Aktif Berakhir:</span>
                   <strong className="text-slate-900 font-mono">
-                    {sub?.trial_ends_at
-                      ? new Date(sub.trial_ends_at).toLocaleDateString('id-ID', {
+                    {subData?.trial_ends_at || subData?.current_period_end
+                      ? new Date(subData.trial_ends_at || subData.current_period_end).toLocaleDateString('id-ID', {
                           day: 'numeric',
                           month: 'long',
                           year: 'numeric',

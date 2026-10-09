@@ -5,7 +5,7 @@ import reactHooksPlugin from 'eslint-plugin-react-hooks';
 
 export default [
   {
-    ignores: ['dist/**', 'node_modules/**', 'tests/**'],
+    ignores: ['dist/**', 'node_modules/**', 'tests/**', 'coverage/**'],
   },
   js.configs.recommended,
   {
@@ -19,7 +19,6 @@ export default [
       sourceType: 'module',
       globals: {
         ...globals.browser,
-        ...globals.node,
         ...globals.es2021,
       },
       parserOptions: {
@@ -43,14 +42,15 @@ export default [
       'react/react-in-jsx-scope': 'off',
       // Proyek tidak menggunakan PropTypes
       'react/prop-types': 'off',
-      // Matikan aturan gaya & compiler hooks baru agar lint lolos tanpa refactor masif pada kode legacy
+      // SEC-2.4: Hidupkan kembali aturan lint esensial
+      'react-hooks/rules-of-hooks': 'error',
+      'no-undef': 'error',
+      // Aturan gaya & compiler hooks yang tidak menghalangi fungsionalitas
       'no-unused-vars': 'off',
-      'no-undef': 'off',
       'no-useless-catch': 'off',
       'no-extra-boolean-cast': 'off',
       'react/no-unescaped-entities': 'off',
       'react/display-name': 'off',
-      'react-hooks/rules-of-hooks': 'off',
       'react-hooks/exhaustive-deps': 'off',
       'react-hooks/set-state-in-effect': 'off',
       'react-hooks/immutability': 'off',
@@ -59,6 +59,31 @@ export default [
       'react-hooks/refs': 'off',
       'no-empty': ['error', { allowEmptyCatch: true }],
       'no-case-declarations': 'off',
+    },
+  },
+  {
+    files: ['src/**/*.{test,spec}.{js,jsx}'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        describe: 'readonly',
+        it: 'readonly',
+        test: 'readonly',
+        expect: 'readonly',
+        vi: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+      },
+    },
+  },
+  {
+    files: ['*.{js,mjs,cjs}'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
     },
   },
 ];

@@ -25,6 +25,7 @@ import {
   isBendaharaOrAbove,
   canModifyData,
   getQrisProviderLabel,
+  roleLabel,
 } from '../services/dataHelpers';
 import {
   fetchBillMatrix,
@@ -1918,6 +1919,7 @@ function ResidentPayModal({ bills, total, canUseQris, billLabel = 'IPL', onConfi
 // Staff can record transfer proof for residents who cannot use the app yet.
 // Cash remains limited to bendahara/admin.
 function ManualPaymentModal({ bills, unit, role, canWrite, canUseQris, billLabel = 'IPL', onConfirm, onClose }) {
+  const toast = useToast();
   const canRecordCash = isBendaharaOrAbove(role) && canWrite;
   const canRecordTransfer = canWrite;
   const methodCount = Number(canRecordCash) + Number(canRecordTransfer) + Number(canUseQris);
@@ -2305,6 +2307,7 @@ function getResolvedPaymentDate(payment, bill) {
 // Modal Detail / Verifikasi / Revisi Pembayaran
 function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, session, isHanging: initialIsHanging, billLabel = 'IPL', onRefresh, onRetry, onClose }) {
   const toast = useToast();
+  const { template } = useTenantTemplate();
   const [asyncPayment, setAsyncPayment] = useState(null);
 
   // Selalu fetch data payment lengkap dari backend

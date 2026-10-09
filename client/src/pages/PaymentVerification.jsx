@@ -315,11 +315,6 @@ export default function PaymentVerification() {
     [payments]
   );
 
-  // Guard: Bendahara+ only
-  if (!isBendaharaOrAbove(role)) {
-    return <Navigate to="/" replace />;
-  }
-
   const currentList =
     activeTab === 'pending'
       ? pendingPayments
@@ -353,6 +348,11 @@ export default function PaymentVerification() {
     const start = (currentPage - 1) * pageSize;
     return filteredList.slice(start, start + pageSize);
   }, [filteredList, currentPage, pageSize]);
+
+  // Guard: Bendahara+ only
+  if (!isBendaharaOrAbove(role)) {
+    return <Navigate to="/" replace />;
+  }
 
   const handleVerify = async (payment) => {
     if (!canWrite) {
