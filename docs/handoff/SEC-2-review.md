@@ -26,3 +26,8 @@ Kualitas kerja baik. Nilai tambah: lint yang dihidupkan lagi menangkap **dua cra
 `SubscriptionStatus.jsx` memakai `subData.trial_ends_at || subData.current_period_end`. Tenant yang dulu trial lalu berlangganan masih punya `trial_ends_at` lama, sehingga tanggal yang tampil adalah akhir trial, bukan akhir periode berbayar. Seharusnya: `status === 'trial' ? trial_ends_at : current_period_end`. → PAY-2.6.
 
 **Catatan (tidak dikerjakan):** trigger listing tidak mencegah pemasang mengubah `type` listing setelah membayar (mis. bayar tarif tipe murah lalu ganti ke tipe mahal). Dampak kecil; dicatat saja.
+
+## Status apply ke Supabase dev (2026-10-09)
+- `202610090001_protect_billing_columns` **belum ter-apply**: pemanggilan `apply_migration` tertahan prompt persetujuan alat dan menunggu user menekan *Approve*. Setelah ter-apply, Claude menjalankan `supabase/tests/billing_columns_matrix.sql` + `get_advisors(security)` lalu memperbarui tabel verifikasi di atas.
+- **F9 (baru):** `public_listings` di dev tidak punya policy SELECT (policy `public_read_active_listings` hilang, drift DB). Diperbaiki di PAY-1.7.
+- **F6 dijawab user:** iklan wajib bayar dulu → PAY-1.7.

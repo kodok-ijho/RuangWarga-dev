@@ -10,7 +10,7 @@ Urutan rencana: **SEC-1 ✅ → SEC-2 (aktif) → PAY-2 (rekening tenant) → PA
   - *Warga bayar ke tenant* (iuran/sewa/kontribusi) → **rekening milik tenant sendiri**, metode `bank_transfer`/`cash` + unggah bukti + verifikasi admin tenant. Platform **tidak** menampung dana tenant.
 - Konsekuensi: **tidak ada** batch payout/disbursement, tidak ada buku utang per tenant, tidak ada kredensial DOKU per-tenant. Platform tidak pernah memegang uang milik tenant.
 - **DUA MERCHANT DOKU YANG BERBEDA — jangan tertukar:**
-  - Merchant DOKU yang sekarang ada di env n8n (`DOKU_CLIENT_ID`, `DOKU_PRIVATE_KEY`, dst.) adalah **milik Palm Village**, untuk iuran warganya. Settle ke rekening Palm Village. Dibiarkan apa adanya sampai N8N-RETIRE. **Jangan pernah dipakai untuk pendapatan platform.**
+  - Merchant DOKU yang sekarang ada di env n8n (`DOKU_CLIENT_ID`, `DOKU_PRIVATE_KEY`, dst.) adalah **milik Palm Village**, untuk iuran warganya. Settle ke rekening Palm Village. Dibiarkan apa adanya. **Jangan pernah dipakai untuk pendapatan platform.**
   - Merchant DOKU **baru milik platform**, khusus langganan SaaS + iklan listing. Kredensialnya disimpan di Supabase Edge Function secrets dengan awalan `DOKU_PLATFORM_*` supaya mustahil tertukar dengan punya Palm Village.
   - Jadi Palm Village adalah contoh pertama pola "tenant pakai merchant DOKU sendiri".
 - Kalau nanti ada tenant yang minta QRIS otomatis: tenant mendaftar merchant DOKU sendiri, kredensial disimpan terenkripsi per tenant. Ditambahkan belakangan, tidak membongkar arsitektur ini.
@@ -25,7 +25,7 @@ Urutan rencana: **SEC-1 ✅ → SEC-2 (aktif) → PAY-2 (rekening tenant) → PA
 Dokumen task lengkap: `docs/handoff/PAY-2.md`. Tanpa ini tenant baru tidak bisa memungut iuran sama sekali, karena warganya tidak tahu harus transfer ke mana.
 
 ## PAY-1 — Langganan & iklan lewat DOKU platform
-Dokumen task lengkap: `docs/handoff/PAY-1.md`. Ringkas: modul SNAP DOKU bersama di `supabase/functions/_shared/doku.ts`, tulis ulang 4 Edge Function langganan/iklan pakai merchant `DOKU_PLATFORM_*`, buang sisa Mayar/Midtrans.
+Dokumen task lengkap: `docs/handoff/PAY-1.md`. Ringkas: modul SNAP DOKU bersama di `supabase/functions/_shared/doku.ts`, tulis ulang 4 Edge Function langganan/iklan pakai merchant `DOKU_PLATFORM_*`, buang sisa Mayar/Midtrans. Termasuk PAY-1.7: **iklan wajib bayar dulu** (listing baru `pending_payment`, baru tayang setelah lunas) + pulihkan policy SELECT `public_listings` yang hilang di dev (F9).
 
 ## BRAND-1 — Netralkan branding yang terlihat pengguna
 - PWA manifest `client/vite.config.js` (`name`, `short_name`, `description`) → RuangWarga.
@@ -46,6 +46,3 @@ di pemilik Portal Warga live (repo lain), bukan di batch RuangWarga.
 - Workflow `PV API - Payments QRIS DOKU Webhook` (aktif, kredensial service role): `authentication: none`, tanpa verifikasi signature DOKU. Siapa pun yang tahu URL-nya bisa mengirim notifikasi palsu dan menandai pembayaran `completed`. Juga mengambil SELURUH baris tabel `payments` tiap request, dan memuat beberapa ID tagihan hardcode.
 - Workflow `PV ADMIN - Cleanup All Transactions` aktif.
 - `api/n8n.js` di repo ini meneruskan request apa pun ke n8n memakai basic auth server, tanpa allowlist path. **Jangan diubah tanpa persetujuan eksplisit user**, karena bisa memutus alur Palm Village.
-
-## N8N-RETIRE — (menunggu keputusan user)
-- Pindahkan workflow "PV API" ke Edge Functions / RPC Supabase, lalu matikan proxy `api/n8n.js`.

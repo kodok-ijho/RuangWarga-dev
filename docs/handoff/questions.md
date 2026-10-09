@@ -40,5 +40,5 @@ Jawaban (Claude/user): (belum — Claude bisa membaca workflow n8n-nya saat revi
 ## [SEC-2 review / F6] Apakah pasang iklan listing gratis 30 hari pertama?
 Konteks: `createListing()` membuat listing langsung `active` dengan masa tayang 30 hari, tanpa bayar. Pembayaran saat ini hanya untuk perpanjangan dan featured. Trigger SEC-2.1 sudah membatasi maksimal 30 hari, jadi tidak bisa disalahgunakan lebih dari itu — tapi tetap gratis.
 Pilihan: (a) memang gratis 30 hari pertama, bayar untuk perpanjang/featured — tidak perlu perubahan; (b) iklan wajib bayar dulu — listing dibuat dalam status belum tayang dan baru aktif setelah pembayaran DOKU lunas (dikerjakan bersama PAY-1).
-Jawaban (user): (belum dijawab)
+Jawaban (user, 2026-10-09): **(b) iklan harus bayar dulu.** Listing baru berstatus `pending_payment` (nilai enum baru), tidak tampil publik, dan baru `active` setelah pembayaran DOKU lunas. Dikerjakan di **PAY-1.7**.
 

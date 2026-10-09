@@ -120,6 +120,37 @@ Tulis ulang sebagai penerima notifikasi DOKU. Aturan **wajib** (menggantikan SEC
 - `client/src/services/__tests__/` (atau pola yang dipakai repo): unit test untuk helper pembayaran yang murni (format timestamp, hitung biaya QRIS, pembentukan `stringToSign`). **Jangan** test yang memanggil DOKU sungguhan (AGENT.md §10.5).
 - Kalau helper signing dipindah ke modul yang bisa diimpor Vitest, tambah test vektor: diberi kunci dummy + input tetap → tanda tangan konsisten.
 
+### PAY-1.7 — Iklan wajib bayar dulu (keputusan user, F6)  ⚠️ sensitif (migration + RLS)
+Keputusan user: **"iklan harus bayar dulu"**. Listing baru **tidak tayang** sampai pembayaran DOKU-nya lunas.
+Kerjakan setelah PAY-1.3 (aktivasi lewat webhook DOKU sudah ada).
+
+1. **Migration A** `supabase/migrations/<ts>_listing_status_pending_payment.sql`:
+   `ALTER TYPE public.listing_status ADD VALUE IF NOT EXISTS 'pending_payment';`
+   File **terpisah** dan berisi ini saja, karena nilai enum baru tidak boleh dipakai dalam transaksi yang sama dengan `ADD VALUE`.
+2. **Migration B** `supabase/migrations/<ts+1>_listing_pay_first.sql`:
+   - `ALTER TABLE public.public_listings ALTER COLUMN status SET DEFAULT 'pending_payment';`
+   - `CREATE OR REPLACE` `guard_listing_billing_columns()` (salin dari `202610090001`, ubah seperlunya):
+     - INSERT non-privileged: paksa `status := 'pending_payment'`, `expires_at := NULL`, `is_featured := false`, `featured_until := NULL`. Hapus logika "maks 30 hari" untuk insert karena listing baru belum punya masa tayang.
+     - UPDATE non-privileged: aturan kolom masa tayang tetap. Transisi status:
+       - dari/ke `pending_payment` **dilarang** untuk non-privileged (hanya aktivasi pembayaran yang boleh mengubahnya);
+       - ke `active` hanya bila `OLD.expires_at IS NOT NULL AND OLD.expires_at > now()`;
+       - `rented_or_sold` / `expired` tetap boleh dari `active`.
+     - Kolom `type` **dilarang diubah** oleh non-privileged bila `OLD.status <> 'pending_payment'` (catatan review SEC-2: ganti tipe setelah bayar bisa dipakai untuk menurunkan/menaikkan tarif).
+   - `activate_listing_payment`: listing berstatus `pending_payment` → `status='active'`, `expires_at = now() + duration`. Logika perpanjangan untuk listing `active` tetap. Pertahankan guard SEC-1 (tolak payment non-`pending`) dan grant `service_role` saja.
+   - `check_listing_expirations`: jangan menyentuh baris `pending_payment`.
+   - **Kembalikan policy SELECT** (temuan F9, lihat di bawah). Pakai pola `has_permission` yang dipakai 3 policy lain:
+     publik (anon+authenticated) boleh SELECT bila `status = 'active' AND expires_at > now()`;
+     selain itu hanya platform admin, tenant owner, `has_permission(tenant_id,'post_listing')`, atau pemosting sendiri (`posted_by IN (SELECT id FROM tenant_members WHERE user_id = auth.uid())`).
+     Listing `pending_payment` **tidak boleh** terlihat publik.
+   - Sertakan blok `-- ROLLBACK:` seperti migration lain.
+3. **Frontend** `client/src/services/publicListingService.js` `createListing()` (±baris 255-300): jangan kirim `status: 'active'` dan jangan hitung `expires_at`; setelah insert, langsung lanjut ke alur bayar (`createListingPayment`) dan tampilkan QRIS DOKU. UI daftar iklan milik pemosting menampilkan label **"Menunggu pembayaran"** + tombol **"Bayar sekarang"** untuk listing `pending_payment`. Halaman publik `/listing/*` tidak perlu diubah (RLS yang menyaring).
+4. **Mode demo/mock**: ikuti perilaku yang sama (listing baru `pending_payment`, jadi `active` setelah simulasi bayar).
+5. **Test**:
+   - Tambah ke `supabase/tests/billing_columns_matrix.sql`: poster insert dengan `status='active'` dan `expires_at` → tersimpan `pending_payment` + `expires_at NULL`; poster update `pending_payment → active` → ditolak; anon tidak melihat listing `pending_payment`; anon melihat listing `active` yang belum kedaluwarsa.
+   - Vitest untuk `createListing()` tidak lagi mengirim `status`/`expires_at`.
+
+**F9 (temuan Claude saat apply SEC-2, 2026-10-09):** di Supabase dev, `public_listings` RLS aktif tapi **tidak punya policy SELECT sama sekali**. Policy `public_read_active_listings` dari `202609140013` hilang, padahal tidak ada migration di repo yang men-drop-nya (drift DB). Akibatnya halaman publik `/listing` dan daftar iklan milik pemosting tidak bisa membaca data di dev. Diperbaiki di Migration B di atas.
+
 ---
 
 ## Pertanyaan terbuka (jawab sebelum PAY-1.2 dikerjakan)
