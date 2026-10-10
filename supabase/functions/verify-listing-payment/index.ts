@@ -109,12 +109,18 @@ serve(async (req) => {
     }
 
     // 3. Validasi nominal pembayaran (amount check)
+    // Nominal yang dibayar ke DOKU mencakup harga dasar + MDR QRIS 0,75% (keputusan user)
     const incomingAmount = Number(payload?.amount?.value ?? payload?.amount);
     if (!isNaN(incomingAmount) && incomingAmount > 0) {
-      const recordAmount = Number(foundPayment.amount);
-      if (recordAmount !== incomingAmount) {
+      const expectedTotal = Number(
+        foundPayment.metadata?.qris_total_amount ??
+        (foundPayment.metadata?.base_amount && foundPayment.metadata?.qris_fee
+          ? Number(foundPayment.metadata.base_amount) + Number(foundPayment.metadata.qris_fee)
+          : foundPayment.amount)
+      );
+      if (expectedTotal !== incomingAmount) {
         console.error(
-          `[verify-listing-payment] Amount mismatch: expected ${recordAmount}, got ${incomingAmount}`
+          `[verify-listing-payment] Amount mismatch: expected ${expectedTotal}, got ${incomingAmount}`
         );
         return new Response(
           JSON.stringify({ error: "Payment amount mismatch" }),

@@ -503,7 +503,7 @@ export async function createListingPayment(listingId, { isFeatured = false, dura
     const baseAmount = listingType === 'room_vacancy'
       ? (isFeatured ? 35000 : 15000)
       : (isFeatured ? 25000 : 10000);
-    const qrisFee = Math.ceil(baseAmount * 0.007);
+    const qrisFee = Math.ceil(baseAmount * 0.0075);
     const amount = baseAmount + qrisFee;
 
     const paymentRecord = {

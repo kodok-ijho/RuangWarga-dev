@@ -18,11 +18,11 @@ export default function QrisCheckoutModal({
   const rawTotal = Number(data.total_amount || data.total || data.amount || 0);
   const baseAmount = Number(
     data.base_amount ??
-    (data.qris_fee_amount ? rawTotal - Number(data.qris_fee_amount) : Math.round(rawTotal / 1.007))
+    (data.qris_fee_amount ? rawTotal - Number(data.qris_fee_amount) : Math.round(rawTotal / 1.0075))
   );
   const feeAmount = Number(
     data.qris_fee_amount ??
-    (rawTotal > baseAmount ? rawTotal - baseAmount : Math.ceil(baseAmount * 0.007))
+    (rawTotal > baseAmount ? rawTotal - baseAmount : Math.ceil(baseAmount * 0.0075))
   );
   const total = Number(data.total_amount ?? (baseAmount + feeAmount));
   const orderId = data.parent_order_id || data.order_id || data.id || `TRX-QRIS-${Date.now()}`;
@@ -103,7 +103,7 @@ export default function QrisCheckoutModal({
       ctx.font = '13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       ctx.fillText(`Order ID:`, 45, 162);
       ctx.fillText(`Nominal Pokok:`, 45, 188);
-      ctx.fillText(`Biaya QRIS (0,7%):`, 45, 214);
+      ctx.fillText(`Biaya QRIS (0,75%):`, 45, 214);
       ctx.fillText(`Total Tagihan:`, 45, 242);
       ctx.fillText(`Keterangan:`, 45, 266);
 
@@ -171,7 +171,7 @@ export default function QrisCheckoutModal({
 
       ctx.fillStyle = '#9a3412';
       ctx.font = 'italic 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      ctx.fillText('* Total nominal sudah termasuk biaya layanan administrasi QRIS 0,7%', width / 2, 785);
+      ctx.fillText('* Total nominal sudah termasuk biaya layanan administrasi QRIS 0,75%', width / 2, 785);
 
       // Outer border
       ctx.strokeStyle = '#1a3d2e';
@@ -266,7 +266,7 @@ export default function QrisCheckoutModal({
             <span className="font-medium text-forest-800">{formatRupiah(baseAmount)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-forest-500">Biaya Layanan QRIS (0,7%):</span>
+            <span className="text-forest-500">Biaya Layanan QRIS (0,75%):</span>
             <span className="font-semibold text-amber-700">+ {formatRupiah(feeAmount)}</span>
           </div>
           <div className="flex justify-between pt-1.5 border-t border-forest-200">
@@ -299,10 +299,10 @@ export default function QrisCheckoutModal({
         {/* Disclaimer Biaya QRIS */}
         <div className="rounded-lg border border-amber-300 bg-amber-50/90 p-3 text-xs text-left text-amber-900 space-y-1">
           <p className="font-bold flex items-center gap-1.5 text-amber-950">
-            <span>ℹ️</span> Disclaimer Biaya Administrasi QRIS (0,7%)
+            <span>ℹ️</span> Disclaimer Biaya Administrasi QRIS (0,75%)
           </p>
           <p className="text-[11px] leading-relaxed text-amber-800">
-            Sesuai regulasi Bank Indonesia (MDR QRIS) dan ketentuan payment gateway, transaksi QRIS dikenakan biaya administrasi <strong>0,7% ({formatRupiah(feeAmount)})</strong> yang dibebankan kepada pembayar.
+            Sesuai regulasi Bank Indonesia (MDR QRIS) dan ketentuan payment gateway, transaksi QRIS dikenakan biaya administrasi <strong>0,75% ({formatRupiah(feeAmount)})</strong> yang dibebankan kepada pembayar.
           </p>
         </div>
 

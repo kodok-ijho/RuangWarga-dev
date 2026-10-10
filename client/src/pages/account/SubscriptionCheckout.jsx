@@ -265,7 +265,7 @@ export default function SubscriptionCheckout() {
                   ) : null}
                   {paymentData?.qrisFee ? (
                     <div className="flex justify-between text-slate-600">
-                      <span>Biaya Layanan QRIS (0,7%):</span>
+                      <span>Biaya Layanan QRIS (0,75%):</span>
                       <span className="text-amber-700 font-semibold">+ Rp {paymentData.qrisFee.toLocaleString('id-ID')}</span>
                     </div>
                   ) : null}

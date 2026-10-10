@@ -4,7 +4,13 @@
  */
 
 /**
- * Menghitung biaya QRIS MDR 0,7% (dibulatkan ke atas / Math.ceil).
+ * Tarif MDR QRIS resmi platform (0,75%).
+ * Biaya dibebankan kepada tenant / pembayar.
+ */
+export const QRIS_FEE_RATE = 0.0075;
+
+/**
+ * Menghitung biaya QRIS MDR 0,75% (dibulatkan ke atas / Math.ceil).
  * @param {number|string} baseAmount - Nilai pokok tagihan
  * @returns {{ fee: number, total: number }}
  */
@@ -13,7 +19,7 @@ export function calculateQrisFee(baseAmount) {
   if (validBase === 0) {
     return { fee: 0, total: 0 };
   }
-  const fee = Math.ceil(validBase * 0.007);
+  const fee = Math.ceil(validBase * QRIS_FEE_RATE);
   return { fee, total: validBase + fee };
 }
 

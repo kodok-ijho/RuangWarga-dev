@@ -11,24 +11,24 @@ import {
 
 describe('DOKU SNAP Protocol Pure Helpers (PAY-1.6)', () => {
   describe('calculateQrisFee', () => {
-    it('menghitung biaya MDR 0,7% dibulatkan ke atas (Math.ceil)', () => {
-      // 100.000 * 0.007 = 700
-      expect(calculateQrisFee(100000)).toEqual({ fee: 700, total: 100700 });
+    it('menghitung biaya MDR 0,75% dibulatkan ke atas (Math.ceil)', () => {
+      // 100.000 * 0.0075 = 750
+      expect(calculateQrisFee(100000)).toEqual({ fee: 750, total: 100750 });
 
       // Listing prices
-      // 15.000 * 0.007 = 105
-      expect(calculateQrisFee(15000)).toEqual({ fee: 105, total: 15105 });
-      // 35.000 * 0.007 = 245
-      expect(calculateQrisFee(35000)).toEqual({ fee: 245, total: 35245 });
-      // 10.000 * 0.007 = 70
-      expect(calculateQrisFee(10000)).toEqual({ fee: 70, total: 10070 });
-      // 25.000 * 0.007 = 175
-      expect(calculateQrisFee(25000)).toEqual({ fee: 175, total: 25175 });
+      // 15.000 * 0.0075 = 112.5 -> ceil -> 113
+      expect(calculateQrisFee(15000)).toEqual({ fee: 113, total: 15113 });
+      // 35.000 * 0.0075 = 262.5 -> ceil -> 263
+      expect(calculateQrisFee(35000)).toEqual({ fee: 263, total: 35263 });
+      // 10.000 * 0.0075 = 75
+      expect(calculateQrisFee(10000)).toEqual({ fee: 75, total: 10075 });
+      // 25.000 * 0.0075 = 187.5 -> ceil -> 188
+      expect(calculateQrisFee(25000)).toEqual({ fee: 188, total: 25188 });
 
       // Nilai kecil dengan pembulatan ke atas
-      // 100 * 0.007 = 0.7 -> ceil -> 1
+      // 100 * 0.0075 = 0.75 -> ceil -> 1
       expect(calculateQrisFee(100)).toEqual({ fee: 1, total: 101 });
-      // 1 * 0.007 = 0.007 -> ceil -> 1
+      // 1 * 0.0075 = 0.0075 -> ceil -> 1
       expect(calculateQrisFee(1)).toEqual({ fee: 1, total: 2 });
     });
 

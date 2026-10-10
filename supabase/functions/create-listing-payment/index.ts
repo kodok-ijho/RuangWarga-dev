@@ -127,11 +127,12 @@ serve(async (req) => {
     const { fee: qrisFee, total: totalAmount } = calculateQrisFee(basePrice);
 
     // 5. Buat record transaksi pending di listing_payments
+    // Kolom amount menyimpan harga dasar katalog; fee dan total disimpan di metadata (keputusan user)
     const { data: paymentRecord, error: payErr } = await adminClient
       .from("listing_payments")
       .insert({
         listing_id: listing.id,
-        amount: totalAmount,
+        amount: basePrice,
         status: "pending",
         is_featured: Boolean(isFeatured),
         duration_days: Number(durationDays),
@@ -144,6 +145,8 @@ serve(async (req) => {
           duration_days: Number(durationDays),
           base_amount: basePrice,
           qris_fee: qrisFee,
+          qris_fee_amount: qrisFee,
+          qris_total_amount: totalAmount,
         },
       })
       .select("id")

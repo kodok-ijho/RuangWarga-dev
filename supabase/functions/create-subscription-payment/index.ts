@@ -174,12 +174,13 @@ serve(async (req) => {
     const { fee: qrisFee, total: totalAmount } = calculateQrisFee(baseAmount);
 
     // 5. Simpan record pembayaran pending ke subscription_payments
+    // Kolom amount menyimpan harga dasar; fee dan total disimpan di metadata (keputusan user)
     const { data: paymentRecord, error: payErr } = await adminClient
       .from("subscription_payments")
       .insert({
         subscription_id: subscription.id,
         period_id: periodRow.id,
-        amount: totalAmount,
+        amount: baseAmount,
         status: "pending",
         payment_method: "doku_qris",
         metadata: {
@@ -193,6 +194,8 @@ serve(async (req) => {
           user_id: user.id,
           base_amount: baseAmount,
           qris_fee: qrisFee,
+          qris_fee_amount: qrisFee,
+          qris_total_amount: totalAmount,
         },
       })
       .select("id")

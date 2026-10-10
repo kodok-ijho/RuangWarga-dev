@@ -199,11 +199,17 @@ export async function sha256HexLower(data: string): Promise<string> {
 }
 
 /**
- * Menghitung MDR QRIS 0,7% (dibulatkan ke atas / Math.ceil).
+ * Tarif MDR QRIS resmi platform (0,75%).
+ * Biaya dibebankan kepada tenant / pembayar.
+ */
+export const QRIS_FEE_RATE = 0.0075;
+
+/**
+ * Menghitung MDR QRIS 0,75% (dibulatkan ke atas / Math.ceil).
  */
 export function calculateQrisFee(baseAmount: number): { fee: number; total: number } {
   const validBase = Math.max(0, Number(baseAmount) || 0);
-  const fee = Math.ceil(validBase * 0.007);
+  const fee = Math.ceil(validBase * QRIS_FEE_RATE);
   return { fee, total: validBase + fee };
 }
 
