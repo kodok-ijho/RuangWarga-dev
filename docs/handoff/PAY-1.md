@@ -54,8 +54,12 @@ Pakai awalan `DOKU_PLATFORM_*` seperti daftar di bagian "DUA MERCHANT DOKU BERBE
 Nama tanpa awalan (`DOKU_CLIENT_ID`, dst.) milik Palm Village di n8n — jangan dibaca di sini.
 
 ### 5. Biaya QRIS
-Workflow lama membebankan MDR 0,7% ke pembayar:
-`fee = Math.ceil(base * 0.007)`, `total = base + fee`. Lihat pertanyaan terbuka di bawah.
+**Keputusan user (2026-10-10): biaya QRIS 0,75% dibebankan ke tenant.**
+(Workflow n8n Palm Village memakai 0,7% — itu merchant lain, jangan disamakan.)
+- Satu konstanta di `_shared/doku.ts`: `QRIS_FEE_RATE = 0.0075`; `fee = Math.ceil(base * QRIS_FEE_RATE)`, `total = base + fee`.
+- `amount` di `subscription_payments` / `listing_payments` tetap **harga dasar** (trigger SEC-2 memaksa `listing_payments.amount` = harga katalog). Simpan `fee` dan `total` di `metadata` (`qris_fee_amount`, `qris_total_amount`).
+- Nominal yang dikirim ke DOKU = `total`. Webhook/verifikasi mencocokkan nominal dibayar dengan `amount + fee` yang tersimpan, bukan dengan angka dari payload.
+- UI checkout langganan & iklan wajib menampilkan rincian: harga, biaya QRIS 0,75%, total.
 
 ---
 
@@ -156,7 +160,7 @@ Kerjakan setelah PAY-1.3 (aktivasi lewat webhook DOKU sudah ada).
 ## Pertanyaan terbuka (jawab sebelum PAY-1.2 dikerjakan)
 Catat jawaban di `questions.md`.
 
-1. **Biaya QRIS 0,7%** untuk langganan & iklan — dibebankan ke tenant (bayar Rp X + 0,7%) atau ditanggung platform (tenant bayar tepat Rp X)? *Default bila user tidak menjawab: dibebankan ke tenant, dan UI wajib menampilkan rinciannya.*
+1. ~~Biaya QRIS~~ — **dijawab: 0,75% dibebankan ke tenant** (lihat bagian 5).
 2. **Format `DOKU_PLATFORM_PRIVATE_KEY`** — PKCS#8 atau PKCS#1? (lihat PAY-1.1)
 3. **Path endpoint status/query SNAP DOKU** — konfirmasi dari dokumentasi DOKU.
 

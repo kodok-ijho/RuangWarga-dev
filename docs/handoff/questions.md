@@ -25,7 +25,7 @@ Konteks: Alur QRIS warga yang sudah jalan (n8n DOKU) membebankan MDR 0,7% ke pem
 `fee = ceil(base * 0.007)`, `total = base + fee`.
 Pilihan: (a) dibebankan ke tenant — tenant bayar Rp X + 0,7%; (b) ditanggung platform — tenant bayar tepat Rp X, margin platform berkurang 0,7%.
 Catatan: hanya berlaku untuk langganan & iklan. Iuran warga tidak lewat QRIS platform (keputusan user: ke rekening tenant sendiri).
-Jawaban (user): (belum dijawab — default sementara: (a), dan UI wajib menampilkan rincian biaya)
+Jawaban (user, 2026-10-10): **(a) dibebankan ke tenant, tarif 0,75%** (bukan 0,7%). Rincian implementasi di PAY-1.md bagian 5.
 
 ## [PAY-1] Format DOKU_PLATFORM_PRIVATE_KEY
 Konteks: Web Crypto di Deno hanya bisa mengimpor kunci privat PKCS#8 (`-----BEGIN PRIVATE KEY-----`).
