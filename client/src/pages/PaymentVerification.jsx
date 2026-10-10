@@ -148,10 +148,10 @@ function mergePaymentSources(payments, matrixRows) {
 export default function PaymentVerification() {
   const params = useParams();
   const { role, profile, session, isReadOnly: authReadOnly } = useAuth();
-  const { currentTenant, userTenants } = useTenant();
-  const activeTenantId = params.tenantId || currentTenant?.id || userTenants?.[0]?.id || null;
+  const { activeTenant, userTenants } = useTenant();
+  const activeTenantId = params.tenantId || activeTenant?.id || userTenants?.[0]?.id || null;
   const { canWrite: subCanWrite, isReadOnly: subReadOnly } = useSubscriptionGate(activeTenantId);
-  const template = useTenantTemplate(currentTenant?.type || 'rt_rw');
+  const template = useTenantTemplate(activeTenant?.type || 'rt_rw');
 
   const toast = useToast();
   const canWrite = canModifyData(role) && !authReadOnly && subCanWrite;
@@ -917,7 +917,7 @@ export default function PaymentVerification() {
                     onClick={() => {
                       const bill = mockIPLBills.find((b) => b.id === selectedPayment.bill_id) || { id: selectedPayment.bill_id, period: selectedPayment.period || '2026-01', amount: selectedPayment.amount };
                       const unit = getUnit(selectedPayment.unit_id || bill.unit_id);
-                      downloadDigitalReceipt({ bill, unit });
+                      downloadDigitalReceipt({ bill, unit, tenantName: activeTenant?.name });
                     }}
                     className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-xs hover:bg-slate-50 transition-colors"
                   >
@@ -990,7 +990,7 @@ export default function PaymentVerification() {
             <form onSubmit={handleUpdatePayment} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-forest-700 mb-1">
-                  {template.unitLabel} {currentTenant?.name || ''} *
+                  {template.unitLabel} {activeTenant?.name || ''} *
                 </label>
                 <select
                   value={paymentForm.unit_id}

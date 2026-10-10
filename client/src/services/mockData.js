@@ -1623,14 +1623,35 @@ export const mockTransactionLogs = [
 /**
  * Generator dokumen Kuitansi Digital (HTML file download)
  */
-export function downloadDigitalReceipt({ bill, unit, owner, occupant }) {
+/**
+ * Helper sanitasi teks untuk mencegah XSS pada file HTML kuitansi.
+ */
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Generator murni string HTML Kuitansi Digital RuangWarga (BRAND-1F.2)
+ */
+export function buildDigitalReceiptHtml({ bill, unit, owner, occupant, tenantName }) {
   const schema = getIPLSchemaById(unit?.ipl_schema_id);
   const amount = bill?.amount || computeSchemaAmount(schema);
   const dateStr = bill?.paid_at || bill?.created_at || new Date().toISOString().split('T')[0];
   const noKuitansi = `PV/IPL/${bill?.period || '2026'}/${bill?.id || '0'}`;
   const targetName = occupant?.full_name || owner?.full_name || `Warga Blok ${unit?.block || '-'}/${unit?.unit_number || '-'}`;
-  
-  const htmlContent = `<!DOCTYPE html>
+  const resolvedTenantName = tenantName?.trim() || 'RuangWarga';
+  const unitLabel = `Blok ${unit?.block || '-'}/${unit?.unit_number || '-'}`;
+  const periodLabel = bill?.period || '-';
+  const schemaLabel = schema?.name || 'IPL Basic';
+  const methodLabel = (bill?.method || 'Transfer Bank').toUpperCase();
+
+  return `<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
@@ -1653,7 +1674,7 @@ export function downloadDigitalReceipt({ bill, unit, owner, occupant }) {
   <div class="receipt">
     <div class="header">
       <div>
-        <div class="logo-text">🌴 PALM VILLAGE</div>
+        <div class="logo-text">${escapeHtml(resolvedTenantName)}</div>
         <div style="font-size: 12px; color: #5c7664; margin-top: 4px;">RuangWarga &amp; Manajemen IPL Digital</div>
       </div>
       <div class="badge">✔ LUNAS / TERVERIFIKASI</div>
@@ -1665,27 +1686,27 @@ export function downloadDigitalReceipt({ bill, unit, owner, occupant }) {
     </div>
     <div class="row">
       <span class="label">Tanggal Verifikasi</span>
-      <span class="val">${dateStr}</span>
+      <span class="val">${escapeHtml(dateStr)}</span>
     </div>
     <div class="row">
       <span class="label">Diterima dari</span>
-      <span class="val">${targetName}</span>
+      <span class="val">${escapeHtml(targetName)}</span>
     </div>
     <div class="row">
       <span class="label">Unit Rumah</span>
-      <span class="val">Blok ${unit?.block || '-'}/${unit?.unit_number || '-'}</span>
+      <span class="val">${escapeHtml(unitLabel)}</span>
     </div>
     <div class="row">
       <span class="label">Periode Tagihan</span>
-      <span class="val">${bill?.period || '-'}</span>
+      <span class="val">${escapeHtml(periodLabel)}</span>
     </div>
     <div class="row">
       <span class="label">Skema IPL</span>
-      <span class="val">${schema?.name || 'IPL Basic'}</span>
+      <span class="val">${escapeHtml(schemaLabel)}</span>
     </div>
     <div class="row">
       <span class="label">Metode Pembayaran</span>
-      <span class="val">${(bill?.method || 'Transfer Bank').toUpperCase()}</span>
+      <span class="val">${escapeHtml(methodLabel)}</span>
     </div>
     <div class="total-box">
       <span>TOTAL DIBAYAR</span>
@@ -1698,7 +1719,14 @@ export function downloadDigitalReceipt({ bill, unit, owner, occupant }) {
   </div>
 </body>
 </html>`;
+}
 
+/**
+ * Download dokumen Kuitansi Digital (HTML file download)
+ */
+export function downloadDigitalReceipt(args) {
+  const { unit, bill } = args || {};
+  const htmlContent = buildDigitalReceiptHtml(args || {});
   const blob = new Blob([htmlContent], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
