@@ -27,6 +27,7 @@ import { Avatar } from '../ui/Avatar';
 import { Drawer } from '../ui/Drawer';
 import Dropdown, { DropdownItem } from '../ui/Dropdown';
 import { Badge } from '../ui/Badge';
+import { isSafeLogoUrl } from '../../utils/brand';
 import { roleLabel, isStaffRole, canViewFinancialReports } from '../../services/dataHelpers';
 
 export default function TenantShell() {
@@ -140,9 +141,17 @@ export default function TenantShell() {
 
             {/* Tenant Identity Box */}
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="text-xl sm:text-2xl p-1.5 bg-slate-100 rounded-lg border border-slate-200 shrink-0 select-none">
-                {template.icon}
-              </span>
+              {isSafeLogoUrl(activeTenant?.settings?.logo_url) ? (
+                <img
+                  src={activeTenant.settings.logo_url}
+                  alt={activeTenant.name}
+                  className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg object-cover border border-slate-200 shrink-0"
+                />
+              ) : (
+                <span className="text-xl sm:text-2xl p-1.5 bg-slate-100 rounded-lg border border-slate-200 shrink-0 select-none">
+                  {template.icon}
+                </span>
+              )}
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <h1 className="text-sm sm:text-base font-bold text-slate-900 leading-tight truncate">

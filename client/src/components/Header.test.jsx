@@ -121,4 +121,25 @@ describe('Header Brand Identity', () => {
     // Wordmark Ruang + Warga pada logo brand harus tidak ada karena showWordmark={false}
     expect(html).not.toContain('text-forest-800">Ruang');
   });
+
+  it('di tenant dengan logo_url tidak aman → jatuh ke BrandLogo mark saja dan nama tenant', () => {
+    mockTenantState.activeTenant = {
+      id: 'tenant-rw-3',
+      name: 'Kompleks Asri',
+      type: 'rt_rw',
+      settings: {
+        logo_url: 'javascript:alert(1)',
+      },
+    };
+
+    const html = renderToString(
+      <MemoryRouter>
+        <Header />
+      </MemoryRouter>
+    );
+
+    expect(html).not.toContain('javascript:alert(1)');
+    expect(html).toContain('src="/brand/rw-mark.svg"');
+    expect(html).toContain('Kompleks Asri');
+  });
 });
