@@ -35,9 +35,10 @@ import {
   rejectPayment,
   mockPayments,
   mockSettings,
-  downloadDigitalReceipt,
+  getIPLSchemaById,
   sendEmailReceipt,
 } from '../services/mockData';
+import { downloadDigitalReceipt } from '../services/receiptService';
 import { AiOutlineCheck, AiOutlineClose, AiOutlineEye, AiOutlineClockCircle, AiOutlineEdit } from 'react-icons/ai';
 import { useToast } from '../hooks/useToast';
 import { EmptyState, SkeletonTable, SkeletonList, SearchInput, Pagination } from '../components/ui';
@@ -917,7 +918,14 @@ export default function PaymentVerification() {
                     onClick={() => {
                       const bill = mockIPLBills.find((b) => b.id === selectedPayment.bill_id) || { id: selectedPayment.bill_id, period: selectedPayment.period || '2026-01', amount: selectedPayment.amount };
                       const unit = getUnit(selectedPayment.unit_id || bill.unit_id);
-                      downloadDigitalReceipt({ bill, unit, tenantName: activeTenant?.name });
+                      downloadDigitalReceipt({
+                        bill,
+                        unit,
+                        tenantName: activeTenant?.name,
+                        billLabel: template?.billLabel,
+                        unitLabel: template?.unitLabel,
+                        schemaName: getIPLSchemaById(unit?.ipl_schema_id)?.name,
+                      });
                     }}
                     className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-xs hover:bg-slate-50 transition-colors"
                   >
