@@ -35,12 +35,8 @@ Dokumen task lengkap: `docs/handoff/PAY-1.md`. Ringkas: modul SNAP DOKU bersama 
 - F12 (review PAY-2): pindahkan `invite_code` dari `tenants.settings` ke tabel terpisah yang hanya terbaca owner / `manage_members` / platform admin. Halaman join tetap memakai RPC `get_invite_details`. Butuh migration + penyesuaian alur join.
 - Catat setiap perubahan `settings.bank_account` (siapa, kapan, nilai lama/baru) dan tampilkan ke owner tenant.
 
-## BRAND-1 — Netralkan branding yang terlihat pengguna
-- PWA manifest `client/vite.config.js` (`name`, `short_name`, `description`) → RuangWarga.
-- Teks hardcode "Palm Village" di: `pages/Login.jsx`, `components/Header.jsx`, `components/QrisCheckoutModal.jsx`, `pages/onboarding/SetupWizard.jsx`, `pages/onboarding/ChooseTenantType.jsx`, `pages/Residents.jsx`, `pages/NonIplIncomes.jsx`, `pages/UserApproval.jsx`, `context/TourContext.jsx`, `context/AuthContext.jsx`, `context/TenantContext.jsx`, `components/payment/PaymentFlowModal.jsx`, `pages/platform/*`.
-- Nama/logo/peta tenant diambil dari data tenant; aset Palm Village dipindah dari aset global.
-- Favicon/logo global → aset RuangWarga (**butuh file dari user**).
-- Data mock (`services/mockData.js`, `services/eventMockData.js`) memakai tenant contoh generik.
+## BRAND-1 — Branding global RuangWarga
+Dokumen task lengkap: `docs/handoff/BRAND-1.md` (siap, dikerjakan setelah SEC-3F). Aset logo dari desain user sudah disiapkan Claude di `docs/handoff/assets/brand/`.
 
 ## DEBT-1 — Utang teknis
 - Pecah `client/src/services/tenantOperationalService.js` (±3.3k baris) per domain.
