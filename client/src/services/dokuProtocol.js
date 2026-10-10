@@ -113,3 +113,28 @@ export function timingSafeEqual(a, b) {
   }
   return diff === 0;
 }
+
+/**
+ * Memeriksa apakah transaksi SNAP QRIS DOKU berstatus lunas (G6).
+ * Lunas = responseCode diawali '200' DAN latestTransactionStatus === '00'.
+ * @param {Object} raw - Respons objek mentah dari query status DOKU
+ * @returns {boolean}
+ */
+export function isQrisPaid(raw) {
+  if (!raw || typeof raw !== 'object') return false;
+  const code = String(raw.responseCode ?? '');
+  return code.startsWith('200') && raw.latestTransactionStatus === '00';
+}
+
+/**
+ * Menghitung nominal total yang diharapkan diterima dari transaksi QRIS DOKU.
+ * Nominal total = amount dasar + qris_fee dari metadata.
+ * @param {number|string} amount - Nominal pokok pada tabel pembayaran
+ * @param {Object} [metadata={}] - Kolom metadata yang menyimpan rincian biaya
+ * @returns {number}
+ */
+export function expectedQrisTotal(amount, metadata = {}) {
+  const base = Number(amount) || 0;
+  const fee = Number(metadata?.qris_fee ?? metadata?.qris_fee_amount ?? 0);
+  return base + fee;
+}

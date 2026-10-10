@@ -7,6 +7,8 @@ import {
   sha256HexLower,
   hmacSha512Base64,
   timingSafeEqual,
+  isQrisPaid,
+  expectedQrisTotal,
 } from '../dokuProtocol';
 
 describe('DOKU SNAP Protocol Pure Helpers (PAY-1.6)', () => {
@@ -124,4 +126,44 @@ describe('DOKU SNAP Protocol Pure Helpers (PAY-1.6)', () => {
       expect(timingSafeEqual('secret', undefined)).toBe(false);
     });
   });
+
+  describe('isQrisPaid (PAY-1F.6 / G6)', () => {
+    it('mengembalikan true hanya jika responseCode diawali 200 dan latestTransactionStatus adalah 00', () => {
+      expect(isQrisPaid({ responseCode: '2005100', latestTransactionStatus: '00' })).toBe(true);
+      expect(isQrisPaid({ responseCode: '2004700', latestTransactionStatus: '00' })).toBe(true);
+      expect(isQrisPaid({ responseCode: 2005100, latestTransactionStatus: '00' })).toBe(true);
+    });
+
+    it('mengembalikan false jika status transaksi bukan 00 (misal 03 pending, 05 failed)', () => {
+      expect(isQrisPaid({ responseCode: '2005100', latestTransactionStatus: '03' })).toBe(false);
+      expect(isQrisPaid({ responseCode: '2005100', latestTransactionStatus: '05' })).toBe(false);
+      expect(isQrisPaid({ responseCode: '2005100', latestTransactionStatus: 'SUCCESS' })).toBe(false);
+    });
+
+    it('mengembalikan false jika responseCode bukan 200-series', () => {
+      expect(isQrisPaid({ responseCode: '4005100', latestTransactionStatus: '00' })).toBe(false);
+      expect(isQrisPaid({ responseCode: '5004700', latestTransactionStatus: '00' })).toBe(false);
+      expect(isQrisPaid({ responseCode: null, latestTransactionStatus: '00' })).toBe(false);
+    });
+
+    it('mengembalikan false untuk input falsy atau tidak valid', () => {
+      expect(isQrisPaid(null)).toBe(false);
+      expect(isQrisPaid(undefined)).toBe(false);
+      expect(isQrisPaid({})).toBe(false);
+    });
+  });
+
+  describe('expectedQrisTotal (PAY-1F.6 / G4)', () => {
+    it('menghitung total amount pokok + fee dari metadata', () => {
+      expect(expectedQrisTotal(100000, { qris_fee: 750 })).toBe(100750);
+      expect(expectedQrisTotal('15000', { qris_fee_amount: 113 })).toBe(15113);
+      expect(expectedQrisTotal(35000, { qris_fee: 263, qris_fee_amount: 263 })).toBe(35263);
+    });
+
+    it('mengembalikan harga dasar bila fee tidak ada di metadata', () => {
+      expect(expectedQrisTotal(25000, {})).toBe(25000);
+      expect(expectedQrisTotal(10000, null)).toBe(10000);
+    });
+  });
 });
+

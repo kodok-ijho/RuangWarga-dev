@@ -11,9 +11,10 @@
 -- T7   Pemasang listing TIDAK BISA ubah status dari 'pending_payment' ke 'active' langsung (SQLSTATE 42501).
 -- T8   Pemasang listing TIDAK BISA ubah type bila listing sudah bukan 'pending_payment' (SQLSTATE 42501).
 -- T9   Anon TIDAK BISA melihat listing 'pending_payment', tetapi BISA melihat listing 'active' yang belum kedaluwarsa.
+-- T10  Aktivasi langganan via activate_tenant_subscription memasang status 'settled', 'active', dan blok kapasitas secara idempotent (PAY-1F.6).
 --
 -- Jalankan sebagai postgres (SQL Editor / MCP). Semua data uji di-ROLLBACK.
--- Hasil lulus: NOTICE 'SEC2_MATRIX_ALL_PASSED [T1 T2 T2B T3 T4 T5 T6 T7 T8 T9]'. Gagal: EXCEPTION.
+-- Hasil lulus: NOTICE 'SEC2_MATRIX_ALL_PASSED [T1 T2 T2B T3 T4 T5 T6 T7 T8 T9 T10]'. Gagal: EXCEPTION.
 
 BEGIN;
 
@@ -37,6 +38,11 @@ DECLARE
   v_pay_amount NUMERIC(12,2);
   v_pay_paid_at TIMESTAMPTZ;
   v_expected_price NUMERIC(12,2);
+  v_period_id UUID;
+  v_sub_pay_id UUID;
+  v_rpc_res JSONB;
+  v_rpc_res_idempotent JSONB;
+  v_block_count INTEGER;
   v_results text := '';
 BEGIN
   -- Setup (postgres)
@@ -191,6 +197,80 @@ BEGIN
   END IF;
   PERFORM set_config('role', 'postgres', true);
   v_results := v_results || 'T9 ';
+
+  -- T10: Aktivasi langganan via activate_tenant_subscription (PAY-1F.6)
+  -- Ambil period aktif untuk langganan
+  SELECT id INTO v_period_id FROM public.subscription_periods WHERE is_active = true LIMIT 1;
+  IF v_period_id IS NULL THEN
+    INSERT INTO public.subscription_periods (name, duration_months, discount_percent, is_active)
+    VALUES ('Tahunan Uji', 12, 10, true)
+    RETURNING id INTO v_period_id;
+  END IF;
+
+  -- Buat record pembayaran pending dengan metadata blok langganan
+  INSERT INTO public.subscription_payments (
+    subscription_id,
+    period_id,
+    amount,
+    status,
+    payment_method,
+    payment_gateway_ref,
+    metadata
+  ) VALUES (
+    v_sub_id,
+    v_period_id,
+    150000.00,
+    'pending',
+    'doku_qris',
+    'SUB-TEST1234567890',
+    jsonb_build_object(
+      'blocks10', 1,
+      'blocks5', 2,
+      'price10', 60000,
+      'price5', 35000,
+      'base_amount', 150000,
+      'qris_fee', 1125,
+      'qris_total_amount', 151125
+    )
+  ) RETURNING id INTO v_sub_pay_id;
+
+  -- Eksekusi RPC activate_tenant_subscription sebagai backend (service_role / postgres)
+  v_rpc_res := public.activate_tenant_subscription(v_sub_pay_id, 'SUB-TEST1234567890');
+  IF (v_rpc_res->>'success')::boolean <> true THEN
+    RAISE EXCEPTION 'TEST 10 GAGAL: aktivasi rpc gagal: %', v_rpc_res;
+  END IF;
+
+  -- Verifikasi payment berstatus settled
+  SELECT status INTO v_check_status FROM public.subscription_payments WHERE id = v_sub_pay_id;
+  IF v_check_status <> 'settled' THEN
+    RAISE EXCEPTION 'TEST 10 GAGAL: status payment bukan settled, melainkan %', v_check_status;
+  END IF;
+
+  -- Verifikasi status langganan tenant menjadi active
+  SELECT status INTO v_check_status FROM public.tenant_subscriptions WHERE id = v_sub_id;
+  IF v_check_status <> 'active' THEN
+    RAISE EXCEPTION 'TEST 10 GAGAL: status langganan bukan active, melainkan %', v_check_status;
+  END IF;
+
+  -- Verifikasi blok terpasang sesuai metadata (1 blok 10, 2 blok 5)
+  SELECT count(*) INTO v_block_count FROM public.tenant_subscription_blocks
+  WHERE subscription_id = v_sub_id AND block_size = 10 AND quantity = 1;
+  IF v_block_count <> 1 THEN
+    RAISE EXCEPTION 'TEST 10 GAGAL: blok 10 unit tidak terpasang dengan benar (count %)', v_block_count;
+  END IF;
+
+  SELECT count(*) INTO v_block_count FROM public.tenant_subscription_blocks
+  WHERE subscription_id = v_sub_id AND block_size = 5 AND quantity = 2;
+  IF v_block_count <> 1 THEN
+    RAISE EXCEPTION 'TEST 10 GAGAL: blok 5 unit tidak terpasang dengan benar (count %)', v_block_count;
+  END IF;
+
+  -- Pemanggilan ulang wajib idempotent (success: true)
+  v_rpc_res_idempotent := public.activate_tenant_subscription(v_sub_pay_id, 'SUB-TEST1234567890');
+  IF (v_rpc_res_idempotent->>'success')::boolean <> true THEN
+    RAISE EXCEPTION 'TEST 10 GAGAL: pemanggilan ulang aktivasi tidak idempotent: %', v_rpc_res_idempotent;
+  END IF;
+  v_results := v_results || 'T10 ';
 
   RAISE NOTICE 'SEC2_MATRIX_ALL_PASSED [%] amount=%', trim(v_results), v_pay_amount;
 END;
