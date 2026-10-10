@@ -415,6 +415,47 @@ export async function saveTenantInviteCode(tenantId, code) {
 }
 
 /**
+ * Menyimpan kode undangan baru dengan retry otomatis jika terjadi bentrok unik (SEC-3F.2).
+ * Mencoba hingga maxRetries kali (default 3). Bila sukses, mengembalikan kode yang tersimpan.
+ * Bila gagal karena bentrok terus menerus atau error lain, melempar Error.
+ *
+ * @param {string} tenantId
+ * @param {string} [tenantName='']
+ * @param {number} [maxRetries=3]
+ * @returns {Promise<string>} Kode undangan yang berhasil tersimpan
+ */
+export async function saveInviteCodeWithRetry(tenantId, tenantName = '', maxRetries = 3) {
+  if (!tenantId) {
+    throw new Error('Tenant ID wajib disertakan untuk menyimpan kode undangan.');
+  }
+
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const code = generateInviteCode(tenantName);
+    try {
+      await saveTenantInviteCode(tenantId, code);
+      return code;
+    } catch (err) {
+      lastError = err;
+      const isUniqueCollision =
+        err?.code === '23505' ||
+        String(err?.message || '').toLowerCase().includes('duplicate key') ||
+        String(err?.message || '').toLowerCase().includes('unique') ||
+        String(err?.message || '').toLowerCase().includes('bentrok');
+
+      if (!isUniqueCollision || attempt >= maxRetries) {
+        throw new Error(
+          `Gagal membuat kode undangan unik setelah ${attempt} percobaan: ${err?.message || 'Kode bentrok'}`
+        );
+      }
+    }
+  }
+
+  throw lastError || new Error('Gagal menyimpan kode undangan.');
+}
+
+/**
  * Mengambil riwayat perubahan pengaturan tenant (SEC-3.3).
  * Khusus untuk field 'bank_account' maksimal 5 baris terakhir.
  * Menyertakan nama pengubah bila dapat ditemukan di tenant_members.

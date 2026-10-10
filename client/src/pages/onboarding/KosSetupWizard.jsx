@@ -21,8 +21,7 @@ import {
   fetchTenantDetails,
   updateTenantProfileAndSettings,
   bulkCreateTenantUnits,
-  generateInviteCode,
-  saveTenantInviteCode,
+  saveInviteCodeWithRetry,
 } from '../../services/tenantOperationalService';
 import { formatRupiah } from '../../services/dataHelpers';
 
@@ -282,8 +281,6 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
 
     setSaving(true);
     try {
-      const inviteCode = generateInviteCode(kosName);
-
       // 1. Simpan kamar ke tenant_units (status: 'vacant', metadata kos)
       await bulkCreateTenantUnits(
         tenantId,
@@ -300,7 +297,10 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
         }))
       );
 
-      // 2. Simpan settings profil tenant kos
+      // 2. Simpan kode undangan ke tabel privat tenant_invites dengan retry otomatis jika bentrok (SEC-3F.2)
+      const savedInviteCode = await saveInviteCodeWithRetry(tenantId, kosName);
+
+      // 3. Simpan settings profil tenant kos (hanya ditandai onboarding_completed jika kode berhasil disimpan)
       const settingsPayload = {
         onboarding_completed: true,
         default_rent_price: Number(defaultRentPrice),
@@ -325,11 +325,8 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
         settings: settingsPayload,
       });
 
-      // 3. Simpan kode undangan ke tabel privat tenant_invites (SEC-3.2)
-      await saveTenantInviteCode(tenantId, inviteCode);
-
       await refreshTenant();
-      setGeneratedInviteCode(inviteCode);
+      setGeneratedInviteCode(savedInviteCode);
       setSetupFinished(true);
       toast.success('Pengaturan awal Kos-kosan berhasil disimpan!');
     } catch (err) {

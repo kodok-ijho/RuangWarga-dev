@@ -24,8 +24,7 @@ import {
   fetchTenantDetails,
   updateTenantProfileAndSettings,
   bulkCreateTenantUnits,
-  generateInviteCode,
-  saveTenantInviteCode,
+  saveInviteCodeWithRetry,
 } from '../../services/tenantOperationalService';
 import { formatRupiah } from '../../services/dataHelpers';
 
@@ -293,10 +292,11 @@ export default function KelasSetupWizard({ tenantId: propTenantId, initialData }
 
       await bulkCreateTenantUnits(tenantId, unitsPayload);
 
-      // 2. Generate kode undangan unik
-      const inviteCode = await generateInviteCode(tenantId, 'anggota');
+      // 2. Simpan kode undangan ke tabel privat tenant_invites dengan retry otomatis jika bentrok (SEC-3F.2)
+      const savedInviteCode = await saveInviteCodeWithRetry(tenantId, className);
+      setGeneratedInviteCode(savedInviteCode);
 
-      // 3. Simpan metadata pengaturan kelas ke tabel tenants
+      // 3. Simpan metadata pengaturan kelas ke tabel tenants (hanya ditandai setup selesai jika kode berhasil disimpan)
       const settingsPayload = {
         class_type: classType,
         subject: subject.trim(),
@@ -323,11 +323,7 @@ export default function KelasSetupWizard({ tenantId: propTenantId, initialData }
         settings: settingsPayload,
       });
 
-      // Simpan kode undangan ke tabel privat tenant_invites (SEC-3.2)
-      await saveTenantInviteCode(tenantId, inviteCode);
-
       await refreshTenant();
-      setGeneratedInviteCode(inviteCode);
       setSetupFinished(true);
       toast.success('Pengaturan awal kelas berhasil disimpan!');
     } catch (err) {

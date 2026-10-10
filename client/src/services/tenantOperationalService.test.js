@@ -37,6 +37,7 @@ import {
   isLegacyQrisEnabled,
   fetchTenantInviteCode,
   saveTenantInviteCode,
+  saveInviteCodeWithRetry,
   fetchTenantSettingsAudit,
   INVITE_CODE_ALPHABET,
 } from './tenantOperationalService';
@@ -956,6 +957,89 @@ describe('tenantOperationalService - Unit Tests', () => {
         expect(upsertPayload).toBeDefined();
         expect(upsertPayload.tenant_id).toBe('prod-tenant-uuid-5');
         expect(upsertPayload.code).toBe('RW-NEW-8888');
+        fromSpy.mockRestore();
+      });
+    });
+
+    describe('saveInviteCodeWithRetry (SEC-3F.2)', () => {
+      it('berhasil menyimpan langsung pada percobaan pertama saat tidak ada bentrok', async () => {
+        let savedCode = null;
+        const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+          if (table === 'tenant_invites') {
+            return {
+              upsert: vi.fn((payload) => {
+                savedCode = payload.code;
+                return Promise.resolve({ error: null });
+              }),
+            };
+          }
+          return {};
+        });
+
+        const code = await saveInviteCodeWithRetry('prod-tenant-retry-1', 'Palm Village');
+        expect(code).toMatch(/^RW-PALM-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/);
+        expect(code).toBe(savedCode);
+        fromSpy.mockRestore();
+      });
+
+      it('mencoba lagi dan berhasil saat percobaan pertama bentrok (Postgres 23505 duplicate key)', async () => {
+        let attempts = 0;
+        const recordedCodes = [];
+
+        const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+          if (table === 'tenant_invites') {
+            return {
+              upsert: vi.fn((payload) => {
+                attempts++;
+                recordedCodes.push(payload.code);
+                if (attempts === 1) {
+                  return Promise.resolve({
+                    error: {
+                      code: '23505',
+                      message: 'duplicate key value violates unique constraint "idx_tenant_invites_code_upper"',
+                    },
+                  });
+                }
+                return Promise.resolve({ error: null });
+              }),
+            };
+          }
+          return {};
+        });
+
+        const code = await saveInviteCodeWithRetry('prod-tenant-retry-2', 'Harmoni', 3);
+        expect(attempts).toBe(2);
+        expect(recordedCodes.length).toBe(2);
+        expect(recordedCodes[0]).not.toBe(recordedCodes[1]);
+        expect(code).toBe(recordedCodes[1]);
+        fromSpy.mockRestore();
+      });
+
+      it('melempar error jika bentrok terjadi 3x berturut-turut', async () => {
+        let attempts = 0;
+
+        const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+          if (table === 'tenant_invites') {
+            return {
+              upsert: vi.fn(() => {
+                attempts++;
+                return Promise.resolve({
+                  error: {
+                    code: '23505',
+                    message: 'duplicate key value violates unique constraint',
+                  },
+                });
+              }),
+            };
+          }
+          return {};
+        });
+
+        await expect(
+          saveInviteCodeWithRetry('prod-tenant-retry-3', 'Bentrok', 3)
+        ).rejects.toThrow(/Gagal membuat kode undangan unik setelah 3 percobaan/);
+
+        expect(attempts).toBe(3);
         fromSpy.mockRestore();
       });
     });

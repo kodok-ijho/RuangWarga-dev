@@ -139,7 +139,7 @@ describe('Regression: Vertikal RT/RW — Alur Lengkap (T11.1)', () => {
 
   it('7. Generate kode undangan dengan format yang benar', () => {
     const code = generateInviteCode('Palm Village');
-    expect(code).toMatch(/^RW-PALM-[A-Z0-9]{4}$/);
+    expect(code).toMatch(/^RW-PALM-[A-Z0-9]{4}-[A-Z0-9]{4}$/);
   });
 
   it('8. Hitung preview tagihan IPL dan verifikasi komponen', () => {

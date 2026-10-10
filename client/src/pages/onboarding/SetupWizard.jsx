@@ -21,8 +21,7 @@ import {
   fetchTenantDetails,
   updateTenantProfileAndSettings,
   bulkCreateTenantUnits,
-  generateInviteCode,
-  saveTenantInviteCode,
+  saveInviteCodeWithRetry,
 } from '../../services/tenantOperationalService';
 import KosSetupWizard from './KosSetupWizard';
 import ArisanSetupWizard from './ArisanSetupWizard';
@@ -235,8 +234,6 @@ export default function SetupWizard() {
 
     setSaving(true);
     try {
-      const inviteCode = generateInviteCode(complexName);
-
       // 1. Simpan unit ke tenant_units
       await bulkCreateTenantUnits(
         tenantId,
@@ -247,7 +244,10 @@ export default function SetupWizard() {
         }))
       );
 
-      // 2. Simpan settings dan profil tenant
+      // 2. Simpan kode undangan ke tabel privat tenant_invites dengan retry otomatis jika bentrok (SEC-3F.2)
+      const savedInviteCode = await saveInviteCodeWithRetry(tenantId, complexName);
+
+      // 3. Simpan settings dan profil tenant (hanya ditandai onboarding_completed jika kode berhasil disimpan)
       const settingsPayload = {
         onboarding_completed: true,
         due_day: Number(dueDay) || 10,
@@ -269,11 +269,8 @@ export default function SetupWizard() {
         settings: settingsPayload,
       });
 
-      // 3. Simpan kode undangan ke tabel privat tenant_invites (SEC-3.2)
-      await saveTenantInviteCode(tenantId, inviteCode);
-
       await refreshTenant();
-      setGeneratedInviteCode(inviteCode);
+      setGeneratedInviteCode(savedInviteCode);
       setSetupFinished(true);
       toast.success('Pengaturan awal RT/RW berhasil disimpan!');
     } catch (err) {

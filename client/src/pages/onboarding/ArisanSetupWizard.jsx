@@ -23,8 +23,7 @@ import {
   fetchTenantDetails,
   updateTenantProfileAndSettings,
   bulkCreateTenantUnits,
-  generateInviteCode,
-  saveTenantInviteCode,
+  saveInviteCodeWithRetry,
 } from '../../services/tenantOperationalService';
 import { formatRupiah } from '../../services/dataHelpers';
 
@@ -281,11 +280,11 @@ export default function ArisanSetupWizard({ tenantId: propTenantId, initialData 
 
       await bulkCreateTenantUnits(tenantId, unitPayload);
 
-      // 2. Generate invite code untuk grup arisan
-      const inviteCode = await generateInviteCode(tenantId);
-      setGeneratedInviteCode(inviteCode);
+      // 2. Simpan kode undangan ke tabel privat tenant_invites dengan retry otomatis jika bentrok (SEC-3F.2)
+      const savedInviteCode = await saveInviteCodeWithRetry(tenantId, groupName);
+      setGeneratedInviteCode(savedInviteCode);
 
-      // 3. Simpan setting arisan ke tenants.settings
+      // 3. Simpan setting arisan ke tenants.settings (hanya ditandai onboarding_completed jika kode berhasil disimpan)
       const settingsPayload = {
         onboarding_completed: true,
         category,
@@ -307,9 +306,6 @@ export default function ArisanSetupWizard({ tenantId: propTenantId, initialData 
         contact_phone: contactPhone.trim(),
         settings: settingsPayload,
       });
-
-      // 4. Simpan kode undangan ke tabel privat tenant_invites (SEC-3.2)
-      await saveTenantInviteCode(tenantId, inviteCode);
 
       await refreshTenant();
       setSetupFinished(true);
