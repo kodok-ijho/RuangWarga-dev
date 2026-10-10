@@ -165,5 +165,14 @@ describe('DOKU SNAP Protocol Pure Helpers (PAY-1.6)', () => {
       expect(expectedQrisTotal(10000, null)).toBe(10000);
     });
   });
+
+  describe('DEBT-1.2 Demo Checkout & Listing QRIS Fee (Single Source of Truth)', () => {
+    it('demo checkout langganan Rp100.000 menghasilkan fee 750 dan total 100.750', () => {
+      const finalTotal = 100000;
+      const { fee, total } = calculateQrisFee(finalTotal);
+      expect(fee).toBe(750);
+      expect(total).toBe(100750);
+    });
+  });
 });
 

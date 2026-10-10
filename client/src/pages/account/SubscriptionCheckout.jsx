@@ -10,6 +10,7 @@ import {
   AiOutlineQrcode,
 } from 'react-icons/ai';
 import { supabase } from '../../services/supabaseClient';
+import { calculateQrisFee } from '../../services/dokuProtocol';
 import { useTenant } from '../../hooks/useTenant';
 import { useTenantTemplate } from '../../hooks/useTenantTemplate';
 import { useToast } from '../../hooks/useToast';
@@ -44,12 +45,13 @@ export default function SubscriptionCheckout() {
 
       if (isDemo) {
         // Mock payment di Demo mode
+        const { fee, total } = calculateQrisFee(finalTotal);
         setPaymentData({
           paymentId: `pay-mock-${Date.now()}`,
           gatewayRef: `DOKU-DEMO-${Math.floor(Math.random() * 90000) + 10000}`,
-          amount: finalTotal,
+          amount: total,
           baseAmount: finalTotal,
-          qrisFee: Math.ceil(finalTotal * 0.007),
+          qrisFee: fee,
           paymentUrl: '#',
           qrContent: '00020101021126580014ID.DOKU.WWW0118936009140000000000',
           qrisString: '00020101021126580014ID.DOKU.WWW0118936009140000000000',
