@@ -242,6 +242,35 @@ export function isLegacyQrisEnabled(tenantOrSettings) {
 }
 
 /**
+ * Mengambil data rekening bank yang tersedia dari settings tenant untuk form input (BRAND-1F.3).
+ * Mengutamakan format baru bank_account, dengan fallback ke format lama bank_info.
+ * Mengembalikan objek rekening atau null bila tidak tersedia.
+ *
+ * @param {Object} settings
+ * @returns {Object|null}
+ */
+export function pickBankAccountForForm(settings) {
+  if (
+    settings &&
+    typeof settings === 'object' &&
+    settings.bank_account &&
+    typeof settings.bank_account === 'object'
+  ) {
+    return settings.bank_account;
+  }
+
+  if (
+    settings &&
+    typeof settings === 'object' &&
+    settings.bank_info &&
+    typeof settings.bank_info === 'object'
+  ) {
+    return settings.bank_info;
+  }
+
+  return null;
+}
+
 /**
  * Memvalidasi dan menormalisasi data rekening bank tenant.
  * Fungsi murni tanpa efek samping.

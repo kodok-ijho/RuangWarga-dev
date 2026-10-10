@@ -26,6 +26,7 @@ import {
   bulkCreateTenantUnits,
   saveInviteCodeWithRetry,
   normalizeBankAccount,
+  pickBankAccountForForm,
 } from '../../services/tenantOperationalService';
 import { formatRupiah } from '../../services/dataHelpers';
 
@@ -101,7 +102,7 @@ export default function KelasSetupWizard({ tenantId: propTenantId, initialData }
   );
   const [dueDay, setDueDay] = useState(initialData?.settings?.due_day || 10);
   const [billingCycle] = useState('monthly');
-  const initialBank = initialData?.settings?.bank_account || initialData?.settings?.bank_info;
+  const initialBank = pickBankAccountForForm(initialData?.settings);
   const [bankName, setBankName] = useState(initialBank?.bank_name || 'BCA');
   const [bankAccountNo, setBankAccountNo] = useState(initialBank?.account_number || '');
   const [bankAccountHolder, setBankAccountHolder] = useState(initialBank?.account_holder || '');
@@ -141,7 +142,7 @@ export default function KelasSetupWizard({ tenantId: propTenantId, initialData }
             if (data.settings.instructor_name) setInstructorName(data.settings.instructor_name);
             if (data.settings.spp_amount) setSppAmount(data.settings.spp_amount);
             if (data.settings.due_day) setDueDay(data.settings.due_day);
-            const bankData = data.settings.bank_account || data.settings.bank_info;
+            const bankData = pickBankAccountForForm(data.settings);
             if (bankData) {
               setBankName(bankData.bank_name || 'BCA');
               setBankAccountNo(bankData.account_number || '');

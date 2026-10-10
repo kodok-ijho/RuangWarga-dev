@@ -255,6 +255,7 @@ export default function Login() {
       <div className="w-full max-w-md">
         {/* Brand Header */}
         <div className="text-center mb-6">
+          <h1 className="sr-only">Masuk ke RuangWarga</h1>
           <Link to="/" className="inline-flex items-center justify-center group mb-2">
             <BrandLogo size="lg" showWordmark={true} className="group-hover:scale-105 transition" />
           </Link>
