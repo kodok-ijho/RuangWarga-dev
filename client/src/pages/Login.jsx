@@ -7,6 +7,7 @@ import {
   GOOGLE_OAUTH_CLIENT_ID,
 } from '../hooks/useAuth';
 import { mockUnits } from '../services/mockData';
+import BrandLogo from '../components/BrandLogo';
 import { AiOutlineSafetyCertificate, AiOutlineClose, AiOutlineHome } from 'react-icons/ai';
 import { FcGoogle } from 'react-icons/fc';
 import pkg from '../../package.json';
@@ -254,20 +255,15 @@ export default function Login() {
       <div className="w-full max-w-md">
         {/* Brand Header */}
         <div className="text-center mb-6">
-          <Link to="/" className="inline-block group">
-            <img
-              src="/logo.png"
-              alt="Logo RuangWarga"
-              className="h-16 w-auto rounded-2xl object-cover mx-auto ring-2 ring-slate-200 shadow-md mb-3 group-hover:scale-105 transition"
-            />
+          <Link to="/" className="inline-flex items-center justify-center group mb-2">
+            <BrandLogo size="lg" showWordmark={true} className="group-hover:scale-105 transition" />
           </Link>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-display tracking-tight flex items-center justify-center gap-2">
-            <span>RuangWarga</span>
+          <div className="flex items-center justify-center gap-2">
             <span className="inline-flex items-center rounded-md bg-slate-100 text-slate-700 px-2 py-0.5 text-xs font-mono font-bold border border-slate-200">
               {APP_VERSION}
             </span>
-          </h1>
-          <p className="text-xs text-slate-500 uppercase tracking-wider mt-1 font-medium">
+          </div>
+          <p className="text-xs text-slate-500 uppercase tracking-wider mt-2 font-medium">
             Platform Komunitas &amp; Properti (RT/RW • Kos • Arisan • Kelas)
           </p>
         </div>
