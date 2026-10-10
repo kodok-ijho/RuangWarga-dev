@@ -20,7 +20,7 @@
 - **Database:** Supabase PostgreSQL + Row Level Security (RLS)
 - **Server-side logic:** Supabase Edge Functions (Deno/TypeScript)
 - **Background jobs:** n8n (notifikasi, scheduled tasks) — **JANGAN DISENTUH**, masih dipakai Portal Warga live di repo lain
-- **Payment:** Mayar QRIS
+- **Payment:** DOKU QRIS (SNAP)
 - **Hosting:** Vercel
 - **Demo mode:** `VITE_DEMO_MODE=true` dengan `mockData.js`
 

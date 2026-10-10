@@ -42,7 +42,7 @@ modul vertikal difinalisasi.
 | Charts           | Recharts 3.9                                       |
 | Backend & Auth   | Supabase (PostgreSQL + Auth + RLS)                 |
 | Edge Functions   | Supabase (Deno/TypeScript)                         |
-| Payment Gateway  | **Mayar QRIS**                                     |
+| Payment Gateway  | **DOKU QRIS (SNAP)**                             |
 | Automation       | n8n — **JANGAN DISENTUH**, masih dipakai Portal Warga live di repo lain (baca saja) |
 | Deployment       | Vercel (frontend) + Supabase Cloud (backend)       |
 
@@ -104,7 +104,7 @@ diakses tanpa tenant context sama sekali).
    sedang dikerjakan (mis. "Mengerjakan SEC-1.1").
 2. **Satu task = satu unit kerja (1 commit)**.
 3. **Tunjukkan diff sebelum apply** untuk: migration SQL apa pun, RLS policy,
-   Edge Functions pembayaran (Mayar QRIS), dan file konteks tenant/auth.
+   Edge Functions pembayaran (DOKU QRIS SNAP), dan file konteks tenant/auth.
 4. **Ikuti konvensi visual existing**: class Tailwind `.pv-*`, warna Forest
    (`forest-800` = `#1a3d2e`) dan Gold (`gold-500` = `#d4af37`), font Inter +
    Playfair Display.
@@ -113,7 +113,7 @@ diakses tanpa tenant context sama sekali).
 
 ## 9. Keamanan & Credential — Hard Rules
 
-- Jangan pernah menulis Mayar API key/secret, private key, JWT, atau token
+- Jangan pernah menulis DOKU API key/secret, private key, JWT, atau token
   transaksi ke README, source code, `VITE_*`, atau commit ke repo.
 - Simpan credential backend server-side (Supabase Edge Function secrets atau n8n Credentials),
   bukan di variable `VITE_*`.
@@ -132,7 +132,7 @@ diakses tanpa tenant context sama sekali).
    - Test isolasi tenant (SQL matrix / Vitest).
 3. Sebelum commit task selesai: `npm run lint` lolos, `npm run build` lolos,
    test relevan lolos (`npx vitest run`).
-4. Jangan menulis test yang menyentuh Mayar/Supabase production sungguhan.
+4. Jangan menulis test yang menyentuh DOKU/Supabase production sungguhan.
 
 ## 11. Batasan Tambahan
 

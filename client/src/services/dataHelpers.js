@@ -232,7 +232,6 @@ const PAYMENT_ROLES = ['warga', 'pengurus', 'bendahara', 'admin'];
 export function getQrisProviderLabel(provider) {
   const value = String(provider || 'doku').trim().toLowerCase();
   const map = {
-    midtrans: 'Midtrans',
     doku: 'DOKU',
   };
   return map[value] || 'DOKU';

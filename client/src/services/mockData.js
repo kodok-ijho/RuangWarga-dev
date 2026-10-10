@@ -374,7 +374,7 @@ export const mockSettings = {
   late_fee_value: 5, // 5% atau nilai fixed (Rp)
   bill_recipient: 'occupant', // 'occupant' | 'owner' — ke siapa tagihan ditujukan
   qris_enabled: true,
-  qris_provider: 'midtrans',
+  qris_provider: 'doku',
   smoke_test: {
     enabled: true,
     frequency: 'daily',

@@ -1164,8 +1164,7 @@ export async function fetchPaymentByBillId(token, billId, billContext = {}) {
 
 
 function normalizeQrisProvider(provider) {
-  const value = String(provider || import.meta.env.VITE_QRIS_DEFAULT_PROVIDER || 'doku').trim().toLowerCase();
-  return value === 'midtrans' ? 'midtrans' : 'doku';
+  return 'doku';
 }
 
 function qrisRoute(provider, suffix) {

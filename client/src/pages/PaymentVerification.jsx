@@ -179,7 +179,7 @@ export default function PaymentVerification() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [qrisEnabled, setQrisEnabled] = useState(true);
-  const [qrisProvider, setQrisProvider] = useState('midtrans');
+  const [qrisProvider, setQrisProvider] = useState('doku');
 
   const fetchSeqRef = useRef(0);
   const activeTenantRef = useRef(activeTenantId);
@@ -224,7 +224,7 @@ export default function PaymentVerification() {
           setUnits([]);
           setResidents([]);
           setQrisEnabled(mockSettings.qris_enabled ?? true);
-          setQrisProvider(String(mockSettings.qris_provider || 'midtrans').toLowerCase());
+          setQrisProvider(String(mockSettings.qris_provider || 'doku').toLowerCase());
         } else if (targetTenantId) {
           // Multi-tenant mode
           const [payData, unitData, memberData, settingsData] = await Promise.all([
@@ -247,7 +247,7 @@ export default function PaymentVerification() {
           setResidents(memberData || []);
           if (settingsData) {
             setQrisEnabled(settingsData.qris_enabled ?? true);
-            setQrisProvider(String(settingsData.qris_provider || 'midtrans').toLowerCase());
+            setQrisProvider(String(settingsData.qris_provider || 'doku').toLowerCase());
           }
         } else {
           // Prod mode fetches from API & Supabase
@@ -266,7 +266,7 @@ export default function PaymentVerification() {
           setResidents(resData || []);
           if (settingsData) {
             setQrisEnabled(settingsData.qris_enabled ?? true);
-            setQrisProvider(String(settingsData.qris_provider || 'midtrans').toLowerCase());
+            setQrisProvider(String(settingsData.qris_provider || 'doku').toLowerCase());
           }
         }
       } catch (err) {

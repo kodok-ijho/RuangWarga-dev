@@ -307,8 +307,8 @@ export default function Settings() {
         toast.error('Tanggal jatuh tempo harus antara 1-28.');
         return;
       }
-      if (!['midtrans', 'doku'].includes(String(qrisProvider).toLowerCase())) {
-        toast.error('Provider QRIS harus Midtrans atau DOKU.');
+      if (String(qrisProvider).toLowerCase() !== 'doku') {
+        toast.error('Provider QRIS harus DOKU.');
         return;
       }
     }
@@ -610,7 +610,6 @@ export default function Settings() {
                 disabled={!canEdit}
                 className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-gold-500 disabled:bg-slate-50 font-semibold"
               >
-                <option value="midtrans">Midtrans</option>
                 <option value="doku">DOKU</option>
               </select>
               <p className="mt-1 text-[11px] text-slate-400">
