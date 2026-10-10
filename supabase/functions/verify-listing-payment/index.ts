@@ -1,9 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { queryQrisStatus, timingSafeEqual } from "../_shared/doku.ts";
+import { queryQrisStatus, timingSafeEqual, isQrisPaid } from "../_shared/doku.ts";
 
-// Status sukses DOKU SNAP
-const SUCCESS_DOKU_STATUSES = ["00", "SUCCESS", "SETTLEMENT", "PAID"];
+// URL notifikasi yang didaftarkan di dashboard DOKU:
+// https://<project>.supabase.co/functions/v1/verify-listing-payment?token=<secret>
 
 serve(async (req) => {
   // Webhook adalah endpoint server-to-server: tolak selain POST
@@ -28,13 +28,9 @@ serve(async (req) => {
       );
     }
 
-    const incomingSecret =
-      req.headers.get("x-webhook-secret") ||
-      req.headers.get("x-doku-signature") ||
-      req.headers.get("x-signature") ||
-      req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-
-    if (!incomingSecret || !timingSafeEqual(incomingSecret, webhookSecret)) {
+    // Auth via query parameter token URL notifikasi (G5)
+    const token = new URL(req.url).searchParams.get("token") || "";
+    if (!token || !timingSafeEqual(token, webhookSecret)) {
       return new Response(
         JSON.stringify({ error: "Unauthorized: invalid or missing webhook token" }),
         { status: 401, headers: { "Content-Type": "application/json" } }
@@ -60,10 +56,10 @@ serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // 1. Cari payment record di listing_payments dengan filter index
+    // 1. Cari payment record di listing_payments lewat qris_ref (select metadata disertakan - G4)
     const { data: foundPayment, error: findError } = await adminClient
       .from("listing_payments")
-      .select("id, amount, status, qris_ref")
+      .select("id, amount, status, metadata, qris_ref")
       .eq("qris_ref", partnerRef)
       .maybeSingle();
 
@@ -84,13 +80,12 @@ serve(async (req) => {
     }
 
     // 2. Anti-Spoofing: Verifikasi status langsung ke API DOKU (queryQrisStatus)
-    let inquiryStatus = "";
+    let qrisStatusRes;
     try {
-      const qrisStatusRes = await queryQrisStatus({
+      qrisStatusRes = await queryQrisStatus({
         originalPartnerReferenceNo: partnerRef,
         originalReferenceNo: payload?.originalReferenceNo || payload?.referenceNo,
       });
-      inquiryStatus = String(qrisStatusRes.transactionStatus || "").trim().toUpperCase();
     } catch (inqErr: any) {
       console.error("[verify-listing-payment] queryQrisStatus error:", inqErr);
       return new Response(
@@ -99,34 +94,37 @@ serve(async (req) => {
       );
     }
 
-    const isSettled = SUCCESS_DOKU_STATUSES.includes(inquiryStatus);
-    if (!isSettled) {
-      console.warn(`[verify-listing-payment] Transaction ${partnerRef} status is ${inquiryStatus}, ignored`);
+    // Evaluasi status lunas murni: responseCode '200...' dan latestTransactionStatus '00' (G6)
+    if (!isQrisPaid(qrisStatusRes.raw)) {
+      console.warn(`[verify-listing-payment] Transaction ${partnerRef} is not settled:`, qrisStatusRes.raw);
       return new Response(
         JSON.stringify({ message: "Ignored: transaction is not settled" }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // 3. Validasi nominal pembayaran (amount check)
-    // Nominal yang dibayar ke DOKU mencakup harga dasar + MDR QRIS 0,75% (keputusan user)
-    const incomingAmount = Number(payload?.amount?.value ?? payload?.amount);
-    if (!isNaN(incomingAmount) && incomingAmount > 0) {
-      const expectedTotal = Number(
-        foundPayment.metadata?.qris_total_amount ??
-        (foundPayment.metadata?.base_amount && foundPayment.metadata?.qris_fee
-          ? Number(foundPayment.metadata.base_amount) + Number(foundPayment.metadata.qris_fee)
-          : foundPayment.amount)
+    // 3. Validasi nominal pembayaran dari respons query gateway DOKU (G4)
+    const rawAmountVal = qrisStatusRes.raw?.amount?.value;
+    if (rawAmountVal === undefined || rawAmountVal === null || rawAmountVal === "") {
+      console.error("[verify-listing-payment] DOKU query response missing amount.value:", qrisStatusRes.raw);
+      return new Response(
+        JSON.stringify({ error: "DOKU query response missing amount.value" }),
+        { status: 409, headers: { "Content-Type": "application/json" } }
       );
-      if (expectedTotal !== incomingAmount) {
-        console.error(
-          `[verify-listing-payment] Amount mismatch: expected ${expectedTotal}, got ${incomingAmount}`
-        );
-        return new Response(
-          JSON.stringify({ error: "Payment amount mismatch" }),
-          { status: 409, headers: { "Content-Type": "application/json" } }
-        );
-      }
+    }
+
+    const incomingAmount = Math.round(Number(rawAmountVal));
+    const feeAmount = Number(foundPayment.metadata?.qris_fee ?? foundPayment.metadata?.qris_fee_amount ?? 0);
+    const expectedTotal = Number(foundPayment.amount) + feeAmount;
+
+    if (isNaN(incomingAmount) || incomingAmount <= 0 || incomingAmount !== expectedTotal) {
+      console.error(
+        `[verify-listing-payment] Amount mismatch: expected ${expectedTotal}, got ${incomingAmount}`
+      );
+      return new Response(
+        JSON.stringify({ error: "Payment amount mismatch" }),
+        { status: 409, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     // 4. Panggil database function SECURITY DEFINER: activate_listing_payment
@@ -158,14 +156,15 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         message: "Pembayaran iklan berhasil diverifikasi dan masa tayang listing telah aktif",
-        activationResult: result,
+        listingId: result?.listing_id,
+        expiresAt: result?.expires_at,
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (err: any) {
-    console.error("[verify-listing-payment] Unexpected internal error:", err);
+    console.error("[verify-listing-payment] Unexpected webhook error:", err);
     return new Response(
-      JSON.stringify({ error: "Internal server error" }),
+      JSON.stringify({ error: "Internal webhook processing error" }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }

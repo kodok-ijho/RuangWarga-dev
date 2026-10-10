@@ -46,7 +46,7 @@ export interface QrisQueryResult {
  * Melempar error fail-closed jika ada konfigurasi wajib yang hilang.
  */
 export function readDokuConfig(): DokuConfig {
-  const baseUrl = Deno.env.get("DOKU_PLATFORM_BASE_URL") || "https://api.doku.com";
+  const baseUrl = Deno.env.get("DOKU_PLATFORM_BASE_URL") || "";
   const clientId = Deno.env.get("DOKU_PLATFORM_CLIENT_ID") || "";
   const clientSecret = Deno.env.get("DOKU_PLATFORM_CLIENT_SECRET") || "";
   const merchantId = Deno.env.get("DOKU_PLATFORM_MERCHANT_ID") || "";
@@ -57,6 +57,7 @@ export function readDokuConfig(): DokuConfig {
   const webhookSecret = Deno.env.get("DOKU_PLATFORM_WEBHOOK_SECRET") || "";
 
   const missing: string[] = [];
+  if (!baseUrl) missing.push("DOKU_PLATFORM_BASE_URL");
   if (!clientId) missing.push("DOKU_PLATFORM_CLIENT_ID");
   if (!clientSecret) missing.push("DOKU_PLATFORM_CLIENT_SECRET");
   if (!merchantId) missing.push("DOKU_PLATFORM_MERCHANT_ID");
@@ -411,4 +412,14 @@ export async function queryQrisStatus(
     transactionStatus: status,
     raw: resData,
   };
+}
+
+/**
+ * Helper untuk memverifikasi apakah transaksi QRIS SNAP DOKU berstatus lunas (G6).
+ * Lunas = responseCode diawali '200' DAN latestTransactionStatus === '00'.
+ */
+export function isQrisPaid(raw: any): boolean {
+  if (!raw) return false;
+  const code = String(raw.responseCode ?? "");
+  return code.startsWith("200") && raw.latestTransactionStatus === "00";
 }
