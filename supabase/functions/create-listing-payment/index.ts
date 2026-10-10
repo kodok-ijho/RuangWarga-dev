@@ -69,27 +69,30 @@ serve(async (req) => {
       );
     }
 
-    // 2. Validasi otorisasi user (Pemilik listing, Admin Tenant, atau Platform Admin)
-    const { data: isPlatAdmin } = await adminClient
-      .from("platform_admins")
-      .select("user_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    // 2. Validasi otorisasi user (G2: pemasang listing, owner tenant, has_permission 'post_listing', atau platform admin)
+    let isPoster = false;
+    if (listing.posted_by) {
+      const { data: posterMember } = await userClient
+        .from("tenant_members")
+        .select("id")
+        .eq("id", listing.posted_by)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      isPoster = Boolean(posterMember?.id);
+    }
 
-    const { data: memberRow } = await adminClient
-      .from("tenant_members")
-      .select("id, role, status")
-      .eq("tenant_id", listing.tenant_id)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const { data: isOwner } = await userClient.rpc("is_tenant_owner", { p_tenant_id: listing.tenant_id });
+    const { data: canPost } = await userClient.rpc("has_permission", {
+      p_tenant_id: listing.tenant_id,
+      p_permission_key: "post_listing",
+    });
+    const { data: isPlatformAdmin } = await userClient.rpc("is_platform_admin");
 
-    const isOwner = memberRow && memberRow.id === listing.posted_by;
-    const isTenantAdmin = memberRow && memberRow.role === "admin" && memberRow.status === "approved";
-    const isAuthorized = Boolean(isPlatAdmin?.user_id) || isOwner || isTenantAdmin;
+    const isAuthorized = isPoster || Boolean(isOwner) || Boolean(canPost) || Boolean(isPlatformAdmin);
 
     if (!isAuthorized) {
       return new Response(
-        JSON.stringify({ error: "Hanya pemilik listing atau admin tenant yang berhak melakukan transaksi pembayaran listing" }),
+        JSON.stringify({ error: "Hanya pemasang listing, admin/owner tenant, atau platform admin yang berhak melakukan pembayaran listing" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -108,7 +111,7 @@ serve(async (req) => {
       );
     }
 
-    // 4. Tentukan harga dari listing_pricing dan MDR QRIS (0.7%)
+    // 4. Tentukan harga dari listing_pricing dan MDR QRIS (0.75%)
     const { data: pricingRows, error: pricingErr } = await adminClient
       .from("listing_pricing")
       .select("id, price")
@@ -126,7 +129,21 @@ serve(async (req) => {
     const basePrice = Number(pricingRows[0].price);
     const { fee: qrisFee, total: totalAmount } = calculateQrisFee(basePrice);
 
-    // 5. Buat record transaksi pending di listing_payments
+    // 5. Susun metadata awal untuk pesanan & MDR (G4)
+    const initialMetadata = {
+      listing_title: listing.title,
+      listing_type: listing.type,
+      tenant_id: listing.tenant_id,
+      user_id: user.id,
+      is_featured: Boolean(isFeatured),
+      duration_days: Number(durationDays),
+      base_amount: basePrice,
+      qris_fee: qrisFee,
+      qris_fee_amount: qrisFee,
+      qris_total_amount: totalAmount,
+    };
+
+    // 6. Buat record transaksi pending di listing_payments
     // Kolom amount menyimpan harga dasar katalog; fee dan total disimpan di metadata (keputusan user)
     const { data: paymentRecord, error: payErr } = await adminClient
       .from("listing_payments")
@@ -136,18 +153,7 @@ serve(async (req) => {
         status: "pending",
         is_featured: Boolean(isFeatured),
         duration_days: Number(durationDays),
-        metadata: {
-          listing_title: listing.title,
-          listing_type: listing.type,
-          tenant_id: listing.tenant_id,
-          user_id: user.id,
-          is_featured: Boolean(isFeatured),
-          duration_days: Number(durationDays),
-          base_amount: basePrice,
-          qris_fee: qrisFee,
-          qris_fee_amount: qrisFee,
-          qris_total_amount: totalAmount,
-        },
+        metadata: initialMetadata,
       })
       .select("id")
       .single();
@@ -156,7 +162,7 @@ serve(async (req) => {
       throw new Error("Gagal membuat catatan pembayaran listing: " + payErr?.message);
     }
 
-    // 6. Integrasi Gateway SNAP DOKU Platform
+    // 7. Integrasi Gateway SNAP DOKU Platform
     const partnerReferenceNo = `LST-${paymentRecord.id.replace(/-/g, "").substring(0, 18).toUpperCase()}`;
     let dokuRes;
 
@@ -178,21 +184,14 @@ serve(async (req) => {
       );
     }
 
-    // Update listing_payments record dengan ref & metadata
+    // Update listing_payments record dengan ref & gabungkan metadata awal (G4)
     await adminClient
       .from("listing_payments")
       .update({
         qris_ref: partnerReferenceNo,
         payment_url: null,
         metadata: {
-          listing_title: listing.title,
-          listing_type: listing.type,
-          tenant_id: listing.tenant_id,
-          user_id: user.id,
-          is_featured: Boolean(isFeatured),
-          duration_days: Number(durationDays),
-          base_amount: basePrice,
-          qris_fee: qrisFee,
+          ...initialMetadata,
           doku_reference_no: dokuRes.referenceNo,
         },
         updated_at: new Date().toISOString(),
