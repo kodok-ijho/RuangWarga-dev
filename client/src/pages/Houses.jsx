@@ -62,8 +62,8 @@ export default function Houses() {
   const { activeTenantId, activeTenant } = useTenant();
   const template = useTenantTemplate();
   const isRtRw = !activeTenant?.type || activeTenant?.type === 'rt_rw';
-  const sitePlanUrl = activeTenant?.settings?.site_plan_url || (activeTenant?.slug === 'palm-village' ? '/Mapsite%20Palm%20Village.png' : null);
-  const sitePlanPdf = activeTenant?.settings?.site_plan_pdf || (activeTenant?.slug === 'palm-village' ? '/Site Plan Update 2.pdf' : null);
+  const sitePlanUrl = activeTenant?.settings?.site_plan_url || (activeTenant?.slug === 'palm-village' ? '/tenants/palm-village/Mapsite%20Palm%20Village.png' : null);
+  const sitePlanPdf = activeTenant?.settings?.site_plan_pdf || (activeTenant?.slug === 'palm-village' ? '/tenants/palm-village/Site Plan Update 2.pdf' : null);
   const hasSitePlan = isRtRw && Boolean(sitePlanUrl);
 
   const { triggerTour } = useTour();
