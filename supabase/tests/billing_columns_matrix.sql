@@ -202,8 +202,8 @@ BEGIN
   -- Ambil period aktif untuk langganan
   SELECT id INTO v_period_id FROM public.subscription_periods WHERE is_active = true LIMIT 1;
   IF v_period_id IS NULL THEN
-    INSERT INTO public.subscription_periods (name, duration_months, discount_percent, is_active)
-    VALUES ('Tahunan Uji', 12, 10, true)
+    INSERT INTO public.subscription_periods (duration_months, discount_percent, is_active)
+    VALUES (12, 10, true)
     RETURNING id INTO v_period_id;
   END IF;
 
@@ -265,10 +265,18 @@ BEGIN
     RAISE EXCEPTION 'TEST 10 GAGAL: blok 5 unit tidak terpasang dengan benar (count %)', v_block_count;
   END IF;
 
-  -- Pemanggilan ulang wajib idempotent (success: true)
+  -- Blok trial bawaan handle_new_tenant harus terganti, bukan bertumpuk
+  SELECT count(*) INTO v_block_count FROM public.tenant_subscription_blocks WHERE subscription_id = v_sub_id;
+  IF v_block_count <> 2 THEN
+    RAISE EXCEPTION 'TEST 10 GAGAL: blok lama tidak terganti (total blok %)', v_block_count;
+  END IF;
+
+  -- T10B: pemanggilan ulang wajib idempotent dan TIDAK menambah masa aktif
+  SELECT current_period_end INTO v_check_expires FROM public.tenant_subscriptions WHERE id = v_sub_id;
   v_rpc_res_idempotent := public.activate_tenant_subscription(v_sub_pay_id, 'SUB-TEST1234567890');
-  IF (v_rpc_res_idempotent->>'success')::boolean <> true THEN
-    RAISE EXCEPTION 'TEST 10 GAGAL: pemanggilan ulang aktivasi tidak idempotent: %', v_rpc_res_idempotent;
+  IF (v_rpc_res_idempotent->>'success')::boolean <> true
+     OR (SELECT current_period_end FROM public.tenant_subscriptions WHERE id = v_sub_id) <> v_check_expires THEN
+    RAISE EXCEPTION 'TEST 10B GAGAL: pemanggilan ulang tidak idempotent: %', v_rpc_res_idempotent;
   END IF;
   v_results := v_results || 'T10 ';
 
