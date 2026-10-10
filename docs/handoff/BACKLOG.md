@@ -1,6 +1,6 @@
 # Backlog (belum untuk dikerjakan executor)
 
-Urutan rencana: **SEC-1 ✅ → SEC-2 ✅ (sudah di dev) → PAY-2 ✅ → PAY-2F ✅ → PAY-1 + PAY-1F ✅ (di dev; deploy menunggu akun DOKU) → SEC-3 ✅ → SEC-3F ✅ → BRAND-1 ✅ → BRAND-1F (aktif) → DEBT-1**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
+Urutan rencana: **SEC-1 ✅ → SEC-2 ✅ (sudah di dev) → PAY-2 ✅ → PAY-2F ✅ → PAY-1 + PAY-1F ✅ (di dev; deploy menunggu akun DOKU) → SEC-3 ✅ → SEC-3F ✅ → BRAND-1 ✅ → BRAND-1F ✅ → DEBT-1 (aktif)**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
 
 ## Keputusan user yang mengikat
 - Palm Village **tetap tenant**. Branding-nya (nama, logo, warna, peta) hanya dari data tenant dan hanya tampil di `/t/:tenantId`. Lapisan global (login, beranda, `/account`, `/platform`, `/listing`, PWA) netral "RuangWarga".
@@ -37,17 +37,13 @@ Dokumen task lengkap: `docs/handoff/PAY-1.md`. Ringkas: modul SNAP DOKU bersama 
 - Catat setiap perubahan `settings.bank_account` (siapa, kapan, nilai lama/baru) dan tampilkan ke owner tenant.
 
 ## BRAND-1 — Branding global RuangWarga
-Selesai — `BRAND-1.md`, review `BRAND-1-review.md`. Perbaikan K1–K5 di `BRAND-1F.md` (aktif).
+Selesai — `BRAND-1.md` + `BRAND-1F.md`, review `BRAND-1-review.md` dan `BRAND-1F-review.md`. Sisa: saat fitur unggah logo tenant dibuat, batasi `settings.logo_url` ke domain Supabase Storage proyek.
 
 ## DEBT-1 — Utang teknis
-- Pecah `client/src/services/tenantOperationalService.js` (±3.3k baris) per domain.
-- `client/src/services/dataService.js` (legacy single-tenant, dipakai 16 file): **jangan dipensiunkan dulu.** File ini memanggil endpoint n8n lewat `api/n8n.js` untuk alur Palm Village. Paling jauh: rapikan tanpa mengubah perilaku, dan jangan putus jalur n8n-nya.
-- Keluarkan `mockData.js` dari bundle production (dynamic import saat demo).
-- Temuan review BRAND-1:
-  - Fungsi kuitansi (`downloadDigitalReceipt` / kirim kuitansi) adalah fungsi produksi tapi tinggal di `mockData.js` dan memakai skema IPL mock. Pindahkan ke service sungguhan.
-  - Biaya QRIS di demo `SubscriptionCheckout.jsx` masih `0.007`, padahal keputusannya `0.0075`.
-  - Domain placeholder `@warga.palmvillage.local` dipakai semua tenant. Kalau diganti, domain lama tetap harus terdeteksi.
-  - `PaymentMatrix.jsx` ±1093 (demo) memanggil kuitansi dengan objek yang salah bentuk.
+Dokumen task lengkap: `docs/handoff/DEBT-1.md` (aktif).
+- `client/src/services/dataService.js` (legacy single-tenant): **jangan dipensiunkan.** File ini memanggil endpoint n8n lewat `api/n8n.js` untuk alur Palm Village. Paling jauh: rapikan tanpa mengubah perilaku, dan jangan putus jalur n8n-nya.
+- Domain placeholder `@warga.palmvillage.local` **dibiarkan**. Tidak tampil ke pengguna dan juga dibuat oleh workflow n8n live `pv-api-residents-create`.
+- Setelah DEBT-1: perbaiki pemakaian mock di jalur produksi `PaymentMatrix.jsx` / `PaymentVerification.jsx` berdasarkan tabel audit DEBT-1.3.
 
 ## Risiko yang DIKETAHUI tapi SENGAJA TIDAK DIKERJAKAN
 Ditemukan saat review SEC-1, dicatat supaya tidak hilang. Semua menyangkut n8n yang
