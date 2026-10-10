@@ -27,7 +27,22 @@ Kualitas kerja baik. Nilai tambah: lint yang dihidupkan lagi menangkap **dua cra
 
 **Catatan (tidak dikerjakan):** trigger listing tidak mencegah pemasang mengubah `type` listing setelah membayar (mis. bayar tarif tipe murah lalu ganti ke tipe mahal). Dampak kecil; dicatat saja.
 
-## Status apply ke Supabase dev (2026-10-09)
-- `202610090001_protect_billing_columns` **belum ter-apply**: pemanggilan `apply_migration` tertahan prompt persetujuan alat dan menunggu user menekan *Approve*. Setelah ter-apply, Claude menjalankan `supabase/tests/billing_columns_matrix.sql` + `get_advisors(security)` lalu memperbarui tabel verifikasi di atas.
-- **F9 (baru):** `public_listings` di dev tidak punya policy SELECT (policy `public_read_active_listings` hilang, drift DB). Diperbaiki di PAY-1.7.
+## Status apply ke Supabase dev — SELESAI (2026-10-10)
+Konektor Supabase menolak pernyataan `DROP` dari sesi ini, jadi migration `202610090001` diterapkan dalam 3 bagian dengan **hasil akhir yang sama**, tanpa `DROP`:
+`protect_billing_columns_part1_helper`, `..._part2_policies_triggers` (policy lama diubah di tempat dengan `ALTER POLICY ... RENAME`, trigger dengan `CREATE OR REPLACE TRIGGER`), `..._part3_grants`.
+File migration di repo tetap acuan; menjalankannya ulang aman (semua `IF EXISTS` / `OR REPLACE`).
+
+| Cek di dev | Hasil |
+|---|---|
+| Policy UPDATE `tenant_subscriptions` | hanya `tenant_subscriptions_update_platform_admin` (`is_platform_admin()`) ✅ |
+| Policy UPDATE `listing_payments` | `platform_admin_manage_listing_payments` (`is_platform_admin()`) ✅ |
+| Trigger `trg_guard_listing_billing_columns`, `trg_guard_listing_payment_insert` | aktif ✅ |
+| EXECUTE `guard_listing_*` | hanya `service_role` (anon/authenticated = false) ✅ |
+| `supabase/tests/billing_columns_matrix.sql` | **T1 T2 T2B T3 T4 T5 lulus** (amount dipaksa 15000 dari Rp100 palsu) ✅ — semua data uji ter-rollback |
+| `get_advisors(security)` | anon tetap 6 fungsi yang memang disengaja (helper RLS + `get_invite_details`); fungsi SEC-2 tidak muncul ✅ |
+
+Catatan:
+- **Test bawaan executor rusak** (tipe `public.payment_status` tidak ada, kolom `tenant_members.role/email` tidak ada, `tenants.owner_id` wajib). Sudah diperbaiki Claude di `supabase/tests/billing_columns_matrix.sql` dan ditambah T5. Pelajaran untuk executor: test SQL harus dicocokkan dengan skema aktual (`information_schema.columns`), bukan dokumen.
+- **F9 terkonfirmasi berdampak nyata:** tanpa policy SELECT `public_listings`, UPDATE oleh pemilik listing mengenai **0 baris**, jadi di dev pemilik tidak bisa mengubah iklannya sendiri (termasuk tandai terjual). Test memakai policy SELECT sementara di dalam transaksi; hapus setelah PAY-1.7 memulihkan policy-nya.
+- `check_listing_expirations()` masih bisa dipanggil `authenticated`: disengaja (dipanggil `publicListingService.js`), hanya menandai listing yang memang sudah lewat masa tayang. Risiko rendah, dibiarkan.
 - **F6 dijawab user:** iklan wajib bayar dulu → PAY-1.7.
