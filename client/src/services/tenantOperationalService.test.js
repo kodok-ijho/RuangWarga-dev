@@ -35,6 +35,9 @@ import {
   getTenantBankAccount,
   saveTenantBankAccount,
   isLegacyQrisEnabled,
+  fetchTenantInviteCode,
+  saveTenantInviteCode,
+  fetchTenantSettingsAudit,
 } from './tenantOperationalService';
 
 describe('tenantOperationalService - Unit Tests', () => {
@@ -843,6 +846,156 @@ describe('tenantOperationalService - Unit Tests', () => {
         });
 
         expect(result.settings.bank_account.bank_name).toBe('Bank Mandiri');
+        fromSpy.mockRestore();
+      });
+    });
+  });
+
+  describe('SEC-3 Tenant Invites & Settings Audit (SEC-3.5)', () => {
+    describe('fetchTenantInviteCode & saveTenantInviteCode', () => {
+      it('mengambil kode undangan dari mock data untuk demo tenant', async () => {
+        const code = await fetchTenantInviteCode('demo-tenant-kos');
+        expect(code).toBe('RW-KOS-2026');
+      });
+
+      it('menyimpan dan memperbarui kode undangan pada mode demo', async () => {
+        const success = await saveTenantInviteCode('demo-tenant-custom', 'RW-CUST-9999');
+        expect(success).toBe(true);
+        const code = await fetchTenantInviteCode('demo-tenant-custom');
+        expect(code).toBe('RW-CUST-9999');
+      });
+
+      it('mengambil kode undangan dari Supabase tenant_invites saat production', async () => {
+        const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+          if (table === 'tenant_invites') {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { code: 'PROD-INV-7777' },
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          }
+          return {};
+        });
+
+        const code = await fetchTenantInviteCode('prod-tenant-uuid-3');
+        expect(code).toBe('PROD-INV-7777');
+        fromSpy.mockRestore();
+      });
+
+      it('mengembalikan null jika user tidak berhak (RLS error) atau data tidak ada', async () => {
+        const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+          if (table === 'tenant_invites') {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: null,
+                    error: { message: 'permission denied for table tenant_invites' },
+                  }),
+                }),
+              }),
+            };
+          }
+          return {};
+        });
+
+        const code = await fetchTenantInviteCode('prod-tenant-uuid-4');
+        expect(code).toBeNull();
+        fromSpy.mockRestore();
+      });
+
+      it('menyimpan kode undangan ke Supabase dengan upsert', async () => {
+        let upsertPayload = null;
+        const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+          if (table === 'tenant_invites') {
+            return {
+              upsert: vi.fn((payload) => {
+                upsertPayload = payload;
+                return Promise.resolve({ error: null });
+              }),
+            };
+          }
+          return {};
+        });
+
+        const success = await saveTenantInviteCode('prod-tenant-uuid-5', 'rw-new-8888');
+        expect(success).toBe(true);
+        expect(upsertPayload).toBeDefined();
+        expect(upsertPayload.tenant_id).toBe('prod-tenant-uuid-5');
+        expect(upsertPayload.code).toBe('RW-NEW-8888');
+        fromSpy.mockRestore();
+      });
+    });
+
+    describe('fetchTenantSettingsAudit', () => {
+      it('mengambil riwayat perubahan rekening di demo mode', async () => {
+        const logs = await fetchTenantSettingsAudit('demo-tenant-rtrw');
+        expect(Array.isArray(logs)).toBe(true);
+        expect(logs.length).toBeGreaterThan(0);
+        expect(logs[0].field).toBe('bank_account');
+        expect(logs[0].new_value.bank_name).toBe('BCA');
+      });
+
+      it('mengambil riwayat perubahan rekening dan mencocokkan nama pengubah dari tenant_members', async () => {
+        const mockAuditRows = [
+          {
+            id: 'audit-1',
+            tenant_id: 'prod-tenant-audit',
+            changed_by: 'user-audit-1',
+            field: 'bank_account',
+            old_value: { bank_name: 'BCA', account_number: '111', account_holder: 'Lama' },
+            new_value: { bank_name: 'Mandiri', account_number: '222', account_holder: 'Baru' },
+            changed_at: '2026-10-10T10:00:00Z',
+          },
+        ];
+
+        const mockMembers = [
+          { user_id: 'user-audit-1', full_name: 'Ahmad Pengurus' },
+        ];
+
+        const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+          if (table === 'tenant_settings_audit') {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  eq: vi.fn().mockReturnValue({
+                    order: vi.fn().mockReturnValue({
+                      limit: vi.fn().mockResolvedValue({
+                        data: mockAuditRows,
+                        error: null,
+                      }),
+                    }),
+                  }),
+                }),
+              }),
+            };
+          }
+          if (table === 'tenant_members') {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  in: vi.fn().mockResolvedValue({
+                    data: mockMembers,
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          }
+          return {};
+        });
+
+        const logs = await fetchTenantSettingsAudit('prod-tenant-audit');
+        expect(logs.length).toBe(1);
+        expect(logs[0].changed_by_name).toBe('Ahmad Pengurus');
+        expect(logs[0].old_value.bank_name).toBe('BCA');
+        expect(logs[0].new_value.bank_name).toBe('Mandiri');
+
         fromSpy.mockRestore();
       });
     });

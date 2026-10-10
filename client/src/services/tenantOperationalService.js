@@ -21,14 +21,6 @@ import { buildCanonicalExpenseReceiptPath } from '../utils/storagePolicy';
 
 const IS_DEMO = import.meta.env.VITE_DEMO_MODE === 'true';
 
-function isSupabaseConfigured() {
-  return Boolean(
-    import.meta.env.VITE_SUPABASE_URL &&
-    import.meta.env.VITE_SUPABASE_ANON_KEY &&
-    !import.meta.env.VITE_SUPABASE_URL.includes('your-project')
-  );
-}
-
 // In-memory cache unit untuk demo mode agar interaksi setup wizard terasa nyata
 let demoTenantUnitsMap = new Map();
 
@@ -308,7 +300,7 @@ export async function saveTenantBankAccount(tenantId, bankAccount) {
     },
   };
 
-  if (IS_DEMO || String(tenantId).startsWith('demo-') || !isSupabaseConfigured()) {
+  if (IS_DEMO || String(tenantId).startsWith('demo-')) {
     if (!mockTenantSettingsAudit[tenantId]) {
       mockTenantSettingsAudit[tenantId] = [];
     }
@@ -337,7 +329,7 @@ export async function saveTenantBankAccount(tenantId, bankAccount) {
 export async function fetchTenantInviteCode(tenantId) {
   if (!tenantId) return null;
 
-  if (IS_DEMO || String(tenantId).startsWith('demo-') || !isSupabaseConfigured()) {
+  if (IS_DEMO || String(tenantId).startsWith('demo-')) {
     return mockTenantInviteCodes[tenantId] || null;
   }
 
@@ -374,7 +366,7 @@ export async function saveTenantInviteCode(tenantId, code) {
 
   const trimmedCode = String(code).trim().toUpperCase();
 
-  if (IS_DEMO || String(tenantId).startsWith('demo-') || !isSupabaseConfigured()) {
+  if (IS_DEMO || String(tenantId).startsWith('demo-')) {
     mockTenantInviteCodes[tenantId] = trimmedCode;
     return true;
   }
@@ -410,7 +402,7 @@ export async function saveTenantInviteCode(tenantId, code) {
 export async function fetchTenantSettingsAudit(tenantId) {
   if (!tenantId) return [];
 
-  if (IS_DEMO || String(tenantId).startsWith('demo-') || !isSupabaseConfigured()) {
+  if (IS_DEMO || String(tenantId).startsWith('demo-')) {
     const list = mockTenantSettingsAudit[tenantId] || [];
     return list.slice(0, 5);
   }
