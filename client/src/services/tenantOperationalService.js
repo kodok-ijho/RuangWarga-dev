@@ -118,6 +118,7 @@ export async function fetchTenantDetails(tenantId) {
       address: 'Jl. Boulevard Palm No. 1',
       contact_phone: '081234567890',
       settings: {
+        logo_url: '/tenants/palm-village/logo.png',
         legacy_qris_enabled: true,
         ipl_components: [
           { name: 'Keamanan', amount: 80000 },

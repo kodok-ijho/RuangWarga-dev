@@ -32,6 +32,7 @@ export const DEMO_TENANTS = [
     permissions: ALL_PLATFORM_PERMISSIONS,
     owner_id: 'demo-admin',
     settings: {
+      logo_url: '/tenants/palm-village/logo.png',
       legacy_qris_enabled: true,
       bank_account: {
         bank_name: 'BCA',
