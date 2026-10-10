@@ -640,57 +640,5 @@ export async function fetchListingPaymentStatus(paymentId) {
   return data;
 }
 
-/**
- * Mengecek dan memproses kedaluwarsa listing dan status featured (T10.7, FR-28, FR-29)
- * Memanggil database RPC check_listing_expirations atau in-memory simulation
- * 
- * @param {Date|string} [referenceTime=new Date()]
- * @returns {Promise<Object>}
- */
-export async function checkListingExpirations(referenceTime = new Date()) {
-  const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
-  const now = new Date(referenceTime);
 
-  if (!isSupabaseConfigured() || isDemo) {
-    let expiredCount = 0;
-    let unfeaturedCount = 0;
-
-    inMemoryListings = inMemoryListings.map((item) => {
-      const updated = { ...item };
-      const expiry = new Date(item.expires_at);
-
-      // Transisi active ke expired
-      if (item.status === 'active' && expiry.getTime() <= now.getTime()) {
-        updated.status = 'expired';
-        updated.updated_at = now.toISOString();
-        expiredCount += 1;
-      }
-
-      // Nonaktifkan featured jika lewat featured_until
-      if (item.is_featured && item.featured_until && new Date(item.featured_until).getTime() <= now.getTime()) {
-        updated.is_featured = false;
-        updated.featured_until = null;
-        updated.updated_at = now.toISOString();
-        unfeaturedCount += 1;
-      }
-
-      return updated;
-    });
-
-    return {
-      success: true,
-      expired_listings_count: expiredCount,
-      unfeatured_listings_count: unfeaturedCount,
-      processed_at: now.toISOString(),
-    };
-  }
-
-  // Supabase RPC
-  const { data, error } = await supabase.rpc('check_listing_expirations');
-  if (error) {
-    throw new Error(`Gagal memproses kedaluwarsa listing: ${error.message}`);
-  }
-
-  return data;
-}
 

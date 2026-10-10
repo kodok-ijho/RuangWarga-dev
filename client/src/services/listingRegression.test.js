@@ -27,7 +27,6 @@ import {
   createListingPayment,
   verifyListingPayment,
   fetchListingPaymentStatus,
-  checkListingExpirations,
   fetchPublicListings,
   fetchPublicListingById,
 } from './publicListingService';
@@ -406,28 +405,7 @@ describe('Modul Listing Publik — Regression Test (T11.3)', () => {
       expect(visible[0].id).toBe('1');
     });
 
-    it('job checkListingExpirations otomatis menandai listing kedaluwarsa menjadi expired (T10.7)', async () => {
-      // 1. Buat listing dengan masa aktif singkat dan bayar
-      const shortListing = await createPublicListing(kosTenantId, {
-        title: 'Kamar Kos Promo Kilat',
-        type: 'room_vacancy',
-        contact_phone: '08123456789',
-        duration_days: 1,
-      });
-      const pay = await createListingPayment(shortListing.id, { durationDays: 1 });
-      await verifyListingPayment(pay.paymentId, pay.gatewayRef);
 
-      // 2. Jalankan checkListingExpirations dengan referensi waktu 5 hari ke depan
-      const futureTime = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
-      const res = await checkListingExpirations(futureTime);
-      expect(res.success).toBe(true);
-
-      // 3. Verifikasi status listing berubah jadi expired
-      const tenantListings = await fetchTenantListings(kosTenantId);
-      const target = tenantListings.find((l) => l.id === shortListing.id);
-      expect(target).toBeDefined();
-      expect(target.status).toBe('expired');
-    });
   });
 
   // ─────────────────────────────────────────────────────────────────────────────

@@ -15,7 +15,6 @@ import {
   createListingPayment,
   verifyListingPayment,
   fetchListingPaymentStatus,
-  checkListingExpirations,
   fetchPublicListings,
   fetchPublicListingById,
 } from './publicListingService';
@@ -592,56 +591,6 @@ describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () =>
     });
   });
 
-  describe('publicListingService - Unit Tests (T10.7: Scheduled Job / checkListingExpirations)', () => {
-    it('checkListingExpirations menandai listing active yang expires_at telah terlewati menjadi expired', async () => {
-      // 1. Buat listing dan aktifkan lewat pembayaran 1 hari
-      const futureListing = await createPublicListing('demo-tenant-kos', {
-        title: 'Kamar Kos Belum Expired',
-        contact_phone: '08123456789',
-        type: 'room_vacancy',
-        duration_days: 1,
-      });
-      const pay = await createListingPayment(futureListing.id, { durationDays: 1 });
-      await verifyListingPayment(pay.paymentId, pay.gatewayRef);
-
-      // 2. Jalankan checkListingExpirations dengan waktu 2 hari ke depan
-      const futureTime = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
-      const res = await checkListingExpirations(futureTime);
-
-      expect(res.success).toBe(true);
-      expect(res.expired_listings_count).toBeGreaterThanOrEqual(1);
-
-      // 3. Verifikasi status listing berubah jadi expired
-      const listAfter = await fetchTenantListings('demo-tenant-kos');
-      const target = listAfter.find((l) => l.id === futureListing.id);
-      expect(target.status).toBe('expired');
-    });
-
-    it('checkListingExpirations menonaktifkan status featured jika masa featured_until sudah terlewati', async () => {
-      // 1. Buat listing featured yang masa aktif panjang tapi featured_until pendek
-      const featuredListing = await createPublicListing('demo-tenant-rtrw', {
-        title: 'Laundry Kilat Berkah',
-        contact_phone: '081233445566',
-        type: 'umkm',
-        is_featured: true,
-        duration_days: 30,
-      });
-      const pay = await createListingPayment(featuredListing.id, { isFeatured: true, durationDays: 30 });
-      await verifyListingPayment(pay.paymentId, pay.gatewayRef);
-
-      // Simulasikan featured_until sudah lewat (misal kita evaluasi pada waktu 35 hari ke depan)
-      const evaluationTime = new Date(Date.now() + 35 * 24 * 60 * 60 * 1000);
-      const res = await checkListingExpirations(evaluationTime);
-
-      expect(res.success).toBe(true);
-
-      // Verifikasi status is_featured dinonaktifkan
-      const listAfter = await fetchTenantListings('demo-tenant-rtrw');
-      const target = listAfter.find((l) => l.id === featuredListing.id);
-      expect(target.is_featured).toBe(false);
-      expect(target.featured_until).toBeNull();
-    });
-  });
 
   describe('publicListingService - Unit Tests (T10.8 & T10.9: Public Directory & Featured Priority)', () => {
     it('fetchPublicListings mengembalikan kamar kos aktif dengan listing is_featured di posisi teratas', async () => {
