@@ -1,6 +1,6 @@
 # Backlog (belum untuk dikerjakan executor)
 
-Urutan rencana: **SEC-1 ✅ → SEC-2 ✅ (migration menunggu apply) → PAY-2 ✅ → PAY-2F ✅ → PAY-1 (aktif, DOKU langganan) → SEC-3 → BRAND-1 → DEBT-1**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
+Urutan rencana: **SEC-1 ✅ → SEC-2 ✅ (migration menunggu apply) → PAY-2 ✅ → PAY-2F ✅ → PAY-1 (review: perlu perbaikan) → PAY-1F (aktif) → SEC-3 → BRAND-1 → DEBT-1**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
 
 ## Keputusan user yang mengikat
 - Palm Village **tetap tenant**. Branding-nya (nama, logo, warna, peta) hanya dari data tenant dan hanya tampil di `/t/:tenantId`. Lapisan global (login, beranda, `/account`, `/platform`, `/listing`, PWA) netral "RuangWarga".
