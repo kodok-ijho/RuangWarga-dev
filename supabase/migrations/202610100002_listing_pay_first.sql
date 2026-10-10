@@ -12,6 +12,9 @@ BEGIN;
 ALTER TABLE public.public_listings
   ALTER COLUMN status SET DEFAULT 'pending_payment';
 
+ALTER TABLE public.public_listings
+  ALTER COLUMN expires_at DROP NOT NULL;
+
 
 -- ==============================================================================
 -- 2. PERBARUI GUARD TRIGGER: guard_listing_billing_columns()
@@ -290,6 +293,7 @@ COMMIT;
 -- ROLLBACK:
 -- ==============================================================================
 -- ALTER TABLE public.public_listings ALTER COLUMN status SET DEFAULT 'active';
+-- ALTER TABLE public.public_listings ALTER COLUMN expires_at SET NOT NULL;
 -- DROP POLICY IF EXISTS "public_listings_select" ON public.public_listings;
 -- CREATE POLICY "public_read_active_listings" ON public.public_listings
 --   FOR SELECT USING (
