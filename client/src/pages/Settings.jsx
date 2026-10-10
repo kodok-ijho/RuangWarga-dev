@@ -28,6 +28,12 @@ import {
   updatePaymentSmokeTestSettings,
   updateSettings,
 } from '../services/dataService';
+import {
+  getTenantBankAccount,
+  saveTenantBankAccount,
+  fetchTenantDetails,
+  fetchTenantSettingsAudit,
+} from '../services/tenantOperationalService';
 
 function computeSchemaAmount(schema) {
   if (!schema || !schema.components) return 0;
@@ -35,8 +41,14 @@ function computeSchemaAmount(schema) {
 }
 
 export default function Settings() {
-  const { role, session, isReadOnly } = useAuth();
+  const { role, session, isReadOnly, user } = useAuth();
+  const { activeTenant, activeTenantId, refreshTenant, isOwner } = useTenant();
   const toast = useToast();
+
+  const isTenantOwnerUser = Boolean(
+    isOwner ||
+    (activeTenant && user && (activeTenant.owner_id === user.id || activeTenant.is_owner))
+  );
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -53,8 +65,38 @@ export default function Settings() {
   const [schemas, setSchemas] = useState([]);
   const [smokeTest, setSmokeTest] = useState(null);
 
+  // Local state untuk rekening penerima pembayaran (PAY-2.2 / PAY-2F.1)
+  const [bankName, setBankName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [accountHolder, setAccountHolder] = useState('');
+  const [isSavingBank, setIsSavingBank] = useState(false);
+  const [tenantSettings, setTenantSettings] = useState({});
+  const [savedBankAccount, setSavedBankAccount] = useState(null);
+  const [isTenantDetailsLoaded, setIsTenantDetailsLoaded] = useState(false);
+
+  // Local state riwayat audit rekening (SEC-3.3)
+  const [bankAuditLogs, setBankAuditLogs] = useState([]);
+  const [isLoadingAudit, setIsLoadingAudit] = useState(false);
+
+  const loadAudit = useCallback(async () => {
+    if (!activeTenantId || !isTenantOwnerUser) {
+      setBankAuditLogs([]);
+      return;
+    }
+    setIsLoadingAudit(true);
+    try {
+      const logs = await fetchTenantSettingsAudit(activeTenantId);
+      setBankAuditLogs(Array.isArray(logs) ? logs : []);
+    } catch {
+      setBankAuditLogs([]);
+    } finally {
+      setIsLoadingAudit(false);
+    }
+  }, [activeTenantId, isTenantOwnerUser]);
+
   const loadSettings = useCallback(async () => {
     setIsLoading(true);
+    setIsTenantDetailsLoaded(false);
     setLoadError('');
     try {
       const data = await fetchSettings(session?.access_token);
@@ -76,6 +118,52 @@ export default function Settings() {
           components: (s.components || []).map((c) => ({ ...c })),
         }))
       );
+
+      // Muat data rekening bank tenant aktif (PAY-2.2 / PAY-2F.1)
+      if (activeTenantId) {
+        try {
+          const tenantDetails = await fetchTenantDetails(activeTenantId);
+          setTenantSettings(tenantDetails?.settings || {});
+          const bank = getTenantBankAccount(tenantDetails);
+          setSavedBankAccount(bank);
+          if (bank) {
+            setBankName(bank.bank_name || '');
+            setAccountNumber(bank.account_number || '');
+            setAccountHolder(bank.account_holder || '');
+          } else {
+            setBankName('');
+            setAccountNumber('');
+            setAccountHolder('');
+          }
+          setIsTenantDetailsLoaded(Boolean(tenantDetails && typeof tenantDetails.settings === 'object' && tenantDetails.settings !== null));
+        } catch {
+          if (activeTenant) {
+            setTenantSettings(activeTenant.settings || {});
+            const bank = getTenantBankAccount(activeTenant);
+            setSavedBankAccount(bank);
+            if (bank) {
+              setBankName(bank.bank_name || '');
+              setAccountNumber(bank.account_number || '');
+              setAccountHolder(bank.account_holder || '');
+            }
+            setIsTenantDetailsLoaded(Boolean(activeTenant && typeof activeTenant.settings === 'object' && activeTenant.settings !== null));
+          } else {
+            setIsTenantDetailsLoaded(false);
+          }
+        }
+      } else if (activeTenant) {
+        setTenantSettings(activeTenant.settings || {});
+        const bank = getTenantBankAccount(activeTenant);
+        setSavedBankAccount(bank);
+        if (bank) {
+          setBankName(bank.bank_name || '');
+          setAccountNumber(bank.account_number || '');
+          setAccountHolder(bank.account_holder || '');
+        }
+        setIsTenantDetailsLoaded(Boolean(activeTenant && typeof activeTenant.settings === 'object' && activeTenant.settings !== null));
+      } else {
+        setIsTenantDetailsLoaded(false);
+      }
     } catch (err) {
       const msg = err.message || 'Gagal memuat pengaturan IPL.';
       setLoadError(msg);
@@ -83,13 +171,16 @@ export default function Settings() {
     } finally {
       setIsLoading(false);
     }
-  }, [session?.access_token, session?.user?.email, toast]);
+  }, [session?.access_token, session?.user?.email, toast, activeTenantId, activeTenant]);
 
   useEffect(() => {
     if (hasMinRole(role, 'pengurus')) {
       loadSettings();
+      if (isTenantOwnerUser) {
+        loadAudit();
+      }
     }
-  }, [loadSettings, role]);
+  }, [loadSettings, loadAudit, role, isTenantOwnerUser]);
 
   // Staff-only guard (pengurus, bendahara, admin)
   if (!hasMinRole(role, 'pengurus')) {
@@ -102,6 +193,11 @@ export default function Settings() {
   // Global billing/due-date controls are Admin-only. Bendahara may maintain
   // IPL component schemas, matching the production role contract.
   const canEditBilling = canManageSettings(role, isReadOnly);
+  const hasSavedBankAccount = Boolean(
+    savedBankAccount?.bank_name &&
+    savedBankAccount?.account_number &&
+    savedBankAccount?.account_holder
+  );
 
   const handleAddSchema = () => {
     const newId = `schema-${Date.now()}`;
@@ -172,6 +268,54 @@ export default function Settings() {
     );
   };
 
+  const handleSaveBankAccount = async (e) => {
+    if (e) e.preventDefault();
+    if (!canEdit) return;
+    if (!activeTenantId) {
+      toast.error('Konteks tenant aktif tidak ditemukan.');
+      return;
+    }
+
+    setIsSavingBank(true);
+    try {
+      await saveTenantBankAccount(
+        activeTenantId,
+        {
+          bank_name: bankName,
+          account_number: accountNumber,
+          account_holder: accountHolder,
+        }
+      );
+      const cleanAcc = accountNumber.replace(/[\s-]/g, '').trim();
+      const cleanBank = bankName.trim();
+      const cleanHolder = accountHolder.trim();
+      const updatedBank = {
+        bank_name: cleanBank,
+        account_number: cleanAcc,
+        account_holder: cleanHolder,
+      };
+      setAccountNumber(cleanAcc);
+      setBankName(cleanBank);
+      setAccountHolder(cleanHolder);
+      setSavedBankAccount(updatedBank);
+      setTenantSettings((prev) => ({
+        ...(prev || {}),
+        bank_account: updatedBank,
+      }));
+      toast.success('Rekening penerima pembayaran berhasil disimpan.');
+      if (typeof refreshTenant === 'function') {
+        refreshTenant();
+      }
+      if (isTenantOwnerUser) {
+        loadAudit();
+      }
+    } catch (err) {
+      toast.error(err.message || 'Gagal menyimpan rekening penerima pembayaran.');
+    } finally {
+      setIsSavingBank(false);
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!canEditBilling && !canEditSchema) {
@@ -195,8 +339,8 @@ export default function Settings() {
         toast.error('Tanggal jatuh tempo harus antara 1-28.');
         return;
       }
-      if (!['midtrans', 'doku'].includes(String(qrisProvider).toLowerCase())) {
-        toast.error('Provider QRIS harus Midtrans atau DOKU.');
+      if (String(qrisProvider).toLowerCase() !== 'doku') {
+        toast.error('Provider QRIS harus DOKU.');
         return;
       }
     }
@@ -498,7 +642,6 @@ export default function Settings() {
                 disabled={!canEdit}
                 className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-gold-500 disabled:bg-slate-50 font-semibold"
               >
-                <option value="midtrans">Midtrans</option>
                 <option value="doku">DOKU</option>
               </select>
               <p className="mt-1 text-[11px] text-slate-400">
@@ -506,6 +649,158 @@ export default function Settings() {
               </p>
             </div>
           </div>
+        </div>
+
+        {/* Rekening Penerima Pembayaran (PAY-2.2) */}
+        <div className="pv-card p-5 border border-slate-200 bg-white shadow-xs">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-1">
+            <h3 className="text-sm font-bold text-slate-900">Rekening Penerima Pembayaran</h3>
+            {hasSavedBankAccount ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 w-fit">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                Rekening Aktif
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 w-fit">
+                <span className="w-2 h-2 rounded-full bg-amber-500" />
+                Belum Diisi
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-slate-400 mb-4">
+            Rekening bank milik tenant/pengelola untuk menerima transfer iuran, sewa, atau kontribusi langsung dari warga.
+          </p>
+
+          {!hasSavedBankAccount && (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-xs text-amber-800 flex items-start gap-2">
+              <span className="text-base leading-none">⚠️</span>
+              <div>
+                <span className="font-semibold">Belum diisi — </span>
+                warga tidak akan melihat tujuan transfer dan tidak bisa membayar lewat transfer bank.
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Nama Bank
+              </label>
+              <input
+                type="text"
+                value={bankName}
+                onChange={(e) => setBankName(e.target.value)}
+                placeholder="Contoh: BCA, Mandiri, BRI"
+                disabled={!canEdit || isSavingBank}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-gold-500 disabled:bg-slate-50 font-semibold"
+              />
+              <p className="mt-1 text-[11px] text-slate-400">
+                Nama bank penyedia rekening (2–50 karakter).
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Nomor Rekening
+              </label>
+              <input
+                type="text"
+                value={accountNumber}
+                onChange={(e) => setAccountNumber(e.target.value)}
+                placeholder="Contoh: 8830123456"
+                disabled={!canEdit || isSavingBank}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-gold-500 disabled:bg-slate-50 font-semibold"
+              />
+              <p className="mt-1 text-[11px] text-slate-400">
+                6–20 digit angka (spasi atau strip diperbolehkan).
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Nama Pemilik Rekening
+              </label>
+              <input
+                type="text"
+                value={accountHolder}
+                onChange={(e) => setAccountHolder(e.target.value)}
+                placeholder="Contoh: Kas RT 05 Griya Asri"
+                disabled={!canEdit || isSavingBank}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-gold-500 disabled:bg-slate-50 font-semibold"
+              />
+              <p className="mt-1 text-[11px] text-slate-400">
+                Nama sesuai buku tabungan (2–100 karakter).
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 flex justify-end">
+            <button
+              type="button"
+              onClick={handleSaveBankAccount}
+              disabled={!canEdit || isSavingBank || !isTenantDetailsLoaded || !activeTenantId}
+              className="pv-btn-primary px-4 py-2 text-xs font-bold shadow-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+            >
+              <AiOutlineSave size={16} />
+              {isSavingBank ? 'Menyimpan Rekening...' : 'Simpan Rekening'}
+            </button>
+          </div>
+
+          {/* Riwayat Perubahan Rekening (Khusus Owner Tenant - SEC-3.3) */}
+          {isTenantOwnerUser && (
+            <div className="mt-6 pt-5 border-t border-slate-100" data-testid="bank-account-audit-section">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <AiOutlineClockCircle className="text-slate-400" size={14} />
+                  Riwayat Perubahan Rekening
+                </h4>
+                <span className="text-[11px] text-slate-400">Khusus Pemilik Tenant (5 Terakhir)</span>
+              </div>
+
+              {isLoadingAudit ? (
+                <p className="text-xs text-slate-400 italic py-2">Memuat riwayat perubahan...</p>
+              ) : bankAuditLogs.length === 0 ? (
+                <p className="text-xs text-slate-400 italic py-1">Belum ada catatan perubahan rekening.</p>
+              ) : (
+                <div className="space-y-2">
+                  {bankAuditLogs.map((log) => {
+                    const oldAcc = log.old_value;
+                    const newAcc = log.new_value;
+                    const dateStr = log.changed_at
+                      ? new Date(log.changed_at).toLocaleString('id-ID', {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        })
+                      : '-';
+                    const changerName = log.changed_by_name || 'Pengurus/Owner';
+
+                    return (
+                      <div
+                        key={log.id}
+                        className="p-3 rounded-lg border border-slate-200 bg-slate-50/70 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                      >
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-800">{changerName}</span>
+                            <span className="text-[11px] text-slate-400">• {dateStr}</span>
+                          </div>
+                          <div className="text-[11px] text-slate-600 flex items-center gap-1.5 flex-wrap">
+                            <span className="text-slate-400">
+                              {oldAcc ? `${oldAcc.bank_name} ${oldAcc.account_number} (${oldAcc.account_holder})` : '(Kosong)'}
+                            </span>
+                            <span className="font-bold text-slate-400">→</span>
+                            <span className="font-semibold text-emerald-700">
+                              {newAcc ? `${newAcc.bank_name} ${newAcc.account_number} (${newAcc.account_holder})` : '(Dihapus)'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Penerima Tagihan & Denda */}

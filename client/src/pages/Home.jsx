@@ -14,6 +14,7 @@ import {
 } from 'react-icons/ai';
 import { useAuth, IS_DEMO_MODE } from '../hooks/useAuth';
 import { useTenant } from '../hooks/useTenant';
+import BrandLogo from '../components/BrandLogo';
 import { TENANT_TYPE_OPTIONS } from './onboarding/ChooseTenantType';
 import { getTenantTemplate } from '../config/tenantTemplates';
 import pkg from '../../package.json';
@@ -49,28 +50,16 @@ function GuestLandingView() {
       <header className="sticky top-0 z-40 bg-white/90 border-b border-slate-200/80 backdrop-blur-md shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img
-              src="/logo.png"
-              alt="RuangWarga"
-              className="h-10 w-auto rounded-xl object-cover ring-2 ring-slate-900/10 shadow-sm"
-            />
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-lg sm:text-xl font-display tracking-tight text-slate-900">
-                  RuangWarga
+            <BrandLogo size="md" showWordmark={true} />
+            <div className="hidden sm:flex items-center gap-2">
+              <span className="inline-flex items-center rounded-md bg-slate-100 text-slate-800 px-1.5 py-0.5 text-[10px] font-mono font-bold border border-slate-200">
+                {APP_VERSION}
+              </span>
+              {IS_DEMO_MODE && (
+                <span className="bg-amber-100 text-amber-900 border border-amber-300 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
+                  Demo
                 </span>
-                <span className="inline-flex items-center rounded-md bg-slate-100 text-slate-800 px-1.5 py-0.5 text-[10px] font-mono font-bold border border-slate-200">
-                  {APP_VERSION}
-                </span>
-                {IS_DEMO_MODE && (
-                  <span className="bg-amber-100 text-amber-900 border border-amber-300 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
-                    Demo
-                  </span>
-                )}
-              </div>
-              <p className="text-[10px] text-slate-500 tracking-wider uppercase font-medium">
-                Platform Komunitas &amp; Properti
-              </p>
+              )}
             </div>
           </div>
 
@@ -385,17 +374,10 @@ function AuthenticatedWorkspaceHub() {
       <header className="sticky top-0 z-40 bg-white/90 border-b border-slate-200/80 backdrop-blur-md shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link to="/" className="flex items-center gap-3">
-              <img
-                src="/logo.png"
-                alt="RuangWarga"
-                className="h-10 w-auto rounded-xl object-cover ring-2 ring-slate-200 shadow-sm"
-              />
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-lg sm:text-xl font-display tracking-tight text-slate-900">
-                    RuangWarga
-                  </span>
+            <Link to="/" className="flex items-center gap-2.5">
+              <BrandLogo size="md" showWordmark={true} />
+              <div className="hidden sm:flex flex-col justify-center">
+                <div className="flex items-center gap-1.5">
                   <span className="inline-flex items-center rounded-md bg-slate-100 text-slate-700 px-1.5 py-0.5 text-[10px] font-mono font-bold border border-slate-200">
                     {APP_VERSION}
                   </span>
@@ -405,7 +387,7 @@ function AuthenticatedWorkspaceHub() {
                     </span>
                   )}
                 </div>
-                <p className="text-[10px] text-slate-500 tracking-wider uppercase font-medium hidden sm:block">
+                <p className="text-[10px] text-slate-500 tracking-wider uppercase font-medium">
                   Workspace Kelola Tenant
                 </p>
               </div>
@@ -700,7 +682,7 @@ function AuthenticatedWorkspaceHub() {
             <div className="space-y-1.5">
               <h3 className="text-base font-bold text-slate-900 font-display">Pusat Akun &amp; Langganan</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Pantau invoice Mayar, sesuaikan kapasitas blok unit/kamar, dan atur preferensi akun.
+                Pantau invoice langganan, sesuaikan kapasitas blok unit/kamar, dan atur preferensi akun.
               </p>
               <Link
                 to="/account/tenants"

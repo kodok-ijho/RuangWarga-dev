@@ -21,7 +21,8 @@ import {
   fetchTenantDetails,
   updateTenantProfileAndSettings,
   bulkCreateTenantUnits,
-  generateInviteCode,
+  saveInviteCodeWithRetry,
+  normalizeBankAccount,
 } from '../../services/tenantOperationalService';
 import { formatRupiah } from '../../services/dataHelpers';
 
@@ -279,10 +280,21 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
       return;
     }
 
+    let normalizedBank = null;
+    try {
+      normalizedBank = normalizeBankAccount({
+        bank_name: bankName,
+        account_number: bankAccountNo,
+        account_holder: bankAccountHolder,
+      });
+    } catch (err) {
+      toast.error(err.message);
+      setCurrentStep(3);
+      return;
+    }
+
     setSaving(true);
     try {
-      const inviteCode = generateInviteCode(kosName);
-
       // 1. Simpan kamar ke tenant_units (status: 'vacant', metadata kos)
       await bulkCreateTenantUnits(
         tenantId,
@@ -299,10 +311,12 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
         }))
       );
 
-      // 2. Simpan settings profil tenant kos
+      // 2. Simpan kode undangan ke tabel privat tenant_invites dengan retry otomatis jika bentrok (SEC-3F.2)
+      const savedInviteCode = await saveInviteCodeWithRetry(tenantId, kosName);
+
+      // 3. Simpan settings profil tenant kos (hanya ditandai onboarding_completed jika kode berhasil disimpan)
       const settingsPayload = {
         onboarding_completed: true,
-        invite_code: inviteCode,
         default_rent_price: Number(defaultRentPrice),
         billing_cycle: billingCycle,
         due_day: Number(dueDay) || 1,
@@ -311,11 +325,7 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
           name: f.name,
           amount: Number(f.amount),
         })),
-        bank_account: {
-          bank_name: bankName.trim(),
-          account_number: bankAccountNo.trim(),
-          account_holder: bankAccountHolder.trim(),
-        },
+        bank_account: normalizedBank,
       };
 
       await updateTenantProfileAndSettings(tenantId, {
@@ -326,7 +336,7 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
       });
 
       await refreshTenant();
-      setGeneratedInviteCode(inviteCode);
+      setGeneratedInviteCode(savedInviteCode);
       setSetupFinished(true);
       toast.success('Pengaturan awal Kos-kosan berhasil disimpan!');
     } catch (err) {
@@ -892,6 +902,16 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
                 onClick={() => {
                   if (!defaultRentPrice || defaultRentPrice <= 0) {
                     toast.error('Tarif sewa bulanan harus lebih dari Rp 0.');
+                    return;
+                  }
+                  try {
+                    normalizeBankAccount({
+                      bank_name: bankName,
+                      account_number: bankAccountNo,
+                      account_holder: bankAccountHolder,
+                    });
+                  } catch (err) {
+                    toast.error(err.message);
                     return;
                   }
                   setCurrentStep(4);

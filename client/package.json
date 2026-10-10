@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:uat": "node tests/uat-proxy-config.test.mjs",
+    "lint": "eslint src",
     "generate-icons": "node generate-pwa-icons.mjs"
   },
   "dependencies": {
@@ -24,11 +25,16 @@
     "recharts": "^3.9.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@vite-pwa/assets-generator": "^1.0.2",
     "@vitejs/plugin-react": "^4.2.0",
     "autoprefixer": "^10.4.16",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
     "playwright": "^1.61.1",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.4.0",

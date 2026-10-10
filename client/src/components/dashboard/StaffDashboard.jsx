@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   AiOutlineTable,
@@ -17,6 +17,7 @@ import { StaffCollectionHero } from './StaffCollectionHero';
 import { Button, StatusBadge } from '../ui';
 import { formatRupiah } from '../../services/dataHelpers';
 import AnimatedCounter from '../AnimatedCounter';
+import { fetchTenantInviteCode, getCachedTenantInviteCode } from '../../services/tenantOperationalService';
 
 export function StaffDashboard({
   tenantId,
@@ -27,6 +28,25 @@ export function StaffDashboard({
 }) {
   const navigate = useNavigate();
   const [copiedLink, setCopiedLink] = useState(false);
+  const [inviteCode, setInviteCode] = useState(() => {
+    const tid = activeTenant?.id || tenantId;
+    return getCachedTenantInviteCode(tid);
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    const tid = activeTenant?.id || tenantId;
+    if (tid) {
+      fetchTenantInviteCode(tid).then((code) => {
+        if (isMounted) setInviteCode(code);
+      });
+    } else {
+      setInviteCode(null);
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [activeTenant?.id, tenantId]);
 
   const pendingPay = dashData?.pendingPaymentCount || 0;
   const pendingReg = dashData?.pendingRegistrationCount || 0;
@@ -43,7 +63,6 @@ export function StaffDashboard({
   const recentPayments = dashData?.recentPayments || [];
 
   const handleCopyInviteLink = () => {
-    const inviteCode = activeTenant?.settings?.invite_code;
     if (!inviteCode) return;
     const fullUrl = `${window.location.origin}/join/${inviteCode}`;
     navigator.clipboard.writeText(fullUrl);
@@ -373,12 +392,12 @@ export function StaffDashboard({
             </div>
 
             {/* Kode Undangan Kompak */}
-            {activeTenant?.settings?.invite_code && (
+            {inviteCode && (
               <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3 text-xs">
                 <span className="text-slate-600 truncate">
                   Kode Gabung:{' '}
                   <strong className="font-mono text-slate-900 font-bold bg-slate-100 px-1.5 py-0.5 rounded">
-                    {activeTenant.settings.invite_code}
+                    {inviteCode}
                   </strong>
                 </span>
                 <Button

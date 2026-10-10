@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { supabase } from './supabaseClient';
 import {
   generateInviteCode,
   calculateBillingPreview,
@@ -31,19 +32,55 @@ import {
   drawArisanWinner,
   startNewArisanCycle,
   generateKelasSppBilling,
+  getTenantBankAccount,
+  saveTenantBankAccount,
+  normalizeBankAccount,
+  isLegacyQrisEnabled,
+  fetchTenantInviteCode,
+  saveTenantInviteCode,
+  saveInviteCodeWithRetry,
+  fetchTenantSettingsAudit,
+  INVITE_CODE_ALPHABET,
 } from './tenantOperationalService';
 
 describe('tenantOperationalService - Unit Tests', () => {
-  describe('generateInviteCode', () => {
-    it('menghasilkan kode undangan dengan prefix yang tepat', () => {
+  describe('generateInviteCode (SEC-3F.1)', () => {
+    it('menghasilkan kode undangan dengan format regex RW-<maks 4 huruf>-XXXX-XXXX dan panjang tepat', () => {
       const code1 = generateInviteCode('Palm Village');
-      expect(code1).toMatch(/^RW-PALM-[A-Z0-9]{4}$/);
+      expect(code1).toMatch(/^RW-PALM-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/);
+      expect(code1.length).toBe(17);
 
       const code2 = generateInviteCode('Bougenville');
-      expect(code2).toMatch(/^RW-BOUG-[A-Z0-9]{4}$/);
+      expect(code2).toMatch(/^RW-BOUG-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/);
+      expect(code2.length).toBe(17);
 
       const codeEmpty = generateInviteCode('');
-      expect(codeEmpty).toMatch(/^RW-RW-[A-Z0-9]{4}$/);
+      expect(codeEmpty).toMatch(/^RW-RW-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/);
+      expect(codeEmpty.length).toBe(15);
+    });
+
+    it('hanya menggunakan karakter dari alfabet yang diizinkan (tanpa karakter ambigu I, O, 0, 1)', () => {
+      for (let i = 0; i < 50; i++) {
+        const code = generateInviteCode('Test');
+        const parts = code.split('-');
+        const randomPart = parts[2] + parts[3];
+        expect(randomPart.length).toBe(8);
+        for (const char of randomPart) {
+          expect(INVITE_CODE_ALPHABET.includes(char)).toBe(true);
+          expect(['I', 'O', '0', '1'].includes(char)).toBe(false);
+        }
+      }
+    });
+
+    it('menghasilkan 1.000 panggilan tanpa ada duplikat (collision-free)', () => {
+      const generatedCodes = new Set();
+      const iterations = 1000;
+      for (let i = 0; i < iterations; i++) {
+        const code = generateInviteCode('RW05');
+        expect(generatedCodes.has(code)).toBe(false);
+        generatedCodes.add(code);
+      }
+      expect(generatedCodes.size).toBe(iterations);
     });
   });
 
@@ -604,6 +641,600 @@ describe('tenantOperationalService - Unit Tests', () => {
       // Validasi error jika tenantId atau period tidak valid
       await expect(generateKelasSppBilling('', { period: '2026-11' })).rejects.toThrow('Tenant ID wajib disertakan.');
       await expect(generateKelasSppBilling('demo-tenant-id', { period: 'invalid' })).rejects.toThrow('Format periode harus YYYY-MM.');
+    });
+  });
+
+  describe('PAY-2 Bank Account Helpers & Validation Tests (PAY-2.1 / PAY-2.5)', () => {
+    describe('getTenantBankAccount', () => {
+      it('mengembalikan objek bank account bila data lengkap', () => {
+        const tenant = {
+          settings: {
+            bank_account: {
+              bank_name: 'BCA',
+              account_number: '8830123456',
+              account_holder: 'Kas RT 05',
+            },
+          },
+        };
+        const result = getTenantBankAccount(tenant);
+        expect(result).toEqual({
+          bank_name: 'BCA',
+          account_number: '8830123456',
+          account_holder: 'Kas RT 05',
+        });
+      });
+
+      it('mengembalikan null jika field tidak lengkap atau kosong', () => {
+        expect(getTenantBankAccount(null)).toBeNull();
+        expect(getTenantBankAccount({})).toBeNull();
+        expect(getTenantBankAccount({ settings: {} })).toBeNull();
+        expect(getTenantBankAccount({
+          settings: {
+            bank_account: { bank_name: 'BCA', account_number: '', account_holder: 'Kas' },
+          },
+        })).toBeNull();
+        expect(getTenantBankAccount({
+          settings: {
+            bank_account: { bank_name: '', account_number: '12345678', account_holder: '' },
+          },
+        })).toBeNull();
+      });
+    });
+
+    describe('isLegacyQrisEnabled (PAY-2F.2)', () => {
+      it('mengembalikan true hanya jika settings.legacy_qris_enabled bernilai true', () => {
+        expect(isLegacyQrisEnabled({ settings: { legacy_qris_enabled: true } })).toBe(true);
+        expect(isLegacyQrisEnabled({ legacy_qris_enabled: true })).toBe(true);
+      });
+
+      it('mengembalikan false sebagai default untuk objek tanpa flag atau dengan flag false', () => {
+        expect(isLegacyQrisEnabled(null)).toBe(false);
+        expect(isLegacyQrisEnabled(undefined)).toBe(false);
+        expect(isLegacyQrisEnabled({})).toBe(false);
+        expect(isLegacyQrisEnabled({ settings: {} })).toBe(false);
+        expect(isLegacyQrisEnabled({ settings: { legacy_qris_enabled: false } })).toBe(false);
+        expect(isLegacyQrisEnabled({ settings: { legacy_qris_enabled: 'true' } })).toBe(false);
+      });
+    });
+
+    describe('normalizeBankAccount (BRAND-1.8 Pure Validation Engine)', () => {
+      it('berhasil mengembalikan objek rekening yang bersih bila input valid', () => {
+        const result = normalizeBankAccount({
+          bank_name: '  Bank BCA  ',
+          account_number: '522-0304-991',
+          account_holder: '  Budi Santoso  ',
+        });
+        expect(result).toEqual({
+          bank_name: 'Bank BCA',
+          account_number: '5220304991',
+          account_holder: 'Budi Santoso',
+        });
+      });
+
+      it('membersihkan spasi dan strip dari nomor rekening', () => {
+        const result = normalizeBankAccount({
+          bank_name: 'BCA',
+          account_number: ' 123 - 456 - 789 01 ',
+          account_holder: 'Pengurus Kas',
+        });
+        expect(result.account_number).toBe('12345678901');
+      });
+
+      it('menolak bila argumen bukan objek atau bernilai null/undefined', () => {
+        expect(() => normalizeBankAccount(null)).toThrow('Data rekening bank wajib disertakan.');
+        expect(() => normalizeBankAccount(undefined)).toThrow('Data rekening bank wajib disertakan.');
+        expect(() => normalizeBankAccount('')).toThrow('Data rekening bank wajib disertakan.');
+      });
+
+      it('menolak bila nama bank kosong atau hanya whitespace', () => {
+        expect(() =>
+          normalizeBankAccount({
+            bank_name: '   ',
+            account_number: '12345678',
+            account_holder: 'Pengurus Kas',
+          })
+        ).toThrow('Nama bank wajib diisi.');
+      });
+
+      it('menolak bila panjang nama bank di luar 2-50 karakter', () => {
+        expect(() =>
+          normalizeBankAccount({
+            bank_name: 'B',
+            account_number: '12345678',
+            account_holder: 'Pengurus Kas',
+          })
+        ).toThrow('Nama bank harus terdiri dari 2 hingga 50 karakter.');
+
+        expect(() =>
+          normalizeBankAccount({
+            bank_name: 'B'.repeat(51),
+            account_number: '12345678',
+            account_holder: 'Pengurus Kas',
+          })
+        ).toThrow('Nama bank harus terdiri dari 2 hingga 50 karakter.');
+      });
+
+      it('menolak bila nomor rekening kosong atau hanya whitespace', () => {
+        expect(() =>
+          normalizeBankAccount({
+            bank_name: 'BCA',
+            account_number: '   ',
+            account_holder: 'Pengurus Kas',
+          })
+        ).toThrow('Nomor rekening wajib diisi.');
+      });
+
+      it('menolak nomor rekening yang memuat huruf atau karakter non-angka', () => {
+        expect(() =>
+          normalizeBankAccount({
+            bank_name: 'BCA',
+            account_number: '1234ABCD5678',
+            account_holder: 'Pengurus Kas',
+          })
+        ).toThrow('Nomor rekening hanya boleh berisi angka');
+      });
+
+      it('menolak nomor rekening dengan panjang digit kurang dari 6 atau lebih dari 20', () => {
+        expect(() =>
+          normalizeBankAccount({
+            bank_name: 'BCA',
+            account_number: '12345',
+            account_holder: 'Pengurus Kas',
+          })
+        ).toThrow('Nomor rekening harus terdiri dari 6 hingga 20 digit angka.');
+
+        expect(() =>
+          normalizeBankAccount({
+            bank_name: 'BCA',
+            account_number: '123456789012345678901',
+            account_holder: 'Pengurus Kas',
+          })
+        ).toThrow('Nomor rekening harus terdiri dari 6 hingga 20 digit angka.');
+      });
+
+      it('menolak bila nama pemilik rekening kosong atau hanya whitespace', () => {
+        expect(() =>
+          normalizeBankAccount({
+            bank_name: 'BCA',
+            account_number: '12345678',
+            account_holder: '   ',
+          })
+        ).toThrow('Nama pemilik rekening wajib diisi.');
+      });
+
+      it('menolak bila panjang nama pemilik rekening di luar 2-100 karakter', () => {
+        expect(() =>
+          normalizeBankAccount({
+            bank_name: 'BCA',
+            account_number: '12345678',
+            account_holder: 'A',
+          })
+        ).toThrow('Nama pemilik rekening harus terdiri dari 2 hingga 100 karakter.');
+
+        expect(() =>
+          normalizeBankAccount({
+            bank_name: 'BCA',
+            account_number: '12345678',
+            account_holder: 'A'.repeat(101),
+          })
+        ).toThrow('Nama pemilik rekening harus terdiri dari 2 hingga 100 karakter.');
+      });
+    });
+
+    describe('saveTenantBankAccount validation', () => {
+      it('menolak nomor rekening yang memuat huruf atau karakter non-angka', async () => {
+        await expect(
+          saveTenantBankAccount('demo-tenant-1', {
+            bank_name: 'Mandiri',
+            account_number: '1234ABCD5678',
+            account_holder: 'Budi Santoso',
+          })
+        ).rejects.toThrow('Nomor rekening hanya boleh berisi angka');
+      });
+
+      it('membersihkan spasi dan strip pada nomor rekening saat disimpan', async () => {
+        const result = await saveTenantBankAccount('demo-tenant-1', {
+          bank_name: 'Bank Mandiri',
+          account_number: ' 123-456-7890 12 ',
+          account_holder: 'Budi Santoso',
+        });
+        expect(result.settings.bank_account.account_number).toBe('123456789012');
+        expect(result.settings.bank_account.bank_name).toBe('Bank Mandiri');
+        expect(result.settings.bank_account.account_holder).toBe('Budi Santoso');
+      });
+
+      it('menolak jika field wajib kosong atau hanya whitespace', async () => {
+        // bank_name kosong
+        await expect(
+          saveTenantBankAccount('demo-tenant-1', {
+            bank_name: '   ',
+            account_number: '123456789',
+            account_holder: 'Budi Santoso',
+          })
+        ).rejects.toThrow('Nama bank wajib diisi.');
+
+        // account_number kosong
+        await expect(
+          saveTenantBankAccount('demo-tenant-1', {
+            bank_name: 'BCA',
+            account_number: '   ',
+            account_holder: 'Budi Santoso',
+          })
+        ).rejects.toThrow('Nomor rekening wajib diisi.');
+
+        // account_holder kosong
+        await expect(
+          saveTenantBankAccount('demo-tenant-1', {
+            bank_name: 'BCA',
+            account_number: '123456789',
+            account_holder: '   ',
+          })
+        ).rejects.toThrow('Nama pemilik rekening wajib diisi.');
+      });
+
+      it('menolak panjang karakter yang tidak valid (panjang digit & nama)', async () => {
+        // digit rekening kurang dari 6
+        await expect(
+          saveTenantBankAccount('demo-tenant-1', {
+            bank_name: 'BCA',
+            account_number: '12345',
+            account_holder: 'Kas RT',
+          })
+        ).rejects.toThrow('Nomor rekening harus terdiri dari 6 hingga 20 digit angka.');
+
+        // digit rekening lebih dari 20
+        await expect(
+          saveTenantBankAccount('demo-tenant-1', {
+            bank_name: 'BCA',
+            account_number: '123456789012345678901',
+            account_holder: 'Kas RT',
+          })
+        ).rejects.toThrow('Nomor rekening harus terdiri dari 6 hingga 20 digit angka.');
+
+        // nama bank terlalu pendek (< 2 chars)
+        await expect(
+          saveTenantBankAccount('demo-tenant-1', {
+            bank_name: 'B',
+            account_number: '123456789',
+            account_holder: 'Kas RT',
+          })
+        ).rejects.toThrow('Nama bank harus terdiri dari 2 hingga 50 karakter.');
+      });
+    });
+
+    describe('PAY-2F.1 saveTenantBankAccount isolation & preservation (F10)', () => {
+      it('melempar error dan TIDAK memanggil update jika fetchTenantDetails gagal', async () => {
+        const updateSpy = vi.fn();
+        const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+          if (table === 'tenants') {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: null,
+                    error: new Error('Database connection failed'),
+                  }),
+                }),
+              }),
+              update: updateSpy,
+            };
+          }
+          return {};
+        });
+
+        await expect(
+          saveTenantBankAccount('prod-tenant-uuid-1', {
+            bank_name: 'BCA',
+            account_number: '1234567890',
+            account_holder: 'Kas RT',
+          })
+        ).rejects.toThrow('Gagal memuat pengaturan tenant, rekening tidak disimpan.');
+
+        expect(updateSpy).not.toHaveBeenCalled();
+        fromSpy.mockRestore();
+      });
+
+      it('mempertahankan settings lama (invite_code, due_day, ipl_schemas) saat menyimpan rekening', async () => {
+        let capturedUpdatePayload = null;
+        const oldSettings = {
+          invite_code: 'RW-TEST-1234',
+          due_day: 15,
+          ipl_schemas: [{ id: 1, name: 'Reguler', amount: 100000 }],
+        };
+
+        const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+          if (table === 'tenants') {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: {
+                      id: 'prod-tenant-uuid-2',
+                      name: 'Komunitas Harmoni',
+                      settings: oldSettings,
+                    },
+                    error: null,
+                  }),
+                }),
+              }),
+              update: vi.fn((payload) => {
+                capturedUpdatePayload = payload;
+                return {
+                  eq: vi.fn().mockReturnValue({
+                    select: vi.fn().mockReturnValue({
+                      single: vi.fn().mockResolvedValue({
+                        data: {
+                          id: 'prod-tenant-uuid-2',
+                          settings: payload.settings,
+                        },
+                        error: null,
+                      }),
+                    }),
+                  }),
+                };
+              }),
+            };
+          }
+          return {};
+        });
+
+        const result = await saveTenantBankAccount('prod-tenant-uuid-2', {
+          bank_name: 'Bank Mandiri',
+          account_number: '9876543210',
+          account_holder: 'Pengurus Komunitas',
+        });
+
+        expect(capturedUpdatePayload).toBeDefined();
+        expect(capturedUpdatePayload.settings).toBeDefined();
+        // Semua key lama wajib ada
+        expect(capturedUpdatePayload.settings.invite_code).toBe('RW-TEST-1234');
+        expect(capturedUpdatePayload.settings.due_day).toBe(15);
+        expect(capturedUpdatePayload.settings.ipl_schemas).toEqual([
+          { id: 1, name: 'Reguler', amount: 100000 },
+        ]);
+        // Key bank_account baru terpasang
+        expect(capturedUpdatePayload.settings.bank_account).toEqual({
+          bank_name: 'Bank Mandiri',
+          account_number: '9876543210',
+          account_holder: 'Pengurus Komunitas',
+        });
+
+        expect(result.settings.bank_account.bank_name).toBe('Bank Mandiri');
+        fromSpy.mockRestore();
+      });
+    });
+  });
+
+  describe('SEC-3 Tenant Invites & Settings Audit (SEC-3.5)', () => {
+    describe('fetchTenantInviteCode & saveTenantInviteCode', () => {
+      it('mengambil kode undangan dari mock data untuk demo tenant', async () => {
+        const code = await fetchTenantInviteCode('demo-tenant-kos');
+        expect(code).toBe('RW-KOS-2026');
+      });
+
+      it('menyimpan dan memperbarui kode undangan pada mode demo', async () => {
+        const success = await saveTenantInviteCode('demo-tenant-custom', 'RW-CUST-9999');
+        expect(success).toBe(true);
+        const code = await fetchTenantInviteCode('demo-tenant-custom');
+        expect(code).toBe('RW-CUST-9999');
+      });
+
+      it('mengambil kode undangan dari Supabase tenant_invites saat production', async () => {
+        const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+          if (table === 'tenant_invites') {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { code: 'PROD-INV-7777' },
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          }
+          return {};
+        });
+
+        const code = await fetchTenantInviteCode('prod-tenant-uuid-3');
+        expect(code).toBe('PROD-INV-7777');
+        fromSpy.mockRestore();
+      });
+
+      it('mengembalikan null jika user tidak berhak (RLS error) atau data tidak ada', async () => {
+        const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+          if (table === 'tenant_invites') {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: null,
+                    error: { message: 'permission denied for table tenant_invites' },
+                  }),
+                }),
+              }),
+            };
+          }
+          return {};
+        });
+
+        const code = await fetchTenantInviteCode('prod-tenant-uuid-4');
+        expect(code).toBeNull();
+        fromSpy.mockRestore();
+      });
+
+      it('menyimpan kode undangan ke Supabase dengan upsert', async () => {
+        let upsertPayload = null;
+        const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+          if (table === 'tenant_invites') {
+            return {
+              upsert: vi.fn((payload) => {
+                upsertPayload = payload;
+                return Promise.resolve({ error: null });
+              }),
+            };
+          }
+          return {};
+        });
+
+        const success = await saveTenantInviteCode('prod-tenant-uuid-5', 'rw-new-8888');
+        expect(success).toBe(true);
+        expect(upsertPayload).toBeDefined();
+        expect(upsertPayload.tenant_id).toBe('prod-tenant-uuid-5');
+        expect(upsertPayload.code).toBe('RW-NEW-8888');
+        fromSpy.mockRestore();
+      });
+    });
+
+    describe('saveInviteCodeWithRetry (SEC-3F.2)', () => {
+      it('berhasil menyimpan langsung pada percobaan pertama saat tidak ada bentrok', async () => {
+        let savedCode = null;
+        const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+          if (table === 'tenant_invites') {
+            return {
+              upsert: vi.fn((payload) => {
+                savedCode = payload.code;
+                return Promise.resolve({ error: null });
+              }),
+            };
+          }
+          return {};
+        });
+
+        const code = await saveInviteCodeWithRetry('prod-tenant-retry-1', 'Palm Village');
+        expect(code).toMatch(/^RW-PALM-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/);
+        expect(code).toBe(savedCode);
+        fromSpy.mockRestore();
+      });
+
+      it('mencoba lagi dan berhasil saat percobaan pertama bentrok (Postgres 23505 duplicate key)', async () => {
+        let attempts = 0;
+        const recordedCodes = [];
+
+        const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+          if (table === 'tenant_invites') {
+            return {
+              upsert: vi.fn((payload) => {
+                attempts++;
+                recordedCodes.push(payload.code);
+                if (attempts === 1) {
+                  return Promise.resolve({
+                    error: {
+                      code: '23505',
+                      message: 'duplicate key value violates unique constraint "idx_tenant_invites_code_upper"',
+                    },
+                  });
+                }
+                return Promise.resolve({ error: null });
+              }),
+            };
+          }
+          return {};
+        });
+
+        const code = await saveInviteCodeWithRetry('prod-tenant-retry-2', 'Harmoni', 3);
+        expect(attempts).toBe(2);
+        expect(recordedCodes.length).toBe(2);
+        expect(recordedCodes[0]).not.toBe(recordedCodes[1]);
+        expect(code).toBe(recordedCodes[1]);
+        fromSpy.mockRestore();
+      });
+
+      it('melempar error jika bentrok terjadi 3x berturut-turut', async () => {
+        let attempts = 0;
+
+        const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+          if (table === 'tenant_invites') {
+            return {
+              upsert: vi.fn(() => {
+                attempts++;
+                return Promise.resolve({
+                  error: {
+                    code: '23505',
+                    message: 'duplicate key value violates unique constraint',
+                  },
+                });
+              }),
+            };
+          }
+          return {};
+        });
+
+        await expect(
+          saveInviteCodeWithRetry('prod-tenant-retry-3', 'Bentrok', 3)
+        ).rejects.toThrow(/Gagal membuat kode undangan unik setelah 3 percobaan/);
+
+        expect(attempts).toBe(3);
+        fromSpy.mockRestore();
+      });
+    });
+
+    describe('fetchTenantSettingsAudit', () => {
+      it('mengambil riwayat perubahan rekening di demo mode', async () => {
+        const logs = await fetchTenantSettingsAudit('demo-tenant-rtrw');
+        expect(Array.isArray(logs)).toBe(true);
+        expect(logs.length).toBeGreaterThan(0);
+        expect(logs[0].field).toBe('bank_account');
+        expect(logs[0].new_value.bank_name).toBe('BCA');
+      });
+
+      it('mengambil riwayat perubahan rekening dan mencocokkan nama pengubah dari tenant_members', async () => {
+        const mockAuditRows = [
+          {
+            id: 'audit-1',
+            tenant_id: 'prod-tenant-audit',
+            changed_by: 'user-audit-1',
+            field: 'bank_account',
+            old_value: { bank_name: 'BCA', account_number: '111', account_holder: 'Lama' },
+            new_value: { bank_name: 'Mandiri', account_number: '222', account_holder: 'Baru' },
+            changed_at: '2026-10-10T10:00:00Z',
+          },
+        ];
+
+        const mockMembers = [
+          { user_id: 'user-audit-1', full_name: 'Ahmad Pengurus' },
+        ];
+
+        const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+          if (table === 'tenant_settings_audit') {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  eq: vi.fn().mockReturnValue({
+                    order: vi.fn().mockReturnValue({
+                      limit: vi.fn().mockResolvedValue({
+                        data: mockAuditRows,
+                        error: null,
+                      }),
+                    }),
+                  }),
+                }),
+              }),
+            };
+          }
+          if (table === 'tenant_members') {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  in: vi.fn().mockResolvedValue({
+                    data: mockMembers,
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          }
+          return {};
+        });
+
+        const logs = await fetchTenantSettingsAudit('prod-tenant-audit');
+        expect(logs.length).toBe(1);
+        expect(logs[0].changed_by_name).toBe('Ahmad Pengurus');
+        expect(logs[0].old_value.bank_name).toBe('BCA');
+        expect(logs[0].new_value.bank_name).toBe('Mandiri');
+
+        fromSpy.mockRestore();
+      });
     });
   });
 });

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Modal from './Modal';
+import { EmptyState } from './ui';
 import { useToast } from '../hooks/useToast';
 import { formatPeriodShort, formatRupiah, getQrisProviderLabel } from '../services/dataHelpers';
 import { AiOutlineDownload } from 'react-icons/ai';
@@ -8,7 +9,7 @@ export default function QrisCheckoutModal({
   data,
   provider = 'doku',
   title = 'PEMBAYARAN QRIS RESMI',
-  subtitle = 'PORTAL WARGA PALM VILLAGE',
+  subtitle = 'RUANGWARGA DIGITAL',
   onConfirm,
   onCancel,
   onClose,
@@ -17,18 +18,18 @@ export default function QrisCheckoutModal({
   const rawTotal = Number(data.total_amount || data.total || data.amount || 0);
   const baseAmount = Number(
     data.base_amount ??
-    (data.qris_fee_amount ? rawTotal - Number(data.qris_fee_amount) : Math.round(rawTotal / 1.007))
+    (data.qris_fee_amount ? rawTotal - Number(data.qris_fee_amount) : Math.round(rawTotal / 1.0075))
   );
   const feeAmount = Number(
     data.qris_fee_amount ??
-    (rawTotal > baseAmount ? rawTotal - baseAmount : Math.ceil(baseAmount * 0.007))
+    (rawTotal > baseAmount ? rawTotal - baseAmount : Math.ceil(baseAmount * 0.0075))
   );
   const total = Number(data.total_amount ?? (baseAmount + feeAmount));
   const orderId = data.parent_order_id || data.order_id || data.id || `TRX-QRIS-${Date.now()}`;
   const redirectUrl = data.redirect_url;
   
-  // Dynamic or standard QRIS payload fallback
-  const qrContent = data.qr_content || data.qrContent || data.raw?.qrContent || `00020101021226670016ID.CO.PALMVILLAGE.WWW01189360099900000000000215${orderId}520458125303360540${total}5802ID5920PAGUYUBAN PALM VILLAGE6007BANDUNG6304`;
+  // Konten QRIS aktual dari payment gateway (tanpa fallback string palsu)
+  const qrContent = data.qr_content || data.qrContent || data.raw?.qrContent || null;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -102,7 +103,7 @@ export default function QrisCheckoutModal({
       ctx.font = '13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       ctx.fillText(`Order ID:`, 45, 162);
       ctx.fillText(`Nominal Pokok:`, 45, 188);
-      ctx.fillText(`Biaya QRIS (0,7%):`, 45, 214);
+      ctx.fillText(`Biaya QRIS (0,75%):`, 45, 214);
       ctx.fillText(`Total Tagihan:`, 45, 242);
       ctx.fillText(`Keterangan:`, 45, 266);
 
@@ -170,7 +171,7 @@ export default function QrisCheckoutModal({
 
       ctx.fillStyle = '#9a3412';
       ctx.font = 'italic 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      ctx.fillText('* Total nominal sudah termasuk biaya layanan administrasi QRIS 0,7%', width / 2, 785);
+      ctx.fillText('* Total nominal sudah termasuk biaya layanan administrasi QRIS 0,75%', width / 2, 785);
 
       // Outer border
       ctx.strokeStyle = '#1a3d2e';
@@ -179,7 +180,7 @@ export default function QrisCheckoutModal({
 
       const dataUrl = canvas.toDataURL('image/png');
       const orderClean = String(orderId).replace(/[^a-zA-Z0-9_-]/g, '_');
-      const fileName = `QRIS_PalmVillage_${orderClean}.png`;
+      const fileName = `QRIS_RuangWarga_${orderClean}.png`;
 
       const link = document.createElement('a');
       link.download = fileName;
@@ -211,7 +212,7 @@ export default function QrisCheckoutModal({
           </p>
         </div>
 
-        {qrImageUrl && (
+        {qrImageUrl ? (
           <div className="flex flex-col items-center justify-center py-2 bg-white rounded-xl border border-forest-100 shadow-sm p-4">
             <img
               src={qrImageUrl}
@@ -244,6 +245,14 @@ export default function QrisCheckoutModal({
               </p>
             </div>
           </div>
+        ) : (
+          <EmptyState
+            compact
+            icon="⚠️"
+            title="Kode QRIS Tidak Tersedia"
+            description="Konten kode QRIS tidak ditemukan dari data transaksi atau gagal dimuat dari gateway. Silakan coba kembali atau gunakan tautan pembayaran bila tersedia."
+            className="border-red-200 bg-red-50/50 my-2"
+          />
         )}
 
         {/* Ringkasan Nominal & Biaya QRIS */}
@@ -257,7 +266,7 @@ export default function QrisCheckoutModal({
             <span className="font-medium text-forest-800">{formatRupiah(baseAmount)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-forest-500">Biaya Layanan QRIS (0,7%):</span>
+            <span className="text-forest-500">Biaya Layanan QRIS (0,75%):</span>
             <span className="font-semibold text-amber-700">+ {formatRupiah(feeAmount)}</span>
           </div>
           <div className="flex justify-between pt-1.5 border-t border-forest-200">
@@ -290,10 +299,10 @@ export default function QrisCheckoutModal({
         {/* Disclaimer Biaya QRIS */}
         <div className="rounded-lg border border-amber-300 bg-amber-50/90 p-3 text-xs text-left text-amber-900 space-y-1">
           <p className="font-bold flex items-center gap-1.5 text-amber-950">
-            <span>ℹ️</span> Disclaimer Biaya Administrasi QRIS (0,7%)
+            <span>ℹ️</span> Disclaimer Biaya Administrasi QRIS (0,75%)
           </p>
           <p className="text-[11px] leading-relaxed text-amber-800">
-            Sesuai regulasi Bank Indonesia (MDR QRIS) dan ketentuan payment gateway, transaksi QRIS dikenakan biaya administrasi <strong>0,7% ({formatRupiah(feeAmount)})</strong> yang dibebankan kepada pembayar.
+            Sesuai regulasi Bank Indonesia (MDR QRIS) dan ketentuan payment gateway, transaksi QRIS dikenakan biaya administrasi <strong>0,75% ({formatRupiah(feeAmount)})</strong> yang dibebankan kepada pembayar.
           </p>
         </div>
 

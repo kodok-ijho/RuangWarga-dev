@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useTenant } from '../hooks/useTenant';
 import { useToast } from '../hooks/useToast';
 import QrisCheckoutModal from '../components/QrisCheckoutModal';
 import { MobileList, EmptyState, SkeletonTable } from '../components/ui';
 import { IncomeCard, IncomeDetailDrawer } from '../components/finance';
+import { getTenantBankAccount, isLegacyQrisEnabled } from '../services/tenantOperationalService';
 import {
   createNonIplIncome,
   updateNonIplIncome,
@@ -37,8 +39,11 @@ const EMPTY_FORM = {
 
 export default function NonIplIncomes() {
   const { role, profile, session, isReadOnly } = useAuth();
+  const { activeTenant } = useTenant();
   const toast = useToast();
   const token = session?.access_token;
+  const tenantBankAccount = getTenantBankAccount(activeTenant);
+  const canUseQris = isLegacyQrisEnabled(activeTenant);
 
   const isStaff = isBendaharaOrAbove(role) && !isReadOnly;
   const isWarga = role === 'warga';
@@ -119,9 +124,22 @@ export default function NonIplIncomes() {
       return;
     }
 
-    // Role Rule Guard: Warga only allowed bank_transfer or qris
-    if (isWarga && !['bank_transfer', 'qris'].includes(form.payment_method)) {
-      toast.error('Warga hanya dapat memilih metode Transfer Bank atau QRIS.');
+    // Role Rule Guard: Warga only allowed bank_transfer or qris (if enabled)
+    if (form.payment_method === 'qris' && !canUseQris) {
+      toast.error('Metode pembayaran QRIS tidak tersedia untuk tenant ini.');
+      return;
+    }
+
+    if (isWarga) {
+      const allowedMethods = canUseQris ? ['bank_transfer', 'qris'] : ['bank_transfer'];
+      if (!allowedMethods.includes(form.payment_method)) {
+        toast.error('Warga hanya dapat memilih metode Transfer Bank' + (canUseQris ? ' atau QRIS.' : '.'));
+        return;
+      }
+    }
+
+    if (form.payment_method === 'bank_transfer' && !tenantBankAccount) {
+      toast.error('Rekening pengelola belum dikonfigurasi.');
       return;
     }
 
@@ -493,7 +511,7 @@ export default function NonIplIncomes() {
             >
               {isStaff && <option value="cash">💵 Tunai / Cash (Langsung)</option>}
               <option value="bank_transfer">🏦 Transfer Bank (Manual)</option>
-              <option value="qris">📱 QRIS Palm Village</option>
+              {canUseQris && <option value="qris">📱 QRIS</option>}
               {isStaff && <option value="other">Lainnya</option>}
             </select>
           </label>
@@ -504,32 +522,42 @@ export default function NonIplIncomes() {
               <h4 className="text-xs font-bold uppercase tracking-wide text-blue-900 mb-1">
                 🏦 Instruksi Transfer Rekening Pengurus
               </h4>
-              <p className="text-xs text-blue-800 mb-2">
-                Silakan transfer ke rekening kas Palm Village:
-                <span className="block font-semibold mt-1">Bank BCA: 123-456-7890 (a/n Paguyuban Palm Village)</span>
-              </p>
-              <label className="block text-xs font-bold text-blue-900 mt-2 uppercase tracking-wider">
-                Upload Foto / Screenshot Bukti Transfer <span className="text-red-500">*</span>
-                <input
-                  className="pv-input mt-1 text-xs bg-white border-blue-200"
-                  type="file"
-                  accept="image/jpeg,image/png"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
-                  required={!editingId}
-                />
-                <span className="text-[11px] text-blue-600 font-normal normal-case block mt-0.5">Format: JPG, PNG. Maksimal 2MB.</span>
-              </label>
+              {tenantBankAccount ? (
+                <>
+                  <p className="text-xs text-blue-800 mb-2">
+                    Silakan transfer ke rekening resmi pengelola:
+                    <span className="block font-semibold mt-1">
+                      Bank {tenantBankAccount.bank_name}: {tenantBankAccount.account_number} (a/n {tenantBankAccount.account_holder})
+                    </span>
+                  </p>
+                  <label className="block text-xs font-bold text-blue-900 mt-2 uppercase tracking-wider">
+                    Upload Foto / Screenshot Bukti Transfer <span className="text-red-500">*</span>
+                    <input
+                      className="pv-input mt-1 text-xs bg-white border-blue-200"
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      onChange={(e) => setFile(e.target.files?.[0] || null)}
+                      required={!editingId}
+                    />
+                    <span className="text-[11px] text-blue-600 font-normal normal-case block mt-0.5">Format: JPG, PNG. Maksimal 2MB.</span>
+                  </label>
+                </>
+              ) : (
+                <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5 mb-2">
+                  Rekening pengelola belum dikonfigurasi. Silakan hubungi pengurus untuk informasi rekening transfer atau lakukan pembayaran tunai.
+                </p>
+              )}
             </div>
           )}
 
-          {form.payment_method === 'qris' && (() => {
+          {canUseQris && form.payment_method === 'qris' && (() => {
             const nonIplAmount = Number(form.amount || 0);
             const nonIplFee = Math.ceil(nonIplAmount * 0.007);
             const nonIplTotal = nonIplAmount + nonIplFee;
             return (
               <div className="md:col-span-2 rounded-xl bg-purple-50/50 p-4 border border-purple-200 space-y-2.5">
                 <h4 className="text-xs font-bold uppercase tracking-wide text-purple-900 flex items-center gap-1.5">
-                  <span>📱</span> Pembayaran QRIS Resmi Palm Village (+0,7%)
+                  <span>📱</span> Pembayaran QRIS (+0,7%)
                 </h4>
                 <p className="text-xs text-purple-800 leading-relaxed">
                   Setelah Anda klik tombol <strong>"Buka Pembayaran QRIS →"</strong> di bawah, kode QRIS resmi akan dibuat secara instan. Anda dapat langsung memindai kode QR atau mengunduh gambarnya untuk pembayaran lewat galeri M-Banking / E-Wallet.
@@ -575,7 +603,11 @@ export default function NonIplIncomes() {
             <button
               className="pv-btn-primary px-6"
               type="submit"
-              disabled={submitting || (!isWarga && !canManageForm)}
+              disabled={
+                submitting ||
+                (!isWarga && !canManageForm) ||
+                (form.payment_method === 'bank_transfer' && !tenantBankAccount)
+              }
             >
               {submitting
                 ? 'Memproses...'
@@ -583,6 +615,8 @@ export default function NonIplIncomes() {
                 ? 'Simpan Perubahan'
                 : form.payment_method === 'qris'
                 ? '💳 Buka Pembayaran QRIS →'
+                : form.payment_method === 'bank_transfer' && !tenantBankAccount
+                ? 'Rekening Belum Tersedia'
                 : isWarga
                 ? 'Kirim Bukti Transfer'
                 : 'Simpan Pemasukan'}

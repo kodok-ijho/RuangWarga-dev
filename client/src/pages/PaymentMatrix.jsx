@@ -25,6 +25,7 @@ import {
   isBendaharaOrAbove,
   canModifyData,
   getQrisProviderLabel,
+  roleLabel,
 } from '../services/dataHelpers';
 import {
   fetchBillMatrix,
@@ -50,10 +51,10 @@ import {
   rejectPayment,
   revisePayment,
   cancelPayment,
-  downloadDigitalReceipt,
   sendEmailReceipt,
 } from '../services/mockData';
-import { autoGenerateKosBilling, generateKelasSppBilling, fetchTenantMembers } from '../services/tenantOperationalService';
+import { downloadDigitalReceipt } from '../services/receiptService';
+import { autoGenerateKosBilling, generateKelasSppBilling, fetchTenantMembers, isLegacyQrisEnabled } from '../services/tenantOperationalService';
 import { compressImage } from '../utils/imageCompressor';
 import { AiOutlineDownload } from 'react-icons/ai';
 import { ResidentIplOverview, PaymentFlowModal, PaymentHistoryList } from '../components/payment';
@@ -119,7 +120,7 @@ export default function PaymentMatrix() {
   // Admin Demo memakai role internal admin_viewer dan tetap read-only untuk
   // seluruh fitur lain. QRIS adalah satu-satunya pengecualian sementara.
   const isDemoAdmin = isReadOnly && (role === 'admin' || role === 'admin_viewer');
-  const canUseQris = true;
+  const canUseQris = isLegacyQrisEnabled(activeTenant);
   const [resolvedMyUnitId, setResolvedMyUnitId] = useState(null);
   const [isUnitResolving, setIsUnitResolving] = useState(true);
 
@@ -1089,7 +1090,21 @@ export default function PaymentMatrix() {
             payments={myPayments}
             bills={myBills}
             template={template}
-            onDownloadReceipt={IS_DEMO ? (item) => downloadDigitalReceipt(item?.payment || item) : undefined}
+            onDownloadReceipt={IS_DEMO ? (item) => {
+              const targetBill = item?.bill || item?.payment || item;
+              downloadDigitalReceipt({
+                bill: {
+                  ...targetBill,
+                  amount: item?.amount ?? targetBill?.amount,
+                  period: item?.period ?? targetBill?.period,
+                  method: item?.method ?? targetBill?.method,
+                },
+                unit: myRow?.unit,
+                tenantName: activeTenant?.name,
+                billLabel: template?.billLabel,
+                unitLabel: template?.unitLabel,
+              });
+            } : undefined}
           />
         </div>
       ) : (
@@ -1391,6 +1406,7 @@ export default function PaymentMatrix() {
           total={totalToPay}
           canUseQris={canUseQris}
           billLabel={template.billLabel}
+          tenant={activeTenant}
           onConfirm={confirmPay}
           onClose={() => setPayModal(null)}
         />
@@ -1918,6 +1934,7 @@ function ResidentPayModal({ bills, total, canUseQris, billLabel = 'IPL', onConfi
 // Staff can record transfer proof for residents who cannot use the app yet.
 // Cash remains limited to bendahara/admin.
 function ManualPaymentModal({ bills, unit, role, canWrite, canUseQris, billLabel = 'IPL', onConfirm, onClose }) {
+  const toast = useToast();
   const canRecordCash = isBendaharaOrAbove(role) && canWrite;
   const canRecordTransfer = canWrite;
   const methodCount = Number(canRecordCash) + Number(canRecordTransfer) + Number(canUseQris);
@@ -2301,10 +2318,63 @@ function getResolvedPaymentDate(payment, bill) {
   );
 }
 
+/**
+ * Komponen tombol aksi kuitansi pada detail pembayaran (DEBT-1.1).
+ * Tombol kirim ke email hanya dirender pada mode IS_DEMO.
+ */
+export function ReceiptActions({
+  resolvedBill,
+  payment,
+  targetUnit,
+  activeTenant,
+  template,
+  role,
+  isDemo = IS_DEMO,
+  onSendEmail,
+}) {
+  const isPaidOrVerified =
+    resolvedBill?.status === 'paid' ||
+    payment?.status === 'verified' ||
+    payment?.status === 'completed';
+  if (!isPaidOrVerified) return null;
+
+  return (
+    <div className={`${isDemo ? 'grid grid-cols-2' : 'grid grid-cols-1'} gap-2 pb-1 border-b border-slate-200`}>
+      <button
+        type="button"
+        onClick={() => {
+          downloadDigitalReceipt({
+            bill: resolvedBill,
+            unit: targetUnit,
+            tenantName: activeTenant?.name,
+            billLabel: template?.billLabel,
+            unitLabel: template?.unitLabel,
+          });
+        }}
+        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-xs hover:bg-slate-50 transition-colors w-full"
+      >
+        📥 Download Kuitansi
+      </button>
+      {isDemo && (
+        <button
+          type="button"
+          onClick={onSendEmail}
+          disabled={!canModifyData(role)}
+          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gold-300 bg-gold-50 px-3 py-2 text-xs font-semibold text-gold-800 shadow-sm hover:bg-gold-100 transition-colors disabled:opacity-50"
+        >
+          📧 Kirim ke Email
+        </button>
+      )}
+    </div>
+  );
+}
+
 // Modal Detail Pembayaran Lunas
 // Modal Detail / Verifikasi / Revisi Pembayaran
 function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, session, isHanging: initialIsHanging, billLabel = 'IPL', onRefresh, onRetry, onClose }) {
   const toast = useToast();
+  const { template } = useTenantTemplate();
+  const { activeTenant } = useTenant();
   const [asyncPayment, setAsyncPayment] = useState(null);
 
   // Selalu fetch data payment lengkap dari backend
@@ -2932,35 +3002,24 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
               Pilih Tagihan untuk Bayar Ulang
             </button>
           )}
-          {(resolvedBill.status === 'paid' || payment?.status === 'verified' || payment?.status === 'completed') && (
-            <div className="grid grid-cols-2 gap-2 pb-1 border-b border-slate-200">
-              <button
-                type="button"
-                onClick={() => {
-                  downloadDigitalReceipt({ bill: resolvedBill, unit: targetUnit });
-                }}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-xs hover:bg-slate-50 transition-colors"
-              >
-                📥 Download Kuitansi
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (!canModifyData(role)) {
-                    toast.error('Akun read-only tidak dapat mengirim kuitansi email.');
-                    return;
-                  }
-                  toast.info('Mengirim kuitansi digital ke email...');
-                  const res = await sendEmailReceipt({ bill, unit: targetUnit });
-                  toast.success(res.message);
-                }}
-                disabled={!canModifyData(role)}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gold-300 bg-gold-50 px-3 py-2 text-xs font-semibold text-gold-800 shadow-sm hover:bg-gold-100 transition-colors disabled:opacity-50"
-              >
-                📧 Kirim ke Email
-              </button>
-            </div>
-          )}
+          <ReceiptActions
+            resolvedBill={resolvedBill}
+            payment={payment}
+            targetUnit={targetUnit}
+            activeTenant={activeTenant}
+            template={template}
+            role={role}
+            isDemo={IS_DEMO}
+            onSendEmail={async () => {
+              if (!canModifyData(role)) {
+                toast.error('Akun read-only tidak dapat mengirim kuitansi email.');
+                return;
+              }
+              toast.info('Mengirim kuitansi digital ke email...');
+              const res = await sendEmailReceipt({ bill, unit: targetUnit });
+              toast.success(res.message);
+            }}
+          />
 
           {payment?.status === 'pending_verification' && canVerify && !isEditing && (
             <div className="flex gap-2">

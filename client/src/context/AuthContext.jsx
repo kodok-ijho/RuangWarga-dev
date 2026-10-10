@@ -570,9 +570,21 @@ function useProductionAuth() {
   };
 }
 
-export function AuthProvider({ children }) {
-  const auth = DEMO_MODE ? useDemoAuth() : useProductionAuth();
+function DemoAuthProvider({ children }) {
+  const auth = useDemoAuth();
   return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
+}
+
+function ProductionAuthProvider({ children }) {
+  const auth = useProductionAuth();
+  return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
+}
+
+export function AuthProvider({ children }) {
+  if (DEMO_MODE) {
+    return <DemoAuthProvider>{children}</DemoAuthProvider>;
+  }
+  return <ProductionAuthProvider>{children}</ProductionAuthProvider>;
 }
 
 export function useAuth() {

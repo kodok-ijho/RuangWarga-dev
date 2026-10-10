@@ -23,6 +23,7 @@ import {
   verifyListingPayment,
 } from '../../services/publicListingService';
 import Modal from '../../components/Modal';
+import QrisCheckoutModal from '../../components/QrisCheckoutModal';
 
 function formatRupiah(amount) {
   if (amount === undefined || amount === null || isNaN(amount)) return 'Rp 0';
@@ -83,6 +84,7 @@ export default function PostListing() {
 
   // Modal Checkout / Konfirmasi Bayar
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [checkoutQrisData, setCheckoutQrisData] = useState(null);
 
   // Load tenant details, units, and pricing
   useEffect(() => {
@@ -246,30 +248,38 @@ export default function PostListing() {
         location_hint: locationHint.trim(),
         is_featured: isFeatured,
         duration_days: 30,
-        status: 'active',
       };
 
       const result = await createPublicListing(tenantId, payload);
 
-      // Catat transaksi dan verifikasi pembayaran listing (T10.6)
-      try {
-        const payRes = await createListingPayment(result.id, {
-          isFeatured,
-          durationDays: 30,
-        });
+      // Buat invoice QRIS SNAP DOKU resmi untuk pembayaran listing (PAY-1.7)
+      const payRes = await createListingPayment(result.id, {
+        isFeatured,
+        durationDays: 30,
+      });
+
+      const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
+      if (isDemo || String(tenantId).startsWith('demo-')) {
         if (payRes?.paymentId) {
-          await verifyListingPayment(payRes.paymentId, payRes.gatewayRef);
+          try {
+            await verifyListingPayment(payRes.paymentId, payRes.gatewayRef);
+          } catch (payErr) {
+            console.warn('Demo verifikasi pembayaran:', payErr);
+          }
         }
-      } catch (payErr) {
-        // eslint-disable-next-line no-console
-        console.warn('Pencatatan pembayaran listing info:', payErr);
+        toast.success('Iklan berhasil didaftarkan dan pembayaran berhasil diverifikasi (demo)!');
+        setShowCheckoutModal(false);
+        navigate(`/t/${tenantId}/my-listings`);
+      } else {
+        setShowCheckoutModal(false);
+        setCheckoutQrisData({
+          ...payRes,
+          title: 'PEMBAYARAN IKLAN QRIS DOKU',
+          subtitle: 'RUANGWARGA DIRECTORY',
+          category: isFeatured ? 'Listing Unggulan (30 Hari)' : 'Listing Standar (30 Hari)',
+          description: `Iklan: ${title.trim()}`,
+        });
       }
-
-      toast.success('Iklan berhasil diterbitkan dan pembayaran berhasil diverifikasi!');
-      setShowCheckoutModal(false);
-
-      // Navigasi ke halaman kelola listing saya
-      navigate(`/t/${tenantId}/my-listings`);
     } catch (err) {
       console.error('Gagal mempublikasikan listing:', err);
       toast.error(err.message || 'Gagal mempublikasikan iklan.');
@@ -711,6 +721,25 @@ export default function PostListing() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* MODAL QRIS DOKU RESMI */}
+      {checkoutQrisData && (
+        <QrisCheckoutModal
+          data={checkoutQrisData}
+          provider="doku"
+          title="PEMBAYARAN IKLAN QRIS DOKU"
+          subtitle="RUANGWARGA DIRECTORY"
+          onClose={() => {
+            setCheckoutQrisData(null);
+            navigate(`/t/${tenantId}/my-listings`);
+          }}
+          onConfirm={() => {
+            toast.success('Pembayaran QRIS sedang diproses oleh DOKU.');
+            setCheckoutQrisData(null);
+            navigate(`/t/${tenantId}/my-listings`);
+          }}
+        />
       )}
     </div>
   );

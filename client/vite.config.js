@@ -130,10 +130,10 @@ export default defineConfig(({ mode }) => {
       },
 
       manifest: {
-        name: 'Portal Warga Perumahan Palm Village',
-        short_name: 'Portal Palm Village',
+        name: 'RuangWarga',
+        short_name: 'RuangWarga',
         description:
-          'Portal resmi warga Perumahan Palm Village — pembayaran IPL, informasi penghuni, acara komunitas, dan forum diskusi.',
+          'Platform pengelolaan RT/RW, kos-kosan, arisan, dan kelas.',
         theme_color: '#1a3d2e',
         background_color: '#1a3d2e',
         display: 'standalone',

@@ -12,6 +12,7 @@ import {
 } from 'react-icons/ai';
 import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../hooks/useTenant';
+import BrandLogo from '../../components/BrandLogo';
 
 /**
  * PlatformLayout — Shell khusus untuk Platform Owner Dashboard (§7.1, T3.4).
@@ -100,23 +101,11 @@ export default function PlatformLayout() {
           <div className="flex items-center justify-between h-16">
             {/* Left: Branding & Tag */}
             <div className="flex items-center gap-3">
-              <Link to="/platform" className="flex items-center gap-2.5 group">
-                <span className="text-xl p-1.5 bg-slate-800 border border-slate-700 rounded-xl group-hover:scale-105 transition-transform">
-                  🛡️
+              <Link to="/platform" className="flex items-center gap-3 group">
+                <BrandLogo variant="dark" size="md" />
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-slate-800 text-slate-200 border border-slate-700 uppercase tracking-wider">
+                  Platform Owner
                 </span>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-white text-base tracking-tight font-display">
-                      RuangWarga
-                    </span>
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-slate-800 text-slate-200 border border-slate-700 uppercase tracking-wider">
-                      Platform Owner
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 block -mt-0.5">
-                    Platform Management &amp; Analytics
-                  </span>
-                </div>
               </Link>
             </div>
 

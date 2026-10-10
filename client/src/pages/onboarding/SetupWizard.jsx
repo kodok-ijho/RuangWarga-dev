@@ -21,7 +21,8 @@ import {
   fetchTenantDetails,
   updateTenantProfileAndSettings,
   bulkCreateTenantUnits,
-  generateInviteCode,
+  saveInviteCodeWithRetry,
+  normalizeBankAccount,
 } from '../../services/tenantOperationalService';
 import KosSetupWizard from './KosSetupWizard';
 import ArisanSetupWizard from './ArisanSetupWizard';
@@ -232,10 +233,21 @@ export default function SetupWizard() {
       return;
     }
 
+    let normalizedBank = null;
+    try {
+      normalizedBank = normalizeBankAccount({
+        bank_name: bankName,
+        account_number: bankAccountNo,
+        account_holder: bankAccountHolder,
+      });
+    } catch (err) {
+      toast.error(err.message);
+      setCurrentStep(3);
+      return;
+    }
+
     setSaving(true);
     try {
-      const inviteCode = generateInviteCode(complexName);
-
       // 1. Simpan unit ke tenant_units
       await bulkCreateTenantUnits(
         tenantId,
@@ -246,20 +258,18 @@ export default function SetupWizard() {
         }))
       );
 
-      // 2. Simpan settings dan profil tenant
+      // 2. Simpan kode undangan ke tabel privat tenant_invites dengan retry otomatis jika bentrok (SEC-3F.2)
+      const savedInviteCode = await saveInviteCodeWithRetry(tenantId, complexName);
+
+      // 3. Simpan settings dan profil tenant (hanya ditandai onboarding_completed jika kode berhasil disimpan)
       const settingsPayload = {
         onboarding_completed: true,
-        invite_code: inviteCode,
         due_day: Number(dueDay) || 10,
         ipl_components: iplComponents.map((c) => ({
           name: c.name,
           amount: Number(c.amount),
         })),
-        bank_account: {
-          bank_name: bankName.trim(),
-          account_number: bankAccountNo.trim(),
-          account_holder: bankAccountHolder.trim(),
-        },
+        bank_account: normalizedBank,
       };
 
       await updateTenantProfileAndSettings(tenantId, {
@@ -270,7 +280,7 @@ export default function SetupWizard() {
       });
 
       await refreshTenant();
-      setGeneratedInviteCode(inviteCode);
+      setGeneratedInviteCode(savedInviteCode);
       setSetupFinished(true);
       toast.success('Pengaturan awal RT/RW berhasil disimpan!');
     } catch (err) {
@@ -458,7 +468,7 @@ export default function SetupWizard() {
                     required
                     value={complexName}
                     onChange={(e) => setComplexName(e.target.value)}
-                    placeholder="Contoh: Palm Village RT 05 / Cluster Bougenville"
+                    placeholder="Contoh: Griya Asri RT 05 / Cluster Bougenville"
                     className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm focus:border-forest-800 focus:outline-none shadow-xs"
                   />
                 </div>
@@ -747,7 +757,7 @@ export default function SetupWizard() {
                     type="text"
                     value={bankAccountHolder}
                     onChange={(e) => setBankAccountHolder(e.target.value)}
-                    placeholder="Contoh: Kas RT 05 Palm Village"
+                    placeholder="Contoh: Kas RT 05 Griya Asri"
                     className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none shadow-xs"
                   />
                 </div>
@@ -840,9 +850,21 @@ export default function SetupWizard() {
                     toast.error('Minimal harus ada 1 unit rumah.');
                     return;
                   }
-                  if (currentStep === 3 && totalIplAmount <= 0) {
-                    toast.error('Total IPL harus lebih dari Rp 0.');
-                    return;
+                  if (currentStep === 3) {
+                    if (totalIplAmount <= 0) {
+                      toast.error('Total IPL harus lebih dari Rp 0.');
+                      return;
+                    }
+                    try {
+                      normalizeBankAccount({
+                        bank_name: bankName,
+                        account_number: bankAccountNo,
+                        account_holder: bankAccountHolder,
+                      });
+                    } catch (err) {
+                      toast.error(err.message);
+                      return;
+                    }
                   }
                   setCurrentStep((prev) => prev + 1);
                 }}

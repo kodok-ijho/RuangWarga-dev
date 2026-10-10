@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { formatRupiah } from '../../services/dataHelpers';
+import { normalizeBankAccount, pickBankAccountForForm } from '../../services/tenantOperationalService';
 
 describe('KelasSetupWizard Logic & Validation Rules (T9.1)', () => {
   describe('Konfigurasi Model & Tipe Kelas', () => {
@@ -139,6 +140,54 @@ describe('KelasSetupWizard Logic & Validation Rules (T9.1)', () => {
       expect(waMessage).toContain(instructorName);
       expect(waMessage).toContain(inviteUrl);
       expect(waMessage).toContain('Bapak/Ibu Wali Murid & Siswa');
+    });
+  });
+
+  describe('Standardisasi Rekening Bank di Setup Kelas (BRAND-1F.3 pickBankAccountForForm)', () => {
+    it('mengutamakan bank_account walau bank_info ada', () => {
+      const settings = {
+        bank_account: {
+          bank_name: 'Mandiri',
+          account_number: '140001928374',
+          account_holder: 'Yayasan Bina Prestasi',
+        },
+        bank_info: {
+          bank_name: 'BCA Lama',
+          account_number: '111222333',
+          account_holder: 'Pengurus Lama',
+        },
+      };
+
+      const result = pickBankAccountForForm(settings);
+      expect(result).toBe(settings.bank_account);
+      expect(result.bank_name).toBe('Mandiri');
+      expect(result.account_number).toBe('140001928374');
+      expect(result.account_holder).toBe('Yayasan Bina Prestasi');
+    });
+
+    it('fallback ke legacy bank_info bila bank_account belum ada di data settings', () => {
+      const settings = {
+        bank_info: {
+          bank_name: 'BCA',
+          account_number: '8830192834',
+          account_holder: 'Pak Guru Budi',
+        },
+      };
+
+      const result = pickBankAccountForForm(settings);
+      expect(result).toBe(settings.bank_info);
+      expect(result.bank_name).toBe('BCA');
+      expect(result.account_number).toBe('8830192834');
+      expect(result.account_holder).toBe('Pak Guru Budi');
+    });
+
+    it('mengembalikan null untuk settings kosong, undefined, atau nilai non-objek', () => {
+      expect(pickBankAccountForForm(null)).toBeNull();
+      expect(pickBankAccountForForm(undefined)).toBeNull();
+      expect(pickBankAccountForForm({})).toBeNull();
+      expect(pickBankAccountForForm('bukan-objek')).toBeNull();
+      expect(pickBankAccountForForm({ bank_account: null, bank_info: null })).toBeNull();
+      expect(pickBankAccountForForm({ bank_account: 'string-bukan-objek' })).toBeNull();
     });
   });
 });

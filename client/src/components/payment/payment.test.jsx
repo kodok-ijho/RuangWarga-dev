@@ -395,6 +395,11 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
               total={150000}
               canUseQris={false} // force bank transfer
               billLabel="IPL"
+              bankAccount={{
+                bank_name: 'BCA',
+                account_number: '1234567890',
+                account_holder: 'Kas RT',
+              }}
               onConfirm={() => {}}
               onClose={() => {}}
             />
@@ -405,6 +410,127 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
       expect(html).toContain('Transfer Bank');
       expect(html).toContain('Unggah Bukti Transfer');
       expect(html).toContain('Pilih File Bukti Transfer');
+    });
+
+    it('20a. payment flow modal dengan rekening terisi — menampilkan nomor rekening, nama bank, atas nama, dan form unggah bukti', () => {
+      const html = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <PaymentFlowModal
+              open={true}
+              bills={[{ id: 'b1', period: '2026-09', amount: 150000 }]}
+              total={150000}
+              canUseQris={false}
+              billLabel="IPL"
+              bankAccount={{
+                bank_name: 'BCA',
+                account_number: '8830123456',
+                account_holder: 'Kas RT 05 Palm Village',
+              }}
+              onConfirm={() => {}}
+              onClose={() => {}}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      expect(html).toContain('Bank BCA');
+      expect(html).toContain('8830123456');
+      expect(html).toContain('Kas RT 05 Palm Village');
+      expect(html).toContain('Salin Nomor Rekening');
+      expect(html).toContain('Unggah Bukti Transfer');
+      expect(html).toContain('Pilih File Bukti Transfer');
+      expect(html).toContain('Kirim Bukti Transfer');
+    });
+
+    it('20b. payment flow modal tanpa rekening — menyembunyikan form unggah bukti dan menampilkan peringatan rekening belum tersedia', () => {
+      const html = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <PaymentFlowModal
+              open={true}
+              bills={[{ id: 'b1', period: '2026-09', amount: 150000 }]}
+              total={150000}
+              canUseQris={false}
+              billLabel="IPL"
+              bankAccount={null}
+              onConfirm={() => {}}
+              onClose={() => {}}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      expect(html).toContain('Rekening Transfer Belum Tersedia');
+      expect(html).toContain('Pengelola belum mencantumkan rekening bank tujuan pembayaran');
+      expect(html).not.toContain('Unggah Bukti Transfer');
+      expect(html).not.toContain('Pilih File Bukti Transfer');
+      expect(html).toContain('Rekening Belum Tersedia');
+    });
+
+    it('20c. payment flow modal tanpa flag legacy_qris_enabled — opsi QRIS tidak dirender dan modal mulai di bank_transfer', () => {
+      const html = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <PaymentFlowModal
+              open={true}
+              bills={[{ id: 'b1', period: '2026-09', amount: 150000 }]}
+              total={150000}
+              billLabel="IPL"
+              tenant={{
+                id: 'tenant-no-qris',
+                name: 'Kos Bunga Melati',
+                settings: {
+                  bank_account: {
+                    bank_name: 'BCA',
+                    account_number: '1234567890',
+                    account_holder: 'Pengelola',
+                  },
+                },
+              }}
+              onConfirm={() => {}}
+              onClose={() => {}}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      expect(html).not.toContain('QRIS Otomatis');
+      expect(html).toContain('Transfer Bank');
+      expect(html).toContain('Rekening Tujuan Transfer');
+    });
+
+    it('20d. payment flow modal dengan flag legacy_qris_enabled: true — opsi QRIS tampil dan aktif', () => {
+      const html = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <PaymentFlowModal
+              open={true}
+              bills={[{ id: 'b1', period: '2026-09', amount: 150000 }]}
+              total={150000}
+              billLabel="IPL"
+              tenant={{
+                id: 'demo-tenant-rtrw',
+                name: 'Palm Village RT 05',
+                settings: {
+                  legacy_qris_enabled: true,
+                  bank_account: {
+                    bank_name: 'BCA',
+                    account_number: '8830123456',
+                    account_holder: 'Kas RT 05',
+                  },
+                },
+              }}
+              onConfirm={() => {}}
+              onClose={() => {}}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      expect(html).toContain('QRIS Otomatis');
+      expect(html).toContain('Transfer Bank');
+      expect(html).toContain('Biaya Transaksi QRIS (MDR 0,7%)');
     });
 
     it('21. empty history — menampilkan status kosong yang jelas tanpa baris palsu', () => {

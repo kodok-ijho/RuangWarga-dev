@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { createQris, calculateQrisFee } from "../_shared/doku.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,9 +42,6 @@ serve(async (req) => {
       );
     }
 
-    // Client dengan service_role untuk eksekusi query backend
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-
     const body = await req.json();
     const { tenantId, blocks10 = 0, blocks5 = 0, durationMonths = 12 } = body;
 
@@ -54,30 +52,19 @@ serve(async (req) => {
       );
     }
 
-    // 1. Validasi hak akses user terhadap tenant (Owner, Admin, atau Platform Admin)
-    const { data: isPlatAdmin } = await adminClient
-      .from("platform_admins")
-      .select("user_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    // 1. Validasi hak akses user terhadap tenant (Owner tenant atau Platform Admin via RPC dengan token pemanggil - G2)
+    const { data: isOwner } = await userClient.rpc("is_tenant_owner", { p_tenant_id: tenantId });
+    const { data: isPlatformAdmin } = await userClient.rpc("is_platform_admin");
 
-    const { data: memberRow } = await adminClient
-      .from("tenant_members")
-      .select("role, status")
-      .eq("tenant_id", tenantId)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    const isAuthorized =
-      Boolean(isPlatAdmin?.user_id) ||
-      (memberRow && ["admin", "bendahara"].includes(memberRow.role));
-
-    if (!isAuthorized) {
+    if (!isOwner && !isPlatformAdmin) {
       return new Response(
-        JSON.stringify({ error: "Hanya Admin atau Bendahara tenant yang berhak melakukan transaksi langganan" }),
+        JSON.stringify({ error: "Hanya Owner tenant atau Platform Admin yang berhak melakukan transaksi langganan" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Client dengan service_role untuk eksekusi query backend
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // 2. Ambil data tenant & subscription aktif
     const { data: tenant, error: tenantErr } = await adminClient
@@ -120,11 +107,36 @@ serve(async (req) => {
       );
     }
 
+    const b10 = Math.max(0, parseInt(blocks10, 10) || 0);
+    const b5 = Math.max(0, parseInt(blocks5, 10) || 0);
+    const totalCapacity = (b10 * 10) + (b5 * 5);
+
+    if (totalCapacity < 5) {
+      return new Response(
+        JSON.stringify({ error: "Kapasitas langganan minimal adalah 5 unit" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const price10Row = pricingRows.find((p) => p.block_size === 10);
     const price5Row = pricingRows.find((p) => p.block_size === 5);
 
-    const price10 = Number(price10Row?.price_per_block ?? 12500);
-    const price5 = Number(price5Row?.price_per_block ?? 8750);
+    if (b10 > 0 && !price10Row) {
+      return new Response(
+        JSON.stringify({ error: "Konfigurasi tarif untuk blok 10 unit tidak ditemukan" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (b5 > 0 && !price5Row) {
+      return new Response(
+        JSON.stringify({ error: "Konfigurasi tarif untuk blok 5 unit tidak ditemukan" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const price10 = price10Row ? Number(price10Row.price_per_block) : 0;
+    const price5 = price5Row ? Number(price5Row.price_per_block) : 0;
 
     const { data: periodRow, error: periodErr } = await adminClient
       .from("subscription_periods")
@@ -140,42 +152,42 @@ serve(async (req) => {
       );
     }
 
-    const b10 = Math.max(0, parseInt(blocks10, 10) || 0);
-    const b5 = Math.max(0, parseInt(blocks5, 10) || 0);
-    const totalCapacity = (b10 * 10) + (b5 * 5);
-
-    if (totalCapacity < 5) {
-      return new Response(
-        JSON.stringify({ error: "Kapasitas langganan minimal adalah 5 unit" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // 4. Hitung nominal final
+    // 4. Hitung nominal dasar dan MDR QRIS (0.75%)
     const monthlyBase = (b10 * price10) + (b5 * price5);
     const rawTotal = monthlyBase * periodRow.duration_months;
     const discountAmount = Math.round(rawTotal * (Number(periodRow.discount_percent) / 100));
-    const finalAmount = rawTotal - discountAmount;
+    const baseAmount = rawTotal - discountAmount;
+    const { fee: qrisFee, total: totalAmount } = calculateQrisFee(baseAmount);
 
-    // 5. Simpan record pembayaran pending ke subscription_payments
+    // 5. Susun metadata awal untuk pesanan blok & fee (G3 & G4)
+    // Blok langganan TIDAK diubah di sini; hanya disimpan di metadata hingga lunas dan diaktifkan
+    const initialMetadata = {
+      blocks10: b10,
+      blocks5: b5,
+      price10,
+      price5,
+      total_capacity: totalCapacity,
+      duration_months: periodRow.duration_months,
+      discount_percent: periodRow.discount_percent,
+      tenant_name: tenant.name,
+      tenant_type: tenant.type,
+      user_id: user.id,
+      base_amount: baseAmount,
+      qris_fee: qrisFee,
+      qris_fee_amount: qrisFee,
+      qris_total_amount: totalAmount,
+    };
+
+    // 6. Simpan record pembayaran pending ke subscription_payments
     const { data: paymentRecord, error: payErr } = await adminClient
       .from("subscription_payments")
       .insert({
         subscription_id: subscription.id,
         period_id: periodRow.id,
-        amount: finalAmount,
+        amount: baseAmount,
         status: "pending",
-        payment_method: "mayar_qris",
-        metadata: {
-          blocks10: b10,
-          blocks5: b5,
-          total_capacity: totalCapacity,
-          duration_months: periodRow.duration_months,
-          discount_percent: periodRow.discount_percent,
-          tenant_name: tenant.name,
-          tenant_type: tenant.type,
-          user_id: user.id,
-        },
+        payment_method: "doku_qris",
+        metadata: initialMetadata,
       })
       .select("id")
       .single();
@@ -184,78 +196,39 @@ serve(async (req) => {
       throw new Error("Gagal membuat catatan pembayaran: " + payErr?.message);
     }
 
-    // 6. Simpan / perbarui blok yang dibeli di tenant_subscription_blocks
-    await adminClient
-      .from("tenant_subscription_blocks")
-      .delete()
-      .eq("subscription_id", subscription.id);
+    // 7. Integrasi Gateway SNAP DOKU Platform
+    const partnerReferenceNo = `SUB-${paymentRecord.id.replace(/-/g, "").substring(0, 18).toUpperCase()}`;
+    let dokuRes;
 
-    const blocksToInsert = [];
-    if (b10 > 0 && price10Row) {
-      blocksToInsert.push({
-        subscription_id: subscription.id,
-        pricing_id: price10Row.id,
-        block_count: b10,
+    try {
+      dokuRes = await createQris({
+        partnerReferenceNo,
+        amount: totalAmount,
       });
-    }
-    if (b5 > 0 && price5Row) {
-      blocksToInsert.push({
-        subscription_id: subscription.id,
-        pricing_id: price5Row.id,
-        block_count: b5,
-      });
-    }
+    } catch (dokuErr: any) {
+      console.error("[DOKU SNAP] Create subscription payment error:", dokuErr);
+      await adminClient
+        .from("subscription_payments")
+        .update({ status: "failed", updated_at: new Date().toISOString() })
+        .eq("id", paymentRecord.id);
 
-    if (blocksToInsert.length > 0) {
-      await adminClient.from("tenant_subscription_blocks").insert(blocksToInsert);
-    }
-
-    // 7. Integrasi Mayar API (atau mock mode bila key belum diset)
-    const mayarApiKey = Deno.env.get("MAYAR_API_KEY");
-    let gatewayRef = `MYR-${paymentRecord.id.substring(0, 8).toUpperCase()}`;
-    let paymentUrl = "";
-    let qrisString = "";
-
-    if (mayarApiKey) {
-      try {
-        const mayarRes = await fetch("https://api.mayar.id/hl/v1/payment/create", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${mayarApiKey}`,
-          },
-          body: JSON.stringify({
-            name: user.user_metadata?.full_name || user.email || "Tenant Admin",
-            email: user.email,
-            amount: finalAmount,
-            description: `Langganan RuangWarga: ${tenant.name} (${periodRow.duration_months} Bulan, ${totalCapacity} Unit)`,
-            mobile: user.user_metadata?.phone || "081234567890",
-            redirectUrl: `${req.headers.get("origin") || ""}/account/subscription/status?paymentId=${paymentRecord.id}`,
-            metadata: {
-              payment_id: paymentRecord.id,
-              tenant_id: tenant.id,
-            },
-          }),
-        });
-
-        const mayarData = await mayarRes.json();
-        if (mayarData?.data) {
-          gatewayRef = mayarData.data.id || gatewayRef;
-          paymentUrl = mayarData.data.link || "";
-          qrisString = mayarData.data.qrCodeString || "";
-        }
-      } catch (mErr) {
-        // eslint-disable-next-line no-console
-        console.warn("[Mayar API] Request failed, fallback to simulated reference:", mErr);
-      }
+      return new Response(
+        JSON.stringify({ error: "Payment gateway rejected request" }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Update payment record dengan ref & url
+    // Update payment record dengan ref & gabungkan metadata awal (G4)
     await adminClient
       .from("subscription_payments")
       .update({
-        payment_gateway_ref: gatewayRef,
-        payment_url: paymentUrl || `/account/subscription/qris?ref=${gatewayRef}`,
+        payment_gateway_ref: partnerReferenceNo,
+        qris_ref: partnerReferenceNo,
+        payment_url: null,
+        metadata: {
+          ...initialMetadata,
+          doku_reference_no: dokuRes.referenceNo,
+        },
         updated_at: new Date().toISOString(),
       })
       .eq("id", paymentRecord.id);
@@ -264,18 +237,22 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         paymentId: paymentRecord.id,
-        gatewayRef,
-        amount: finalAmount,
+        gatewayRef: partnerReferenceNo,
+        amount: totalAmount,
+        baseAmount,
+        qrisFee,
         totalCapacity,
         durationMonths: periodRow.duration_months,
-        paymentUrl: paymentUrl || `/account/subscription/qris?ref=${gatewayRef}`,
-        qrisString,
+        paymentUrl: null,
+        qrContent: dokuRes.qrContent,
+        qrisString: dokuRes.qrContent,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
+    console.error("[create-subscription-payment] Unexpected internal error:", err);
     return new Response(
-      JSON.stringify({ error: err?.message || "Internal Server Error" }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
