@@ -1,6 +1,6 @@
 # Backlog (belum untuk dikerjakan executor)
 
-Urutan rencana: **SEC-1 ✅ → SEC-2 ✅ (migration menunggu apply) → PAY-2 ✅ → PAY-2F (aktif) → PAY-1 (DOKU langganan) → SEC-3 → BRAND-1 → DEBT-1**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
+Urutan rencana: **SEC-1 ✅ → SEC-2 ✅ (migration menunggu apply) → PAY-2 ✅ → PAY-2F ✅ → PAY-1 (aktif, DOKU langganan) → SEC-3 → BRAND-1 → DEBT-1**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
 
 ## Keputusan user yang mengikat
 - Palm Village **tetap tenant**. Branding-nya (nama, logo, warna, peta) hanya dari data tenant dan hanya tampil di `/t/:tenantId`. Lapisan global (login, beranda, `/account`, `/platform`, `/listing`, PWA) netral "RuangWarga".
@@ -26,6 +26,9 @@ Dokumen task lengkap: `docs/handoff/PAY-2.md`. Tanpa ini tenant baru tidak bisa 
 
 ## PAY-1 — Langganan & iklan lewat DOKU platform
 Dokumen task lengkap: `docs/handoff/PAY-1.md`. Ringkas: modul SNAP DOKU bersama di `supabase/functions/_shared/doku.ts`, tulis ulang 4 Edge Function langganan/iklan pakai merchant `DOKU_PLATFORM_*`, buang sisa Mayar/Midtrans. Termasuk PAY-1.7: **iklan wajib bayar dulu** (listing baru `pending_payment`, baru tayang setelah lunas) + pulihkan policy SELECT `public_listings` yang hilang di dev (F9).
+
+## Catatan operasional (Claude)
+- Saat tenant Palm Village dimigrasikan ke DB (`migrate_legacy_portal_warga`), pasang `settings.legacy_qris_enabled = true` — lihat `PAY-2F-review.md`. Tanpa flag ini QRIS warga Palm Village tidak tampil.
 
 ## SEC-3 — Rahasiakan `invite_code` + audit rekening
 - F12 (review PAY-2): pindahkan `invite_code` dari `tenants.settings` ke tabel terpisah yang hanya terbaca owner / `manage_members` / platform admin. Halaman join tetap memakai RPC `get_invite_details`. Butuh migration + penyesuaian alur join.
