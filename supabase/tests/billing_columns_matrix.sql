@@ -176,7 +176,7 @@ BEGIN
   PERFORM set_config('role', 'authenticated', true);
   v_caught_error := false; v_sqlstate := NULL;
   BEGIN
-    UPDATE public.public_listings SET type = 'house_sale' WHERE id = v_listing_id;
+    UPDATE public.public_listings SET type = 'umkm' WHERE id = v_listing_id;
   EXCEPTION WHEN OTHERS THEN
     v_caught_error := true; GET STACKED DIAGNOSTICS v_sqlstate = RETURNED_SQLSTATE, v_errmsg = MESSAGE_TEXT;
   END;
