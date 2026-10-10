@@ -24,6 +24,7 @@ import {
   updateTenantProfileAndSettings,
   bulkCreateTenantUnits,
   generateInviteCode,
+  saveTenantInviteCode,
 } from '../../services/tenantOperationalService';
 import { formatRupiah } from '../../services/dataHelpers';
 
@@ -287,7 +288,6 @@ export default function ArisanSetupWizard({ tenantId: propTenantId, initialData 
       // 3. Simpan setting arisan ke tenants.settings
       const settingsPayload = {
         onboarding_completed: true,
-        invite_code: inviteCode,
         category,
         arisan_rules: arisanRules.trim(),
         slot_count: slotList.length,
@@ -307,6 +307,9 @@ export default function ArisanSetupWizard({ tenantId: propTenantId, initialData 
         contact_phone: contactPhone.trim(),
         settings: settingsPayload,
       });
+
+      // 4. Simpan kode undangan ke tabel privat tenant_invites (SEC-3.2)
+      await saveTenantInviteCode(tenantId, inviteCode);
 
       await refreshTenant();
       setSetupFinished(true);

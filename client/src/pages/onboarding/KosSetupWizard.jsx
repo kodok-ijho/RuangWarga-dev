@@ -22,6 +22,7 @@ import {
   updateTenantProfileAndSettings,
   bulkCreateTenantUnits,
   generateInviteCode,
+  saveTenantInviteCode,
 } from '../../services/tenantOperationalService';
 import { formatRupiah } from '../../services/dataHelpers';
 
@@ -302,7 +303,6 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
       // 2. Simpan settings profil tenant kos
       const settingsPayload = {
         onboarding_completed: true,
-        invite_code: inviteCode,
         default_rent_price: Number(defaultRentPrice),
         billing_cycle: billingCycle,
         due_day: Number(dueDay) || 1,
@@ -324,6 +324,9 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
         contact_phone: contactPhone.trim(),
         settings: settingsPayload,
       });
+
+      // 3. Simpan kode undangan ke tabel privat tenant_invites (SEC-3.2)
+      await saveTenantInviteCode(tenantId, inviteCode);
 
       await refreshTenant();
       setGeneratedInviteCode(inviteCode);

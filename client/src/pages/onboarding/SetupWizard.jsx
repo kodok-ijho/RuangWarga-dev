@@ -22,6 +22,7 @@ import {
   updateTenantProfileAndSettings,
   bulkCreateTenantUnits,
   generateInviteCode,
+  saveTenantInviteCode,
 } from '../../services/tenantOperationalService';
 import KosSetupWizard from './KosSetupWizard';
 import ArisanSetupWizard from './ArisanSetupWizard';
@@ -249,7 +250,6 @@ export default function SetupWizard() {
       // 2. Simpan settings dan profil tenant
       const settingsPayload = {
         onboarding_completed: true,
-        invite_code: inviteCode,
         due_day: Number(dueDay) || 10,
         ipl_components: iplComponents.map((c) => ({
           name: c.name,
@@ -268,6 +268,9 @@ export default function SetupWizard() {
         contact_phone: contactPhone.trim(),
         settings: settingsPayload,
       });
+
+      // 3. Simpan kode undangan ke tabel privat tenant_invites (SEC-3.2)
+      await saveTenantInviteCode(tenantId, inviteCode);
 
       await refreshTenant();
       setGeneratedInviteCode(inviteCode);

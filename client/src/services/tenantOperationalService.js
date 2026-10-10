@@ -33,6 +33,17 @@ export function generateInviteCode(tenantName = '') {
   return `RW-${clean}-${randomHex}`;
 }
 
+const mockTenantInviteCodes = {
+  'demo-tenant-kos': 'RW-KOS-2026',
+  'demo-tenant-rtrw': 'RW-PALM-2026',
+  't-rt-1': 'PV-05',
+};
+
+export function getCachedTenantInviteCode(tenantId) {
+  if (!tenantId) return null;
+  return mockTenantInviteCodes[tenantId] || null;
+}
+
 /**
  * Mengambil detail tenant beserta settings
  */
@@ -57,7 +68,6 @@ export async function fetchTenantDetails(tenantId) {
             account_number: '8830998877',
             account_holder: 'Pengelola Kos Melati',
           },
-          invite_code: 'RW-KOS-2026',
           onboarding_completed: false,
         },
       };
@@ -83,7 +93,6 @@ export async function fetchTenantDetails(tenantId) {
           account_number: '8830123456',
           account_holder: 'Kas RT 05 Palm Village',
         },
-        invite_code: 'RW-PALM-2026',
         onboarding_completed: true,
       },
     };
@@ -277,6 +286,78 @@ export async function saveTenantBankAccount(tenantId, bankAccount) {
   };
 
   return await updateTenantProfileAndSettings(tenantId, { settings: updatedSettings });
+}
+
+/**
+ * Mengambil kode undangan privat tenant dari tabel tenant_invites (SEC-3.2).
+ * Mengembalikan null bila tidak ditemukan atau user tidak memiliki hak akses (RLS).
+ * 
+ * @param {string} tenantId 
+ * @returns {Promise<string|null>}
+ */
+export async function fetchTenantInviteCode(tenantId) {
+  if (!tenantId) return null;
+
+  if (IS_DEMO || String(tenantId).startsWith('demo-') || !isSupabaseConfigured()) {
+    return mockTenantInviteCodes[tenantId] || null;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('tenant_invites')
+      .select('code')
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
+
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.warn('[tenantOperationalService] fetchTenantInviteCode error/restricted:', error.message);
+      return null;
+    }
+
+    return data?.code || null;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('[tenantOperationalService] fetchTenantInviteCode unexpected error:', err);
+    return null;
+  }
+}
+
+/**
+ * Menyimpan atau memperbarui kode undangan tenant ke tabel tenant_invites (SEC-3.2).
+ * 
+ * @param {string} tenantId 
+ * @param {string} code 
+ * @returns {Promise<boolean>}
+ */
+export async function saveTenantInviteCode(tenantId, code) {
+  if (!tenantId || !code) return false;
+
+  const trimmedCode = String(code).trim().toUpperCase();
+
+  if (IS_DEMO || String(tenantId).startsWith('demo-') || !isSupabaseConfigured()) {
+    mockTenantInviteCodes[tenantId] = trimmedCode;
+    return true;
+  }
+
+  const { error } = await supabase
+    .from('tenant_invites')
+    .upsert(
+      {
+        tenant_id: tenantId,
+        code: trimmedCode,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'tenant_id' }
+    );
+
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error('[tenantOperationalService] saveTenantInviteCode error:', error);
+    throw error;
+  }
+
+  return true;
 }
 
 /**

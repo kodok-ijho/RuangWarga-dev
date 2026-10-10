@@ -25,6 +25,7 @@ import {
   updateTenantProfileAndSettings,
   bulkCreateTenantUnits,
   generateInviteCode,
+  saveTenantInviteCode,
 } from '../../services/tenantOperationalService';
 import { formatRupiah } from '../../services/dataHelpers';
 
@@ -311,7 +312,6 @@ export default function KelasSetupWizard({ tenantId: propTenantId, initialData }
           account_holder: bankAccountHolder.trim(),
         },
         spp_notes: sppNotes.trim(),
-        invite_code: inviteCode,
         is_setup_completed: true,
         current_cycle: 1,
       };
@@ -322,6 +322,9 @@ export default function KelasSetupWizard({ tenantId: propTenantId, initialData }
         address: `Pengajar: ${instructorName.trim()} | Mata Pelajaran: ${subject.trim() || '-'}`,
         settings: settingsPayload,
       });
+
+      // Simpan kode undangan ke tabel privat tenant_invites (SEC-3.2)
+      await saveTenantInviteCode(tenantId, inviteCode);
 
       await refreshTenant();
       setGeneratedInviteCode(inviteCode);
