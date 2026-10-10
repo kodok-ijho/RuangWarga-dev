@@ -25,6 +25,7 @@ import {
   updateTenantProfileAndSettings,
   bulkCreateTenantUnits,
   saveInviteCodeWithRetry,
+  normalizeBankAccount,
 } from '../../services/tenantOperationalService';
 import { formatRupiah } from '../../services/dataHelpers';
 
@@ -100,9 +101,10 @@ export default function KelasSetupWizard({ tenantId: propTenantId, initialData }
   );
   const [dueDay, setDueDay] = useState(initialData?.settings?.due_day || 10);
   const [billingCycle] = useState('monthly');
-  const [bankName, setBankName] = useState('BCA');
-  const [bankAccountNo, setBankAccountNo] = useState('');
-  const [bankAccountHolder, setBankAccountHolder] = useState('');
+  const initialBank = initialData?.settings?.bank_account || initialData?.settings?.bank_info;
+  const [bankName, setBankName] = useState(initialBank?.bank_name || 'BCA');
+  const [bankAccountNo, setBankAccountNo] = useState(initialBank?.account_number || '');
+  const [bankAccountHolder, setBankAccountHolder] = useState(initialBank?.account_holder || '');
   const [sppNotes, setSppNotes] = useState(
     initialData?.settings?.spp_notes ||
       'SPP dibayarkan setiap bulan paling lambat sesuai tanggal jatuh tempo untuk kelancaran kegiatan belajar mengajar.'
@@ -139,10 +141,11 @@ export default function KelasSetupWizard({ tenantId: propTenantId, initialData }
             if (data.settings.instructor_name) setInstructorName(data.settings.instructor_name);
             if (data.settings.spp_amount) setSppAmount(data.settings.spp_amount);
             if (data.settings.due_day) setDueDay(data.settings.due_day);
-            if (data.settings.bank_info) {
-              setBankName(data.settings.bank_info.bank_name || 'BCA');
-              setBankAccountNo(data.settings.bank_info.account_number || '');
-              setBankAccountHolder(data.settings.bank_info.account_holder || '');
+            const bankData = data.settings.bank_account || data.settings.bank_info;
+            if (bankData) {
+              setBankName(bankData.bank_name || 'BCA');
+              setBankAccountNo(bankData.account_number || '');
+              setBankAccountHolder(bankData.account_holder || '');
             }
           }
         }
@@ -247,8 +250,14 @@ export default function KelasSetupWizard({ tenantId: propTenantId, initialData }
         toast.error('Tanggal jatuh tempo SPP harus antara tanggal 1 hingga 28.');
         return false;
       }
-      if (!bankAccountNo.trim() || !bankAccountHolder.trim()) {
-        toast.error('Nomor rekening dan nama pemilik rekening penerima SPP wajib diisi.');
+      try {
+        normalizeBankAccount({
+          bank_name: bankName,
+          account_number: bankAccountNo,
+          account_holder: bankAccountHolder,
+        });
+      } catch (err) {
+        toast.error(err.message);
         return false;
       }
       return true;
@@ -296,7 +305,13 @@ export default function KelasSetupWizard({ tenantId: propTenantId, initialData }
       const savedInviteCode = await saveInviteCodeWithRetry(tenantId, className);
       setGeneratedInviteCode(savedInviteCode);
 
-      // 3. Simpan metadata pengaturan kelas ke tabel tenants (hanya ditandai setup selesai jika kode berhasil disimpan)
+      // 3. Normalisasi rekening bank & simpan metadata pengaturan kelas ke tabel tenants
+      const normalizedBank = normalizeBankAccount({
+        bank_name: bankName,
+        account_number: bankAccountNo,
+        account_holder: bankAccountHolder,
+      });
+
       const settingsPayload = {
         class_type: classType,
         subject: subject.trim(),
@@ -306,11 +321,7 @@ export default function KelasSetupWizard({ tenantId: propTenantId, initialData }
         spp_amount: Number(sppAmount),
         due_day: Number(dueDay),
         billing_cycle: billingCycle,
-        bank_info: {
-          bank_name: bankName,
-          account_number: bankAccountNo.trim(),
-          account_holder: bankAccountHolder.trim(),
-        },
+        bank_account: normalizedBank,
         spp_notes: sppNotes.trim(),
         is_setup_completed: true,
         current_cycle: 1,

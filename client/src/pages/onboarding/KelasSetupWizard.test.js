@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { formatRupiah } from '../../services/dataHelpers';
+import { normalizeBankAccount } from '../../services/tenantOperationalService';
 
 describe('KelasSetupWizard Logic & Validation Rules (T9.1)', () => {
   describe('Konfigurasi Model & Tipe Kelas', () => {
@@ -139,6 +140,81 @@ describe('KelasSetupWizard Logic & Validation Rules (T9.1)', () => {
       expect(waMessage).toContain(instructorName);
       expect(waMessage).toContain(inviteUrl);
       expect(waMessage).toContain('Bapak/Ibu Wali Murid & Siswa');
+    });
+  });
+
+  describe('Standardisasi Rekening Bank di Setup Kelas (BRAND-1.8)', () => {
+    it('membaca bank_account jika tersedia pada data settings tenant', () => {
+      const tenantDataWithBankAccount = {
+        settings: {
+          bank_account: {
+            bank_name: 'Mandiri',
+            account_number: '140001928374',
+            account_holder: 'Yayasan Bina Prestasi',
+          },
+        },
+      };
+
+      const resolvedBank =
+        tenantDataWithBankAccount.settings.bank_account ||
+        tenantDataWithBankAccount.settings.bank_info;
+
+      expect(resolvedBank).toBeDefined();
+      expect(resolvedBank.bank_name).toBe('Mandiri');
+      expect(resolvedBank.account_number).toBe('140001928374');
+      expect(resolvedBank.account_holder).toBe('Yayasan Bina Prestasi');
+    });
+
+    it('fallback membaca legacy bank_info bila bank_account belum ada di data settings', () => {
+      const legacyTenantData = {
+        settings: {
+          bank_info: {
+            bank_name: 'BCA',
+            account_number: '8830192834',
+            account_holder: 'Pak Guru Budi',
+          },
+        },
+      };
+
+      const resolvedBank =
+        legacyTenantData.settings.bank_account ||
+        legacyTenantData.settings.bank_info;
+
+      expect(resolvedBank).toBeDefined();
+      expect(resolvedBank.bank_name).toBe('BCA');
+      expect(resolvedBank.account_number).toBe('8830192834');
+      expect(resolvedBank.account_holder).toBe('Pak Guru Budi');
+    });
+
+    it('menyiapkan payload settings yang menulis bank_account dan tidak menulis bank_info', () => {
+      const rawBankInput = {
+        bank_name: '  Bank BCA  ',
+        account_number: '522-0304-991',
+        account_holder: '  Ibu Guru Siti  ',
+      };
+
+      const normalizedBank = normalizeBankAccount(rawBankInput);
+
+      const settingsPayload = {
+        class_type: 'reguler',
+        subject: 'Matematika',
+        instructor_name: 'Ibu Guru Siti',
+        class_description: 'Kelas intensif',
+        slot_count: 20,
+        spp_amount: 250000,
+        due_day: 10,
+        billing_cycle: 'monthly',
+        bank_account: normalizedBank,
+        spp_notes: 'Harap bayar tepat waktu',
+        is_setup_completed: true,
+        current_cycle: 1,
+      };
+
+      expect(settingsPayload).toHaveProperty('bank_account');
+      expect(settingsPayload).not.toHaveProperty('bank_info');
+      expect(settingsPayload.bank_account.account_number).toBe('5220304991');
+      expect(settingsPayload.bank_account.bank_name).toBe('Bank BCA');
+      expect(settingsPayload.bank_account.account_holder).toBe('Ibu Guru Siti');
     });
   });
 });

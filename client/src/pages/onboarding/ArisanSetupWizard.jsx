@@ -24,6 +24,7 @@ import {
   updateTenantProfileAndSettings,
   bulkCreateTenantUnits,
   saveInviteCodeWithRetry,
+  normalizeBankAccount,
 } from '../../services/tenantOperationalService';
 import { formatRupiah } from '../../services/dataHelpers';
 
@@ -262,6 +263,18 @@ export default function ArisanSetupWizard({ tenantId: propTenantId, initialData 
       return;
     }
 
+    let normalizedBank = null;
+    try {
+      normalizedBank = normalizeBankAccount({
+        bank_name: bankName,
+        account_number: bankAccountNo,
+        account_holder: bankAccountHolder,
+      });
+    } catch (err) {
+      toast.error(err.message);
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -294,11 +307,7 @@ export default function ArisanSetupWizard({ tenantId: propTenantId, initialData 
         draw_frequency: drawFrequency,
         draw_day: Number(drawDay) || 1,
         total_prize_per_round: totalPrizePerRound,
-        bank_account: {
-          bank_name: bankName.trim(),
-          account_number: bankAccountNo.trim(),
-          account_holder: bankAccountHolder.trim(),
-        },
+        bank_account: normalizedBank,
       };
 
       await updateTenantProfileAndSettings(tenantId, {

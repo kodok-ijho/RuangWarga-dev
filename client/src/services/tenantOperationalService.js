@@ -242,20 +242,15 @@ export function isLegacyQrisEnabled(tenantOrSettings) {
 }
 
 /**
- * Menyimpan / memperbarui rekening bank tenant ke dalam settings tenant.
- * Memakai updateTenantProfileAndSettings yang sudah ada (tidak membuat query update baru).
- * Selalu mengambil settings terbaru lewat fetchTenantDetails tepat sebelum menyimpan
- * untuk mencegah penimpaan setting lain (F10).
+/**
+ * Memvalidasi dan menormalisasi data rekening bank tenant.
+ * Fungsi murni tanpa efek samping.
  *
- * @param {string} tenantId
  * @param {Object} bankAccount - { bank_name, account_number, account_holder }
- * @returns {Promise<Object>}
+ * @returns {{ bank_name: string, account_number: string, account_holder: string }}
+ * @throws {Error} bila data tidak valid
  */
-export async function saveTenantBankAccount(tenantId, bankAccount) {
-  if (!tenantId) {
-    throw new Error('Tenant ID wajib disertakan.');
-  }
-
+export function normalizeBankAccount(bankAccount) {
   if (!bankAccount || typeof bankAccount !== 'object') {
     throw new Error('Data rekening bank wajib disertakan.');
   }
@@ -301,6 +296,30 @@ export async function saveTenantBankAccount(tenantId, bankAccount) {
     throw new Error('Nama pemilik rekening harus terdiri dari 2 hingga 100 karakter.');
   }
 
+  return {
+    bank_name: rawBankName,
+    account_number: cleanAccountNumber,
+    account_holder: rawAccountHolder,
+  };
+}
+
+/**
+ * Menyimpan / memperbarui rekening bank tenant ke dalam settings tenant.
+ * Memakai updateTenantProfileAndSettings yang sudah ada (tidak membuat query update baru).
+ * Selalu mengambil settings terbaru lewat fetchTenantDetails tepat sebelum menyimpan
+ * untuk mencegah penimpaan setting lain (F10).
+ *
+ * @param {string} tenantId
+ * @param {Object} bankAccount - { bank_name, account_number, account_holder }
+ * @returns {Promise<Object>}
+ */
+export async function saveTenantBankAccount(tenantId, bankAccount) {
+  if (!tenantId) {
+    throw new Error('Tenant ID wajib disertakan.');
+  }
+
+  const normalizedAccount = normalizeBankAccount(bankAccount);
+
   // F10: Selalu ambil settings terbaru tepat sebelum menyimpan agar tidak menimpa setting lain.
   let tenantDetails;
   try {
@@ -317,11 +336,7 @@ export async function saveTenantBankAccount(tenantId, bankAccount) {
 
   const updatedSettings = {
     ...baseSettings,
-    bank_account: {
-      bank_name: rawBankName,
-      account_number: cleanAccountNumber,
-      account_holder: rawAccountHolder,
-    },
+    bank_account: normalizedAccount,
   };
 
   if (IS_DEMO || String(tenantId).startsWith('demo-')) {

@@ -22,6 +22,7 @@ import {
   updateTenantProfileAndSettings,
   bulkCreateTenantUnits,
   saveInviteCodeWithRetry,
+  normalizeBankAccount,
 } from '../../services/tenantOperationalService';
 import KosSetupWizard from './KosSetupWizard';
 import ArisanSetupWizard from './ArisanSetupWizard';
@@ -232,6 +233,19 @@ export default function SetupWizard() {
       return;
     }
 
+    let normalizedBank = null;
+    try {
+      normalizedBank = normalizeBankAccount({
+        bank_name: bankName,
+        account_number: bankAccountNo,
+        account_holder: bankAccountHolder,
+      });
+    } catch (err) {
+      toast.error(err.message);
+      setCurrentStep(3);
+      return;
+    }
+
     setSaving(true);
     try {
       // 1. Simpan unit ke tenant_units
@@ -255,11 +269,7 @@ export default function SetupWizard() {
           name: c.name,
           amount: Number(c.amount),
         })),
-        bank_account: {
-          bank_name: bankName.trim(),
-          account_number: bankAccountNo.trim(),
-          account_holder: bankAccountHolder.trim(),
-        },
+        bank_account: normalizedBank,
       };
 
       await updateTenantProfileAndSettings(tenantId, {
@@ -840,9 +850,21 @@ export default function SetupWizard() {
                     toast.error('Minimal harus ada 1 unit rumah.');
                     return;
                   }
-                  if (currentStep === 3 && totalIplAmount <= 0) {
-                    toast.error('Total IPL harus lebih dari Rp 0.');
-                    return;
+                  if (currentStep === 3) {
+                    if (totalIplAmount <= 0) {
+                      toast.error('Total IPL harus lebih dari Rp 0.');
+                      return;
+                    }
+                    try {
+                      normalizeBankAccount({
+                        bank_name: bankName,
+                        account_number: bankAccountNo,
+                        account_holder: bankAccountHolder,
+                      });
+                    } catch (err) {
+                      toast.error(err.message);
+                      return;
+                    }
                   }
                   setCurrentStep((prev) => prev + 1);
                 }}

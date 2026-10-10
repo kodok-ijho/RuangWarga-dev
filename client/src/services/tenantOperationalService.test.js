@@ -34,6 +34,7 @@ import {
   generateKelasSppBilling,
   getTenantBankAccount,
   saveTenantBankAccount,
+  normalizeBankAccount,
   isLegacyQrisEnabled,
   fetchTenantInviteCode,
   saveTenantInviteCode,
@@ -693,6 +694,130 @@ describe('tenantOperationalService - Unit Tests', () => {
         expect(isLegacyQrisEnabled({ settings: {} })).toBe(false);
         expect(isLegacyQrisEnabled({ settings: { legacy_qris_enabled: false } })).toBe(false);
         expect(isLegacyQrisEnabled({ settings: { legacy_qris_enabled: 'true' } })).toBe(false);
+      });
+    });
+
+    describe('normalizeBankAccount (BRAND-1.8 Pure Validation Engine)', () => {
+      it('berhasil mengembalikan objek rekening yang bersih bila input valid', () => {
+        const result = normalizeBankAccount({
+          bank_name: '  Bank BCA  ',
+          account_number: '522-0304-991',
+          account_holder: '  Budi Santoso  ',
+        });
+        expect(result).toEqual({
+          bank_name: 'Bank BCA',
+          account_number: '5220304991',
+          account_holder: 'Budi Santoso',
+        });
+      });
+
+      it('membersihkan spasi dan strip dari nomor rekening', () => {
+        const result = normalizeBankAccount({
+          bank_name: 'BCA',
+          account_number: ' 123 - 456 - 789 01 ',
+          account_holder: 'Pengurus Kas',
+        });
+        expect(result.account_number).toBe('12345678901');
+      });
+
+      it('menolak bila argumen bukan objek atau bernilai null/undefined', () => {
+        expect(() => normalizeBankAccount(null)).toThrow('Data rekening bank wajib disertakan.');
+        expect(() => normalizeBankAccount(undefined)).toThrow('Data rekening bank wajib disertakan.');
+        expect(() => normalizeBankAccount('')).toThrow('Data rekening bank wajib disertakan.');
+      });
+
+      it('menolak bila nama bank kosong atau hanya whitespace', () => {
+        expect(() =>
+          normalizeBankAccount({
+            bank_name: '   ',
+            account_number: '12345678',
+            account_holder: 'Pengurus Kas',
+          })
+        ).toThrow('Nama bank wajib diisi.');
+      });
+
+      it('menolak bila panjang nama bank di luar 2-50 karakter', () => {
+        expect(() =>
+          normalizeBankAccount({
+            bank_name: 'B',
+            account_number: '12345678',
+            account_holder: 'Pengurus Kas',
+          })
+        ).toThrow('Nama bank harus terdiri dari 2 hingga 50 karakter.');
+
+        expect(() =>
+          normalizeBankAccount({
+            bank_name: 'B'.repeat(51),
+            account_number: '12345678',
+            account_holder: 'Pengurus Kas',
+          })
+        ).toThrow('Nama bank harus terdiri dari 2 hingga 50 karakter.');
+      });
+
+      it('menolak bila nomor rekening kosong atau hanya whitespace', () => {
+        expect(() =>
+          normalizeBankAccount({
+            bank_name: 'BCA',
+            account_number: '   ',
+            account_holder: 'Pengurus Kas',
+          })
+        ).toThrow('Nomor rekening wajib diisi.');
+      });
+
+      it('menolak nomor rekening yang memuat huruf atau karakter non-angka', () => {
+        expect(() =>
+          normalizeBankAccount({
+            bank_name: 'BCA',
+            account_number: '1234ABCD5678',
+            account_holder: 'Pengurus Kas',
+          })
+        ).toThrow('Nomor rekening hanya boleh berisi angka');
+      });
+
+      it('menolak nomor rekening dengan panjang digit kurang dari 6 atau lebih dari 20', () => {
+        expect(() =>
+          normalizeBankAccount({
+            bank_name: 'BCA',
+            account_number: '12345',
+            account_holder: 'Pengurus Kas',
+          })
+        ).toThrow('Nomor rekening harus terdiri dari 6 hingga 20 digit angka.');
+
+        expect(() =>
+          normalizeBankAccount({
+            bank_name: 'BCA',
+            account_number: '123456789012345678901',
+            account_holder: 'Pengurus Kas',
+          })
+        ).toThrow('Nomor rekening harus terdiri dari 6 hingga 20 digit angka.');
+      });
+
+      it('menolak bila nama pemilik rekening kosong atau hanya whitespace', () => {
+        expect(() =>
+          normalizeBankAccount({
+            bank_name: 'BCA',
+            account_number: '12345678',
+            account_holder: '   ',
+          })
+        ).toThrow('Nama pemilik rekening wajib diisi.');
+      });
+
+      it('menolak bila panjang nama pemilik rekening di luar 2-100 karakter', () => {
+        expect(() =>
+          normalizeBankAccount({
+            bank_name: 'BCA',
+            account_number: '12345678',
+            account_holder: 'A',
+          })
+        ).toThrow('Nama pemilik rekening harus terdiri dari 2 hingga 100 karakter.');
+
+        expect(() =>
+          normalizeBankAccount({
+            bank_name: 'BCA',
+            account_number: '12345678',
+            account_holder: 'A'.repeat(101),
+          })
+        ).toThrow('Nama pemilik rekening harus terdiri dari 2 hingga 100 karakter.');
       });
     });
 
