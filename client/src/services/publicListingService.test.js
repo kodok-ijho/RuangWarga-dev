@@ -475,20 +475,22 @@ describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () =>
 
       expect(regPayment.success).toBe(true);
       expect(regPayment.paymentId).toBeDefined();
-      expect(regPayment.amount).toBe(15000);
+      expect(regPayment.baseAmount).toBe(15000);
+      expect(regPayment.amount).toBe(15105);
       expect(regPayment.isFeatured).toBe(false);
-      expect(regPayment.gatewayRef).toMatch(/^MYR-/);
+      expect(regPayment.gatewayRef).toMatch(/^DOKU-/);
       expect(regPayment.qrisString).toBeDefined();
       expect(regPayment.paymentUrl).toBeDefined();
 
-      // Featured: 35.000
+      // Featured: 35.000 + MDR 0.7% (245) = 35.245
       const featPayment = await createListingPayment(kosItem.id, {
         isFeatured: true,
         durationDays: 30,
       });
 
       expect(featPayment.success).toBe(true);
-      expect(featPayment.amount).toBe(35000);
+      expect(featPayment.baseAmount).toBe(35000);
+      expect(featPayment.amount).toBe(35245);
       expect(featPayment.isFeatured).toBe(true);
     });
 
@@ -499,19 +501,21 @@ describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () =>
         type: 'umkm',
       });
 
-      // Reguler: 10.000
+      // Reguler: 10.000 + MDR 0.7% (70) = 10.070
       const regPayment = await createListingPayment(umkmItem.id, {
         isFeatured: false,
         durationDays: 30,
       });
-      expect(regPayment.amount).toBe(10000);
+      expect(regPayment.baseAmount).toBe(10000);
+      expect(regPayment.amount).toBe(10070);
 
-      // Featured: 25.000
+      // Featured: 25.000 + MDR 0.7% (175) = 25.175
       const featPayment = await createListingPayment(umkmItem.id, {
         isFeatured: true,
         durationDays: 30,
       });
-      expect(featPayment.amount).toBe(25000);
+      expect(featPayment.baseAmount).toBe(25000);
+      expect(featPayment.amount).toBe(25175);
     });
 
     it('createListingPayment melempar error jika listingId tidak disertakan', async () => {

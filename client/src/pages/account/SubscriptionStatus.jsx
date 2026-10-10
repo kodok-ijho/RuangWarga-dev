@@ -67,8 +67,8 @@ export default function SubscriptionStatus() {
           paid_at: '2026-01-01T09:32:10Z',
           amount: 324000,
           status: 'settled',
-          payment_method: 'mayar_qris',
-          payment_gateway_ref: 'MYR-DEMO-SUB-01',
+          payment_method: 'doku_qris',
+          payment_gateway_ref: 'DOKU-DEMO-SUB-01',
           duration_months: 12,
         },
       ]);

@@ -20,8 +20,8 @@ const MOCK_REVENUE_TRANSACTIONS = [
     paid_at: '2026-09-10T11:22:15Z',
     amount: 120000,
     status: 'settled',
-    payment_method: 'mayar_qris',
-    payment_gateway_ref: 'MYR-RW-20260910-8812',
+    payment_method: 'doku_qris',
+    payment_gateway_ref: 'DOKU-RW-20260910-8812',
     tenant_name: 'Palm Village RT 05',
     tenant_type: 'rt_rw',
     period_months: 12,
@@ -32,8 +32,8 @@ const MOCK_REVENUE_TRANSACTIONS = [
     paid_at: '2026-09-12T14:08:30Z',
     amount: 45000,
     status: 'settled',
-    payment_method: 'mayar_qris',
-    payment_gateway_ref: 'MYR-RW-20260912-9104',
+    payment_method: 'doku_qris',
+    payment_gateway_ref: 'DOKU-RW-20260912-9104',
     tenant_name: 'Kos Melati Harmoni',
     tenant_type: 'kos',
     period_months: 3,
@@ -247,7 +247,7 @@ export default function PlatformRevenue() {
         <div>
           <strong className="text-slate-900">Fase Fondasi Platform:</strong> Data pendapatan di bawah mencerminkan estimasi
           dari tenant aktif saat ini. Pada <strong className="text-amber-800">Phase 4 (Subscription &amp; Billing)</strong>,
-          setelah integrasi payment gateway Mayar QRIS dan auto-provisioning pembayaran selesai dibangun, transaksi real-time
+          setelah integrasi payment gateway DOKU QRIS dan auto-provisioning pembayaran selesai dibangun, transaksi real-time
           akan langsung tercatat di tabel pembayaran platform.
         </div>
       </div>
@@ -368,7 +368,7 @@ export default function PlatformRevenue() {
               <AiOutlineFileText className="text-4xl mx-auto mb-2 text-slate-300" />
               <p className="text-sm font-semibold text-slate-700">Belum Ada Transaksi Pembayaran</p>
               <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 leading-relaxed">
-                Transaksi baru akan tercatat otomatis saat tenant melakukan perpanjangan atau pembayaran via QRIS Mayar (dihubungkan pada Phase 4).
+                Transaksi baru akan tercatat otomatis saat tenant melakukan perpanjangan atau pembayaran via QRIS DOKU (dihubungkan pada Phase 4).
               </p>
             </div>
           ) : (

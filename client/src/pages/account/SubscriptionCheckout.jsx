@@ -46,10 +46,13 @@ export default function SubscriptionCheckout() {
         // Mock payment di Demo mode
         setPaymentData({
           paymentId: `pay-mock-${Date.now()}`,
-          gatewayRef: `MYR-DEMO-${Math.floor(Math.random() * 90000) + 10000}`,
+          gatewayRef: `DOKU-DEMO-${Math.floor(Math.random() * 90000) + 10000}`,
           amount: finalTotal,
+          baseAmount: finalTotal,
+          qrisFee: Math.ceil(finalTotal * 0.007),
           paymentUrl: '#',
-          qrisString: '00020101021126580014ID.LINKAJA.WWW0118936009140000000000',
+          qrContent: '00020101021126580014ID.DOKU.WWW0118936009140000000000',
+          qrisString: '00020101021126580014ID.DOKU.WWW0118936009140000000000',
         });
         setLoading(false);
         return;
@@ -72,16 +75,7 @@ export default function SubscriptionCheckout() {
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error('[SubscriptionCheckout] Gagal membuat tagihan:', err);
-        // Fallback simulated payment jika edge function belum live di server
-        if (!isCancelled) {
-          setPaymentData({
-            paymentId: `sim-pay-${Date.now()}`,
-            gatewayRef: `MYR-SIM-${Date.now().toString().slice(-6)}`,
-            amount: finalTotal,
-            paymentUrl: '#',
-            qrisString: '00020101021126580014ID.LINKAJA.WWW0118936009140000000000',
-          });
-        }
+        toast.error(err.message || 'Gagal menyiapkan pembayaran QRIS.');
       } finally {
         if (!isCancelled) setLoading(false);
       }
@@ -91,7 +85,7 @@ export default function SubscriptionCheckout() {
     return () => {
       isCancelled = true;
     };
-  }, [tenantId, blocks10, blocks5, durationMonths, finalTotal, isDemo]);
+  }, [tenantId, blocks10, blocks5, durationMonths, finalTotal, isDemo, toast]);
 
   // Polling status pembayaran subscription_payments pada non-demo
   const paymentId = paymentData?.paymentId;
@@ -195,7 +189,7 @@ export default function SubscriptionCheckout() {
             <div className="text-center space-y-1 pb-4 border-b border-slate-200">
               <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-800 text-xs font-semibold">
                 <AiOutlineSafetyCertificate />
-                <span>Mayar QRIS Resmi</span>
+                <span>QRIS DOKU Resmi</span>
               </div>
               <h1 className="text-xl font-bold text-slate-900 font-display mt-2">
                 Scan QRIS untuk Menyelesaikan Pembayaran
@@ -208,7 +202,7 @@ export default function SubscriptionCheckout() {
             {loading ? (
               <div className="py-16 text-center space-y-3">
                 <div className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin mx-auto" />
-                <p className="text-xs text-slate-500">Menyiapkan QRIS pembayaran dari Mayar gateway...</p>
+                <p className="text-xs text-slate-500">Menyiapkan QRIS pembayaran dari gateway DOKU...</p>
               </div>
             ) : (
               <div className="space-y-6">
@@ -219,13 +213,28 @@ export default function SubscriptionCheckout() {
                     <span className="text-[10px] font-bold text-red-600">GPN</span>
                   </div>
 
-                  {/* QR Visual Canvas / Placeholder */}
-                  <div className="w-52 h-52 mx-auto bg-white border border-slate-200 rounded-xl flex flex-col items-center justify-center p-3 relative overflow-hidden shadow-xs">
-                    <AiOutlineQrcode className="text-8xl text-slate-800" />
-                    <span className="text-[9px] font-mono text-slate-500 mt-1">
-                      {paymentData?.gatewayRef || 'MYR-QRIS-CODE'}
-                    </span>
-                  </div>
+                  {/* QR Visual Canvas / Image */}
+                  {paymentData?.qrContent || paymentData?.qrisString ? (
+                    <div className="w-56 h-56 mx-auto bg-white border border-slate-200 rounded-xl flex flex-col items-center justify-center p-2 relative overflow-hidden shadow-xs">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=8&data=${encodeURIComponent(
+                          paymentData.qrContent || paymentData.qrisString
+                        )}`}
+                        alt="QRIS Code"
+                        className="w-full h-full object-contain rounded-lg"
+                      />
+                      <span className="text-[9px] font-mono text-slate-500 mt-1">
+                        {paymentData?.gatewayRef || 'QRIS-DOKU'}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="w-52 h-52 mx-auto bg-white border border-slate-200 rounded-xl flex flex-col items-center justify-center p-3 relative overflow-hidden shadow-xs">
+                      <AiOutlineQrcode className="text-8xl text-slate-800" />
+                      <span className="text-[9px] font-mono text-slate-500 mt-1">
+                        {paymentData?.gatewayRef || 'QRIS-CODE'}
+                      </span>
+                    </div>
+                  )}
 
                   <div className="pt-2 border-t border-slate-200">
                     <p className="text-[11px] font-medium text-slate-600">
@@ -248,10 +257,22 @@ export default function SubscriptionCheckout() {
                     <span>Durasi Langganan:</span>
                     <span className="text-slate-900 font-medium">{durationMonths} Bulan</span>
                   </div>
+                  {paymentData?.baseAmount ? (
+                    <div className="flex justify-between text-slate-600">
+                      <span>Biaya Pokok Paket:</span>
+                      <span className="text-slate-900 font-medium">Rp {paymentData.baseAmount.toLocaleString('id-ID')}</span>
+                    </div>
+                  ) : null}
+                  {paymentData?.qrisFee ? (
+                    <div className="flex justify-between text-slate-600">
+                      <span>Biaya Layanan QRIS (0,7%):</span>
+                      <span className="text-amber-700 font-semibold">+ Rp {paymentData.qrisFee.toLocaleString('id-ID')}</span>
+                    </div>
+                  ) : null}
                   <div className="flex justify-between items-baseline pt-2 border-t border-slate-200 text-sm font-bold">
-                    <span className="text-slate-900">Total Tagihan:</span>
+                    <span className="text-slate-900">Total Pembayaran:</span>
                     <span className="text-xl text-slate-900 font-mono font-extrabold">
-                      Rp {finalTotal.toLocaleString('id-ID')}
+                      Rp {(paymentData?.amount || finalTotal).toLocaleString('id-ID')}
                     </span>
                   </div>
                 </div>
@@ -289,20 +310,8 @@ export default function SubscriptionCheckout() {
                         <span>Menunggu Verifikasi Pembayaran</span>
                       </div>
                       <p className="text-[11px] text-blue-700 leading-relaxed">
-                        Sistem sedang memantau pembayaran QRIS Anda secara otomatis. Halaman akan langsung beralih begitu transfer terverifikasi oleh gateway.
+                        Sistem sedang memantau pembayaran QRIS Anda secara otomatis melalui DOKU. Halaman akan langsung beralih begitu transfer terverifikasi oleh gateway.
                       </p>
-                      {paymentData?.paymentUrl && paymentData.paymentUrl !== '#' && (
-                        <div className="pt-1">
-                          <a
-                            href={paymentData.paymentUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold transition-colors shadow-xs"
-                          >
-                            Buka Link Pembayaran Mayar ↗
-                          </a>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}

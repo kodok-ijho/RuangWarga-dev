@@ -700,7 +700,7 @@ function AuthenticatedWorkspaceHub() {
             <div className="space-y-1.5">
               <h3 className="text-base font-bold text-slate-900 font-display">Pusat Akun &amp; Langganan</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Pantau invoice Mayar, sesuaikan kapasitas blok unit/kamar, dan atur preferensi akun.
+                Pantau invoice langganan, sesuaikan kapasitas blok unit/kamar, dan atur preferensi akun.
               </p>
               <Link
                 to="/account/tenants"

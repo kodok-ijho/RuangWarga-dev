@@ -488,12 +488,14 @@ export async function createListingPayment(listingId, { isFeatured = false, dura
 
   if (!isSupabaseConfigured() || isDemo || String(listingId).startsWith('listing-') || String(listingId).startsWith('mock-')) {
     const paymentId = `pay-lst-${Date.now()}`;
-    const gatewayRef = `MYR-LST-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    const gatewayRef = `DOKU-LST-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     const targetListing = inMemoryListings.find((l) => String(l.id) === String(listingId));
     const listingType = targetListing?.type || 'room_vacancy';
-    const amount = listingType === 'room_vacancy'
+    const baseAmount = listingType === 'room_vacancy'
       ? (isFeatured ? 35000 : 15000)
       : (isFeatured ? 25000 : 10000);
+    const qrisFee = Math.ceil(baseAmount * 0.007);
+    const amount = baseAmount + qrisFee;
 
     const paymentRecord = {
       id: paymentId,
@@ -513,88 +515,30 @@ export async function createListingPayment(listingId, { isFeatured = false, dura
       paymentId,
       gatewayRef,
       amount,
+      baseAmount,
+      qrisFee,
       isFeatured: Boolean(isFeatured),
       durationDays: Number(durationDays),
       paymentUrl: paymentRecord.payment_url,
-      qrisString: `00020101021126580016ID.CO.MAYAR.WWW0118${gatewayRef}520458125303360540${amount}5802ID5910RuangWarga6007Jakarta6304ABCD`,
+      qrContent: `00020101021126580014ID.DOKU.WWW0118${gatewayRef}520458125303360540${amount}5802ID5910RuangWarga6007Jakarta6304ABCD`,
+      qrisString: `00020101021126580014ID.DOKU.WWW0118${gatewayRef}520458125303360540${amount}5802ID5910RuangWarga6007Jakarta6304ABCD`,
     };
   }
 
-  // Coba invoke Edge Function create-listing-payment
-  try {
-    const { data, error } = await supabase.functions.invoke('create-listing-payment', {
-      body: {
-        listingId,
-        isFeatured: Boolean(isFeatured),
-        durationDays: Number(durationDays),
-      },
-    });
+  // Invoke Edge Function create-listing-payment (DOKU Platform QRIS)
+  const { data, error } = await supabase.functions.invoke('create-listing-payment', {
+    body: {
+      listingId,
+      isFeatured: Boolean(isFeatured),
+      durationDays: Number(durationDays),
+    },
+  });
 
-    if (!error && data?.success) {
-      return data;
-    }
-    if (error && !error.message?.includes('Failed to send a request') && !error.message?.includes('FunctionsFetchError')) {
-      throw new Error(error.message || 'Gagal memproses pembuatan invoice pembayaran listing.');
-    }
-  } catch (edgeErr) {
-    // eslint-disable-next-line no-console
-    console.warn('[createListingPayment] Edge Function invoke failed, fallback to direct DB transaction:', edgeErr);
+  if (error || !data?.success) {
+    throw new Error(data?.error || error?.message || 'Gagal memproses pembuatan invoice pembayaran listing.');
   }
 
-  // Fallback: Direct DB query & insert jika Edge Function belum dideploy
-  const { data: listingData, error: lErr } = await supabase
-    .from('public_listings')
-    .select('id, tenant_id, type, title')
-    .eq('id', listingId)
-    .single();
-
-  if (lErr || !listingData) {
-    throw new Error('Listing tidak ditemukan di database.');
-  }
-
-  const { data: pricingRows } = await supabase
-    .from('listing_pricing')
-    .select('price')
-    .eq('listing_type', listingData.type)
-    .eq('is_featured', Boolean(isFeatured))
-    .eq('duration_days', Number(durationDays));
-
-  let amount = 0;
-  if (pricingRows && pricingRows.length > 0) {
-    amount = Number(pricingRows[0].price);
-  } else {
-    amount = listingData.type === 'room_vacancy' ? (isFeatured ? 35000 : 15000) : (isFeatured ? 25000 : 10000);
-  }
-
-  const gatewayRef = `MYR-DIR-${Date.now().toString(36).toUpperCase()}`;
-
-  const { data: paymentRecord, error: payErr } = await supabase
-    .from('listing_payments')
-    .insert({
-      listing_id: listingId,
-      amount,
-      is_featured: Boolean(isFeatured),
-      duration_days: Number(durationDays),
-      qris_ref: gatewayRef,
-      payment_url: `/t/${listingData.tenant_id}/listings?payRef=${gatewayRef}`,
-    })
-    .select()
-    .single();
-
-  if (payErr) {
-    throw new Error(`Gagal membuat catatan pembayaran: ${payErr.message}`);
-  }
-
-  return {
-    success: true,
-    paymentId: paymentRecord.id,
-    gatewayRef,
-    amount,
-    isFeatured: Boolean(isFeatured),
-    durationDays: Number(durationDays),
-    paymentUrl: paymentRecord.payment_url,
-    qrisString: `00020101021126580016ID.CO.MAYAR.WWW0118${gatewayRef}520458125303360540${amount}5802ID5910RuangWarga6007Jakarta6304ABCD`,
-  };
+  return data;
 }
 
 /**

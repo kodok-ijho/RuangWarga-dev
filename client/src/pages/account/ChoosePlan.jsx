@@ -395,7 +395,7 @@ export default function ChoosePlan() {
 
           <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-xs text-slate-500 text-center sm:text-left">
-              Pembayaran instan diproses via <strong className="text-slate-900">Mayar QRIS</strong> dengan verifikasi otomatis.
+              Pembayaran instan diproses via <strong className="text-slate-900">DOKU QRIS</strong> dengan verifikasi otomatis.
             </p>
 
             <button
