@@ -9,6 +9,7 @@
 | PAY-1.5 | 38e039d | done | Bersihkan sisa Mayar & Midtrans: `PaymentVerification.jsx`, `Settings.jsx`, `dataHelpers.js`, `mockData.js`, `dataService.js` (provider default DOKU tanpa mengganggu route n8n live). Update `.env.server.example` dengan daftar `DOKU_PLATFORM_*`. Update panduan `AGENT.md` dan `GEMINI.md`. |
 | PAY-1.6 | 5fb5ed3 | done | Unit test protokol helper murni DOKU: `client/src/services/dokuProtocol.js` & `client/src/services/__tests__/dokuProtocol.test.js` (12 test passed) mencakup perhitungan MDR 0,7% pembulatan ke atas, timestamp ISO format, pembentukan string to sign B2B & MPM, hash SHA-256 dan HMAC-SHA512 test vectors, dan timingSafeEqual. |
 | PAY-1.7 | 3c73481 | done | Iklan wajib bayar dulu (F6) & pemulihan RLS SELECT (F9): Migration A (`202610100001_listing_status_pending_payment.sql`) menambah nilai enum `pending_payment`; Migration B (`202610100002_listing_pay_first.sql`) set default status `pending_payment`, trigger `guard_listing_billing_columns()` tolak modifikasi status/type liar, RPC `activate_listing_payment()` aktifkan masa tayang saat lunas, pulihkan RLS SELECT `public_listings_select` (anon hanya bisa lihat yang active & belum expired). Frontend `PostListing.jsx` dan `MyListings.jsx` terintegrasi QRIS DOKU modal. |
+| PAY-1 (Fee Adj) | 314b067 | done | Penyesuaian tarif MDR QRIS menjadi 0,75% (keputusan user 2026-10-10): harga dasar tetap di kolom `amount`, rincian fee & total disimpan di `metadata` (`qris_fee_amount`, `qris_total_amount`), nominal ke DOKU dan verifikasi pelunasan menggunakan total tersebut. |
 
 ## Output Verifikasi
 - **vitest:** 36 test files lulus, **623 tests passed** (0 failed).
@@ -46,6 +47,6 @@ DOKU_PLATFORM_WEBHOOK_SECRET=
    - `supabase/tests/billing_columns_matrix.sql` (uji 9 skenario RLS & trigger billing).
 
 ## Asumsi & Keputusan Arsitektur
-1. **Biaya QRIS 0,7%:** Dibebankan ke pembayar (transparan di UI dan modal checkout: nilai pokok + MDR 0,7% = total).
+1. **Biaya QRIS 0,75%:** Dibebankan ke pembayar (transparan di UI dan modal checkout: nilai pokok + MDR 0,75% = total). Kolom `amount` pada tabel database tetap menyimpan harga dasar agar mematuhi constraint trigger database, sementara `qris_fee_amount` dan `qris_total_amount` disimpan di kolom `metadata`.
 2. **Isolasi Alur n8n:** Alur legacy n8n dan path webhook Palm Village `/payments/qris/doku/*` dipertahankan sepenuhnya tanpa diubah, menjaga kompabilitas sistem warga yang masih live.
 3. **Deployment Edge Functions:** Sesuai Definition of Done, Edge Functions belum di-deploy ke Supabase live; deployment dilakukan oleh Orchestrator (Claude) setelah memasukkan rahasia `DOKU_PLATFORM_*`.
