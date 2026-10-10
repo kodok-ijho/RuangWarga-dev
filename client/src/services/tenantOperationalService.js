@@ -24,13 +24,36 @@ const IS_DEMO = import.meta.env.VITE_DEMO_MODE === 'true';
 // In-memory cache unit untuk demo mode agar interaksi setup wizard terasa nyata
 let demoTenantUnitsMap = new Map();
 
+export const INVITE_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
 /**
- * Generate kode undangan unik berbasis nama tenant (misal: "RW-PALM-9F2B")
+ * Generate kode undangan unik berbasis nama tenant (SEC-3F.1).
+ * Menggunakan crypto.getRandomValues dengan 8 karakter dari alfabet 32 simbol (2^40 kemungkinan).
+ * Format: RW-<maks 4 huruf nama>-<XXXX>-<XXXX> (misal: "RW-PALM-7K8M-2N9P").
+ *
+ * @param {string} [tenantName='']
+ * @returns {string}
  */
 export function generateInviteCode(tenantName = '') {
   const clean = tenantName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4) || 'RW';
-  const randomHex = Math.random().toString(36).substring(2, 6).toUpperCase();
-  return `RW-${clean}-${randomHex}`;
+
+  const randomBytes = new Uint8Array(8);
+  const cryptoObj = typeof crypto !== 'undefined' ? crypto : globalThis.crypto;
+  if (!cryptoObj || typeof cryptoObj.getRandomValues !== 'function') {
+    throw new Error('Web Cryptography API (crypto.getRandomValues) tidak didukung pada lingkungan ini.');
+  }
+  cryptoObj.getRandomValues(randomBytes);
+
+  let randomPart = '';
+  for (let i = 0; i < 8; i++) {
+    // 32 adalah pembagi 256 yang tepat (256 % 32 === 0), distribusi byte seragam sempurna
+    randomPart += INVITE_CODE_ALPHABET[randomBytes[i] % 32];
+  }
+
+  const part1 = randomPart.slice(0, 4);
+  const part2 = randomPart.slice(4, 8);
+
+  return `RW-${clean}-${part1}-${part2}`;
 }
 
 const mockTenantInviteCodes = {

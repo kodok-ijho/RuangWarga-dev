@@ -38,19 +38,47 @@ import {
   fetchTenantInviteCode,
   saveTenantInviteCode,
   fetchTenantSettingsAudit,
+  INVITE_CODE_ALPHABET,
 } from './tenantOperationalService';
 
 describe('tenantOperationalService - Unit Tests', () => {
-  describe('generateInviteCode', () => {
-    it('menghasilkan kode undangan dengan prefix yang tepat', () => {
+  describe('generateInviteCode (SEC-3F.1)', () => {
+    it('menghasilkan kode undangan dengan format regex RW-<maks 4 huruf>-XXXX-XXXX dan panjang tepat', () => {
       const code1 = generateInviteCode('Palm Village');
-      expect(code1).toMatch(/^RW-PALM-[A-Z0-9]{4}$/);
+      expect(code1).toMatch(/^RW-PALM-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/);
+      expect(code1.length).toBe(17);
 
       const code2 = generateInviteCode('Bougenville');
-      expect(code2).toMatch(/^RW-BOUG-[A-Z0-9]{4}$/);
+      expect(code2).toMatch(/^RW-BOUG-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/);
+      expect(code2.length).toBe(17);
 
       const codeEmpty = generateInviteCode('');
-      expect(codeEmpty).toMatch(/^RW-RW-[A-Z0-9]{4}$/);
+      expect(codeEmpty).toMatch(/^RW-RW-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/);
+      expect(codeEmpty.length).toBe(15);
+    });
+
+    it('hanya menggunakan karakter dari alfabet yang diizinkan (tanpa karakter ambigu I, O, 0, 1)', () => {
+      for (let i = 0; i < 50; i++) {
+        const code = generateInviteCode('Test');
+        const parts = code.split('-');
+        const randomPart = parts[2] + parts[3];
+        expect(randomPart.length).toBe(8);
+        for (const char of randomPart) {
+          expect(INVITE_CODE_ALPHABET.includes(char)).toBe(true);
+          expect(['I', 'O', '0', '1'].includes(char)).toBe(false);
+        }
+      }
+    });
+
+    it('menghasilkan 1.000 panggilan tanpa ada duplikat (collision-free)', () => {
+      const generatedCodes = new Set();
+      const iterations = 1000;
+      for (let i = 0; i < iterations; i++) {
+        const code = generateInviteCode('RW05');
+        expect(generatedCodes.has(code)).toBe(false);
+        generatedCodes.add(code);
+      }
+      expect(generatedCodes.size).toBe(iterations);
     });
   });
 
