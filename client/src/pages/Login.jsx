@@ -6,7 +6,6 @@ import {
   GOOGLE_AUTH_READY,
   GOOGLE_OAUTH_CLIENT_ID,
 } from '../hooks/useAuth';
-import { mockUnits } from '../services/mockData';
 import BrandLogo from '../components/BrandLogo';
 import { AiOutlineSafetyCertificate, AiOutlineClose, AiOutlineHome } from 'react-icons/ai';
 import { FcGoogle } from 'react-icons/fc';
@@ -44,6 +43,21 @@ export default function Login() {
   const [googleButtonReady, setGoogleButtonReady] = useState(false);
   const [googleRegistration, setGoogleRegistration] = useState(null);
   const [registrationError, setRegistrationError] = useState('');
+  const [demoUnits, setDemoUnits] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (IS_DEMO_MODE) {
+      import('../services/mockData').then((mod) => {
+        if (isMounted) {
+          setDemoUnits(mod.mockUnits || []);
+        }
+      });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleGoogleCredential = useCallback(async (credential) => {
     if (!credential) {
@@ -282,8 +296,8 @@ export default function Login() {
               <p><strong>Auth Provider:</strong> Google OAuth 2.0 + App JWT</p>
               <p>
                 <strong>Unit diajukan:</strong>{' '}
-                {pendingSuccess.unitLabel || (mockUnits.find((unit) => String(unit.id) === String(registrationUnitId))
-                  ? `Blok ${mockUnits.find((unit) => String(unit.id) === String(registrationUnitId)).block}/${mockUnits.find((unit) => String(unit.id) === String(registrationUnitId)).unit_number}`
+                {pendingSuccess.unitLabel || (demoUnits.find((unit) => String(unit.id) === String(registrationUnitId))
+                  ? `Blok ${demoUnits.find((unit) => String(unit.id) === String(registrationUnitId)).block}/${demoUnits.find((unit) => String(unit.id) === String(registrationUnitId)).unit_number}`
                   : 'Belum dipilih')}
               </p>
             </div>
@@ -450,7 +464,7 @@ export default function Login() {
                   className="pv-input"
                 >
                   <option value="">Pilih unit</option>
-                  {mockUnits.map((unit) => (
+                  {demoUnits.map((unit) => (
                     <option key={unit.id} value={unit.id}>
                       Blok {unit.block}/{unit.unit_number}
                     </option>

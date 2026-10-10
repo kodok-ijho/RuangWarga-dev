@@ -7,7 +7,6 @@
  */
 
 import { supabase } from './supabaseClient';
-import { mockUnits, mockProfiles } from './mockData';
 import {
   getTenantOpeningBalance,
   fetchTenantFinancialRecords,
@@ -574,6 +573,7 @@ export async function fetchTenantUnits(tenantId) {
       return demoTenantUnitsMap.get(tenantId);
     }
     // Fallback default demo units
+    const { mockUnits } = await import('./mockData');
     const formatted = mockUnits.map((u) => ({
       id: u.id,
       tenant_id: tenantId,
@@ -2713,19 +2713,21 @@ export function resolveCitizenObligationAndUnit({
   userEmail,
   unitId,
   isDemo = false,
+  demoProfiles = [],
+  demoUnits = [],
 }) {
   let matchedUnitId = unitId || null;
   let matchedUnitLabel = null;
 
   if (isDemo) {
     if (!matchedUnitId && (userId || userEmail)) {
-      const p = (mockProfiles || []).find((mp) => mp.id === userId || mp.email === userEmail);
+      const p = (demoProfiles || []).find((mp) => mp.id === userId || mp.email === userEmail);
       if (p && p.unit_id) {
         matchedUnitId = p.unit_id;
       }
     }
     if (matchedUnitId) {
-      const u = (mockUnits || []).find((mu) => Number(mu.id) === Number(matchedUnitId));
+      const u = (demoUnits || []).find((mu) => Number(mu.id) === Number(matchedUnitId));
       if (u) {
         matchedUnitLabel = `Blok ${u.block} No. ${u.unit_number}`;
       }
@@ -2856,6 +2858,7 @@ export async function fetchTenantDashboardData(
 
     const collectionRate = totalBilled > 0 ? (totalCollected / totalBilled) * 100 : 0;
 
+    const { mockProfiles, mockUnits } = await import('./mockData');
     const { myUnit, myObligation } = resolveCitizenObligationAndUnit({
       units,
       members,
@@ -2865,6 +2868,8 @@ export async function fetchTenantDashboardData(
       userEmail,
       unitId,
       isDemo: true,
+      demoProfiles: mockProfiles,
+      demoUnits: mockUnits,
     });
 
     return {

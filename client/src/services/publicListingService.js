@@ -7,7 +7,6 @@
 
 import { supabase } from './supabaseClient';
 import { calculateQrisFee } from './dokuProtocol';
-import { mockListingPricing, mockPublicListings } from './mockData';
 
 /**
  * Memeriksa apakah sebuah listing memenuhi syarat untuk dilihat oleh publik (termasuk anonim)
@@ -116,7 +115,8 @@ export async function fetchPublicListings(filters = {}) {
   const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
 
   if (!isSupabaseConfigured() || isDemo) {
-    let result = filterPublicListings(inMemoryListings, {
+    const listings = await getInMemoryListings();
+    let result = filterPublicListings(listings, {
       type: filters.type,
       featuredOnly: filters.is_featured,
       query: filters.query,
@@ -164,7 +164,8 @@ export async function fetchPublicListingById(id) {
   const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
 
   if (!isSupabaseConfigured() || isDemo || String(id).startsWith('mock-') || String(id).startsWith('listing-')) {
-    const found = inMemoryListings.find((l) => String(l.id) === String(id));
+    const listings = await getInMemoryListings();
+    const found = listings.find((l) => String(l.id) === String(id));
     return found || null;
   }
 
@@ -212,6 +213,7 @@ export async function fetchListingPricing(options = {}) {
   const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
 
   if (!isSupabaseConfigured() || isDemo) {
+    const { mockListingPricing } = await import('./mockData');
     let result = [...mockListingPricing];
     if (options.listingType) {
       result = result.filter((p) => p.listing_type === options.listingType);
@@ -237,8 +239,19 @@ export async function fetchListingPricing(options = {}) {
 }
 
 // In-memory list untuk demo mode
-let inMemoryListings = [...mockPublicListings];
+let inMemoryListings = null;
 let inMemoryListingPayments = [];
+
+/**
+ * Mengambil cache in-memory listing publik secara lazy (DEBT-1.3)
+ */
+export async function getInMemoryListings() {
+  if (inMemoryListings === null) {
+    const { mockPublicListings } = await import('./mockData');
+    inMemoryListings = [...mockPublicListings];
+  }
+  return inMemoryListings;
+}
 
 /**
  * Membuat postingan listing publik baru (FR-25, FR-27, FR-28, FR-29)
@@ -283,11 +296,12 @@ export async function createPublicListing(tenantId, payload = {}) {
   const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
 
   if (!isSupabaseConfigured() || isDemo || String(tenantId).startsWith('demo-')) {
+    const listings = await getInMemoryListings();
     const createdItem = {
       id: `listing-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       ...listingRecord,
     };
-    inMemoryListings.unshift(createdItem);
+    listings.unshift(createdItem);
     return createdItem;
   }
 
@@ -328,7 +342,8 @@ export async function fetchTenantListings(tenantId) {
   const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
 
   if (!isSupabaseConfigured() || isDemo || String(tenantId).startsWith('demo-')) {
-    return inMemoryListings.filter((l) => l.tenant_id === tenantId);
+    const listings = await getInMemoryListings();
+    return listings.filter((l) => l.tenant_id === tenantId);
   }
 
   const { data, error } = await supabase
@@ -364,14 +379,15 @@ export async function updateListingStatus(listingId, newStatus) {
   const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
 
   if (!isSupabaseConfigured() || isDemo || String(listingId).startsWith('listing-') || String(listingId).startsWith('mock-')) {
-    const idx = inMemoryListings.findIndex((l) => String(l.id) === String(listingId));
+    const listings = await getInMemoryListings();
+    const idx = listings.findIndex((l) => String(l.id) === String(listingId));
     if (idx !== -1) {
-      inMemoryListings[idx] = {
-        ...inMemoryListings[idx],
+      listings[idx] = {
+        ...listings[idx],
         status: newStatus,
         updated_at: new Date().toISOString(),
       };
-      return inMemoryListings[idx];
+      return listings[idx];
     }
     return { id: listingId, status: newStatus };
   }
@@ -433,13 +449,14 @@ export async function renewListing(listingId, { durationDays = 30, isFeatured = 
       updated_at: now.toISOString(),
     };
 
-    const idx = inMemoryListings.findIndex((l) => String(l.id) === String(listingId));
+    const listings = await getInMemoryListings();
+    const idx = listings.findIndex((l) => String(l.id) === String(listingId));
     if (idx !== -1) {
-      inMemoryListings[idx] = {
-        ...inMemoryListings[idx],
+      listings[idx] = {
+        ...listings[idx],
         ...updateData,
       };
-      return inMemoryListings[idx];
+      return listings[idx];
     }
     return { id: listingId, ...updateData };
   }
@@ -465,6 +482,7 @@ export async function deleteListing(listingId) {
   const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
 
   if (!isSupabaseConfigured() || isDemo || String(listingId).startsWith('listing-') || String(listingId).startsWith('mock-')) {
+    await getInMemoryListings();
     inMemoryListings = inMemoryListings.filter((l) => String(l.id) !== String(listingId));
     return true;
   }
@@ -499,7 +517,8 @@ export async function createListingPayment(listingId, { isFeatured = false, dura
   if (!isSupabaseConfigured() || isDemo || String(listingId).startsWith('listing-') || String(listingId).startsWith('mock-')) {
     const paymentId = `pay-lst-${Date.now()}`;
     const gatewayRef = `DOKU-LST-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-    const targetListing = inMemoryListings.find((l) => String(l.id) === String(listingId));
+    const listings = await getInMemoryListings();
+    const targetListing = listings.find((l) => String(l.id) === String(listingId));
     const listingType = targetListing?.type || 'room_vacancy';
     const baseAmount = listingType === 'room_vacancy'
       ? (isFeatured ? 35000 : 15000)
