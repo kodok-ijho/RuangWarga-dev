@@ -28,6 +28,7 @@ Folder ini adalah satu-satunya jalur serah-terima tugas di repo ini.
 - Jangan menulis secret/API key/token ke kode, `VITE_*`, atau commit.
 - Jika ada keputusan yang tidak jelas: **jangan menebak**. Tulis di `questions.md`, lewati bagian itu, lanjutkan task lain.
 - Ikuti konvensi kode yang ada (lihat file sekitar). Kode aktual > dokumen.
+- Task "pindah saja" (refactor tanpa ubah logika): **jangan menulis ulang** isi fungsi. Jalankan `docs/handoff/tools/compare_split.py` dan tempel output-nya (harus OK) di laporan. Test yang hanya mencocokkan nama export tidak cukup.
 
 ## Format `<BATCH>-report.md`
 
