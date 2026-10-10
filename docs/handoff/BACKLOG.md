@@ -1,6 +1,6 @@
 # Backlog (belum untuk dikerjakan executor)
 
-Urutan rencana: **SEC-1 ✅ → SEC-2 ✅ (sudah di dev) → PAY-2 ✅ → PAY-2F ✅ → PAY-1 + PAY-1F ✅ (di dev; deploy menunggu akun DOKU) → SEC-3 ✅ → SEC-3F ✅ → BRAND-1 (aktif) → DEBT-1**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
+Urutan rencana: **SEC-1 ✅ → SEC-2 ✅ (sudah di dev) → PAY-2 ✅ → PAY-2F ✅ → PAY-1 + PAY-1F ✅ (di dev; deploy menunggu akun DOKU) → SEC-3 ✅ → SEC-3F ✅ → BRAND-1 ✅ → BRAND-1F (aktif) → DEBT-1**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
 
 ## Keputusan user yang mengikat
 - Palm Village **tetap tenant**. Branding-nya (nama, logo, warna, peta) hanya dari data tenant dan hanya tampil di `/t/:tenantId`. Lapisan global (login, beranda, `/account`, `/platform`, `/listing`, PWA) netral "RuangWarga".
@@ -30,18 +30,24 @@ Dokumen task lengkap: `docs/handoff/PAY-1.md`. Ringkas: modul SNAP DOKU bersama 
 ## Catatan operasional (Claude)
 - ⏸️ **Merchant DOKU platform masih dalam pengajuan** (user, 2026-10-10). Sampai akun & kredensial `DOKU_PLATFORM_*` ada: Edge Function pembayaran **tidak di-deploy**, tidak ada uji sandbox. Pekerjaan kode (PAY-1F) tetap jalan; batch lain (SEC-3, BRAND-1, DEBT-1) boleh dikerjakan sambil menunggu.
 - Saat tenant Palm Village dimigrasikan ke DB (`migrate_legacy_portal_warga`), pasang `settings.legacy_qris_enabled = true` — lihat `PAY-2F-review.md`. Tanpa flag ini QRIS warga Palm Village tidak tampil.
+- Di migrasi yang sama, isi `settings.logo_url = '/tenants/palm-village/logo.png'` (BRAND-1). Tanpa ini workspace Palm Village memakai ikon generik.
 
 ## SEC-3 — Rahasiakan `invite_code` + audit rekening
 - F12 (review PAY-2): pindahkan `invite_code` dari `tenants.settings` ke tabel terpisah yang hanya terbaca owner / `manage_members` / platform admin. Halaman join tetap memakai RPC `get_invite_details`. Butuh migration + penyesuaian alur join.
 - Catat setiap perubahan `settings.bank_account` (siapa, kapan, nilai lama/baru) dan tampilkan ke owner tenant.
 
 ## BRAND-1 — Branding global RuangWarga
-Dokumen task lengkap: `docs/handoff/BRAND-1.md` (siap, dikerjakan setelah SEC-3F). Aset logo dari desain user sudah disiapkan Claude di `docs/handoff/assets/brand/`.
+Selesai — `BRAND-1.md`, review `BRAND-1-review.md`. Perbaikan K1–K5 di `BRAND-1F.md` (aktif).
 
 ## DEBT-1 — Utang teknis
 - Pecah `client/src/services/tenantOperationalService.js` (±3.3k baris) per domain.
 - `client/src/services/dataService.js` (legacy single-tenant, dipakai 16 file): **jangan dipensiunkan dulu.** File ini memanggil endpoint n8n lewat `api/n8n.js` untuk alur Palm Village. Paling jauh: rapikan tanpa mengubah perilaku, dan jangan putus jalur n8n-nya.
 - Keluarkan `mockData.js` dari bundle production (dynamic import saat demo).
+- Temuan review BRAND-1:
+  - Fungsi kuitansi (`downloadDigitalReceipt` / kirim kuitansi) adalah fungsi produksi tapi tinggal di `mockData.js` dan memakai skema IPL mock. Pindahkan ke service sungguhan.
+  - Biaya QRIS di demo `SubscriptionCheckout.jsx` masih `0.007`, padahal keputusannya `0.0075`.
+  - Domain placeholder `@warga.palmvillage.local` dipakai semua tenant. Kalau diganti, domain lama tetap harus terdeteksi.
+  - `PaymentMatrix.jsx` ±1093 (demo) memanggil kuitansi dengan objek yang salah bentuk.
 
 ## Risiko yang DIKETAHUI tapi SENGAJA TIDAK DIKERJAKAN
 Ditemukan saat review SEC-1, dicatat supaya tidak hilang. Semua menyangkut n8n yang
