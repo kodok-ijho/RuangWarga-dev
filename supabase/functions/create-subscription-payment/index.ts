@@ -42,9 +42,6 @@ serve(async (req) => {
       );
     }
 
-    // Client dengan service_role untuk eksekusi query backend
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-
     const body = await req.json();
     const { tenantId, blocks10 = 0, blocks5 = 0, durationMonths = 12 } = body;
 
@@ -55,30 +52,19 @@ serve(async (req) => {
       );
     }
 
-    // 1. Validasi hak akses user terhadap tenant (Owner, Admin, atau Platform Admin)
-    const { data: isPlatAdmin } = await adminClient
-      .from("platform_admins")
-      .select("user_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    // 1. Validasi hak akses user terhadap tenant (Owner tenant atau Platform Admin via RPC dengan token pemanggil - G2)
+    const { data: isOwner } = await userClient.rpc("is_tenant_owner", { p_tenant_id: tenantId });
+    const { data: isPlatformAdmin } = await userClient.rpc("is_platform_admin");
 
-    const { data: memberRow } = await adminClient
-      .from("tenant_members")
-      .select("role, status")
-      .eq("tenant_id", tenantId)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    const isAuthorized =
-      Boolean(isPlatAdmin?.user_id) ||
-      (memberRow && ["admin", "bendahara"].includes(memberRow.role));
-
-    if (!isAuthorized) {
+    if (!isOwner && !isPlatformAdmin) {
       return new Response(
-        JSON.stringify({ error: "Hanya Admin atau Bendahara tenant yang berhak melakukan transaksi langganan" }),
+        JSON.stringify({ error: "Hanya Owner tenant atau Platform Admin yang berhak melakukan transaksi langganan" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Client dengan service_role untuk eksekusi query backend
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // 2. Ambil data tenant & subscription aktif
     const { data: tenant, error: tenantErr } = await adminClient
@@ -166,15 +152,33 @@ serve(async (req) => {
       );
     }
 
-    // 4. Hitung nominal dasar dan MDR QRIS (0.7%)
+    // 4. Hitung nominal dasar dan MDR QRIS (0.75%)
     const monthlyBase = (b10 * price10) + (b5 * price5);
     const rawTotal = monthlyBase * periodRow.duration_months;
     const discountAmount = Math.round(rawTotal * (Number(periodRow.discount_percent) / 100));
     const baseAmount = rawTotal - discountAmount;
     const { fee: qrisFee, total: totalAmount } = calculateQrisFee(baseAmount);
 
-    // 5. Simpan record pembayaran pending ke subscription_payments
-    // Kolom amount menyimpan harga dasar; fee dan total disimpan di metadata (keputusan user)
+    // 5. Susun metadata awal untuk pesanan blok & fee (G3 & G4)
+    // Blok langganan TIDAK diubah di sini; hanya disimpan di metadata hingga lunas dan diaktifkan
+    const initialMetadata = {
+      blocks10: b10,
+      blocks5: b5,
+      price10,
+      price5,
+      total_capacity: totalCapacity,
+      duration_months: periodRow.duration_months,
+      discount_percent: periodRow.discount_percent,
+      tenant_name: tenant.name,
+      tenant_type: tenant.type,
+      user_id: user.id,
+      base_amount: baseAmount,
+      qris_fee: qrisFee,
+      qris_fee_amount: qrisFee,
+      qris_total_amount: totalAmount,
+    };
+
+    // 6. Simpan record pembayaran pending ke subscription_payments
     const { data: paymentRecord, error: payErr } = await adminClient
       .from("subscription_payments")
       .insert({
@@ -183,52 +187,13 @@ serve(async (req) => {
         amount: baseAmount,
         status: "pending",
         payment_method: "doku_qris",
-        metadata: {
-          blocks10: b10,
-          blocks5: b5,
-          total_capacity: totalCapacity,
-          duration_months: periodRow.duration_months,
-          discount_percent: periodRow.discount_percent,
-          tenant_name: tenant.name,
-          tenant_type: tenant.type,
-          user_id: user.id,
-          base_amount: baseAmount,
-          qris_fee: qrisFee,
-          qris_fee_amount: qrisFee,
-          qris_total_amount: totalAmount,
-        },
+        metadata: initialMetadata,
       })
       .select("id")
       .single();
 
     if (payErr || !paymentRecord) {
       throw new Error("Gagal membuat catatan pembayaran: " + payErr?.message);
-    }
-
-    // 6. Simpan / perbarui blok yang dibeli di tenant_subscription_blocks
-    await adminClient
-      .from("tenant_subscription_blocks")
-      .delete()
-      .eq("subscription_id", subscription.id);
-
-    const blocksToInsert = [];
-    if (b10 > 0 && price10Row) {
-      blocksToInsert.push({
-        subscription_id: subscription.id,
-        pricing_id: price10Row.id,
-        block_count: b10,
-      });
-    }
-    if (b5 > 0 && price5Row) {
-      blocksToInsert.push({
-        subscription_id: subscription.id,
-        pricing_id: price5Row.id,
-        block_count: b5,
-      });
-    }
-
-    if (blocksToInsert.length > 0) {
-      await adminClient.from("tenant_subscription_blocks").insert(blocksToInsert);
     }
 
     // 7. Integrasi Gateway SNAP DOKU Platform
@@ -253,23 +218,15 @@ serve(async (req) => {
       );
     }
 
-    // Update payment record dengan ref & metadata
+    // Update payment record dengan ref & gabungkan metadata awal (G4)
     await adminClient
       .from("subscription_payments")
       .update({
         payment_gateway_ref: partnerReferenceNo,
+        qris_ref: partnerReferenceNo,
         payment_url: null,
         metadata: {
-          blocks10: b10,
-          blocks5: b5,
-          total_capacity: totalCapacity,
-          duration_months: periodRow.duration_months,
-          discount_percent: periodRow.discount_percent,
-          tenant_name: tenant.name,
-          tenant_type: tenant.type,
-          user_id: user.id,
-          base_amount: baseAmount,
-          qris_fee: qrisFee,
+          ...initialMetadata,
           doku_reference_no: dokuRes.referenceNo,
         },
         updated_at: new Date().toISOString(),
