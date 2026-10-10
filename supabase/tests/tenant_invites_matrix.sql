@@ -52,8 +52,12 @@ BEGIN
   -- Cari role dasar Warga/Anggota milik tenant ini
   SELECT id INTO v_member_role_id
   FROM public.tenant_roles
-  WHERE tenant_id = v_tenant_id AND name IN ('Warga', 'Anggota', 'Penghuni')
+  WHERE tenant_id = v_tenant_id AND is_base_role = true
   LIMIT 1;
+
+  IF v_member_role_id IS NULL THEN
+    RAISE EXCEPTION 'SETUP GAGAL: role dasar (is_base_role) tidak ditemukan';
+  END IF;
 
   -- Buat member biasa untuk warga
   INSERT INTO public.tenant_members (
