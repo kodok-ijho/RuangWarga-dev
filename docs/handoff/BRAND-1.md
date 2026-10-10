@@ -48,6 +48,12 @@ Nama tenant contoh yang bukan untuk demo Palm Village di `services/mockData.js`,
 ## BRAND-1.6 — QR demo yang bisa dibayar
 `services/dataService.js` fungsi `createNonIplQrisPayment`, **hanya di dalam blok `if (IS_DEMO)`** (±1235-1246): `qr_content` saat ini berupa string QRIS DOKU yang tampak asli (berisi data merchant). Bila dipindai dan dibayar di mode demo, uang bisa masuk ke merchant sungguhan tanpa catatan. Ganti dengan string yang jelas bukan QRIS valid, mis. `DEMO-QRIS-TIDAK-UNTUK-PEMBAYARAN-${Date.now()}`. Cek fungsi demo QRIS lain di file yang sama dengan pola serupa dan perlakukan sama. **Jangan** ubah apa pun di luar blok `IS_DEMO`.
 
+## BRAND-1.8 — Rekening di wizard onboarding (temuan review SEC-3F, bukan branding)
+- `pages/onboarding/KelasSetupWizard.jsx`: simpan rekening di `settings.bank_account` (bukan `bank_info`). Saat memuat data lama, baca `bank_account` dulu lalu fallback ke `bank_info` agar tenant Kelas yang sudah ada tetap terisi. Jangan menulis `bank_info` lagi.
+- Ekstrak validasi dari `saveTenantBankAccount` (PAY-2.1) menjadi fungsi murni `normalizeBankAccount({ bank_name, account_number, account_holder })` di `tenantOperationalService.js` — mengembalikan objek bersih (nomor tanpa spasi/strip) atau melempar error berbahasa Indonesia. `saveTenantBankAccount` memakai fungsi ini (perilaku tidak berubah).
+- Keempat wizard memanggil `normalizeBankAccount` sebelum menyimpan settings; tampilkan pesan error validasi di wizard. **Jangan** memanggil `saveTenantBankAccount` dari wizard (wizard sudah menyimpan seluruh settings sekaligus).
+- Test: `normalizeBankAccount` (kasus PAY-2.5 dipindah/ditambah), wizard Kelas menulis `bank_account`, fallback baca `bank_info`.
+
 ## BRAND-1.7 — Test & verifikasi
 - Vitest: `BrandLogo` (varian light/dark, wordmark tampil/tersembunyi); Header di luar tenant → BrandLogo; di tenant dengan `logo_url` → logo tenant; tanpa `logo_url` → mark + nama tenant.
 - `grep -rniE "palm ?village|portal warga" client/src client/index.html client/vite.config.js --include=*.jsx --include=*.js --include=*.html | grep -v "\.test\."` → sisa hanya: email demo, komentar, slug/path `palm-village`, data tenant demo Palm Village.

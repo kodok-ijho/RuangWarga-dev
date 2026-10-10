@@ -16,7 +16,7 @@ Commit yang direview: `b4cd33f..5b2d36c`. Hash di laporan cocok ✅.
 | `202610110001_tenant_invites` | ✅ diterapkan Claude |
 | `202610110002_tenant_settings_audit` | ✅ diterapkan Claude |
 | `202610110003_lock_payment_activation` | ✅ diterapkan Claude |
-| `202610110004_lock_subscription_activation` | ⏳ menunggu user (SQL Editor) — konektor memblokir `DELETE` |
+| `202610110004_lock_subscription_activation` | ✅ dijalankan user di SQL Editor; dicek Claude (`FOR UPDATE`, hanya service_role) |
 
 ## Test database (`tenant_invites_matrix.sql`) di dev — semua lulus, data ter-rollback
 T1 owner melihat kode · T2 warga biasa 0 baris · **T2B** warga tidak lagi melihat kode lewat `tenants.settings` · T3 anon 0 baris ·
