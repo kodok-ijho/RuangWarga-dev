@@ -316,7 +316,7 @@ describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () =>
       );
     });
 
-    it('berhasil membuat listing kamar kos baru dengan prefill unit_id dan tanggal kedaluwarsa 30 hari', async () => {
+    it('berhasil membuat listing kamar kos baru dengan status pending_payment (F6 pay-first)', async () => {
       const newListing = await createPublicListing('demo-tenant-kos', {
         unit_id: 101,
         type: 'room_vacancy',
@@ -334,16 +334,17 @@ describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () =>
       expect(newListing.tenant_id).toBe('demo-tenant-kos');
       expect(newListing.unit_id).toBe(101);
       expect(newListing.type).toBe('room_vacancy');
-      expect(newListing.status).toBe('active');
-      expect(newListing.expires_at).toBeDefined();
+      expect(newListing.status).toBe('pending_payment');
+      expect(newListing.expires_at).toBeNull();
+      expect(newListing.is_featured).toBe(false);
 
-      const createdDate = new Date(newListing.created_at);
-      const expiryDate = new Date(newListing.expires_at);
-      const diffDays = Math.round((expiryDate - createdDate) / (1000 * 60 * 60 * 24));
-      expect(diffDays).toBe(30);
+      // Setelah invoice dibayar dan diverifikasi, status menjadi active
+      const pay = await createListingPayment(newListing.id, { isFeatured: false, durationDays: 30 });
+      const verified = await verifyListingPayment(pay.paymentId, pay.gatewayRef);
+      expect(verified.status).toBe('active');
     });
 
-    it('berhasil membuat listing UMKM warga dengan paket unggulan (is_featured = true)', async () => {
+    it('berhasil membuat listing UMKM warga dengan status pending_payment dan aktif setelah bayar featured', async () => {
       const umkmListing = await createPublicListing('demo-tenant-rtrw', {
         unit_id: null,
         type: 'umkm',
@@ -359,9 +360,15 @@ describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () =>
 
       expect(umkmListing).toBeDefined();
       expect(umkmListing.type).toBe('umkm');
-      expect(umkmListing.is_featured).toBe(true);
-      expect(umkmListing.featured_until).toBeDefined();
-      expect(umkmListing.featured_until).toBe(umkmListing.expires_at);
+      expect(umkmListing.status).toBe('pending_payment');
+      expect(umkmListing.is_featured).toBe(false);
+      expect(umkmListing.expires_at).toBeNull();
+
+      // Bayar paket unggulan
+      const pay = await createListingPayment(umkmListing.id, { isFeatured: true, durationDays: 30 });
+      const verified = await verifyListingPayment(pay.paymentId, pay.gatewayRef);
+      expect(verified.status).toBe('active');
+      expect(verified.isFeatured).toBe(true);
     });
 
     it('fetchTenantListings mengembalikan daftar listing milik tenant yang diminta', async () => {
@@ -587,13 +594,15 @@ describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () =>
 
   describe('publicListingService - Unit Tests (T10.7: Scheduled Job / checkListingExpirations)', () => {
     it('checkListingExpirations menandai listing active yang expires_at telah terlewati menjadi expired', async () => {
-      // 1. Buat listing dengan expires_at sekarang + 2 jam
+      // 1. Buat listing dan aktifkan lewat pembayaran 1 hari
       const futureListing = await createPublicListing('demo-tenant-kos', {
         title: 'Kamar Kos Belum Expired',
         contact_phone: '08123456789',
         type: 'room_vacancy',
         duration_days: 1,
       });
+      const pay = await createListingPayment(futureListing.id, { durationDays: 1 });
+      await verifyListingPayment(pay.paymentId, pay.gatewayRef);
 
       // 2. Jalankan checkListingExpirations dengan waktu 2 hari ke depan
       const futureTime = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
@@ -617,6 +626,8 @@ describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () =>
         is_featured: true,
         duration_days: 30,
       });
+      const pay = await createListingPayment(featuredListing.id, { isFeatured: true, durationDays: 30 });
+      await verifyListingPayment(pay.paymentId, pay.gatewayRef);
 
       // Simulasikan featured_until sudah lewat (misal kita evaluasi pada waktu 35 hari ke depan)
       const evaluationTime = new Date(Date.now() + 35 * 24 * 60 * 60 * 1000);

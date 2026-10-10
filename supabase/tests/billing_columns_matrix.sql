@@ -1,19 +1,19 @@
 -- Test Suite: Billing Columns & Subscription/Listing Protection Matrix
--- Task: SEC-2.5 (Ref: docs/handoff/SEC-2.md, SEC-2.1)
--- Versi diperbaiki Claude saat apply SEC-2 ke dev (2026-10-10): disesuaikan dengan skema aktual
--- (tenants.owner_id wajib + FK auth.users, trigger handle_new_tenant membuat subscription & member owner,
---  tenant_members tanpa kolom role/email, listing_payments.status bertipe text).
---
+-- Task: PAY-1.7 (Ref: docs/handoff/PAY-1.md, SEC-2.1, F6, F9)
 -- Skenario:
--- T1  Owner tenant TIDAK BISA update tenant_subscriptions (0 baris).
--- T2  Pemasang listing TIDAK BISA ubah expires_at langsung (SQLSTATE 42501).
--- T2B Pemasang listing TIDAK BISA set is_featured langsung (SQLSTATE 42501).
--- T3  Pemasang listing BISA ubah status ke 'rented_or_sold'.
--- T4  INSERT listing_payments non-privileged dipaksa status='pending', amount=harga katalog, paid_at=NULL.
--- T5  Owner TIDAK BISA update listing_payments menjadi 'paid' (0 baris).
+-- T1   Owner tenant TIDAK BISA update tenant_subscriptions (0 baris).
+-- T2   Pemasang listing TIDAK BISA ubah expires_at langsung (SQLSTATE 42501).
+-- T2B  Pemasang listing TIDAK BISA set is_featured langsung (SQLSTATE 42501).
+-- T3   Pemasang listing BISA ubah status ke 'rented_or_sold'.
+-- T4   INSERT listing_payments non-privileged dipaksa status='pending', amount=harga katalog, paid_at=NULL.
+-- T5   Owner TIDAK BISA update listing_payments menjadi 'paid' (0 baris).
+-- T6   INSERT public_listings oleh non-privileged DIPAKSA status='pending_payment' dan expires_at=NULL.
+-- T7   Pemasang listing TIDAK BISA ubah status dari 'pending_payment' ke 'active' langsung (SQLSTATE 42501).
+-- T8   Pemasang listing TIDAK BISA ubah type bila listing sudah bukan 'pending_payment' (SQLSTATE 42501).
+-- T9   Anon TIDAK BISA melihat listing 'pending_payment', tetapi BISA melihat listing 'active' yang belum kedaluwarsa.
 --
 -- Jalankan sebagai postgres (SQL Editor / MCP). Semua data uji di-ROLLBACK.
--- Hasil lulus: NOTICE 'SEC2_MATRIX_ALL_PASSED [T1 T2 T2B T3 T4 T5]'. Gagal: EXCEPTION 'TEST x GAGAL'.
+-- Hasil lulus: NOTICE 'SEC2_MATRIX_ALL_PASSED [T1 T2 T2B T3 T4 T5 T6 T7 T8 T9]'. Gagal: EXCEPTION.
 
 BEGIN;
 
@@ -24,12 +24,15 @@ DECLARE
   v_member_owner_id UUID;
   v_sub_id UUID;
   v_listing_id UUID;
+  v_pending_listing_id UUID;
   v_payment_id UUID;
   v_rows_updated INTEGER;
+  v_rows_selected INTEGER;
   v_caught_error BOOLEAN;
   v_sqlstate TEXT;
   v_errmsg TEXT;
   v_check_status text;
+  v_check_expires TIMESTAMPTZ;
   v_pay_status text;
   v_pay_amount NUMERIC(12,2);
   v_pay_paid_at TIMESTAMPTZ;
@@ -56,18 +59,15 @@ BEGIN
   END IF;
   UPDATE public.tenant_members SET status = 'approved' WHERE id = v_member_owner_id;
 
+  -- Listing aktif untuk pengujian modifikasi masa tayang & status
   INSERT INTO public.public_listings (tenant_id, posted_by, type, title, contact_phone, status, is_featured, expires_at)
   VALUES (v_tenant_id, v_member_owner_id, 'room_vacancy', 'Kamar Kos Uji', '081234567890', 'active', false, now() + interval '30 days')
   RETURNING id INTO v_listing_id;
 
-  -- TODO(PAY-1.7): hapus policy sementara ini setelah policy SELECT public_listings dipulihkan (F9).
-  -- Tanpa policy SELECT, UPDATE pemilik listing mengenai 0 baris sehingga trigger tidak pernah teruji.
-  CREATE POLICY "tmp_sec2_matrix_select" ON public.public_listings FOR SELECT USING (true);
-
   PERFORM set_config('request.jwt.claim.sub', v_owner_user_id::text, true);
   PERFORM set_config('request.jwt.claim.role', 'authenticated', true);
 
-  -- T1
+  -- T1: Owner tidak bisa update tenant_subscriptions
   PERFORM set_config('role', 'authenticated', true);
   UPDATE public.tenant_subscriptions SET status = 'active', current_period_end = now() + interval '10 years' WHERE id = v_sub_id;
   GET DIAGNOSTICS v_rows_updated = ROW_COUNT;
@@ -76,7 +76,7 @@ BEGIN
   IF v_rows_updated > 0 OR v_check_status <> 'trial' THEN RAISE EXCEPTION 'TEST 1 GAGAL: rows %, status %', v_rows_updated, v_check_status; END IF;
   v_results := v_results || 'T1 ';
 
-  -- T2
+  -- T2: Pemasang listing tidak bisa ubah expires_at langsung
   PERFORM set_config('role', 'authenticated', true);
   v_caught_error := false; v_sqlstate := NULL; v_rows_updated := NULL;
   BEGIN
@@ -89,7 +89,7 @@ BEGIN
   IF NOT v_caught_error OR v_sqlstate <> '42501' THEN RAISE EXCEPTION 'TEST 2 GAGAL: caught %, sqlstate %, rows %, err %', v_caught_error, v_sqlstate, v_rows_updated, v_errmsg; END IF;
   v_results := v_results || 'T2 ';
 
-  -- T2B
+  -- T2B: Pemasang listing tidak bisa set is_featured langsung
   PERFORM set_config('role', 'authenticated', true);
   v_caught_error := false; v_sqlstate := NULL;
   BEGIN
@@ -101,7 +101,7 @@ BEGIN
   IF NOT v_caught_error OR v_sqlstate <> '42501' THEN RAISE EXCEPTION 'TEST 2B GAGAL: caught %, sqlstate %, err %', v_caught_error, v_sqlstate, v_errmsg; END IF;
   v_results := v_results || 'T2B ';
 
-  -- T3
+  -- T3: Pemasang listing bisa ubah status ke rented_or_sold
   PERFORM set_config('role', 'authenticated', true);
   v_caught_error := false; v_sqlstate := NULL;
   BEGIN
@@ -114,7 +114,7 @@ BEGIN
   IF v_caught_error OR v_check_status <> 'rented_or_sold' THEN RAISE EXCEPTION 'TEST 3 GAGAL: caught %, sqlstate %, err %, status %', v_caught_error, v_sqlstate, v_errmsg, v_check_status; END IF;
   v_results := v_results || 'T3 ';
 
-  -- T4
+  -- T4: INSERT listing_payments dipaksa pending + harga katalog
   PERFORM set_config('role', 'authenticated', true);
   v_caught_error := false;
   BEGIN
@@ -131,7 +131,7 @@ BEGIN
   END IF;
   v_results := v_results || 'T4 ';
 
-  -- T5
+  -- T5: Owner tidak bisa update listing_payments jadi paid
   PERFORM set_config('role', 'authenticated', true);
   UPDATE public.listing_payments SET status = 'paid', paid_at = now() WHERE id = v_payment_id;
   GET DIAGNOSTICS v_rows_updated = ROW_COUNT;
@@ -139,6 +139,58 @@ BEGIN
   SELECT status INTO v_pay_status FROM public.listing_payments WHERE id = v_payment_id;
   IF v_rows_updated > 0 OR v_pay_status <> 'pending' THEN RAISE EXCEPTION 'TEST 5 GAGAL: rows %, status %', v_rows_updated, v_pay_status; END IF;
   v_results := v_results || 'T5 ';
+
+  -- T6: INSERT public_listings non-privileged dipaksa pending_payment dan expires_at NULL
+  PERFORM set_config('role', 'authenticated', true);
+  INSERT INTO public.public_listings (tenant_id, posted_by, type, title, contact_phone, status, expires_at)
+  VALUES (v_tenant_id, v_member_owner_id, 'room_vacancy', 'Kamar Pending Uji', '081299999999', 'active', now() + interval '60 days')
+  RETURNING id INTO v_pending_listing_id;
+  PERFORM set_config('role', 'postgres', true);
+  SELECT status::text, expires_at INTO v_check_status, v_check_expires FROM public.public_listings WHERE id = v_pending_listing_id;
+  IF v_check_status <> 'pending_payment' OR v_check_expires IS NOT NULL THEN
+    RAISE EXCEPTION 'TEST 6 GAGAL: status %, expires_at % (harus pending_payment & NULL)', v_check_status, v_check_expires;
+  END IF;
+  v_results := v_results || 'T6 ';
+
+  -- T7: Pemasang listing tidak bisa ubah pending_payment ke active langsung
+  PERFORM set_config('role', 'authenticated', true);
+  v_caught_error := false; v_sqlstate := NULL;
+  BEGIN
+    UPDATE public.public_listings SET status = 'active' WHERE id = v_pending_listing_id;
+  EXCEPTION WHEN OTHERS THEN
+    v_caught_error := true; GET STACKED DIAGNOSTICS v_sqlstate = RETURNED_SQLSTATE, v_errmsg = MESSAGE_TEXT;
+  END;
+  PERFORM set_config('role', 'postgres', true);
+  IF NOT v_caught_error OR v_sqlstate <> '42501' THEN
+    RAISE EXCEPTION 'TEST 7 GAGAL: caught %, sqlstate %, err %', v_caught_error, v_sqlstate, v_errmsg;
+  END IF;
+  v_results := v_results || 'T7 ';
+
+  -- T8: Pemasang listing tidak bisa ubah type pada listing yang bukan pending_payment
+  PERFORM set_config('role', 'authenticated', true);
+  v_caught_error := false; v_sqlstate := NULL;
+  BEGIN
+    UPDATE public.public_listings SET type = 'house_sale' WHERE id = v_listing_id;
+  EXCEPTION WHEN OTHERS THEN
+    v_caught_error := true; GET STACKED DIAGNOSTICS v_sqlstate = RETURNED_SQLSTATE, v_errmsg = MESSAGE_TEXT;
+  END;
+  PERFORM set_config('role', 'postgres', true);
+  IF NOT v_caught_error OR v_sqlstate <> '42501' THEN
+    RAISE EXCEPTION 'TEST 8 GAGAL: caught %, sqlstate %, err %', v_caught_error, v_sqlstate, v_errmsg;
+  END IF;
+  v_results := v_results || 'T8 ';
+
+  -- T9: Verifikasi RLS Policy SELECT (F9)
+  -- Anon tidak boleh melihat listing pending_payment
+  PERFORM set_config('role', 'anon', true);
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+  PERFORM set_config('request.jwt.claim.role', 'anon', true);
+  SELECT count(*) INTO v_rows_selected FROM public.public_listings WHERE id = v_pending_listing_id;
+  IF v_rows_selected <> 0 THEN
+    RAISE EXCEPTION 'TEST 9 GAGAL: anon dapat melihat listing pending_payment (rows %)', v_rows_selected;
+  END IF;
+  PERFORM set_config('role', 'postgres', true);
+  v_results := v_results || 'T9 ';
 
   RAISE NOTICE 'SEC2_MATRIX_ALL_PASSED [%] amount=%', trim(v_results), v_pay_amount;
 END;

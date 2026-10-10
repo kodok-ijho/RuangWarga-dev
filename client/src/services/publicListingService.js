@@ -257,10 +257,7 @@ export async function createPublicListing(tenantId, payload = {}) {
     throw new Error('Nomor kontak WhatsApp/telepon wajib diisi.');
   }
 
-  const durationDays = Number(payload.duration_days) || 30;
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000).toISOString();
-  const isFeatured = Boolean(payload.is_featured);
 
   const listingRecord = {
     tenant_id: tenantId,
@@ -274,10 +271,10 @@ export async function createPublicListing(tenantId, payload = {}) {
     photos: Array.isArray(payload.photos) ? payload.photos : [],
     contact_phone: payload.contact_phone.trim(),
     location_hint: payload.location_hint ? payload.location_hint.trim() : null,
-    is_featured: isFeatured,
-    featured_until: isFeatured ? expiresAt : null,
-    status: payload.status || 'active',
-    expires_at: expiresAt,
+    is_featured: false,
+    featured_until: null,
+    status: 'pending_payment',
+    expires_at: null,
     created_at: now.toISOString(),
     updated_at: now.toISOString(),
   };
@@ -295,7 +292,19 @@ export async function createPublicListing(tenantId, payload = {}) {
 
   const { data, error } = await supabase
     .from('public_listings')
-    .insert([listingRecord])
+    .insert([{
+      tenant_id: listingRecord.tenant_id,
+      unit_id: listingRecord.unit_id,
+      posted_by: listingRecord.posted_by,
+      type: listingRecord.type,
+      title: listingRecord.title,
+      description: listingRecord.description,
+      category: listingRecord.category,
+      price: listingRecord.price,
+      photos: listingRecord.photos,
+      contact_phone: listingRecord.contact_phone,
+      location_hint: listingRecord.location_hint,
+    }])
     .select()
     .single();
 

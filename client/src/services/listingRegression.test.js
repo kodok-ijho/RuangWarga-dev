@@ -56,7 +56,8 @@ describe('Modul Listing Publik — Regression Test (T11.3)', () => {
       expect(roomListing.id).toBeDefined();
       expect(roomListing.tenant_id).toBe(kosTenantId);
       expect(roomListing.type).toBe('room_vacancy');
-      expect(roomListing.status).toBe('active');
+      expect(roomListing.status).toBe('pending_payment');
+      expect(roomListing.expires_at).toBeNull();
       expect(roomListing.price).toBe(1500000);
       expect(roomListing.location_hint).toBe('Sleman, Yogyakarta');
       expect(roomListing.contact_phone).toBe('081234567891');
@@ -79,8 +80,15 @@ describe('Modul Listing Publik — Regression Test (T11.3)', () => {
       expect(umkmListing.tenant_id).toBe(rtrwTenantId);
       expect(umkmListing.type).toBe('umkm');
       expect(umkmListing.category).toBe('Kuliner');
-      expect(umkmListing.is_featured).toBe(true);
+      expect(umkmListing.status).toBe('pending_payment');
+      expect(umkmListing.is_featured).toBe(false);
       expect(umkmListing.location_hint).toContain('Palm Village');
+
+      // Bayar paket unggulan
+      const payRes = await createListingPayment(umkmListing.id, { isFeatured: true, durationDays: 30 });
+      const verified = await verifyListingPayment(payRes.paymentId, payRes.gatewayRef);
+      expect(verified.status).toBe('active');
+      expect(verified.isFeatured).toBe(true);
     });
 
     it('katalog harga membedakan tarif listing reguler vs featured (T10.3)', async () => {
@@ -399,13 +407,15 @@ describe('Modul Listing Publik — Regression Test (T11.3)', () => {
     });
 
     it('job checkListingExpirations otomatis menandai listing kedaluwarsa menjadi expired (T10.7)', async () => {
-      // 1. Buat listing dengan masa aktif singkat
+      // 1. Buat listing dengan masa aktif singkat dan bayar
       const shortListing = await createPublicListing(kosTenantId, {
         title: 'Kamar Kos Promo Kilat',
         type: 'room_vacancy',
         contact_phone: '08123456789',
         duration_days: 1,
       });
+      const pay = await createListingPayment(shortListing.id, { durationDays: 1 });
+      await verifyListingPayment(pay.paymentId, pay.gatewayRef);
 
       // 2. Jalankan checkListingExpirations dengan referensi waktu 5 hari ke depan
       const futureTime = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
@@ -430,6 +440,9 @@ describe('Modul Listing Publik — Regression Test (T11.3)', () => {
         type: 'room_vacancy',
         contact_phone: '08123456789',
       });
+      // Aktifkan terlebih dahulu lewat pembayaran
+      const pay = await createListingPayment(item.id, { durationDays: 30 });
+      await verifyListingPayment(pay.paymentId, pay.gatewayRef);
 
       const updated = await updateListingStatus(item.id, 'rented_or_sold');
       expect(updated.status).toBe('rented_or_sold');
@@ -445,6 +458,9 @@ describe('Modul Listing Publik — Regression Test (T11.3)', () => {
         contact_phone: '08123456789',
         duration_days: 1,
       });
+      // Aktifkan terlebih dahulu
+      const payExp = await createListingPayment(expiredItem.id, { durationDays: 1 });
+      await verifyListingPayment(payExp.paymentId, payExp.gatewayRef);
 
       // Tandai expired
       await updateListingStatus(expiredItem.id, 'expired');
