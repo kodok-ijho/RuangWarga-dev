@@ -458,7 +458,7 @@ export default function SetupWizard() {
                     required
                     value={complexName}
                     onChange={(e) => setComplexName(e.target.value)}
-                    placeholder="Contoh: Palm Village RT 05 / Cluster Bougenville"
+                    placeholder="Contoh: Griya Asri RT 05 / Cluster Bougenville"
                     className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm focus:border-forest-800 focus:outline-none shadow-xs"
                   />
                 </div>
@@ -747,7 +747,7 @@ export default function SetupWizard() {
                     type="text"
                     value={bankAccountHolder}
                     onChange={(e) => setBankAccountHolder(e.target.value)}
-                    placeholder="Contoh: Kas RT 05 Palm Village"
+                    placeholder="Contoh: Kas RT 05 Griya Asri"
                     className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none shadow-xs"
                   />
                 </div>

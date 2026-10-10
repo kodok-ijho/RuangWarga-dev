@@ -22,7 +22,7 @@ const MOCK_REVENUE_TRANSACTIONS = [
     status: 'settled',
     payment_method: 'doku_qris',
     payment_gateway_ref: 'DOKU-RW-20260910-8812',
-    tenant_name: 'Palm Village RT 05',
+    tenant_name: 'Perumahan Griya Asri RT 05',
     tenant_type: 'rt_rw',
     period_months: 12,
   },
@@ -54,7 +54,7 @@ export default function PlatformRevenue() {
 
     if (isDemo) {
       setTenants([
-        { id: '1', name: 'Palm Village RT 05', type: 'rt_rw', status: 'active', monthlyRevenue: 10000 },
+        { id: '1', name: 'Perumahan Griya Asri RT 05', type: 'rt_rw', status: 'active', monthlyRevenue: 10000 },
         { id: '2', name: 'Kos Melati Harmoni', type: 'kos', status: 'trial', monthlyRevenue: 0 },
         { id: '3', name: 'Arisan Mawar Berkah', type: 'arisan', status: 'trial', monthlyRevenue: 0 },
         { id: '4', name: 'Kelas Belajar Mandiri', type: 'kelas', status: 'read_only', monthlyRevenue: 0 },

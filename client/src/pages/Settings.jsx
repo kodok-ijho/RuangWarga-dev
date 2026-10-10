@@ -724,7 +724,7 @@ export default function Settings() {
                 type="text"
                 value={accountHolder}
                 onChange={(e) => setAccountHolder(e.target.value)}
-                placeholder="Contoh: Kas RT 05 Palm Village"
+                placeholder="Contoh: Kas RT 05 Griya Asri"
                 disabled={!canEdit || isSavingBank}
                 className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-gold-500 disabled:bg-slate-50 font-semibold"
               />

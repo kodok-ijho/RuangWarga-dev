@@ -177,7 +177,7 @@ export default function Login() {
     e.preventDefault();
     setError('');
     if (!googleEmail.includes('@')) {
-      setError('Silakan masukkan email akun Google Anda yang sah (@gmail.com / @palmvillage.id).');
+      setError('Silakan masukkan email akun Google Anda yang sah (misal: @gmail.com).');
       return;
     }
     setSubmitting(true);

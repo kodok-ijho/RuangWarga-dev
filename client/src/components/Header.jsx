@@ -474,7 +474,7 @@ export default function Header() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold border border-red-200 shadow-xs transition-all hover:scale-105"
-                title="Dokumentasi Kegiatan 17 Agustus Palm Village (Google Drive)"
+                title={`Dokumentasi Kegiatan 17 Agustus ${activeTenant?.name || 'Komunitas'} (Google Drive)`}
               >
                 <span>🇮🇩</span>
                 <span className="hidden lg:inline">Dokumentasi 17-an</span>

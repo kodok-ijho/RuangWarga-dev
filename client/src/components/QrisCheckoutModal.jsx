@@ -9,7 +9,7 @@ export default function QrisCheckoutModal({
   data,
   provider = 'doku',
   title = 'PEMBAYARAN QRIS RESMI',
-  subtitle = 'PORTAL WARGA PALM VILLAGE',
+  subtitle = 'RUANGWARGA DIGITAL',
   onConfirm,
   onCancel,
   onClose,
@@ -180,7 +180,7 @@ export default function QrisCheckoutModal({
 
       const dataUrl = canvas.toDataURL('image/png');
       const orderClean = String(orderId).replace(/[^a-zA-Z0-9_-]/g, '_');
-      const fileName = `QRIS_PalmVillage_${orderClean}.png`;
+      const fileName = `QRIS_RuangWarga_${orderClean}.png`;
 
       const link = document.createElement('a');
       link.download = fileName;

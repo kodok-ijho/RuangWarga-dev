@@ -70,7 +70,7 @@ export default function IncomeDetailDrawer({
             label="Metode Bayar"
             value={
               payment_method === 'qris'
-                ? '📱 QRIS Palm Village'
+                ? '📱 QRIS'
                 : payment_method === 'bank_transfer'
                 ? '🏦 Transfer Bank'
                 : '💵 Tunai'
