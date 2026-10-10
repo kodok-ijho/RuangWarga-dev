@@ -21,6 +21,14 @@ import { buildCanonicalExpenseReceiptPath } from '../utils/storagePolicy';
 
 const IS_DEMO = import.meta.env.VITE_DEMO_MODE === 'true';
 
+function isSupabaseConfigured() {
+  return Boolean(
+    import.meta.env.VITE_SUPABASE_URL &&
+    import.meta.env.VITE_SUPABASE_ANON_KEY &&
+    !import.meta.env.VITE_SUPABASE_URL.includes('your-project')
+  );
+}
+
 // In-memory cache unit untuk demo mode agar interaksi setup wizard terasa nyata
 let demoTenantUnitsMap = new Map();
 
@@ -37,6 +45,21 @@ const mockTenantInviteCodes = {
   'demo-tenant-kos': 'RW-KOS-2026',
   'demo-tenant-rtrw': 'RW-PALM-2026',
   't-rt-1': 'PV-05',
+};
+
+const mockTenantSettingsAudit = {
+  'demo-tenant-rtrw': [
+    {
+      id: 'mock-audit-1',
+      tenant_id: 'demo-tenant-rtrw',
+      changed_by: 'demo-admin',
+      changed_by_name: 'Bambang Sudarmono (Ketua RT)',
+      field: 'bank_account',
+      old_value: { bank_name: 'BCA', account_number: '8830111111', account_holder: 'Kas RT Lama' },
+      new_value: { bank_name: 'BCA', account_number: '8830123456', account_holder: 'Kas RT 05 Palm Village' },
+      changed_at: new Date(Date.now() - 3 * 86400000).toISOString(),
+    },
+  ],
 };
 
 export function getCachedTenantInviteCode(tenantId) {
@@ -285,6 +308,22 @@ export async function saveTenantBankAccount(tenantId, bankAccount) {
     },
   };
 
+  if (IS_DEMO || String(tenantId).startsWith('demo-') || !isSupabaseConfigured()) {
+    if (!mockTenantSettingsAudit[tenantId]) {
+      mockTenantSettingsAudit[tenantId] = [];
+    }
+    mockTenantSettingsAudit[tenantId].unshift({
+      id: `mock-audit-${Date.now()}`,
+      tenant_id: tenantId,
+      changed_by: 'demo-admin',
+      changed_by_name: 'Pengelola Tenant',
+      field: 'bank_account',
+      old_value: baseSettings.bank_account || null,
+      new_value: updatedSettings.bank_account,
+      changed_at: new Date().toISOString(),
+    });
+  }
+
   return await updateTenantProfileAndSettings(tenantId, { settings: updatedSettings });
 }
 
@@ -358,6 +397,69 @@ export async function saveTenantInviteCode(tenantId, code) {
   }
 
   return true;
+}
+
+/**
+ * Mengambil riwayat perubahan pengaturan tenant (SEC-3.3).
+ * Khusus untuk field 'bank_account' maksimal 5 baris terakhir.
+ * Menyertakan nama pengubah bila dapat ditemukan di tenant_members.
+ *
+ * @param {string} tenantId
+ * @returns {Promise<Array<{ id: string, tenant_id: string, changed_by: string, changed_by_name: string|null, field: string, old_value: any, new_value: any, changed_at: string }>>}
+ */
+export async function fetchTenantSettingsAudit(tenantId) {
+  if (!tenantId) return [];
+
+  if (IS_DEMO || String(tenantId).startsWith('demo-') || !isSupabaseConfigured()) {
+    const list = mockTenantSettingsAudit[tenantId] || [];
+    return list.slice(0, 5);
+  }
+
+  try {
+    const { data: auditRows, error } = await supabase
+      .from('tenant_settings_audit')
+      .select('id, tenant_id, changed_by, field, old_value, new_value, changed_at')
+      .eq('tenant_id', tenantId)
+      .eq('field', 'bank_account')
+      .order('changed_at', { ascending: false })
+      .limit(5);
+
+    if (error || !auditRows || auditRows.length === 0) {
+      return [];
+    }
+
+    const userIds = [...new Set(auditRows.map((r) => r.changed_by).filter(Boolean))];
+    let memberMap = {};
+
+    if (userIds.length > 0) {
+      try {
+        const { data: members } = await supabase
+          .from('tenant_members')
+          .select('user_id, full_name')
+          .eq('tenant_id', tenantId)
+          .in('user_id', userIds);
+
+        if (members) {
+          members.forEach((m) => {
+            if (m.user_id && m.full_name) {
+              memberMap[m.user_id] = m.full_name;
+            }
+          });
+        }
+      } catch {
+        // Fallback jika terjadi kesalahan saat pencarian nama member
+      }
+    }
+
+    return auditRows.map((row) => ({
+      ...row,
+      changed_by_name: row.changed_by ? memberMap[row.changed_by] || null : null,
+    }));
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('[tenantOperationalService] fetchTenantSettingsAudit unexpected error:', err);
+    return [];
+  }
 }
 
 /**

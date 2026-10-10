@@ -32,6 +32,7 @@ import {
   getTenantBankAccount,
   saveTenantBankAccount,
   fetchTenantDetails,
+  fetchTenantSettingsAudit,
 } from '../services/tenantOperationalService';
 
 function computeSchemaAmount(schema) {
@@ -40,9 +41,14 @@ function computeSchemaAmount(schema) {
 }
 
 export default function Settings() {
-  const { role, session, isReadOnly } = useAuth();
-  const { activeTenant, activeTenantId, refreshTenant } = useTenant();
+  const { role, session, isReadOnly, user } = useAuth();
+  const { activeTenant, activeTenantId, refreshTenant, isOwner } = useTenant();
   const toast = useToast();
+
+  const isTenantOwnerUser = Boolean(
+    isOwner ||
+    (activeTenant && user && (activeTenant.owner_id === user.id || activeTenant.is_owner))
+  );
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -67,6 +73,26 @@ export default function Settings() {
   const [tenantSettings, setTenantSettings] = useState({});
   const [savedBankAccount, setSavedBankAccount] = useState(null);
   const [isTenantDetailsLoaded, setIsTenantDetailsLoaded] = useState(false);
+
+  // Local state riwayat audit rekening (SEC-3.3)
+  const [bankAuditLogs, setBankAuditLogs] = useState([]);
+  const [isLoadingAudit, setIsLoadingAudit] = useState(false);
+
+  const loadAudit = useCallback(async () => {
+    if (!activeTenantId || !isTenantOwnerUser) {
+      setBankAuditLogs([]);
+      return;
+    }
+    setIsLoadingAudit(true);
+    try {
+      const logs = await fetchTenantSettingsAudit(activeTenantId);
+      setBankAuditLogs(Array.isArray(logs) ? logs : []);
+    } catch {
+      setBankAuditLogs([]);
+    } finally {
+      setIsLoadingAudit(false);
+    }
+  }, [activeTenantId, isTenantOwnerUser]);
 
   const loadSettings = useCallback(async () => {
     setIsLoading(true);
@@ -150,8 +176,11 @@ export default function Settings() {
   useEffect(() => {
     if (hasMinRole(role, 'pengurus')) {
       loadSettings();
+      if (isTenantOwnerUser) {
+        loadAudit();
+      }
     }
-  }, [loadSettings, role]);
+  }, [loadSettings, loadAudit, role, isTenantOwnerUser]);
 
   // Staff-only guard (pengurus, bendahara, admin)
   if (!hasMinRole(role, 'pengurus')) {
@@ -276,6 +305,9 @@ export default function Settings() {
       toast.success('Rekening penerima pembayaran berhasil disimpan.');
       if (typeof refreshTenant === 'function') {
         refreshTenant();
+      }
+      if (isTenantOwnerUser) {
+        loadAudit();
       }
     } catch (err) {
       toast.error(err.message || 'Gagal menyimpan rekening penerima pembayaran.');
@@ -713,6 +745,62 @@ export default function Settings() {
               {isSavingBank ? 'Menyimpan Rekening...' : 'Simpan Rekening'}
             </button>
           </div>
+
+          {/* Riwayat Perubahan Rekening (Khusus Owner Tenant - SEC-3.3) */}
+          {isTenantOwnerUser && (
+            <div className="mt-6 pt-5 border-t border-slate-100" data-testid="bank-account-audit-section">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <AiOutlineClockCircle className="text-slate-400" size={14} />
+                  Riwayat Perubahan Rekening
+                </h4>
+                <span className="text-[11px] text-slate-400">Khusus Pemilik Tenant (5 Terakhir)</span>
+              </div>
+
+              {isLoadingAudit ? (
+                <p className="text-xs text-slate-400 italic py-2">Memuat riwayat perubahan...</p>
+              ) : bankAuditLogs.length === 0 ? (
+                <p className="text-xs text-slate-400 italic py-1">Belum ada catatan perubahan rekening.</p>
+              ) : (
+                <div className="space-y-2">
+                  {bankAuditLogs.map((log) => {
+                    const oldAcc = log.old_value;
+                    const newAcc = log.new_value;
+                    const dateStr = log.changed_at
+                      ? new Date(log.changed_at).toLocaleString('id-ID', {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        })
+                      : '-';
+                    const changerName = log.changed_by_name || 'Pengurus/Owner';
+
+                    return (
+                      <div
+                        key={log.id}
+                        className="p-3 rounded-lg border border-slate-200 bg-slate-50/70 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                      >
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-800">{changerName}</span>
+                            <span className="text-[11px] text-slate-400">• {dateStr}</span>
+                          </div>
+                          <div className="text-[11px] text-slate-600 flex items-center gap-1.5 flex-wrap">
+                            <span className="text-slate-400">
+                              {oldAcc ? `${oldAcc.bank_name} ${oldAcc.account_number} (${oldAcc.account_holder})` : '(Kosong)'}
+                            </span>
+                            <span className="font-bold text-slate-400">→</span>
+                            <span className="font-semibold text-emerald-700">
+                              {newAcc ? `${newAcc.bank_name} ${newAcc.account_number} (${newAcc.account_holder})` : '(Dihapus)'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Penerima Tagihan & Denda */}
