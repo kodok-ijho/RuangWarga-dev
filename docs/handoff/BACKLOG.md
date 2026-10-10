@@ -28,6 +28,7 @@ Dokumen task lengkap: `docs/handoff/PAY-2.md`. Tanpa ini tenant baru tidak bisa 
 Dokumen task lengkap: `docs/handoff/PAY-1.md`. Ringkas: modul SNAP DOKU bersama di `supabase/functions/_shared/doku.ts`, tulis ulang 4 Edge Function langganan/iklan pakai merchant `DOKU_PLATFORM_*`, buang sisa Mayar/Midtrans. Termasuk PAY-1.7: **iklan wajib bayar dulu** (listing baru `pending_payment`, baru tayang setelah lunas) + pulihkan policy SELECT `public_listings` yang hilang di dev (F9).
 
 ## Catatan operasional (Claude)
+- ⏸️ **Merchant DOKU platform masih dalam pengajuan** (user, 2026-10-10). Sampai akun & kredensial `DOKU_PLATFORM_*` ada: Edge Function pembayaran **tidak di-deploy**, tidak ada uji sandbox. Pekerjaan kode (PAY-1F) tetap jalan; batch lain (SEC-3, BRAND-1, DEBT-1) boleh dikerjakan sambil menunggu.
 - Saat tenant Palm Village dimigrasikan ke DB (`migrate_legacy_portal_warga`), pasang `settings.legacy_qris_enabled = true` — lihat `PAY-2F-review.md`. Tanpa flag ini QRIS warga Palm Village tidak tampil.
 
 ## SEC-3 — Rahasiakan `invite_code` + audit rekening

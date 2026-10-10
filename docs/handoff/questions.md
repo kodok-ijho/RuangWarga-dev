@@ -30,7 +30,7 @@ Jawaban (user, 2026-10-10): **(a) dibebankan ke tenant, tarif 0,75%** (bukan 0,7
 ## [PAY-1] Format DOKU_PLATFORM_PRIVATE_KEY
 Konteks: Web Crypto di Deno hanya bisa mengimpor kunci privat PKCS#8 (`-----BEGIN PRIVATE KEY-----`).
 Pilihan: kalau kunci dari DOKU berformat PKCS#1 (`-----BEGIN RSA PRIVATE KEY-----`), perlu dikonversi: `openssl pkcs8 -topk8 -nocrypt -in doku.pem -out doku-pkcs8.pem`.
-Jawaban (user): (belum dijawab — cek baris pertama file kunci dari dashboard DOKU merchant PLATFORM yang baru, bukan punya Palm Village)
+Jawaban (user, 2026-10-10): **DITUNDA** — akun merchant DOKU platform baru sedang diajukan (terpisah dari Portal Warga/Palm Village). Kode tetap ditulis untuk PKCS#8; konversi dilakukan saat key tersedia.
 
 ## [PAY-1] Path endpoint status/query QRIS SNAP DOKU
 Konteks: Webhook tidak boleh dipercaya; sebelum aktivasi, status harus dikonfirmasi ulang ke DOKU.
