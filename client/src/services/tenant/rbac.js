@@ -5,7 +5,6 @@
 
 import { supabase, IS_DEMO } from './shared';
 
-// ============================================================
 // RBAC v2: MANAJEMEN ROLE & PERMISSION (Spec §2.1, §7.4, T12.9)
 // ============================================================
 
@@ -24,57 +23,70 @@ export const PLATFORM_PERMISSIONS = [
 
 let mockCustomRolesStore = [
   {
-    id: 'role-mock-1',
-    tenant_id: 'demo-tenant-kos',
-    name: 'Pengawas Kamar',
+    id: 'mock-role-admin',
+    tenant_id: 'demo-tenant-rtrw',
+    name: 'Admin',
+    is_owner_role: true,
     is_base_role: false,
-    permissions: ['manage_members', 'manage_expenses'],
-    member_count: 1,
-    created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
-    updated_at: new Date(Date.now() - 86400000 * 5).toISOString(),
+    permissions: PLATFORM_PERMISSIONS.map((p) => p.key),
+    created_at: '2026-01-01T00:00:00Z',
   },
   {
-    id: 'role-mock-2',
+    id: 'mock-role-bendahara',
     tenant_id: 'demo-tenant-rtrw',
-    name: 'Seksi Keamanan & Ketertiban',
+    name: 'Bendahara',
+    is_owner_role: false,
     is_base_role: false,
-    permissions: ['manage_members'],
-    member_count: 2,
-    created_at: new Date(Date.now() - 86400000 * 10).toISOString(),
-    updated_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+    permissions: ['manage_billing_cash', 'manage_billing_transfer', 'manage_expenses', 'view_reports'],
+    created_at: '2026-01-02T00:00:00Z',
   },
   {
-    id: 'role-mock-3',
+    id: 'mock-role-pengurus',
     tenant_id: 'demo-tenant-rtrw',
-    name: 'Humas & Publikasi',
+    name: 'Pengurus',
+    is_owner_role: false,
     is_base_role: false,
-    permissions: ['post_listing', 'view_reports'],
-    member_count: 1,
-    created_at: new Date(Date.now() - 86400000 * 7).toISOString(),
-    updated_at: new Date(Date.now() - 86400000 * 7).toISOString(),
+    permissions: ['manage_billing_transfer', 'manage_members', 'view_reports'],
+    created_at: '2026-01-03T00:00:00Z',
+  },
+  {
+    id: 'mock-role-warga',
+    tenant_id: 'demo-tenant-rtrw',
+    name: 'Warga/Anggota',
+    is_owner_role: false,
+    is_base_role: true,
+    permissions: [],
+    created_at: '2026-01-01T00:00:00Z',
   },
 ];
 
 /**
- * Mengambil daftar seluruh permission platform yang dapat dikonfigurasi pada custom role.
+ * Mengambil daftar seluruh kamus permission platform
  */
 export async function fetchPlatformPermissions() {
-  return PLATFORM_PERMISSIONS;
+  if (IS_DEMO) {
+    return PLATFORM_PERMISSIONS;
+  }
+
+  const { data, error } = await supabase
+    .from('permissions')
+    .select('key, label, description');
+
+  if (error || !data || data.length === 0) {
+    return PLATFORM_PERMISSIONS;
+  }
+
+  return data;
 }
 
 /**
- * Mengambil daftar seluruh peran (base roles + custom roles) untuk sebuah tenant.
- * Termasuk jumlah anggota aktif yang ditugaskan ke peran tersebut.
- *
- * @param {string} tenantId - UUID tenant
- * @returns {Promise<Array<Object>>}
+ * Mengambil daftar role untuk sebuah tenant tertentu
  */
 export async function fetchTenantRoles(tenantId) {
-  if (!tenantId) return [];
+  if (!tenantId) throw new Error('Tenant ID wajib disertakan.');
 
-  const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
-  if (isDemoOrMock) {
-    return mockCustomRolesStore.filter((r) => r.tenant_id === tenantId);
+  if (IS_DEMO || String(tenantId).startsWith('demo-')) {
+    return mockCustomRolesStore.map((r) => ({ ...r, tenant_id: tenantId }));
   }
 
   const { data, error } = await supabase
@@ -83,216 +95,196 @@ export async function fetchTenantRoles(tenantId) {
       id,
       tenant_id,
       name,
+      is_owner_role,
       is_base_role,
-      permissions,
       created_at,
-      updated_at,
-      tenant_members (count)
+      tenant_role_permissions (
+        permission_key
+      )
     `)
     .eq('tenant_id', tenantId)
     .order('created_at', { ascending: true });
 
   if (error) {
-    // eslint-disable-next-line no-console
     console.error('[tenantOperationalService] fetchTenantRoles error:', error);
-    throw new Error(error.message || 'Gagal memuat daftar peran tenant.');
+    throw new Error(error.message || 'Gagal memuat daftar role.');
   }
 
-  return (data || []).map((row) => ({
-    id: row.id,
-    tenant_id: row.tenant_id,
-    name: row.name,
-    is_base_role: row.is_base_role,
-    permissions: row.permissions || [],
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-    member_count: Array.isArray(row.tenant_members)
-      ? row.tenant_members[0]?.count || 0
-      : row.tenant_members?.count || 0,
+  return (data || []).map((r) => ({
+    ...r,
+    permissions: (r.tenant_role_permissions || []).map((trp) => trp.permission_key),
   }));
 }
 
 /**
- * Membuat custom role baru pada tenant dengan serangkaian permissions yang dipilih.
- *
- * @param {string} tenantId - UUID tenant
- * @param {Object} params
- * @param {string} params.name - Nama peran (misal: "Seksi Keamanan")
- * @param {Array<string>} [params.permissions=[]] - Array of permission keys
- * @returns {Promise<Object>}
+ * Membuat custom role baru untuk tenant
  */
 export async function createTenantRole(tenantId, { name, permissions = [] }) {
   if (!tenantId) throw new Error('Tenant ID wajib disertakan.');
   const trimmedName = (name || '').trim();
-  if (!trimmedName) throw new Error('Nama peran wajib diisi.');
+  if (!trimmedName) throw new Error('Nama role wajib diisi.');
 
-  const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
-  if (isDemoOrMock) {
-    const existing = mockCustomRolesStore.find(
-      (r) => r.tenant_id === tenantId && r.name.toLowerCase() === trimmedName.toLowerCase()
-    );
-    if (existing) {
-      throw new Error(`Peran dengan nama "${trimmedName}" sudah ada.`);
-    }
-
+  if (IS_DEMO || String(tenantId).startsWith('demo-')) {
     const newRole = {
-      id: `role-mock-${Date.now()}`,
+      id: `mock-role-${Date.now()}`,
       tenant_id: tenantId,
       name: trimmedName,
+      is_owner_role: false,
       is_base_role: false,
-      permissions: Array.isArray(permissions) ? permissions : [],
-      member_count: 0,
+      permissions,
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
     };
     mockCustomRolesStore.push(newRole);
     return newRole;
   }
 
-  const { data, error } = await supabase
+  // 1. Insert ke tenant_roles
+  const { data: roleRow, error: roleError } = await supabase
     .from('tenant_roles')
-    .insert([
-      {
-        tenant_id: tenantId,
-        name: trimmedName,
-        is_base_role: false,
-        permissions: Array.isArray(permissions) ? permissions : [],
-      },
-    ])
+    .insert({
+      tenant_id: tenantId,
+      name: trimmedName,
+      is_owner_role: false,
+      is_base_role: false,
+    })
     .select()
     .single();
 
-  if (error) {
-    // eslint-disable-next-line no-console
-    console.error('[tenantOperationalService] createTenantRole error:', error);
-    if (error.code === '23505') {
-      throw new Error(`Peran dengan nama "${trimmedName}" sudah ada pada komunitas ini.`);
+  if (roleError) {
+    console.error('[tenantOperationalService] createTenantRole error:', roleError);
+    if (roleError.code === '23505') {
+      throw new Error(`Role dengan nama "${trimmedName}" sudah ada di komunitas ini.`);
     }
-    throw new Error(error.message || 'Gagal membuat peran kustom baru.');
+    throw new Error(roleError.message || 'Gagal membuat role.');
+  }
+
+  // 2. Insert ke tenant_role_permissions
+  if (permissions.length > 0) {
+    const trpPayload = permissions.map((pKey) => ({
+      tenant_role_id: roleRow.id,
+      permission_key: pKey,
+    }));
+
+    const { error: permError } = await supabase
+      .from('tenant_role_permissions')
+      .insert(trpPayload);
+
+    if (permError) {
+      console.error('[tenantOperationalService] createTenantRole permissions error:', permError);
+    }
   }
 
   return {
-    ...data,
-    member_count: 0,
+    ...roleRow,
+    permissions,
   };
 }
 
 /**
- * Memperbarui nama dan/atau permissions dari sebuah peran kustom.
- * Base roles (admin, bendahara, sekretaris, anggota) diproteksi dari pengubahan.
- *
- * @param {string} roleId - UUID peran
- * @param {Object} params
- * @param {string} [params.name] - Nama baru peran
- * @param {Array<string>} [params.permissions] - Array permission keys baru
- * @returns {Promise<Object>}
+ * Memperbarui custom role
  */
 export async function updateTenantRole(roleId, { name, permissions }) {
   if (!roleId) throw new Error('Role ID wajib disertakan.');
+  const trimmedName = name ? name.trim() : undefined;
 
-  const isDemoOrMock = IS_DEMO || String(roleId).startsWith('role-mock-');
-  if (isDemoOrMock) {
+  if (IS_DEMO || String(roleId).startsWith('mock-')) {
     const idx = mockCustomRolesStore.findIndex((r) => r.id === roleId);
-    if (idx === -1) throw new Error('Peran tidak ditemukan.');
-    if (mockCustomRolesStore[idx].is_base_role) {
-      throw new Error('Peran sistem bawaan (base role) tidak dapat diubah.');
+    if (idx >= 0) {
+      if (mockCustomRolesStore[idx].is_owner_role || mockCustomRolesStore[idx].is_base_role) {
+        throw new Error('Role bawaan tidak dapat diedit atau diubah permission-nya.');
+      }
+      if (trimmedName) mockCustomRolesStore[idx].name = trimmedName;
+      if (permissions) mockCustomRolesStore[idx].permissions = permissions;
+      return mockCustomRolesStore[idx];
     }
-
-    const updated = {
-      ...mockCustomRolesStore[idx],
-      ...(name !== undefined ? { name: name.trim() } : {}),
-      ...(permissions !== undefined ? { permissions } : {}),
-      updated_at: new Date().toISOString(),
-    };
-    mockCustomRolesStore[idx] = updated;
-    return updated;
+    throw new Error('Role tidak ditemukan.');
   }
 
-  // Validasi peran bawaan sebelum update
-  const { data: existing, error: fetchErr } = await supabase
+  // Cek apakah role bawaan
+  const { data: currentRole, error: fetchErr } = await supabase
     .from('tenant_roles')
-    .select('is_base_role')
+    .select('is_owner_role, is_base_role, tenant_id')
     .eq('id', roleId)
     .single();
 
-  if (fetchErr || !existing) {
-    throw new Error('Peran tidak ditemukan.');
-  }
-  if (existing.is_base_role) {
-    throw new Error('Peran sistem bawaan (base role) tidak dapat diubah.');
+  if (fetchErr || !currentRole) {
+    throw new Error('Role tidak ditemukan.');
   }
 
-  const payload = {
-    updated_at: new Date().toISOString(),
-  };
-  if (name !== undefined) payload.name = name.trim();
-  if (permissions !== undefined) payload.permissions = permissions;
+  if (currentRole.is_owner_role || currentRole.is_base_role) {
+    throw new Error('Role bawaan sistem tidak dapat dimodifikasi.');
+  }
 
-  const { data, error } = await supabase
-    .from('tenant_roles')
-    .update(payload)
-    .eq('id', roleId)
-    .select()
-    .single();
+  // Update nama jika ada
+  if (trimmedName) {
+    const { error: updateErr } = await supabase
+      .from('tenant_roles')
+      .update({ name: trimmedName })
+      .eq('id', roleId);
 
-  if (error) {
-    // eslint-disable-next-line no-console
-    console.error('[tenantOperationalService] updateTenantRole error:', error);
-    if (error.code === '23505') {
-      throw new Error('Nama peran sudah digunakan oleh peran lain pada komunitas ini.');
+    if (updateErr) {
+      if (updateErr.code === '23505') {
+        throw new Error(`Role dengan nama "${trimmedName}" sudah ada.`);
+      }
+      throw new Error(updateErr.message || 'Gagal mengubah nama role.');
     }
-    throw new Error(error.message || 'Gagal memperbarui peran.');
   }
 
-  return data;
+  // Update permissions jika ada
+  if (Array.isArray(permissions)) {
+    // Hapus permission lama
+    await supabase
+      .from('tenant_role_permissions')
+      .delete()
+      .eq('tenant_role_id', roleId);
+
+    // Insert permission baru
+    if (permissions.length > 0) {
+      const trpPayload = permissions.map((pKey) => ({
+        tenant_role_id: roleId,
+        permission_key: pKey,
+      }));
+
+      await supabase
+        .from('tenant_role_permissions')
+        .insert(trpPayload);
+    }
+  }
+
+  return { id: roleId, name: trimmedName, permissions };
 }
 
 /**
- * Menghapus peran kustom jika tidak ada anggota aktif yang ditugaskan ke peran tersebut.
- *
- * @param {string} roleId - UUID peran
- * @returns {Promise<boolean>}
+ * Menghapus custom role
  */
 export async function deleteTenantRole(roleId) {
   if (!roleId) throw new Error('Role ID wajib disertakan.');
 
-  const isDemoOrMock = IS_DEMO || String(roleId).startsWith('role-mock-');
-  if (isDemoOrMock) {
-    const role = mockCustomRolesStore.find((r) => r.id === roleId);
-    if (!role) throw new Error('Peran tidak ditemukan.');
-    if (role.is_base_role) {
-      throw new Error('Peran sistem bawaan (base role) tidak dapat dihapus.');
+  if (IS_DEMO || String(roleId).startsWith('mock-')) {
+    const idx = mockCustomRolesStore.findIndex((r) => r.id === roleId);
+    if (idx >= 0) {
+      if (mockCustomRolesStore[idx].is_owner_role || mockCustomRolesStore[idx].is_base_role) {
+        throw new Error('Role bawaan sistem tidak dapat dihapus.');
+      }
+      mockCustomRolesStore.splice(idx, 1);
+      return { success: true };
     }
-    if (role.member_count > 0) {
-      throw new Error(`Tidak dapat menghapus peran "${role.name}" karena masih memiliki ${role.member_count} anggota aktif.`);
-    }
-
-    mockCustomRolesStore = mockCustomRolesStore.filter((r) => r.id !== roleId);
-    return true;
+    throw new Error('Role tidak ditemukan.');
   }
 
-  // 1. Cek base role dan jumlah anggota yang masih aktif menggunakan peran ini
-  const { data: role, error: fetchErr } = await supabase
+  // Cek apakah role bawaan
+  const { data: currentRole, error: fetchErr } = await supabase
     .from('tenant_roles')
-    .select('name, is_base_role, tenant_members (count)')
+    .select('is_owner_role, is_base_role')
     .eq('id', roleId)
     .single();
 
-  if (fetchErr || !role) {
-    throw new Error('Peran tidak ditemukan.');
-  }
-  if (role.is_base_role) {
-    throw new Error('Peran sistem bawaan (base role) tidak dapat dihapus.');
+  if (fetchErr || !currentRole) {
+    throw new Error('Role tidak ditemukan.');
   }
 
-  const assignedCount = Array.isArray(role.tenant_members)
-    ? role.tenant_members[0]?.count || 0
-    : role.tenant_members?.count || 0;
-
-  if (assignedCount > 0) {
-    throw new Error(
-      `Tidak dapat menghapus peran "${role.name}" karena masih ada ${assignedCount} anggota aktif yang ditugaskan. Pindahkan anggota ke peran lain terlebih dahulu.`
-    );
+  if (currentRole.is_owner_role || currentRole.is_base_role) {
+    throw new Error('Role bawaan sistem tidak dapat dihapus.');
   }
 
   const { error } = await supabase
@@ -301,30 +293,25 @@ export async function deleteTenantRole(roleId) {
     .eq('id', roleId);
 
   if (error) {
-    // eslint-disable-next-line no-console
     console.error('[tenantOperationalService] deleteTenantRole error:', error);
-    throw new Error(error.message || 'Gagal menghapus peran.');
+    throw new Error(error.message || 'Gagal menghapus role.');
   }
 
-  return true;
+  return { success: true };
 }
 
 /**
- * Menugaskan peran (tenant_role_id) ke seorang anggota tenant.
- * Dapat mengosongkan peran khusus (set ke null) sehingga anggota kembali ke base role 'anggota'.
- *
- * @param {string} memberId - UUID tenant_members
- * @param {string|null} tenantRoleId - UUID tenant_roles atau null
- * @returns {Promise<Object>}
+ * Menugaskan peran (role) kepada seorang anggota tenant
  */
 export async function assignMemberRole(memberId, tenantRoleId) {
-  if (!memberId) throw new Error('Member ID wajib disertakan.');
+  if (!memberId || !tenantRoleId) {
+    throw new Error('Member ID dan Tenant Role ID wajib disertakan.');
+  }
 
-  const isDemoOrMock = IS_DEMO || String(memberId).startsWith('mem-');
-  if (isDemoOrMock) {
+  if (IS_DEMO || String(memberId).startsWith('mock-') || String(memberId).startsWith('mem-')) {
     return {
       id: memberId,
-      tenant_role_id: tenantRoleId || null,
+      tenant_role_id: tenantRoleId,
       updated_at: new Date().toISOString(),
     };
   }
@@ -332,7 +319,7 @@ export async function assignMemberRole(memberId, tenantRoleId) {
   const { data, error } = await supabase
     .from('tenant_members')
     .update({
-      tenant_role_id: tenantRoleId ? tenantRoleId : null,
+      tenant_role_id: tenantRoleId,
       updated_at: new Date().toISOString(),
     })
     .eq('id', memberId)
@@ -340,7 +327,6 @@ export async function assignMemberRole(memberId, tenantRoleId) {
     .single();
 
   if (error) {
-    // eslint-disable-next-line no-console
     console.error('[tenantOperationalService] assignMemberRole error:', error);
     throw new Error(error.message || 'Gagal menugaskan peran anggota.');
   }
