@@ -2458,7 +2458,7 @@ export function ReceiptActions({
 
 // Modal Detail Pembayaran Lunas
 // Modal Detail / Verifikasi / Revisi Pembayaran
-function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, session, isHanging: initialIsHanging, billLabel = 'IPL', onRefresh, onRetry, onClose }) {
+export function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, session, isHanging: initialIsHanging, billLabel = 'IPL', onRefresh, onRetry, onClose }) {
   const toast = useToast();
   const { template } = useTenantTemplate();
   const { activeTenant, activeTenantId } = useTenant();
@@ -2748,11 +2748,36 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
         tenantId: activeTenantId,
       });
 
-      toast.success(
-        editForm.markCompleted
-          ? 'Transaksi berhasil diperbaiki dan status tagihan menjadi LUNAS!'
-          : 'Detail transaksi berhasil diperbarui.'
-      );
+      if (activeTenantId) {
+        if (editForm.markCompleted && activePayment?.status === 'pending_verification') {
+          try {
+            await approveManualPayment(
+              session?.access_token,
+              buildDetailActionArgs('approve', {
+                paymentId,
+                activeTenantId,
+                verifier: profile?.full_name || 'staff',
+              })
+            );
+            toast.success('Transaksi berhasil diperbaiki dan status tagihan menjadi LUNAS!');
+          } catch (err) {
+            toast.error(
+              `Perubahan transaksi tersimpan, tetapi verifikasi gagal: ${err.message || 'kesalahan tidak diketahui'}. Pembayaran masih menunggu verifikasi.`
+            );
+            if (onRefresh) onRefresh();
+            onClose();
+            return;
+          }
+        } else {
+          toast.success('Detail transaksi berhasil diperbarui.');
+        }
+      } else {
+        toast.success(
+          editForm.markCompleted
+            ? 'Transaksi berhasil diperbaiki dan status tagihan menjadi LUNAS!'
+            : 'Detail transaksi berhasil diperbarui.'
+        );
+      }
       if (onRefresh) onRefresh();
       onClose();
     } catch (err) {
@@ -2946,20 +2971,22 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-forest-800 mb-1">
-                Ganti File Bukti <span className="text-forest-400 font-normal">(opsional)</span>
-              </label>
-              <input
-                type="file"
-                accept="image/*,.pdf"
-                onChange={(e) => setEditForm((prev) => ({ ...prev, file: e.target.files?.[0] || null }))}
-                className="block w-full text-xs text-forest-600 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:font-medium file:bg-forest-100 file:text-forest-800 hover:file:bg-forest-200"
-              />
-              {proofFileName && !editForm.file && (
-                <p className="mt-1 text-[10px] text-forest-400">File bukti saat ini: {proofFileName}</p>
-              )}
-            </div>
+            {!activeTenantId && (
+              <div>
+                <label className="block text-xs font-semibold text-forest-800 mb-1">
+                  Ganti File Bukti <span className="text-forest-400 font-normal">(opsional)</span>
+                </label>
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, file: e.target.files?.[0] || null }))}
+                  className="block w-full text-xs text-forest-600 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:font-medium file:bg-forest-100 file:text-forest-800 hover:file:bg-forest-200"
+                />
+                {proofFileName && !editForm.file && (
+                  <p className="mt-1 text-[10px] text-forest-400">File bukti saat ini: {proofFileName}</p>
+                )}
+              </div>
+            )}
 
             <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-2.5 flex items-center gap-2">
               <input
