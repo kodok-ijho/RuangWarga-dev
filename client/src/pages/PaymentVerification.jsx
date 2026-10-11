@@ -3,6 +3,7 @@ import { Navigate, useParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTenant } from '../context/TenantContext';
 import { useSubscriptionGate } from '../hooks/useSubscriptionGate';
+import { useTenantAccess } from '../hooks/useTenantAccess';
 import { useTenantTemplate } from '../hooks/useTenantTemplate';
 import {
   fetchPayments,
@@ -15,7 +16,11 @@ import {
   updatePayment,
   IS_DEMO,
 } from '../services/dataService';
-import { fetchTenantUnits, fetchTenantMembers } from '../services/tenantOperationalService';
+import {
+  fetchTenantUnits,
+  fetchTenantMembers,
+  isLegacyQrisEnabled,
+} from '../services/tenantOperationalService';
 import {
   formatRupiah,
   formatDate,
@@ -164,12 +169,15 @@ export default function PaymentVerification() {
   const params = useParams();
   const { role, profile, session, isReadOnly: authReadOnly } = useAuth();
   const { activeTenant, userTenants } = useTenant();
+  const tenantAccess = useTenantAccess();
   const activeTenantId = params.tenantId || activeTenant?.id || userTenants?.[0]?.id || null;
   const { canWrite: subCanWrite, isReadOnly: subReadOnly } = useSubscriptionGate(activeTenantId);
   const template = useTenantTemplate(activeTenant?.type || 'rt_rw');
 
   const toast = useToast();
-  const canWrite = canModifyData(role) && !authReadOnly && subCanWrite;
+  const canWrite = activeTenantId
+    ? (tenantAccess.canWrite && !authReadOnly && subCanWrite)
+    : (canModifyData(role) && !authReadOnly && subCanWrite);
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState('pending');
   const [selectedPayment, setSelectedPayment] = useState(null);
@@ -278,11 +286,10 @@ export default function PaymentVerification() {
           setQrisProvider(String(mockSettings.qris_provider || 'doku').toLowerCase());
         } else if (targetTenantId) {
           // Multi-tenant mode
-          const [payData, unitData, memberData, settingsData] = await Promise.all([
+          const [payData, unitData, memberData] = await Promise.all([
             fetchPayments(session?.access_token, { tenantId: targetTenantId }),
             fetchTenantUnits(targetTenantId),
             fetchTenantMembers(targetTenantId),
-            fetchSettings(session?.access_token).catch(() => null),
           ]);
           if (seq !== fetchSeqRef.current || activeTenantRef.current !== targetTenantId) {
             return;
@@ -296,10 +303,8 @@ export default function PaymentVerification() {
             }))
           );
           setResidents(memberData || []);
-          if (settingsData) {
-            setQrisEnabled(settingsData.qris_enabled ?? true);
-            setQrisProvider(String(settingsData.qris_provider || 'doku').toLowerCase());
-          }
+          setQrisEnabled(isLegacyQrisEnabled(activeTenant));
+          setQrisProvider(String(activeTenant?.settings?.qris_provider || 'doku').toLowerCase());
         } else {
           // Prod mode fetches from API & Supabase
           const [payData, unitData, resData, matrixData, settingsData] = await Promise.all([
@@ -341,7 +346,9 @@ export default function PaymentVerification() {
     setReceiptPreviewError(false);
   }, [selectedPayment?.id]);
 
-  const showQrisOption = qrisEnabled || paymentForm.method === 'qris';
+  const showQrisOption = activeTenant
+    ? isLegacyQrisEnabled(activeTenant)
+    : (qrisEnabled || paymentForm.method === 'qris');
 
   const getUnit = (unitId) => resolveVerificationUnit(units, unitId, IS_DEMO);
 
@@ -396,9 +403,11 @@ export default function PaymentVerification() {
     return filteredList.slice(start, start + pageSize);
   }, [filteredList, currentPage, pageSize]);
 
-  // Guard: Bendahara+ only
-  if (!isBendaharaOrAbove(role)) {
-    return <Navigate to="/" replace />;
+  // Guard: Bendahara+ only (legacy) atau canVerifyPayments (tenant)
+  const isAllowed = activeTenantId ? tenantAccess.canVerifyPayments : isBendaharaOrAbove(role);
+  if (!isAllowed) {
+    const fallbackPath = activeTenantId ? `/t/${activeTenantId}/dashboard` : '/';
+    return <Navigate to={fallbackPath} replace />;
   }
 
   const handleVerify = async (payment) => {

@@ -55,10 +55,10 @@ import { ResidentDetailDrawer } from '../components/residents/ResidentDetailDraw
 export default function Residents() {
   const params = useParams();
   const { role, token } = useAuth();
-  const { currentTenant, userTenants } = useTenant();
-  const activeTenantId = params.tenantId || currentTenant?.id || userTenants?.[0]?.id || null;
-  const activeTenant = currentTenant?.id === activeTenantId
-    ? currentTenant
+  const { activeTenant: contextActiveTenant, userTenants } = useTenant();
+  const activeTenantId = params.tenantId || contextActiveTenant?.id || userTenants?.[0]?.id || null;
+  const activeTenant = contextActiveTenant?.id === activeTenantId
+    ? contextActiveTenant
     : (userTenants || []).find((t) => t.id === activeTenantId) || null;
   const template = useTenantTemplate(activeTenant?.type);
 

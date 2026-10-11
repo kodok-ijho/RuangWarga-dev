@@ -96,8 +96,12 @@ describe('TASK-080 Expenses Implementation (Sub-Gate 8.2-B)', () => {
     });
 
     useTenant.mockReturnValue({
+      activeTenant: { id: mockTenantId, name: 'Komunitas Harmoni', type: 'rt_rw' },
+      activeTenantId: mockTenantId,
       currentTenant: { id: mockTenantId, name: 'Komunitas Harmoni', type: 'rt_rw' },
       userTenants: [{ id: 'other-tenant-uuid', name: 'Other' }],
+      isOwner: true,
+      permissions: ['manage_expenses', 'view_reports'],
     });
 
     useSubscriptionGate.mockReturnValue({
@@ -180,11 +184,13 @@ describe('TASK-080 Expenses Implementation (Sub-Gate 8.2-B)', () => {
       path.resolve(__dirname, 'Expenses.jsx'),
       'utf8'
     );
-    expect(expensesSource).toContain('const activeTenantId = params.tenantId || currentTenant?.id || null;');
+    expect(expensesSource).toContain('const activeTenantId = params.tenantId || activeTenant?.id || null;');
     expect(expensesSource).not.toContain('userTenants?.[0]?.id');
 
-    // When no tenant in params and no currentTenant, but userTenants has items
+    // When no tenant in params and no currentTenant/activeTenant, but userTenants has items
     useTenant.mockReturnValue({
+      activeTenant: null,
+      activeTenantId: null,
       currentTenant: null,
       userTenants: [{ id: 'foreign-tenant-uuid' }],
     });
