@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTenant } from '../hooks/useTenant';
+import { useTenantAccess } from '../hooks/useTenantAccess';
 import { useTenantTemplate } from '../hooks/useTenantTemplate';
 import { useToast } from '../hooks/useToast';
 import { useTour } from '../context/TourContext';
@@ -41,6 +43,7 @@ import {
   verifyQrisPayment,
   IS_DEMO,
 } from '../services/dataService';
+import { fetchTenantPayments } from '../services/tenantOperationalService';
 import { portalApiPost } from '../services/apiClient';
 import {
   getPaymentForBill,
@@ -80,8 +83,10 @@ export function isHangingPayment(payment, bill, cellStatus) {
 }
 
 export default function PaymentMatrix() {
-  const { profile, role, session, isReadOnly } = useAuth();
+  const { profile, role, session, isReadOnly, user } = useAuth();
+  const { tenantId: routeTenantId } = useParams();
   const { activeTenantId, activeTenant } = useTenant();
+  const tenantAccess = useTenantAccess();
   const template = useTenantTemplate();
   const { triggerTour } = useTour();
   const toast = useToast();
@@ -117,8 +122,8 @@ export default function PaymentMatrix() {
   const [detailModal, setDetailModal] = useState(null); // { bill, payment }
 
   // Semua role bisa LIHAT semua unit. Interaksi (bayar) di-gate per baris.
-  const isStaff = isStaffRole(role);
-  const canWrite = canModifyData(role) && !isReadOnly;
+  const isStaff = activeTenantId ? tenantAccess.isStaff : isStaffRole(role);
+  const canWrite = activeTenantId ? (tenantAccess.canWrite && !isReadOnly) : (canModifyData(role) && !isReadOnly);
   // Admin Demo memakai role internal admin_viewer dan tetap read-only untuk
   // seluruh fitur lain. QRIS adalah satu-satunya pengecualian sementara.
   const isDemoAdmin = isReadOnly && (role === 'admin' || role === 'admin_viewer');
@@ -258,6 +263,11 @@ export default function PaymentMatrix() {
     if (!silent) {
       setIsLoading(true);
       setLoadError('');
+    }
+
+    // Workspace tenant: bila activeTenantId belum siap, JANGAN panggil fetch (hindari jatuh ke jalur n8n)
+    if (routeTenantId && !activeTenantId) {
+      return;
     }
 
     // Citizen / member: Tunggu hingga proses resolveUnit selesai
@@ -799,8 +809,10 @@ export default function PaymentMatrix() {
           return;
         } else if (method === 'cash') {
           let firstPayment = null;
+          const staffVerifier = profile?.full_name || user?.email || 'staff';
           for (let i = 0; i < manualModal.bills.length; i++) {
             const bill = manualModal.bills[i];
+            const billMemberId = bill.member_id || manualModal.unit?.member_id || manualModal.unit?.members?.[0]?.id || null;
             if (i === 0) {
               firstPayment = await createCashPayment(session?.access_token, {
                 bill_id: bill.id,
@@ -809,6 +821,9 @@ export default function PaymentMatrix() {
                 note: noteWithDate,
                 paid_at: paidAt,
                 recorderRole: role,
+                tenantId: activeTenantId,
+                memberId: billMemberId,
+                verifiedBy: staffVerifier,
               });
             } else {
               await createCashPayment(session?.access_token, {
@@ -818,13 +833,18 @@ export default function PaymentMatrix() {
                 note: noteWithDate + (firstPayment?.file_url ? ` (Lampiran: ${firstPayment.file_url})` : ''),
                 paid_at: paidAt,
                 recorderRole: role,
+                tenantId: activeTenantId,
+                memberId: billMemberId,
+                verifiedBy: staffVerifier,
               });
             }
             completedCount += 1;
           }
           toast.success(`Pembayaran tunai untuk ${manualModal.bills.length} tagihan berhasil dicatat dan langsung terverifikasi.`);
         } else if (method === 'bank_transfer') {
+          const staffVerifier = profile?.full_name || user?.email || 'staff';
           for (const bill of manualModal.bills) {
+            const billMemberId = bill.member_id || manualModal.unit?.member_id || manualModal.unit?.members?.[0]?.id || null;
             await submitManualPayment(session?.access_token, {
               bill_id: bill.id,
               method: 'bank_transfer',
@@ -832,10 +852,13 @@ export default function PaymentMatrix() {
               file: receiptFile,
               note: noteWithDate,
               paid_at: paidAt,
+              tenantId: activeTenantId,
+              memberId: billMemberId,
+              verifiedBy: staffVerifier,
             });
             completedCount += 1;
           }
-          const isDirectVerifyTransfer = isBendaharaOrAbove(role);
+          const isDirectVerifyTransfer = activeTenantId ? tenantAccess.canVerifyPayments : isBendaharaOrAbove(role);
           toast.success(
             isDirectVerifyTransfer
               ? `Pembayaran transfer untuk ${manualModal.bills.length} tagihan berhasil dicatat dan langsung terverifikasi.`
@@ -859,6 +882,10 @@ export default function PaymentMatrix() {
   };
 
   const handleCleanupAllData = async () => {
+    if (activeTenantId) {
+      toast.warning('Fitur reset transaksi tidak tersedia pada mode tenant.');
+      return;
+    }
     if (isReadOnly) {
       toast.warning('⚠️ Tindakan pembersihan data dinonaktifkan untuk akun Admin Demo (View-Only).');
       return;
@@ -950,7 +977,7 @@ export default function PaymentMatrix() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {isBendaharaOrAbove(role) && (
+          {!activeTenantId && isBendaharaOrAbove(role) && (
             <button
               onClick={handleCleanupAllData}
               className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-semibold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-xs transition"
@@ -1440,7 +1467,7 @@ export default function PaymentMatrix() {
           onConfirm={async () => {
             const billIds = (qrisCheckoutData.bills || []).map((b) => (typeof b === 'object' ? b.id : b));
             if (IS_DEMO || qrisCheckoutData.demo) {
-              if (isStaffRole(role)) {
+              if (isStaff) {
                 for (const billId of billIds) {
                   recordManualPayment(billId, {
                     method: 'qris',
@@ -1937,8 +1964,10 @@ function ResidentPayModal({ bills, total, canUseQris, billLabel = 'IPL', onConfi
 // Cash remains limited to bendahara/admin.
 function ManualPaymentModal({ bills, unit, role, canWrite, canUseQris, billLabel = 'IPL', onConfirm, onClose }) {
   const toast = useToast();
-  const canRecordCash = isBendaharaOrAbove(role) && canWrite;
-  const canRecordTransfer = canWrite;
+  const { activeTenantId } = useTenant();
+  const tenantAccess = useTenantAccess();
+  const canRecordCash = activeTenantId ? (tenantAccess.canRecordCash && canWrite) : (isBendaharaOrAbove(role) && canWrite);
+  const canRecordTransfer = activeTenantId ? (tenantAccess.canRecordTransfer && canWrite) : canWrite;
   const methodCount = Number(canRecordCash) + Number(canRecordTransfer) + Number(canUseQris);
   const [method, setMethod] = useState(
     canRecordCash ? 'cash' : canRecordTransfer ? 'bank_transfer' : 'qris'
@@ -1950,7 +1979,7 @@ function ManualPaymentModal({ bills, unit, role, canWrite, canUseQris, billLabel
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Khusus admin/bendahara: nominal tagihan dapat diubah
-  const canEditNominal = isBendaharaOrAbove(role) && canWrite;
+  const canEditNominal = activeTenantId ? (tenantAccess.canVerifyPayments && canWrite) : (isBendaharaOrAbove(role) && canWrite);
   const [customAmounts, setCustomAmounts] = useState(() => {
     const initial = {};
     bills.forEach((bill) => {
@@ -2374,14 +2403,26 @@ export function ReceiptActions({
 function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, session, isHanging: initialIsHanging, billLabel = 'IPL', onRefresh, onRetry, onClose }) {
   const toast = useToast();
   const { template } = useTenantTemplate();
-  const { activeTenant } = useTenant();
+  const { activeTenant, activeTenantId } = useTenant();
+  const tenantAccess = useTenantAccess();
   const [asyncPayment, setAsyncPayment] = useState(null);
 
   // Selalu fetch data payment lengkap dari backend
   useEffect(() => {
     let isMounted = true;
 
-    if ((bill?.id || bill?.period) && !IS_DEMO) {
+    if (bill?.id && activeTenantId && !IS_DEMO) {
+      fetchTenantPayments(activeTenantId)
+        .then((payments) => {
+          if (!isMounted) return;
+          const matching = (payments || []).filter((p) => String(p.billing_item_id) === String(bill.id));
+          matching.sort((a, b) => new Date(b.created_at || b.paid_at || 0) - new Date(a.created_at || a.paid_at || 0));
+          if (matching.length > 0) {
+            setAsyncPayment(matching[0]);
+          }
+        })
+        .catch(() => {});
+    } else if ((bill?.id || bill?.period) && !IS_DEMO) {
       const context = {
         unit_id: unit?.id || bill?.unit_id,
         period: bill?.period,
@@ -2394,7 +2435,7 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
         .catch(() => {});
     }
     return () => { isMounted = false; };
-  }, [bill?.id, bill?.period, bill?.unit_id, bill?.payment_id, unit?.id, session?.access_token]);
+  }, [bill?.id, bill?.period, bill?.unit_id, bill?.payment_id, unit?.id, session?.access_token, activeTenantId]);
 
   // Merge: asyncPayment fields take priority over cellPayment for proof/date fields
   const activePayment = useMemo(() => {
@@ -2437,9 +2478,11 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
     (profile?.id && bill?.resident_id && String(bill.resident_id) === String(profile.id)) ||
     (profile?.id && activePayment?.resident_id && String(activePayment.resident_id) === String(profile.id));
 
-  const canViewReceipt = isStaffRole(role) || isMyUnit;
-  const canVerify = isBendaharaOrAbove(role) && canModifyData(role);
-  const canRepair = isBendaharaOrAbove(role) && canModifyData(role);
+  const isStaff = activeTenantId ? tenantAccess.isStaff : isStaffRole(role);
+  const canViewReceipt = isStaff || isMyUnit;
+  const canVerify = activeTenantId ? (tenantAccess.canVerifyPayments && tenantAccess.canWrite) : (isBendaharaOrAbove(role) && canModifyData(role));
+  const canRepair = activeTenantId ? (tenantAccess.canVerifyPayments && tenantAccess.canWrite) : (isBendaharaOrAbove(role) && canModifyData(role));
+  const canWrite = activeTenantId ? tenantAccess.canWrite : canModifyData(role);
   const isHanging = Boolean(initialIsHanging || isHangingPayment(activePayment, resolvedBill, resolvedBill?.status));
   const paymentMethod = activePayment?.method || activePayment?.payment_method || activePayment?.paymentMethod;
 
@@ -2566,7 +2609,11 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
       if (IS_DEMO) {
         verifyPayment(payment.id, { verifiedBy: roleLabel(role) });
       } else {
-        await approveManualPayment(session?.access_token, { payment_id: payment.id });
+        await approveManualPayment(session?.access_token, {
+          payment_id: payment.id,
+          tenantId: activeTenantId,
+          verifiedBy: profile?.full_name || 'staff',
+        });
       }
       toast.success('Pembayaran berhasil diverifikasi & status tagihan menjadi Lunas!');
       if (onRefresh) onRefresh();
@@ -2587,7 +2634,12 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
       if (IS_DEMO) {
         rejectPayment(payment.id, { rejectedBy: roleLabel(role), reason: reason || 'Bukti transfer tidak valid/blur' });
       } else {
-        await rejectManualPayment(session?.access_token, { payment_id: payment.id, note: reason || 'Bukti transfer tidak valid/blur' });
+        await rejectManualPayment(session?.access_token, {
+          payment_id: payment.id,
+          note: reason || 'Bukti transfer tidak valid/blur',
+          tenantId: activeTenantId,
+          rejectedBy: profile?.full_name || 'staff',
+        });
       }
       toast.warning('Pembayaran ditolak. Warga dapat mengunggah ulang bukti transfer.');
       if (onRefresh) onRefresh();
@@ -2629,6 +2681,7 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
         note: editForm.note,
         file: editForm.file,
         status: editForm.markCompleted ? 'completed' : undefined,
+        tenantId: activeTenantId,
       });
 
       toast.success(
@@ -2656,6 +2709,13 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
     try {
       if (IS_DEMO) {
         cancelPayment(paymentId);
+      } else if (activeTenantId) {
+        await rejectManualPayment(session?.access_token, {
+          tenantId: activeTenantId,
+          payment_id: paymentId,
+          note: 'Dibatalkan oleh pengurus',
+          rejectedBy: profile?.full_name || 'staff',
+        });
       } else {
         await portalApiPost('/payments/cancel', {
           token: session?.access_token,
@@ -3047,7 +3107,7 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
             role={role}
             isDemo={IS_DEMO}
             onSendEmail={async () => {
-              if (!canModifyData(role)) {
+              if (!canWrite) {
                 toast.error('Akun read-only tidak dapat mengirim kuitansi email.');
                 return;
               }
@@ -3068,18 +3128,20 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
             </div>
           )}
 
-          {payment?.status === 'rejected' && (isMyUnit || isStaffRole(role)) && !isRevising && canModifyData(role) && !isEditing && (
+          {payment?.status === 'rejected' && (isMyUnit || isStaff) && !isRevising && canWrite && !isEditing && (
             <div className="flex gap-2">
               <button type="button" onClick={() => setIsRevising(true)} className="pv-btn-primary flex-1 text-xs">
                 🔄 Revisi & Upload Ulang
               </button>
-              <button type="button" onClick={handleCancel} disabled={isActing} className="pv-btn-ghost flex-1 text-xs border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50">
-                🗑 Batalkan
-              </button>
+              {(!activeTenantId || canVerify) && (
+                <button type="button" onClick={handleCancel} disabled={isActing} className="pv-btn-ghost flex-1 text-xs border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50">
+                  🗑 Batalkan
+                </button>
+              )}
             </div>
           )}
 
-          {(isHanging || payment?.status === 'pending_verification') && (isMyUnit || isStaffRole(role)) && canModifyData(role) && !isEditing && (
+          {(isHanging || payment?.status === 'pending_verification') && (isMyUnit || isStaff) && canWrite && !isEditing && (!activeTenantId || canVerify) && (
             <button type="button" onClick={handleCancel} disabled={isActing} className="pv-btn-ghost w-full text-xs border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50 flex items-center justify-center gap-1">
               <span>🗑</span>
               <span>Batalkan Transaksi {isHanging ? 'Menggantung' : 'Pembayaran'}</span>
