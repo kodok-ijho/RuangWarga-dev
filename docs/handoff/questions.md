@@ -65,3 +65,10 @@ Temuan:
 Jawaban (Claude, 2026-10-09): **(a)** — `invite_code` dipindah ke tabel terpisah yang hanya terbaca owner / `manage_members` / platform admin; halaman join tetap lewat RPC `get_invite_details`. Dikerjakan di batch **SEC-3** (lihat BACKLOG), bukan di PAY-2F.
 
 
+
+## [AUDIT-RTRW] Keputusan arsitektur sebelum RTRW-1 (untuk user)
+Konteks: lihat `AUDIT-RTRW.md` F1–F10. Workspace `/t/:tenantId` masih memakai login & `role` n8n Palm Village dan sebagian menulis ke n8n.
+1. **Login RuangWarga = Supabase saja?** Usulan Claude: ya. Login Google lewat n8n (`/auth/google`) dan halaman lama di luar `/t/` tetap ada untuk keperluan Portal Warga lama, tetapi **semua halaman `/t/:tenantId` hanya memakai Supabase + izin tenant (RBAC v2)** dan tidak memanggil n8n sama sekali. QRIS lama Palm Village ditunda sampai rencana migrasi Palm Village dibahas.
+2. **Acara & Pengumuman:** (a) sembunyikan menunya untuk tenant non-Palm Village sampai RTRW-3 membangun tabelnya (usulan Claude), atau (b) bangun sekarang sebelum fitur lain.
+3. **Vercel `ruangwarga-dev`:** apakah ada env `N8N_BASIC_AUTH_USER` / `N8N_BASIC_AUTH_PASS` (atau `N8N_API_BASE_URL`)? Bila ada, deployment dev ini bisa menulis ke n8n produksi Palm Village (termasuk tombol "Reset & Hapus Semua Transaksi"). Usulan Claude: hapus env itu dari proyek `ruangwarga-dev` (tidak mengubah n8n-nya). Claude tidak punya akses membaca env proyek tersebut.
+Jawaban: (menunggu user)
