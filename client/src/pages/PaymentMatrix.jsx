@@ -1563,7 +1563,7 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
     );
   }
   const { status, bill } = cell;
-  const payment = propPayment || (status === 'paid' ? getPaymentForBill(bill.id) : null);
+  const payment = propPayment || (IS_DEMO && status === 'paid' ? getPaymentForBill(bill.id) : null);
   const isPaid = status === 'paid';
   const isOverdue = status === 'overdue';
   const isPending = status === 'pending';

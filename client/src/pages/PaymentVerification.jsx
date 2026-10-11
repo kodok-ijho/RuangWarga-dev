@@ -146,6 +146,18 @@ function mergePaymentSources(payments, matrixRows) {
   return merged;
 }
 
+export function resolveVerificationUnit(units, unitId, isDemo = IS_DEMO) {
+  if (!unitId) return null;
+  const found = Array.isArray(units) ? units.find((u) => String(u.id) === String(unitId)) : null;
+  return found || (isDemo ? getUnitById(unitId) : null);
+}
+
+export function resolveVerificationResident(residents, residentId, isDemo = IS_DEMO) {
+  if (!residentId) return null;
+  const found = Array.isArray(residents) ? residents.find((r) => r.id === residentId) : null;
+  return found || (isDemo ? getProfileById(residentId) : null);
+}
+
 export default function PaymentVerification() {
   const params = useParams();
   const { role, profile, session, isReadOnly: authReadOnly } = useAuth();
@@ -293,13 +305,9 @@ export default function PaymentVerification() {
 
   const showQrisOption = qrisEnabled || paymentForm.method === 'qris';
 
-  const getUnit = (unitId) => {
-    return units.find((u) => String(u.id) === String(unitId)) || getUnitById(unitId);
-  };
+  const getUnit = (unitId) => resolveVerificationUnit(units, unitId, IS_DEMO);
 
-  const getResident = (residentId) => {
-    return residents.find((r) => r.id === residentId) || getProfileById(residentId);
-  };
+  const getResident = (residentId) => resolveVerificationResident(residents, residentId, IS_DEMO);
 
   const pendingPayments = useMemo(
     () => payments.filter((p) => isPendingVerificationStatus(p.status)),
@@ -1108,7 +1116,7 @@ export default function PaymentVerification() {
           <div className="pv-dialog-panel">
             <h2 className="text-lg font-bold text-red-700 mb-1">Tolak Pembayaran</h2>
             <p className="mb-4 break-words text-sm leading-5 text-forest-500">
-              Tolak bukti transfer dari <strong>{(selectedPayment._profile || getResident(selectedPayment.resident_id))?.full_name}</strong>.
+              Tolak bukti transfer dari <strong>{(selectedPayment._profile || getResident(selectedPayment.resident_id))?.full_name || 'Warga'}</strong>.
               Warga akan dapat mengirim ulang bukti baru atau membatalkan pembayaran.
             </p>
 
