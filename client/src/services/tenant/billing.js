@@ -224,7 +224,13 @@ export async function generateTenantBillingItems(tenantId, { period, dry_run = f
       .eq('tenant_id', tenantId)
       .eq('period', period);
 
-    if (!billErr && existingBills) {
+    if (billErr) {
+      // eslint-disable-next-line no-console
+      console.error('[tenantOperationalService] generateTenantBillingItems existing bills query error:', billErr);
+      throw billErr;
+    }
+
+    if (existingBills) {
       existingBills.forEach((b) => {
         if (b.unit_id) existingUnitIds.add(b.unit_id);
       });
@@ -265,6 +271,9 @@ export async function generateTenantBillingItems(tenantId, { period, dry_run = f
         .insert(rowsToInsert);
 
       if (insertErr) {
+        if (insertErr.code === '23505') {
+          throw new Error('Tagihan IPL periode ini sudah dibuat.');
+        }
         // eslint-disable-next-line no-console
         console.error('[tenantOperationalService] generateTenantBillingItems insert error:', insertErr);
         throw new Error(insertErr.message || 'Gagal menyimpan tagihan ke database.');

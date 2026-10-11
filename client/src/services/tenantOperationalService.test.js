@@ -187,6 +187,116 @@ describe('tenantOperationalService - Unit Tests', () => {
       expect(result.preview[0].due_date).toMatch(/^2026-10-\d{2}$/);
       expect(result.preview[0].metadata).toHaveProperty('components');
     });
+
+    it('SEC-5.5: melempar error bila query tagihan existing gagal', async () => {
+      const TENANT_ID = '00000000-0000-0000-0000-000000000001';
+      const spy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+        if (table === 'tenants') {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: async () => ({ data: { id: TENANT_ID, type: 'rt_rw', settings: {} }, error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'tenant_units') {
+          return {
+            select: () => ({
+              eq: () => ({
+                order: async () => ({ data: [{ id: 1, label: 'A1', is_active: true }], error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'tenant_members') {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  not: async () => ({ data: [], error: null }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'billing_items') {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: async () => ({ data: null, error: new Error('Database connection failed') }),
+              }),
+            }),
+          };
+        }
+        return {};
+      });
+
+      try {
+        await expect(
+          generateTenantBillingItems(TENANT_ID, { period: '2026-10' })
+        ).rejects.toThrow('Database connection failed');
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    it('SEC-5.5: melempar error "Tagihan IPL periode ini sudah dibuat." bila insert gagal 23505', async () => {
+      const TENANT_ID = '00000000-0000-0000-0000-000000000001';
+      const spy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+        if (table === 'tenants') {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: async () => ({ data: { id: TENANT_ID, type: 'rt_rw', settings: {} }, error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'tenant_units') {
+          return {
+            select: () => ({
+              eq: () => ({
+                order: async () => ({ data: [{ id: 1, label: 'A1', is_active: true }], error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'tenant_members') {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  not: async () => ({ data: [], error: null }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'billing_items') {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: async () => ({ data: [], error: null }),
+              }),
+            }),
+            insert: async () => ({
+              data: null,
+              error: { code: '23505', message: 'duplicate key value violates unique constraint' },
+            }),
+          };
+        }
+        return {};
+      });
+
+      try {
+        await expect(
+          generateTenantBillingItems(TENANT_ID, { period: '2026-10' })
+        ).rejects.toThrow('Tagihan IPL periode ini sudah dibuat.');
+      } finally {
+        spy.mockRestore();
+      }
+    });
   });
 
   describe('Payment Verification Operations', () => {
