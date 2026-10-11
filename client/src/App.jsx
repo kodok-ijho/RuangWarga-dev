@@ -15,7 +15,7 @@ import NotFound from './pages/NotFound';
 import { lazy, Suspense } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { useTenant } from './hooks/useTenant';
-import { useTenantAccess } from './hooks/useTenantAccess';
+import { TenantAccessGuard, TenantPermissionGuard } from './components/tenant/TenantGuards';
 import {
   canViewFinancialReports,
   canViewPaymentMatrix,
@@ -86,50 +86,6 @@ function RoleGuard({ allowed, canAccess, children }) {
   if (!role || (canAccess ? !canAccess(role) : !allowed.includes(role))) {
     return <Navigate to="/" replace />;
   }
-  return children;
-}
-
-/**
- * TenantAccessGuard — memastikan user memiliki hak akses tertentu di workspace tenant (RTRW-1.1).
- * require: nama properti dari useTenantAccess (mis. 'canVerifyPayments', 'isMember', 'canViewReports').
- */
-function TenantAccessGuard({ require: requiredAccess, children }) {
-  const { tenantId } = useParams();
-  const { activeTenantId } = useTenant();
-  const access = useTenantAccess();
-
-  if (access.loading) {
-    return <PageLoader />;
-  }
-
-  const isAllowed = Boolean(access[requiredAccess]);
-  if (!isAllowed) {
-    const targetTenantId = tenantId || activeTenantId || '';
-    const fallbackPath = targetTenantId ? `/t/${targetTenantId}/dashboard` : '/';
-    return <Navigate to={fallbackPath} replace />;
-  }
-
-  return children;
-}
-
-/**
- * TenantPermissionGuard — memastikan user memiliki permission tertentu atau merupakan Owner / Platform Admin.
- */
-function TenantPermissionGuard({ permission, children }) {
-  const { tenantId } = useParams();
-  const { isOwner, isPlatformAdmin, hasPermission, loading, activeTenantId } = useTenant();
-
-  if (loading) {
-    return <PageLoader />;
-  }
-
-  const allowed = isPlatformAdmin || isOwner || (hasPermission && hasPermission(permission));
-  if (!allowed) {
-    const targetTenantId = tenantId || activeTenantId || '';
-    const fallbackPath = targetTenantId ? `/t/${targetTenantId}/dashboard` : '/';
-    return <Navigate to={fallbackPath} replace />;
-  }
-
   return children;
 }
 
