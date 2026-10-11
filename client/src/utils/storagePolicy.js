@@ -12,6 +12,19 @@
  */
 
 const CANONICAL_PATH_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/expenses\/[12][0-9]{3}\/[a-zA-Z0-9_\-.]+$/;
+const CANONICAL_PAYMENT_PROOF_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/payments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[a-zA-Z0-9_\-.]+$/;
+
+/**
+ * Validates whether a storage path strictly follows the canonical payment proof structure:
+ * {tenant_id}/payments/{billing_item_id}/{file}
+ * @param {string} path
+ * @returns {boolean}
+ */
+export function isValidPaymentProofPath(path) {
+  if (!path || typeof path !== 'string') return false;
+  if (path.includes('..') || path.startsWith('/') || path.startsWith('\\')) return false;
+  return CANONICAL_PAYMENT_PROOF_REGEX.test(path);
+}
 
 /**
  * Sanitizes a filename to ensure safe alphanumeric characters, dashes, underscores, and dots.
@@ -126,22 +139,28 @@ export function canAccessExpenseReceipt({
 }
 
 /**
- * Generates an authorized signed URL for an expense receipt object.
+ * Generates an authorized signed URL for a receipt or payment proof object.
  * Standard lifetime: 3600 seconds (60 minutes).
  *
  * @param {object} supabaseClient - Supabase client instance
- * @param {string} path - Canonical object path inside expense-receipts bucket
+ * @param {string} path - Canonical object path inside target bucket
  * @param {number} [expiresInSeconds=3600] - Expiry in seconds (default: 60 minutes)
+ * @param {string} [bucket='expense-receipts'] - Storage bucket name ('expense-receipts' | 'payment-proofs')
  * @returns {Promise<string>} Signed URL string
  */
-export async function createReceiptSignedUrl(supabaseClient, path, expiresInSeconds = 3600) {
+export async function createReceiptSignedUrl(supabaseClient, path, expiresInSeconds = 3600, bucket = 'expense-receipts') {
   if (!supabaseClient) throw new Error('Supabase client diperlukan untuk membuat signed URL.');
-  if (!isValidExpenseReceiptPath(path)) {
+
+  if (bucket === 'payment-proofs') {
+    if (!isValidPaymentProofPath(path)) {
+      throw new Error('Path storage bukti pembayaran tidak valid atau melanggar struktur canonical.');
+    }
+  } else if (!isValidExpenseReceiptPath(path)) {
     throw new Error('Path storage bukti pengeluaran tidak valid atau melanggar struktur canonical.');
   }
 
   const { data, error } = await supabaseClient.storage
-    .from('expense-receipts')
+    .from(bucket)
     .createSignedUrl(path, expiresInSeconds);
 
   if (error) throw error;

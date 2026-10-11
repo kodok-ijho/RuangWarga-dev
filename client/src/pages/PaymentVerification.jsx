@@ -39,6 +39,8 @@ import {
   sendEmailReceipt,
 } from '../services/mockData';
 import { downloadDigitalReceipt } from '../services/receiptService';
+import { supabase } from '../services/supabaseClient';
+import { createReceiptSignedUrl } from '../utils/storagePolicy';
 import { AiOutlineCheck, AiOutlineClose, AiOutlineEye, AiOutlineClockCircle, AiOutlineEdit } from 'react-icons/ai';
 import { useToast } from '../hooks/useToast';
 import { EmptyState, SkeletonTable, SkeletonList, SearchInput, Pagination } from '../components/ui';
@@ -212,6 +214,42 @@ export default function PaymentVerification() {
     setResidents([]);
     setLoadError(null);
   }, [activeTenantId]);
+
+  const [signedProofUrl, setSignedProofUrl] = useState(null);
+
+  useEffect(() => {
+    let isCancelled = false;
+    setSignedProofUrl(null);
+    if (!selectedPayment) return;
+
+    const rawPath =
+      selectedPayment.proof_file_url ||
+      selectedPayment.proof_url ||
+      selectedPayment.metadata?.proof_path ||
+      selectedPayment.metadata?.proof_file_url ||
+      '';
+
+    if (!rawPath) return;
+
+    if (rawPath.startsWith('http://') || rawPath.startsWith('https://')) {
+      setSignedProofUrl(rawPath);
+      return;
+    }
+
+    createReceiptSignedUrl(supabase, rawPath, 300, 'payment-proofs')
+      .then((signed) => {
+        if (!isCancelled) setSignedProofUrl(signed);
+      })
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error('[PaymentVerification] Gagal resolve signed URL bukti transfer:', err);
+        if (!isCancelled) setSignedProofUrl(null);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedPayment]);
 
   const sortedUnits = useMemo(() => {
     return [...units].sort((a, b) => {
@@ -507,7 +545,11 @@ export default function PaymentVerification() {
     return '';
   }
 
-  const selectedReceiptPreviewUrl = getReceiptPreviewUrl(selectedPayment);
+  const selectedReceiptPreviewUrl =
+    signedProofUrl ||
+    (selectedPayment?.proof_file_url?.startsWith('http')
+      ? getReceiptPreviewUrl(selectedPayment)
+      : null);
   const selectedUnit = selectedPayment
     ? selectedPayment._unit || getUnit(selectedPayment.unit_id || selectedPayment._bill?.unit_id)
     : null;
@@ -730,8 +772,8 @@ export default function PaymentVerification() {
                       <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-xs leading-5 text-slate-400 sm:flex sm:flex-wrap">
                         <span>{payment.method === 'cash' ? '💵 Tunai' : '🏦 Transfer Bank'}</span>
                         <span>📅 {formatDate(payment.paid_at)}</span>
-                        {(payment.proof_file_url || payment.receipt_file) && (
-                          payment.proof_file_url ? (
+                        {(payment.proof_file_url || payment.receipt_file || payment.proof_url || payment.metadata?.proof_path) && (
+                          payment.proof_file_url?.startsWith('http') ? (
                             <a
                               href={payment.proof_file_url}
                               target="_blank"
@@ -741,9 +783,16 @@ export default function PaymentVerification() {
                               <span className="truncate">📎 {payment.proof_file_name || payment.receipt_file || 'Bukti pembayaran'}</span>
                             </a>
                           ) : (
-                            <span className="col-span-2 flex min-w-0 items-center gap-1 text-slate-400 text-xs italic">
-                              <span className="truncate">📎 {payment.proof_file_name || payment.receipt_file || 'Bukti'} (URL tidak tersedia)</span>
-                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedPayment(payment);
+                                setModalMode(payment.status === 'pending_verification' ? 'verify' : 'detail');
+                              }}
+                              className="col-span-2 flex min-w-0 items-center gap-1 text-slate-700 font-semibold hover:underline text-left cursor-pointer"
+                            >
+                              <span className="truncate">📎 {payment.proof_file_name || payment.receipt_file || 'Bukti pembayaran'}</span>
+                            </button>
                           )
                         )}
                       </div>
@@ -883,12 +932,12 @@ export default function PaymentVerification() {
                   </div>
                 </div>
               )}
-              {(selectedPayment.proof_file_url || selectedPayment.receipt_file) && (
+              {(selectedPayment.proof_file_url || selectedPayment.receipt_file || selectedPayment.proof_url || selectedPayment.metadata?.proof_path) && (
                 <div className="mt-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
                   <p className="text-xs font-semibold text-slate-700 mb-2">📎 Bukti Transfer</p>
-                  {selectedPayment.proof_file_url ? (
+                  {(signedProofUrl || selectedPayment.proof_file_url?.startsWith('http')) ? (
                     <a
-                      href={selectedPayment.proof_file_url}
+                      href={signedProofUrl || selectedPayment.proof_file_url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="block p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors shadow-xs"

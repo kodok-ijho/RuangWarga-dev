@@ -450,30 +450,35 @@ export async function submitTenantPayment(tenantId, {
   const initialStatus = isStaff && method === 'cash' ? 'completed' : 'pending_verification';
 
   // 2. Upload bukti transfer jika berupa File (dengan tracking integritas penyimpanan)
-  let resolvedProofUrl = proofUrl || '';
+  let resolvedProofPath = proofUrl || '';
   let proofFileName = proofFile?.name || (typeof proofFile === 'string' ? proofFile : '');
-  let isProofUploaded = Boolean(resolvedProofUrl);
+  let isProofUploaded = Boolean(resolvedProofPath);
 
   if (proofFile && typeof proofFile === 'object' && proofFile.size) {
     try {
       const ext = (proofFile.name || '').split('.').pop() || 'jpg';
-      const storagePath = `payments/${tenantId}/${billId}_${Date.now()}.${ext}`;
+      const storagePath = `${tenantId}/payments/${billId}/${Date.now()}.${ext}`;
       const { data: uploadData, error: uploadErr } = await supabase.storage
         .from('payment-proofs')
-        .upload(storagePath, proofFile, { upsert: true });
+        .upload(storagePath, proofFile, { upsert: false });
 
-      if (!uploadErr && uploadData?.path) {
-        const { data: pubUrl } = supabase.storage
-          .from('payment-proofs')
-          .getPublicUrl(uploadData.path);
-        resolvedProofUrl = pubUrl?.publicUrl || '';
-        isProofUploaded = Boolean(resolvedProofUrl);
-      } else {
-        resolvedProofUrl = '';
+      if (uploadErr || !uploadData?.path) {
+        if (!isStaff && method === 'bank_transfer') {
+          throw new Error('Bukti transfer gagal diunggah. Coba lagi.');
+        }
+        resolvedProofPath = '';
         isProofUploaded = false;
+      } else {
+        resolvedProofPath = uploadData.path;
+        isProofUploaded = true;
       }
-    } catch {
-      resolvedProofUrl = '';
+    } catch (err) {
+      if (!isStaff && method === 'bank_transfer') {
+        throw err instanceof Error && err.message === 'Bukti transfer gagal diunggah. Coba lagi.'
+          ? err
+          : new Error('Bukti transfer gagal diunggah. Coba lagi.');
+      }
+      resolvedProofPath = '';
       isProofUploaded = false;
     }
   }
@@ -486,11 +491,12 @@ export async function submitTenantPayment(tenantId, {
     amount: paymentAmount,
     method: method || 'bank_transfer',
     status: initialStatus,
-    proof_url: resolvedProofUrl || null,
+    proof_url: resolvedProofPath || null,
     paid_at: paidAt || new Date().toISOString(),
     metadata: {
       note: note || '',
       proof_file_name: proofFileName,
+      proof_path: resolvedProofPath || null,
       proof_stored: isProofUploaded,
       submitted_at: new Date().toISOString(),
       ...(verifiedBy ? { verified_by_name: verifiedBy } : {}),

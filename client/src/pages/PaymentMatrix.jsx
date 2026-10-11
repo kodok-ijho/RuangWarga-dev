@@ -54,6 +54,8 @@ import {
   sendEmailReceipt,
 } from '../services/mockData';
 import { downloadDigitalReceipt } from '../services/receiptService';
+import { supabase } from '../services/supabaseClient';
+import { createReceiptSignedUrl } from '../utils/storagePolicy';
 import { autoGenerateKosBilling, generateKelasSppBilling, fetchTenantMembers, isLegacyQrisEnabled } from '../services/tenantOperationalService';
 import { compressImage } from '../utils/imageCompressor';
 import { AiOutlineDownload } from 'react-icons/ai';
@@ -2291,10 +2293,8 @@ function getPaymentProofPreviewUrl(payment) {
     return sourceUrl;
   }
 
-  // 3. Supabase Storage relative file path (e.g. "2026-09__unit-13__payment-...")
-  const cleanPath = sourceUrl.replace(/^payments\//, '');
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://mzjgliclzihrdjaqzmqg.supabase.co';
-  return `${supabaseUrl.replace(/\/+$/, '')}/storage/v1/object/public/payments/${encodeURIComponent(cleanPath)}`;
+  // Relative storage path diselesaikan melalui signed URL di modal
+  return null;
 }
 
 function getResolvedPaymentDate(payment, bill) {
@@ -2475,10 +2475,46 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
     proofFileUrl = proofFileName;
   }
 
-  const hasProofFile = Boolean(proofFileUrl || proofFileName);
+  const [signedProofUrl, setSignedProofUrl] = useState(null);
+
+  useEffect(() => {
+    let isCancelled = false;
+    setSignedProofUrl(null);
+    const rawPath =
+      activePayment?.proof_url ||
+      activePayment?.proof_file_path ||
+      activePayment?.proof_file_url ||
+      activePayment?.metadata?.proof_path ||
+      activePayment?.metadata?.proof_file_path ||
+      '';
+
+    if (!rawPath) return;
+
+    if (rawPath.startsWith('http://') || rawPath.startsWith('https://')) {
+      setSignedProofUrl(rawPath);
+      return;
+    }
+
+    createReceiptSignedUrl(supabase, rawPath, 300, 'payment-proofs')
+      .then((signed) => {
+        if (!isCancelled) setSignedProofUrl(signed);
+      })
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error('[PaymentMatrix] Gagal resolve signed URL bukti transfer:', err);
+        if (!isCancelled) setSignedProofUrl(null);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [activePayment]);
+
+  const resolvedProofFileUrl = signedProofUrl || (proofFileUrl?.startsWith('http') ? proofFileUrl : '');
+  const hasProofFile = Boolean(proofFileUrl || proofFileName || signedProofUrl);
   const proofPreviewPayment = { ...activePayment, proof_file_url: proofFileUrl, proof_file_name: proofFileName };
-  const proofPreviewUrl = getPaymentProofPreviewUrl(proofPreviewPayment);
-  const canPreviewProofImage = Boolean(proofPreviewUrl && isImagePaymentProof(proofPreviewPayment));
+  const proofPreviewUrl = signedProofUrl || getPaymentProofPreviewUrl(proofPreviewPayment);
+  const canPreviewProofImage = Boolean(proofPreviewUrl && (signedProofUrl || isImagePaymentProof(proofPreviewPayment)));
   const resolvedPaidAt = getResolvedPaymentDate(activePayment, resolvedBill);
 
   const missingProofText =
@@ -2521,7 +2557,7 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
   useEffect(() => {
     setProofPreviewError(false);
     setIsProofPreviewOpen(false);
-  }, [payment?.id, proofFileUrl]);
+  }, [payment?.id, proofFileUrl, signedProofUrl]);
 
   const handleVerify = async () => {
     if (!payment || isActing) return;
@@ -2951,11 +2987,11 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
                       </span>
                     </div>
                     <a
-                      href={proofFileUrl || '#'}
+                      href={resolvedProofFileUrl || '#'}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => {
-                        if (!proofFileUrl) {
+                        if (!resolvedProofFileUrl) {
                           e.preventDefault();
                           alert(`File bukti tercatat: ${proofFileName}`);
                         }

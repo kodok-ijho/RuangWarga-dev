@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildCanonicalExpenseReceiptPath,
   isValidExpenseReceiptPath,
+  isValidPaymentProofPath,
   extractTenantIdFromPath,
   canAccessExpenseReceipt,
   sanitizeStorageFileName,
@@ -201,5 +202,58 @@ describe('Sub-Gate 8.1-B5: Storage RLS & Path Security Invariants', () => {
         'Path storage bukti pengeluaran tidak valid atau melanggar struktur canonical.'
       );
     });
+
+    it('generates signed URL for payment-proofs bucket with custom lifetime (300s)', async () => {
+      const BILL_ID = '33333333-3333-3333-3333-333333333333';
+      const CANONICAL_PAYMENT_PATH = `${TENANT_A}/payments/${BILL_ID}/1712345678.jpg`;
+
+      const mockSupabase = {
+        storage: {
+          from: (bucket) => {
+            expect(bucket).toBe('payment-proofs');
+            return {
+              createSignedUrl: async (path, expiresIn) => {
+                expect(path).toBe(CANONICAL_PAYMENT_PATH);
+                expect(expiresIn).toBe(300);
+                return {
+                  data: { signedUrl: `https://supabase.co/storage/v1/object/sign/payment-proofs/${path}?token=mock-payment-token` },
+                  error: null,
+                };
+              },
+            };
+          },
+        },
+      };
+
+      const signedUrl = await createReceiptSignedUrl(mockSupabase, CANONICAL_PAYMENT_PATH, 300, 'payment-proofs');
+      expect(signedUrl).toContain('mock-payment-token');
+      expect(signedUrl).toContain('payment-proofs');
+    });
+
+    it('rejects payment-proofs signed URL if path violates payment proof canonical structure', async () => {
+      const mockSupabase = { storage: { from: () => ({}) } };
+      await expect(
+        createReceiptSignedUrl(mockSupabase, `${TENANT_A}/invalid/path.jpg`, 300, 'payment-proofs')
+      ).rejects.toThrow('Path storage bukti pembayaran tidak valid atau melanggar struktur canonical.');
+    });
+  });
+
+  describe('SEC-5.4: Canonical Payment Proof Validation', () => {
+    const BILL_ID = '33333333-3333-3333-3333-333333333333';
+
+    it('accepts valid canonical payment proof paths', () => {
+      expect(isValidPaymentProofPath(`${TENANT_A}/payments/${BILL_ID}/1712345678.jpg`)).toBe(true);
+      expect(isValidPaymentProofPath(`${TENANT_A}/payments/${BILL_ID}/transfer_receipt.png`)).toBe(true);
+    });
+
+    it('rejects invalid or traversal payment proof paths', () => {
+      expect(isValidPaymentProofPath(null)).toBe(false);
+      expect(isValidPaymentProofPath('')).toBe(false);
+      expect(isValidPaymentProofPath('../etc/passwd')).toBe(false);
+      expect(isValidPaymentProofPath(`${TENANT_A}/payments/${BILL_ID}/../evil.png`)).toBe(false);
+      expect(isValidPaymentProofPath(`invalid-uuid/payments/${BILL_ID}/proof.jpg`)).toBe(false);
+      expect(isValidPaymentProofPath(`${TENANT_A}/expenses/2026/file.jpg`)).toBe(false);
+    });
   });
 });
+
