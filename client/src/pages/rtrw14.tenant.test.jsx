@@ -1,12 +1,24 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
-import { renderToString } from 'react-dom/server';
+import { render, waitFor, cleanup } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import PaymentVerification from './PaymentVerification';
 import Reports from './Reports';
 import Expenses from './Expenses';
 import * as dataService from '../services/dataService';
 import * as tenantOpService from '../services/tenantOperationalService';
+
+// Polyfill ResizeObserver for jsdom (needed by recharts / responsive containers)
+if (typeof window !== 'undefined' && !window.ResizeObserver) {
+  class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  window.ResizeObserver = ResizeObserver;
+  global.ResizeObserver = ResizeObserver;
+}
 
 // Mock dataService functions
 vi.mock('../services/dataService', () => ({
@@ -21,6 +33,7 @@ vi.mock('../services/dataService', () => ({
   createExpense: vi.fn(),
   updateExpense: vi.fn(),
   deleteExpense: vi.fn(),
+  IS_DEMO: false,
 }));
 
 // Mock tenant operational service
@@ -35,8 +48,8 @@ vi.mock('../services/tenantOperationalService', async () => {
   };
 });
 
-// Mock hooks
-let mockTenantAccessState = {
+// Mock state & hooks
+const mockTenantAccessState = {
   isMember: true,
   isStaff: true,
   canWrite: true,
@@ -50,7 +63,7 @@ let mockTenantAccessState = {
   loading: false,
 };
 
-let mockTenantState = {
+const mockTenantState = {
   activeTenant: { id: 'tenant-rtrw-1', name: 'Kompleks RT 01', type: 'rt_rw', settings: { qris_enabled: true } },
   activeTenantId: 'tenant-rtrw-1',
   userTenants: [],
@@ -58,15 +71,42 @@ let mockTenantState = {
   subscriptionStatus: 'active',
 };
 
+const mockToast = {
+  success: vi.fn(),
+  error: vi.fn(),
+  warning: vi.fn(),
+  info: vi.fn(),
+};
+
+const mockAuth = {
+  user: { id: 'u-1', email: 'test@example.com' },
+  profile: { id: 'u-1', full_name: 'Pak RT' },
+  isAuthenticated: true,
+  role: 'admin',
+  isReadOnly: false,
+  session: { access_token: 'fake-token' },
+};
+
+const mockSubscriptionGate = {
+  canWrite: true,
+  isReadOnly: false,
+  status: 'active',
+};
+
+const mockTenantTemplate = {
+  name: 'Kompleks RT/RW',
+  unitLabel: 'Rumah',
+  billLabel: 'IPL',
+  memberLabel: 'Warga',
+  icon: '🏡',
+};
+
+const mockTour = {
+  triggerTour: vi.fn(),
+};
+
 vi.mock('../hooks/useAuth', () => ({
-  useAuth: () => ({
-    user: { id: 'u-1', email: 'test@example.com' },
-    profile: { id: 'u-1', full_name: 'Pak RT' },
-    isAuthenticated: true,
-    role: 'admin',
-    isReadOnly: false,
-    session: { access_token: 'fake-token' },
-  }),
+  useAuth: () => mockAuth,
 }));
 
 vi.mock('../hooks/useTenant', () => ({
@@ -82,34 +122,19 @@ vi.mock('../hooks/useTenantAccess', () => ({
 }));
 
 vi.mock('../hooks/useSubscriptionGate', () => ({
-  useSubscriptionGate: () => ({
-    canWrite: true,
-    isReadOnly: false,
-    status: 'active',
-  }),
+  useSubscriptionGate: () => mockSubscriptionGate,
 }));
 
 vi.mock('../hooks/useTenantTemplate', () => ({
-  useTenantTemplate: () => ({
-    name: 'Kompleks RT/RW',
-    unitLabel: 'Rumah',
-    billLabel: 'IPL',
-    memberLabel: 'Warga',
-    icon: '🏡',
-  }),
+  useTenantTemplate: () => mockTenantTemplate,
 }));
 
 vi.mock('../hooks/useToast', () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-  }),
+  useToast: () => mockToast,
 }));
 
 vi.mock('../context/TourContext', () => ({
-  useTour: () => ({ triggerTour: vi.fn() }),
+  useTour: () => mockTour,
 }));
 
 vi.mock('../services/supabaseClient', () => ({
@@ -136,8 +161,12 @@ describe('RTRW-1.4 Tenant Isolation Tests for PaymentVerification, Reports, and 
     vi.clearAllMocks();
   });
 
-  it('PaymentVerification tidak memanggil dataService.fetchSettings saat tenant aktif', () => {
-    renderToString(
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('PaymentVerification memanggil fetchPayments dengan tenantId dan tidak memanggil dataService.fetchSettings saat tenant aktif', async () => {
+    render(
       <MemoryRouter initialEntries={['/t/tenant-rtrw-1/verify']}>
         <Routes>
           <Route path="/t/:tenantId/verify" element={<PaymentVerification />} />
@@ -145,11 +174,18 @@ describe('RTRW-1.4 Tenant Isolation Tests for PaymentVerification, Reports, and 
       </MemoryRouter>
     );
 
+    await waitFor(() => {
+      expect(dataService.fetchPayments).toHaveBeenCalledWith(
+        'fake-token',
+        expect.objectContaining({ tenantId: 'tenant-rtrw-1' })
+      );
+    });
+
     expect(dataService.fetchSettings).not.toHaveBeenCalled();
   });
 
-  it('Reports tidak memanggil dataService.fetchNonIplIncomes maupun dataService.fetchEvents saat tenant aktif', () => {
-    renderToString(
+  it('Reports memanggil fetchMonthlyFinance dengan tenantId dan tidak memanggil dataService.fetchNonIplIncomes maupun dataService.fetchEvents saat tenant aktif', async () => {
+    render(
       <MemoryRouter initialEntries={['/t/tenant-rtrw-1/reports']}>
         <Routes>
           <Route path="/t/:tenantId/reports" element={<Reports />} />
@@ -157,18 +193,32 @@ describe('RTRW-1.4 Tenant Isolation Tests for PaymentVerification, Reports, and 
       </MemoryRouter>
     );
 
+    await waitFor(() => {
+      expect(dataService.fetchMonthlyFinance).toHaveBeenCalledWith(
+        'fake-token',
+        expect.objectContaining({ tenantId: 'tenant-rtrw-1' })
+      );
+    });
+
     expect(dataService.fetchNonIplIncomes).not.toHaveBeenCalled();
     expect(dataService.fetchEvents).not.toHaveBeenCalled();
   });
 
-  it('Expenses tidak memanggil dataService.fetchEvents maupun dataService.fetchMyEventAccess saat tenant aktif', () => {
-    renderToString(
+  it('Expenses memanggil fetchExpenses dengan tenantId dan tidak memanggil dataService.fetchEvents maupun dataService.fetchMyEventAccess saat tenant aktif', async () => {
+    render(
       <MemoryRouter initialEntries={['/t/tenant-rtrw-1/expenses']}>
         <Routes>
           <Route path="/t/:tenantId/expenses" element={<Expenses />} />
         </Routes>
       </MemoryRouter>
     );
+
+    await waitFor(() => {
+      expect(dataService.fetchExpenses).toHaveBeenCalledWith(
+        'fake-token',
+        expect.objectContaining({ tenantId: 'tenant-rtrw-1' })
+      );
+    });
 
     expect(dataService.fetchEvents).not.toHaveBeenCalled();
     expect(dataService.fetchMyEventAccess).not.toHaveBeenCalled();

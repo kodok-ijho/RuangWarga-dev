@@ -82,6 +82,72 @@ export function isHangingPayment(payment, bill, cellStatus) {
   return false;
 }
 
+export function buildStaffCashPaymentArgs({
+  bill,
+  unit,
+  index = 0,
+  customAmounts,
+  receiptFile = null,
+  firstPayment = null,
+  note = '',
+  paidAt,
+  role,
+  activeTenantId,
+  staffVerifier,
+}) {
+  const billMemberId = bill?.member_id || unit?.member_id || unit?.members?.[0]?.id || null;
+  const amount = customAmounts?.[bill?.id] ?? (Number(bill?.amount || 0) + Number(bill?.late_fee || 0));
+  const file = index === 0 ? receiptFile : null;
+  const calculatedNote = index === 0
+    ? note
+    : note + (firstPayment?.file_url ? ` (Lampiran: ${firstPayment.file_url})` : '');
+
+  return {
+    bill_id: bill?.id,
+    amount,
+    file,
+    note: calculatedNote,
+    paid_at: paidAt,
+    recorderRole: role,
+    tenantId: activeTenantId,
+    memberId: billMemberId,
+    verifiedBy: staffVerifier,
+  };
+}
+
+export function buildDetailActionArgs(actionType, {
+  paymentId,
+  activeTenantId,
+  verifier,
+  reason,
+}) {
+  const staffVerifier = verifier || 'staff';
+  if (actionType === 'approve') {
+    return {
+      payment_id: paymentId,
+      tenantId: activeTenantId,
+      verifiedBy: staffVerifier,
+    };
+  }
+  if (actionType === 'reject') {
+    return {
+      payment_id: paymentId,
+      note: reason || 'Bukti transfer tidak valid/blur',
+      tenantId: activeTenantId,
+      rejectedBy: staffVerifier,
+    };
+  }
+  if (actionType === 'cancel') {
+    return {
+      tenantId: activeTenantId,
+      payment_id: paymentId,
+      note: 'Dibatalkan oleh pengurus',
+      rejectedBy: staffVerifier,
+    };
+  }
+  throw new Error(`Aksi detail tidak dikenali: ${actionType}`);
+}
+
 export default function PaymentMatrix() {
   const { profile, role, session, isReadOnly, user } = useAuth();
   const { tenantId: routeTenantId } = useParams();
@@ -812,31 +878,23 @@ export default function PaymentMatrix() {
           const staffVerifier = profile?.full_name || user?.email || 'staff';
           for (let i = 0; i < manualModal.bills.length; i++) {
             const bill = manualModal.bills[i];
-            const billMemberId = bill.member_id || manualModal.unit?.member_id || manualModal.unit?.members?.[0]?.id || null;
+            const paymentArgs = buildStaffCashPaymentArgs({
+              bill,
+              unit: manualModal.unit,
+              index: i,
+              customAmounts,
+              receiptFile,
+              firstPayment,
+              note: noteWithDate,
+              paidAt,
+              role,
+              activeTenantId,
+              staffVerifier,
+            });
             if (i === 0) {
-              firstPayment = await createCashPayment(session?.access_token, {
-                bill_id: bill.id,
-                amount: customAmounts?.[bill.id] ?? (Number(bill.amount || 0) + Number(bill.late_fee || 0)),
-                file: receiptFile,
-                note: noteWithDate,
-                paid_at: paidAt,
-                recorderRole: role,
-                tenantId: activeTenantId,
-                memberId: billMemberId,
-                verifiedBy: staffVerifier,
-              });
+              firstPayment = await createCashPayment(session?.access_token, paymentArgs);
             } else {
-              await createCashPayment(session?.access_token, {
-                bill_id: bill.id,
-                amount: customAmounts?.[bill.id] ?? (Number(bill.amount || 0) + Number(bill.late_fee || 0)),
-                file: null,
-                note: noteWithDate + (firstPayment?.file_url ? ` (Lampiran: ${firstPayment.file_url})` : ''),
-                paid_at: paidAt,
-                recorderRole: role,
-                tenantId: activeTenantId,
-                memberId: billMemberId,
-                verifiedBy: staffVerifier,
-              });
+              await createCashPayment(session?.access_token, paymentArgs);
             }
             completedCount += 1;
           }
@@ -2609,11 +2667,14 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
       if (IS_DEMO) {
         verifyPayment(payment.id, { verifiedBy: roleLabel(role) });
       } else {
-        await approveManualPayment(session?.access_token, {
-          payment_id: payment.id,
-          tenantId: activeTenantId,
-          verifiedBy: profile?.full_name || 'staff',
-        });
+        await approveManualPayment(
+          session?.access_token,
+          buildDetailActionArgs('approve', {
+            paymentId: payment.id,
+            activeTenantId,
+            verifier: profile?.full_name || 'staff',
+          })
+        );
       }
       toast.success('Pembayaran berhasil diverifikasi & status tagihan menjadi Lunas!');
       if (onRefresh) onRefresh();
@@ -2634,12 +2695,15 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
       if (IS_DEMO) {
         rejectPayment(payment.id, { rejectedBy: roleLabel(role), reason: reason || 'Bukti transfer tidak valid/blur' });
       } else {
-        await rejectManualPayment(session?.access_token, {
-          payment_id: payment.id,
-          note: reason || 'Bukti transfer tidak valid/blur',
-          tenantId: activeTenantId,
-          rejectedBy: profile?.full_name || 'staff',
-        });
+        await rejectManualPayment(
+          session?.access_token,
+          buildDetailActionArgs('reject', {
+            paymentId: payment.id,
+            activeTenantId,
+            verifier: profile?.full_name || 'staff',
+            reason: reason || 'Bukti transfer tidak valid/blur',
+          })
+        );
       }
       toast.warning('Pembayaran ditolak. Warga dapat mengunggah ulang bukti transfer.');
       if (onRefresh) onRefresh();
@@ -2710,12 +2774,14 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
       if (IS_DEMO) {
         cancelPayment(paymentId);
       } else if (activeTenantId) {
-        await rejectManualPayment(session?.access_token, {
-          tenantId: activeTenantId,
-          payment_id: paymentId,
-          note: 'Dibatalkan oleh pengurus',
-          rejectedBy: profile?.full_name || 'staff',
-        });
+        await rejectManualPayment(
+          session?.access_token,
+          buildDetailActionArgs('cancel', {
+            paymentId,
+            activeTenantId,
+            verifier: profile?.full_name || 'staff',
+          })
+        );
       } else {
         await portalApiPost('/payments/cancel', {
           token: session?.access_token,

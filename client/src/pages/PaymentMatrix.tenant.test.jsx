@@ -2,10 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
-import PaymentMatrix from './PaymentMatrix';
+import PaymentMatrix, { buildStaffCashPaymentArgs, buildDetailActionArgs } from './PaymentMatrix';
 import * as apiClient from '../services/apiClient';
-import * as dataService from '../services/dataService';
-import * as tenantOpService from '../services/tenantOperationalService';
 
 // Mock apiClient agar portalApiPost melempar error jika terpanggil
 vi.mock('../services/apiClient', () => ({
@@ -14,7 +12,7 @@ vi.mock('../services/apiClient', () => ({
   }),
 }));
 
-let mockTenantState = {
+const mockTenantState = {
   activeTenant: { id: 'tenant-rtrw-1', name: 'Kompleks RT 01', type: 'rt_rw' },
   activeTenantId: 'tenant-rtrw-1',
   userTenants: [],
@@ -26,7 +24,7 @@ let mockTenantState = {
   hasPermission: (perm) => perm === 'manage_billing_cash',
 };
 
-let mockTenantAccessState = {
+const mockTenantAccessState = {
   isMember: true,
   isStaff: true,
   canWrite: true,
@@ -40,15 +38,36 @@ let mockTenantAccessState = {
   loading: false,
 };
 
+const mockAuth = {
+  user: { id: 'u-bendahara', email: 'bendahara@example.com' },
+  profile: { id: 'u-bendahara', full_name: 'Bendahara Pak RT' },
+  isAuthenticated: true,
+  role: 'bendahara',
+  isReadOnly: false,
+  session: { access_token: 'fake-token' },
+};
+
+const mockTenantTemplate = {
+  name: 'Kompleks RT/RW',
+  unitLabel: 'Rumah',
+  billLabel: 'IPL',
+  memberLabel: 'Warga',
+  icon: '🏡',
+};
+
+const mockToast = {
+  success: vi.fn(),
+  error: vi.fn(),
+  warning: vi.fn(),
+  info: vi.fn(),
+};
+
+const mockTour = {
+  triggerTour: vi.fn(),
+};
+
 vi.mock('../hooks/useAuth', () => ({
-  useAuth: () => ({
-    user: { id: 'u-bendahara', email: 'bendahara@example.com' },
-    profile: { id: 'u-bendahara', full_name: 'Bendahara Pak RT' },
-    isAuthenticated: true,
-    role: 'bendahara',
-    isReadOnly: false,
-    session: { access_token: 'fake-token' },
-  }),
+  useAuth: () => mockAuth,
 }));
 
 vi.mock('../hooks/useTenant', () => ({
@@ -60,26 +79,15 @@ vi.mock('../hooks/useTenantAccess', () => ({
 }));
 
 vi.mock('../hooks/useTenantTemplate', () => ({
-  useTenantTemplate: () => ({
-    name: 'Kompleks RT/RW',
-    unitLabel: 'Rumah',
-    billLabel: 'IPL',
-    memberLabel: 'Warga',
-    icon: '🏡',
-  }),
+  useTenantTemplate: () => mockTenantTemplate,
 }));
 
 vi.mock('../hooks/useToast', () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-  }),
+  useToast: () => mockToast,
 }));
 
 vi.mock('../context/TourContext', () => ({
-  useTour: () => ({ triggerTour: vi.fn() }),
+  useTour: () => mockTour,
 }));
 
 vi.mock('../services/tenantOperationalService', async () => {
@@ -101,7 +109,7 @@ vi.mock('../services/tenantOperationalService', async () => {
   };
 });
 
-describe('PaymentMatrix Tenant Mode (RTRW-1.3)', () => {
+describe('PaymentMatrix Tenant Mode (RTRW-1.3 / RTRW-1F.1)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -117,65 +125,128 @@ describe('PaymentMatrix Tenant Mode (RTRW-1.3)', () => {
     expect(html).not.toContain('Reset & Hapus Semua Transaksi');
   });
 
-  it('meneruskan tenantId, memberId, dan verifiedBy ke createCashPayment di mode tenant', async () => {
-    const createCashSpy = vi.spyOn(dataService, 'createCashPayment').mockResolvedValue({ id: 'p-new' });
+  it('meneruskan tenantId, memberId, dan verifiedBy ke argumen createCashPayment di mode tenant via buildStaffCashPaymentArgs', () => {
+    const bill = {
+      id: 'bill-1',
+      amount: 150000,
+      late_fee: 0,
+      member_id: 'mem-1',
+    };
+    const unit = {
+      id: 'unit-101',
+      member_id: 'fallback-mem',
+      members: [{ id: 'fallback-mem' }],
+    };
+    const receiptFile = { name: 'receipt.png' };
 
-    // Panggil langsung fungsi createCashPayment dengan parameter tenant
-    await dataService.createCashPayment('fake-token', {
+    // Kasus pembayaran tunggal / tagihan pertama (index 0)
+    const argsIndex0 = buildStaffCashPaymentArgs({
+      bill,
+      unit,
+      index: 0,
+      customAmounts: { 'bill-1': 150000 },
+      receiptFile,
+      firstPayment: null,
+      note: 'Diterima tunai',
+      paidAt: '2026-10-11',
+      role: 'bendahara',
+      activeTenantId: 'tenant-rtrw-1',
+      staffVerifier: 'Bendahara Pak RT',
+    });
+
+    expect(argsIndex0).toEqual({
       bill_id: 'bill-1',
       amount: 150000,
+      file: receiptFile,
       note: 'Diterima tunai',
       paid_at: '2026-10-11',
+      recorderRole: 'bendahara',
       tenantId: 'tenant-rtrw-1',
       memberId: 'mem-1',
       verifiedBy: 'Bendahara Pak RT',
     });
+    expect(argsIndex0.tenantId).toBe('tenant-rtrw-1');
+    expect(argsIndex0.memberId).toBe('mem-1');
+    expect(argsIndex0.verifiedBy).toBe('Bendahara Pak RT');
 
-    expect(createCashSpy).toHaveBeenCalledWith('fake-token', expect.objectContaining({
-      tenantId: 'tenant-rtrw-1',
-      memberId: 'mem-1',
-      verifiedBy: 'Bendahara Pak RT',
-      bill_id: 'bill-1',
-    }));
+    // Kasus multi-tagihan (index > 0) dengan fallback memberId dari unit.members
+    const billWithoutMember = { id: 'bill-2', amount: 100000, late_fee: 5000 };
+    const unitFallback = { id: 'unit-102', members: [{ id: 'mem-from-unit-members' }] };
+    const argsIndex1 = buildStaffCashPaymentArgs({
+      bill: billWithoutMember,
+      unit: unitFallback,
+      index: 1,
+      customAmounts: {},
+      receiptFile,
+      firstPayment: { file_url: 'https://example.com/receipt.png' },
+      note: 'Diterima tunai',
+      paidAt: '2026-10-11',
+      role: 'bendahara',
+      activeTenantId: 'tenant-rtrw-1',
+      staffVerifier: 'Bendahara Pak RT',
+    });
 
-    // Pastikan portalApiPost tidak dipanggil
-    expect(apiClient.portalApiPost).not.toHaveBeenCalled();
+    expect(argsIndex1.tenantId).toBe('tenant-rtrw-1');
+    expect(argsIndex1.memberId).toBe('mem-from-unit-members');
+    expect(argsIndex1.file).toBeNull();
+    expect(argsIndex1.note).toBe('Diterima tunai (Lampiran: https://example.com/receipt.png)');
+    expect(argsIndex1.amount).toBe(105000);
   });
 
-  it('meneruskan tenantId dan verifiedBy ke approveManualPayment di mode tenant', async () => {
-    const approveSpy = vi.spyOn(dataService, 'approveManualPayment').mockResolvedValue({ success: true });
+  it('meneruskan tenantId dan verifiedBy ke argumen approveManualPayment di mode tenant via buildDetailActionArgs', () => {
+    const args = buildDetailActionArgs('approve', {
+      paymentId: 'p-1',
+      activeTenantId: 'tenant-rtrw-1',
+      verifier: 'Bendahara Pak RT',
+    });
 
-    await dataService.approveManualPayment('fake-token', {
+    expect(args).toEqual({
       payment_id: 'p-1',
       tenantId: 'tenant-rtrw-1',
       verifiedBy: 'Bendahara Pak RT',
     });
+    expect(args.tenantId).toBe('tenant-rtrw-1');
+    expect(args.verifiedBy).toBe('Bendahara Pak RT');
 
-    expect(approveSpy).toHaveBeenCalledWith('fake-token', expect.objectContaining({
-      tenantId: 'tenant-rtrw-1',
-      verifiedBy: 'Bendahara Pak RT',
-      payment_id: 'p-1',
-    }));
-
-    expect(apiClient.portalApiPost).not.toHaveBeenCalled();
+    // Fallback verifier jika kosong
+    const fallbackArgs = buildDetailActionArgs('approve', {
+      paymentId: 'p-1',
+      activeTenantId: 'tenant-rtrw-1',
+      verifier: null,
+    });
+    expect(fallbackArgs.verifiedBy).toBe('staff');
   });
 
-  it('meneruskan tenantId ke rejectManualPayment saat staf membatalkan/menolak di mode tenant', async () => {
-    const rejectSpy = vi.spyOn(dataService, 'rejectManualPayment').mockResolvedValue({ success: true });
+  it('meneruskan tenantId ke argumen rejectManualPayment saat staf menolak atau membatalkan di mode tenant via buildDetailActionArgs', () => {
+    // Aksi penolakan bukti transfer (reject)
+    const rejectArgs = buildDetailActionArgs('reject', {
+      paymentId: 'p-1',
+      activeTenantId: 'tenant-rtrw-1',
+      verifier: 'Bendahara Pak RT',
+      reason: 'Bukti transfer tidak valid/blur',
+    });
 
-    await dataService.rejectManualPayment('fake-token', {
+    expect(rejectArgs).toEqual({
+      payment_id: 'p-1',
+      note: 'Bukti transfer tidak valid/blur',
+      tenantId: 'tenant-rtrw-1',
+      rejectedBy: 'Bendahara Pak RT',
+    });
+    expect(rejectArgs.tenantId).toBe('tenant-rtrw-1');
+
+    // Aksi pembatalan transaksi oleh staf (cancel)
+    const cancelArgs = buildDetailActionArgs('cancel', {
+      paymentId: 'p-1',
+      activeTenantId: 'tenant-rtrw-1',
+      verifier: 'Bendahara Pak RT',
+    });
+
+    expect(cancelArgs).toEqual({
       tenantId: 'tenant-rtrw-1',
       payment_id: 'p-1',
       note: 'Dibatalkan oleh pengurus',
       rejectedBy: 'Bendahara Pak RT',
     });
-
-    expect(rejectSpy).toHaveBeenCalledWith('fake-token', expect.objectContaining({
-      tenantId: 'tenant-rtrw-1',
-      payment_id: 'p-1',
-      note: 'Dibatalkan oleh pengurus',
-    }));
-
-    expect(apiClient.portalApiPost).not.toHaveBeenCalled();
+    expect(cancelArgs.tenantId).toBe('tenant-rtrw-1');
   });
 });
