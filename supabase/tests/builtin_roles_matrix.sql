@@ -169,7 +169,7 @@ BEGIN
     VALUES (v_tenant_id, 'Palsu Owner', true, false);
   EXCEPTION WHEN OTHERS THEN
     GET STACKED DIAGNOSTICS v_err_code = RETURNED_SQLSTATE;
-  END IF;
+  END;
 
   PERFORM set_config('role', 'postgres', true);
   IF v_err_code <> '42501' THEN
