@@ -127,32 +127,38 @@ export async function getInviteDetails(inviteCode) {
 }
 
 /**
- * Mengajukan permohonan bergabung ke tenant (warga pendaftar)
+ * Mengajukan permohonan bergabung ke tenant (warga pendaftar) via RPC request_join_tenant
  */
-export async function requestJoinTenant({ tenantId, userId, unitId, fullName, phone, occupancyStatus }) {
-  if (!tenantId || !userId) {
-    throw new Error('Tenant ID dan User ID wajib disertakan.');
+export async function requestJoinTenant({ code, unitId, fullName, phone, occupancyStatus }) {
+  if (!code || !code.trim()) {
+    throw new Error('Kode undangan wajib disertakan.');
   }
 
-  const payload = {
-    tenant_id: tenantId,
-    user_id: userId,
-    unit_id: unitId ? Number(unitId) : null,
-    full_name: fullName.trim(),
-    phone: phone ? phone.trim() : null,
-    occupancy_status: occupancyStatus || 'owner_occupied',
-    status: 'pending',
-  };
+  const trimmedCode = code.trim();
+  const trimmedName = fullName ? fullName.trim() : '';
+  if (!trimmedName) {
+    throw new Error('Nama lengkap wajib diisi.');
+  }
 
   if (IS_DEMO) {
-    return { id: `mem-demo-${Date.now()}`, ...payload };
+    return {
+      member_id: `mem-demo-${Date.now()}`,
+      tenant_id: 'demo-tenant-rtrw',
+      unit_id: unitId ? Number(unitId) : null,
+      full_name: trimmedName,
+      phone: phone ? phone.trim() : null,
+      occupancy_status: occupancyStatus || 'owner_occupied',
+      status: 'pending',
+    };
   }
 
-  const { data, error } = await supabase
-    .from('tenant_members')
-    .insert(payload)
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc('request_join_tenant', {
+    p_code: trimmedCode,
+    p_unit_id: unitId ? Number(unitId) : null,
+    p_full_name: trimmedName,
+    p_phone: phone ? phone.trim() : null,
+    p_occupancy_status: occupancyStatus || 'owner_occupied',
+  });
 
   if (error) {
     if (error.code === '23505') {

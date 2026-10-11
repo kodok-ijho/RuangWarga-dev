@@ -118,10 +118,8 @@ export default function JoinTenant() {
 
     setSubmitting(true);
     try {
-      const currentUserId = user?.id || profile?.id;
       await requestJoinTenant({
-        tenantId: tenantInfo.tenant_id,
-        userId: currentUserId,
+        code: inputCode || paramInviteCode,
         unitId: unitId ? Number(unitId) : null,
         fullName,
         phone,
