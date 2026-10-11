@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './context/AuthContext';
 import { TenantProvider } from './context/TenantContext';
@@ -15,6 +15,7 @@ import NotFound from './pages/NotFound';
 import { lazy, Suspense } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { useTenant } from './hooks/useTenant';
+import { useTenantAccess } from './hooks/useTenantAccess';
 import {
   canViewFinancialReports,
   canViewPaymentMatrix,
@@ -89,10 +90,34 @@ function RoleGuard({ allowed, canAccess, children }) {
 }
 
 /**
+ * TenantAccessGuard — memastikan user memiliki hak akses tertentu di workspace tenant (RTRW-1.1).
+ * require: nama properti dari useTenantAccess (mis. 'canVerifyPayments', 'isMember', 'canViewReports').
+ */
+function TenantAccessGuard({ require: requiredAccess, children }) {
+  const { tenantId } = useParams();
+  const { activeTenantId } = useTenant();
+  const access = useTenantAccess();
+
+  if (access.loading) {
+    return <PageLoader />;
+  }
+
+  const isAllowed = Boolean(access[requiredAccess]);
+  if (!isAllowed) {
+    const targetTenantId = tenantId || activeTenantId || '';
+    const fallbackPath = targetTenantId ? `/t/${targetTenantId}/dashboard` : '/';
+    return <Navigate to={fallbackPath} replace />;
+  }
+
+  return children;
+}
+
+/**
  * TenantPermissionGuard — memastikan user memiliki permission tertentu atau merupakan Owner / Platform Admin.
  */
 function TenantPermissionGuard({ permission, children }) {
-  const { isOwner, isPlatformAdmin, hasPermission, loading } = useTenant();
+  const { tenantId } = useParams();
+  const { isOwner, isPlatformAdmin, hasPermission, loading, activeTenantId } = useTenant();
 
   if (loading) {
     return <PageLoader />;
@@ -100,7 +125,9 @@ function TenantPermissionGuard({ permission, children }) {
 
   const allowed = isPlatformAdmin || isOwner || (hasPermission && hasPermission(permission));
   if (!allowed) {
-    return <Navigate to="/" replace />;
+    const targetTenantId = tenantId || activeTenantId || '';
+    const fallbackPath = targetTenantId ? `/t/${targetTenantId}/dashboard` : '/';
+    return <Navigate to={fallbackPath} replace />;
   }
 
   return children;
@@ -298,9 +325,9 @@ export default function App() {
                     path="payment-verification"
                     element={
                       <Suspense fallback={<PageLoader />}>
-                        <RoleGuard canAccess={canViewPaymentVerification}>
+                        <TenantAccessGuard require="canVerifyPayments">
                           <PaymentVerification />
-                        </RoleGuard>
+                        </TenantAccessGuard>
                       </Suspense>
                     }
                   />
@@ -308,9 +335,9 @@ export default function App() {
                     path="expenses"
                     element={
                       <Suspense fallback={<PageLoader />}>
-                        <RoleGuard canAccess={canViewExpenses}>
+                        <TenantAccessGuard require="canViewReports">
                           <Expenses />
-                        </RoleGuard>
+                        </TenantAccessGuard>
                       </Suspense>
                     }
                   />
@@ -318,9 +345,9 @@ export default function App() {
                     path="reports"
                     element={
                       <Suspense fallback={<PageLoader />}>
-                        <RoleGuard canAccess={canViewFinancialReports}>
+                        <TenantAccessGuard require="canViewReports">
                           <Reports />
-                        </RoleGuard>
+                        </TenantAccessGuard>
                       </Suspense>
                     }
                   />
@@ -328,9 +355,9 @@ export default function App() {
                     path="payment-matrix"
                     element={
                       <Suspense fallback={<PageLoader />}>
-                        <RoleGuard canAccess={canViewPaymentMatrix}>
+                        <TenantAccessGuard require="isMember">
                           <PaymentMatrix />
-                        </RoleGuard>
+                        </TenantAccessGuard>
                       </Suspense>
                     }
                   />
@@ -346,9 +373,9 @@ export default function App() {
                     path="residents"
                     element={
                       <Suspense fallback={<PageLoader />}>
-                        <RoleGuard canAccess={canViewResidents}>
+                        <TenantAccessGuard require="isMember">
                           <Residents />
-                        </RoleGuard>
+                        </TenantAccessGuard>
                       </Suspense>
                     }
                   />
@@ -356,9 +383,9 @@ export default function App() {
                     path="events"
                     element={
                       <Suspense fallback={<PageLoader />}>
-                        <RoleGuard canAccess={canViewEvents}>
+                        <TenantAccessGuard require="canViewReports">
                           <Events />
-                        </RoleGuard>
+                        </TenantAccessGuard>
                       </Suspense>
                     }
                   />
@@ -366,9 +393,9 @@ export default function App() {
                     path="events/:eventId"
                     element={
                       <Suspense fallback={<PageLoader />}>
-                        <RoleGuard canAccess={canViewEvents}>
+                        <TenantAccessGuard require="canViewReports">
                           <EventFinance />
-                        </RoleGuard>
+                        </TenantAccessGuard>
                       </Suspense>
                     }
                   />
