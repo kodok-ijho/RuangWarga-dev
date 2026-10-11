@@ -41,8 +41,8 @@ DECLARE
   v_pengurus_role_id UUID := gen_random_uuid();
   v_warga_own_admin_role_id UUID;
 
-  v_unit_1_id BIGINT := 90001;
-  v_unit_2_id BIGINT := 90002;
+  v_unit_1_id BIGINT;
+  v_unit_2_id BIGINT;
   v_warga_member_id UUID;
   v_bill_1_id UUID := gen_random_uuid();
   v_bill_2_id UUID := gen_random_uuid();
@@ -50,7 +50,7 @@ DECLARE
   v_join_res JSONB;
   v_row_count INTEGER;
   v_err_code TEXT;
-  v_bill_status public.billing_status;
+  v_bill_status TEXT;
   v_settings JSONB;
   v_stored_count INTEGER;
   v_obj_id UUID;
@@ -108,10 +108,13 @@ BEGIN
     (v_pengurus_role_id, 'manage_members');
 
   -- Buat unit A1 dan A2
-  INSERT INTO public.tenant_units (id, tenant_id, label, is_active)
-  VALUES
-    (v_unit_1_id, v_tenant_id, 'A1', true),
-    (v_unit_2_id, v_tenant_id, 'A2', true);
+  INSERT INTO public.tenant_units (tenant_id, label)
+  VALUES (v_tenant_id, 'A1')
+  RETURNING id INTO v_unit_1_id;
+
+  INSERT INTO public.tenant_units (tenant_id, label)
+  VALUES (v_tenant_id, 'A2')
+  RETURNING id INTO v_unit_2_id;
 
   -- Daftarkan member approved: bendahara, sekre, pengurus
   INSERT INTO public.tenant_members (tenant_id, user_id, full_name, status, is_owner, tenant_role_id)
@@ -126,8 +129,8 @@ BEGIN
   RETURNING id INTO v_warga_member_id;
 
   -- Buat kode undangan aktif RW-TEST-SEC5
-  INSERT INTO public.tenant_invites (tenant_id, code, max_uses, uses_count, expires_at, created_by)
-  VALUES (v_tenant_id, 'RW-TEST-SEC5', 100, 0, now() + interval '7 days', v_owner_id);
+  INSERT INTO public.tenant_invites (tenant_id, code)
+  VALUES (v_tenant_id, 'RW-TEST-SEC5');
 
   -- Buat 1 tagihan IPL unpaid untuk warga (unit A1)
   INSERT INTO public.billing_items (id, tenant_id, unit_id, member_id, period, amount, late_fee, status, metadata)
