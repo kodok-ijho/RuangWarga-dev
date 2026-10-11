@@ -1,6 +1,6 @@
 # Backlog (belum untuk dikerjakan executor)
 
-Urutan rencana: **SEC-1 ✅ → SEC-2 ✅ (sudah di dev) → PAY-2 ✅ → PAY-2F ✅ → PAY-1 + PAY-1F ✅ (di dev; deploy menunggu akun DOKU) → SEC-3 ✅ → SEC-3F ✅ → BRAND-1 ✅ → BRAND-1F ✅ → DEBT-1 ✅ → DEBT-1F ✅ → SEC-4 ✅ (di dev) → fase B: AUDIT-RTRW ✅ → SEC-5 (aktif) → RTRW-1 → RTRW-2 → RTRW-3 → audit Kos/Arisan/Kelas → dashboard Platform**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
+Urutan rencana: **SEC-1 ✅ → SEC-2 ✅ (sudah di dev) → PAY-2 ✅ → PAY-2F ✅ → PAY-1 + PAY-1F ✅ (di dev; deploy menunggu akun DOKU) → SEC-3 ✅ → SEC-3F ✅ → BRAND-1 ✅ → BRAND-1F ✅ → DEBT-1 ✅ → DEBT-1F ✅ → SEC-4 ✅ (di dev) → fase B: AUDIT-RTRW ✅ → SEC-5 ✅ (di dev) → RTRW-1 (aktif) → RTRW-2 → RTRW-3 → audit Kos/Arisan/Kelas → dashboard Platform**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
 
 ## Keputusan user yang mengikat
 - Palm Village **tetap tenant**. Branding-nya (nama, logo, warna, peta) hanya dari data tenant dan hanya tampil di `/t/:tenantId`. Lapisan global (login, beranda, `/account`, `/platform`, `/listing`, PWA) netral "RuangWarga".
@@ -54,8 +54,8 @@ Selesai — `DEBT-1.md` + `DEBT-1F.md`, review `DEBT-1-review.md` dan `DEBT-1F-r
 - Claude memverifikasi apakah role dasar memang tidak boleh diubah izinnya oleh owner tenant. Bila ada keraguan produk → `questions.md`.
 
 ## Fase B — Vertikal RT/RW (dari `AUDIT-RTRW.md`)
-- **SEC-5** (aktif, `SEC-5.md`): join lewat RPC berkode undangan, penjaga kolom `tenant_members`/`tenants`, integritas pembayaran + sinkron status tagihan, bucket privat `payment-proofs`, unique index tagihan IPL.
-- **RTRW-1** (`RTRW-1.md`, siap — dikerjakan setelah review SEC-5): workspace `/t/` memakai izin tenant (bukan `role` n8n); PaymentMatrix/Verifikasi/Laporan/Pengeluaran sepenuhnya Supabase; hapus `CLEANUP_ALL` & tulis n8n dari konteks tenant; Acara & Pengumuman disembunyikan. Keputusan user sudah ada (`questions.md` [AUDIT-RTRW]).
+- **SEC-5** ✅ (aktif di dev, `SEC-5-review.md`): join lewat RPC berkode undangan, penjaga kolom `tenant_members`/`tenants`, integritas pembayaran + sinkron status tagihan, bucket privat `payment-proofs`, unique index tagihan IPL.
+- **RTRW-1** (`RTRW-1.md`, aktif): workspace `/t/` memakai izin tenant (bukan `role` n8n); PaymentMatrix/Verifikasi/Laporan/Pengeluaran sepenuhnya Supabase; hapus `CLEANUP_ALL` & tulis n8n dari konteks tenant; Acara & Pengumuman disembunyikan. Keputusan user sudah ada (`questions.md` [AUDIT-RTRW]).
 - **RTRW-2**: kelola warga & unit di Supabase, navigasi tetap di `/t/:tenantId`, SetupWizard tidak menimpa settings/unit.
 - **RTRW-3**: tabel & halaman Pengumuman + Acara multi-tenant.
 - Catatan migrasi Palm Village (nanti): tautkan `tenant_members.user_id` hasil migrasi ke `auth.users` (via email), dedupe pembayaran lama sebelum index `uq_payments_open_per_bill`, isi `logo_url` + `legacy_qris_enabled`.
