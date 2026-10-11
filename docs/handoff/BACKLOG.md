@@ -1,6 +1,6 @@
 # Backlog (belum untuk dikerjakan executor)
 
-Urutan rencana: **SEC-1 ✅ → SEC-2 ✅ (sudah di dev) → PAY-2 ✅ → PAY-2F ✅ → PAY-1 + PAY-1F ✅ (di dev; deploy menunggu akun DOKU) → SEC-3 ✅ → SEC-3F ✅ → BRAND-1 ✅ → BRAND-1F ✅ → DEBT-1 ✅ → DEBT-1F (aktif) → SEC-4**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
+Urutan rencana: **SEC-1 ✅ → SEC-2 ✅ (sudah di dev) → PAY-2 ✅ → PAY-2F ✅ → PAY-1 + PAY-1F ✅ (di dev; deploy menunggu akun DOKU) → SEC-3 ✅ → SEC-3F ✅ → BRAND-1 ✅ → BRAND-1F ✅ → DEBT-1 ✅ → DEBT-1F ✅ → SEC-4 (aktif)**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
 
 ## Keputusan user yang mengikat
 - Palm Village **tetap tenant**. Branding-nya (nama, logo, warna, peta) hanya dari data tenant dan hanya tampil di `/t/:tenantId`. Lapisan global (login, beranda, `/account`, `/platform`, `/listing`, PWA) netral "RuangWarga".
@@ -40,11 +40,11 @@ Dokumen task lengkap: `docs/handoff/PAY-1.md`. Ringkas: modul SNAP DOKU bersama 
 Selesai — `BRAND-1.md` + `BRAND-1F.md`, review `BRAND-1-review.md` dan `BRAND-1F-review.md`. Sisa: saat fitur unggah logo tenant dibuat, batasi `settings.logo_url` ke domain Supabase Storage proyek.
 
 ## DEBT-1 — Utang teknis
-Selesai — `DEBT-1.md`, review `DEBT-1-review.md`. Perbaikan N1 (RBAC ditulis ulang) & N2 di `DEBT-1F.md` (aktif).
+Selesai — `DEBT-1.md` + `DEBT-1F.md`, review `DEBT-1-review.md` dan `DEBT-1F-review.md`.
 - `client/src/services/dataService.js` (legacy single-tenant): **jangan dipensiunkan.** File ini memanggil endpoint n8n lewat `api/n8n.js` untuk alur Palm Village. Paling jauh: rapikan tanpa mengubah perilaku, dan jangan putus jalur n8n-nya.
 - Domain placeholder `@warga.palmvillage.local` **dibiarkan**. Tidak tampil ke pengguna dan juga dibuat oleh workflow n8n live `pv-api-residents-create`.
 
-## SEC-4 — Proteksi role bawaan di database (N3, review DEBT-1)
+## SEC-4 — Proteksi role bawaan di database (N3, review DEBT-1) — dokumen task: `SEC-4.md` (aktif)
 - Saat ini hanya DELETE `tenant_roles` yang menolak role Admin (`is_owner_role`) dan role dasar (`is_base_role`).
 - UPDATE `tenant_roles` dan semua operasi `tenant_role_permissions` tidak menjaganya. Penjagaan itu hanya ada di kode klien `rbac.js`.
 - Akibatnya pemegang `manage_tenant_users` bisa, lewat API langsung, mengubah nama atau izin role Admin, atau memberi izin ke role "Warga/Anggota" (semua warga).
