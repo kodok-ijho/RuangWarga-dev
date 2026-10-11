@@ -153,15 +153,13 @@ describe('Dashboard Architecture & Components (Phase 5)', () => {
       expect(html).toContain('Rumah A/12');
       expect(html).toContain('Bayar IPL Sekarang');
 
-      // Max 4 quick actions
+      // Quick actions (Pengumuman disembunyikan sampai RTRW-3)
       expect(html).toContain('Bayar IPL');
       expect(html).toContain('Riwayat Bayar');
-      expect(html).toContain('Pengumuman');
       expect(html).toContain('Daftar Warga');
 
-      // Community Info & Activity
+      // Community Activity
       expect(html).toContain('Aktivitas Terbaru');
-      expect(html).toContain('Informasi Komunitas');
     });
 
     it('adapts obligation terminology to Kost (kos) template', () => {
@@ -515,8 +513,8 @@ describe('Dashboard Architecture & Components (Phase 5)', () => {
       expect(html).not.toContain('Blok A/12');
     });
 
-    // 8. Tidak ada announcement -> empty state
-    it('8. missing announcements displays empty state without mock Palm Village injection', () => {
+    // 8. CitizenDashboard tidak memuat pengumuman (disembunyikan sampai RTRW-3)
+    it('8. citizen dashboard does not render announcements or announcements link', () => {
       const rawHtml = renderToString(
         <MemoryRouter>
           <CitizenDashboard
@@ -533,7 +531,8 @@ describe('Dashboard Architecture & Components (Phase 5)', () => {
         </MemoryRouter>
       );
       const html = cleanHtml(rawHtml);
-      expect(html).toContain('Belum ada pengumuman terbaru untuk komunitas ini');
+      expect(html).not.toContain('/announcements');
+      expect(html).not.toContain('Pengumuman');
       expect(html).not.toContain('Fogging Nyamuk DBD');
     });
 

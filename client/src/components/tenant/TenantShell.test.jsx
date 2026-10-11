@@ -55,6 +55,17 @@ vi.mock('../TrialCountdownBanner', () => ({
   default: () => null,
 }));
 
+let mockTenantAccess = {
+  canViewReports: true,
+  isMember: true,
+  isStaff: true,
+  canWrite: true,
+};
+
+vi.mock('../../hooks/useTenantAccess', () => ({
+  useTenantAccess: () => mockTenantAccess,
+}));
+
 describe('TenantShell Logo & Identity (BRAND-1F.1)', () => {
   beforeEach(() => {
     mockTenantState = {
@@ -119,5 +130,64 @@ describe('TenantShell Logo & Identity (BRAND-1F.1)', () => {
 
     expect(html).not.toContain('http://evil.test/x.png');
     expect(html).toContain('🏡');
+  });
+});
+
+describe('TenantShell Navigation (RTRW-1.2)', () => {
+  beforeEach(() => {
+    mockTenantState = {
+      activeTenant: {
+        id: 't-pv-1',
+        name: 'Palm Village RT 05',
+        type: 'rt_rw',
+        settings: {},
+      },
+      activeTenantId: 't-pv-1',
+      userTenants: [],
+      switchTenant: vi.fn(),
+      subscriptionStatus: 'active',
+      isPlatformAdmin: false,
+      isOwner: true,
+      userRole: 'admin',
+      hasPermission: () => true,
+    };
+    mockTenantAccess = {
+      canViewReports: true,
+      isMember: true,
+      isStaff: true,
+      canWrite: true,
+    };
+  });
+
+  it('tidak memuat link /residents tanpa prefix /t/, melainkan ke /t/:tenantId/residents', () => {
+    const html = renderToString(
+      <MemoryRouter initialEntries={['/t/t-pv-1/dashboard']}>
+        <TenantShell />
+      </MemoryRouter>
+    );
+    expect(html).toContain('href="/t/t-pv-1/residents"');
+    expect(html).not.toMatch(/href="\/residents"/);
+  });
+
+  it('menyembunyikan menu Pengeluaran dan Laporan jika canViewReports false', () => {
+    mockTenantAccess = { canViewReports: false, isMember: true, isStaff: false, canWrite: false };
+    const html = renderToString(
+      <MemoryRouter initialEntries={['/t/t-pv-1/dashboard']}>
+        <TenantShell />
+      </MemoryRouter>
+    );
+    expect(html).not.toContain('href="/t/t-pv-1/expenses"');
+    expect(html).not.toContain('href="/t/t-pv-1/reports"');
+  });
+
+  it('menampilkan menu Pengeluaran dan Laporan jika canViewReports true', () => {
+    mockTenantAccess = { canViewReports: true, isMember: true, isStaff: true, canWrite: true };
+    const html = renderToString(
+      <MemoryRouter initialEntries={['/t/t-pv-1/dashboard']}>
+        <TenantShell />
+      </MemoryRouter>
+    );
+    expect(html).toContain('href="/t/t-pv-1/expenses"');
+    expect(html).toContain('href="/t/t-pv-1/reports"');
   });
 });

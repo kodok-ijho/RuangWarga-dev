@@ -133,6 +133,17 @@ function TenantPermissionGuard({ permission, children }) {
   return children;
 }
 
+/**
+ * TenantRedirectToDashboard — redirect ke dashboard workspace tenant saat fitur disembunyikan (RTRW-1.2).
+ */
+function TenantRedirectToDashboard() {
+  const { tenantId } = useParams();
+  const { activeTenantId } = useTenant();
+  const targetTenantId = tenantId || activeTenantId || '';
+  const fallbackPath = targetTenantId ? `/t/${targetTenantId}/dashboard` : '/';
+  return <Navigate to={fallbackPath} replace />;
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -361,13 +372,10 @@ export default function App() {
                       </Suspense>
                     }
                   />
+                  {/* Disembunyikan sampai RTRW-3 */}
                   <Route
                     path="announcements"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <Announcements />
-                      </Suspense>
-                    }
+                    element={<TenantRedirectToDashboard />}
                   />
                   <Route
                     path="residents"
@@ -379,25 +387,15 @@ export default function App() {
                       </Suspense>
                     }
                   />
+                  {/* Disembunyikan sampai RTRW-3 */}
                   <Route
                     path="events"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <TenantAccessGuard require="canViewReports">
-                          <Events />
-                        </TenantAccessGuard>
-                      </Suspense>
-                    }
+                    element={<TenantRedirectToDashboard />}
                   />
+                  {/* Disembunyikan sampai RTRW-3 */}
                   <Route
                     path="events/:eventId"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <TenantAccessGuard require="canViewReports">
-                          <EventFinance />
-                        </TenantAccessGuard>
-                      </Suspense>
-                    }
+                    element={<TenantRedirectToDashboard />}
                   />
                   <Route
                     path="roles"

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useTenant } from '../context/TenantContext';
+import { useTenant } from './useTenant';
 import { computeTenantAccess } from '../services/tenantAccess';
 
 /**

@@ -20,7 +20,7 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../hooks/useTenant';
 import { useTenantTemplate } from '../../hooks/useTenantTemplate';
-import { useSubscriptionGate } from '../../hooks/useSubscriptionGate';
+import { useTenantAccess } from '../../hooks/useTenantAccess';
 import TenantSwitcher from '../TenantSwitcher';
 import TrialCountdownBanner from '../TrialCountdownBanner';
 import { Avatar } from '../ui/Avatar';
@@ -28,7 +28,7 @@ import { Drawer } from '../ui/Drawer';
 import Dropdown, { DropdownItem } from '../ui/Dropdown';
 import { Badge } from '../ui/Badge';
 import { isSafeLogoUrl } from '../../utils/brand';
-import { roleLabel, isStaffRole, canViewFinancialReports } from '../../services/dataHelpers';
+import { roleLabel } from '../../services/dataHelpers';
 
 export default function TenantShell() {
   const { tenantId: routeTenantId } = useParams();
@@ -47,7 +47,7 @@ export default function TenantShell() {
   } = useTenant();
 
   const template = useTenantTemplate();
-  const { isReadOnly } = useSubscriptionGate();
+  const { canViewReports } = useTenantAccess();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const tenantId = routeTenantId || activeTenantId;
@@ -86,9 +86,11 @@ export default function TenantShell() {
       label: isArisan ? 'Putaran Arisan' : template.billLabel || 'Tagihan',
       icon: isArisan ? AiOutlineCalendar : AiOutlineTable,
     },
-    { to: '/residents', label: template.memberLabel || 'Anggota', icon: AiOutlineTeam },
-    { to: `${tenantBase}/expenses`, label: 'Pengeluaran', icon: AiOutlineWallet },
-    ...(canViewFinancialReports(role) || hasPermission('view_reports')
+    { to: `${tenantBase}/residents`, label: template.memberLabel || 'Anggota', icon: AiOutlineTeam },
+    ...(canViewReports
+      ? [{ to: `${tenantBase}/expenses`, label: 'Pengeluaran', icon: AiOutlineWallet }]
+      : []),
+    ...(canViewReports
       ? [{ to: `${tenantBase}/reports`, label: 'Laporan', icon: AiOutlineBarChart }]
       : []),
   ];
@@ -110,10 +112,10 @@ export default function TenantShell() {
         location.pathname.includes('/arisan'),
     },
     {
-      to: '/residents',
+      to: `${tenantBase}/residents`,
       label: template.memberLabel || 'Anggota',
       icon: AiOutlineTeam,
-      isActive: location.pathname.startsWith('/residents'),
+      isActive: location.pathname.includes('/residents'),
     },
   ];
 
