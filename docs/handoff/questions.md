@@ -71,4 +71,7 @@ Konteks: lihat `AUDIT-RTRW.md` F1–F10. Workspace `/t/:tenantId` masih memakai 
 1. **Login RuangWarga = Supabase saja?** Usulan Claude: ya. Login Google lewat n8n (`/auth/google`) dan halaman lama di luar `/t/` tetap ada untuk keperluan Portal Warga lama, tetapi **semua halaman `/t/:tenantId` hanya memakai Supabase + izin tenant (RBAC v2)** dan tidak memanggil n8n sama sekali. QRIS lama Palm Village ditunda sampai rencana migrasi Palm Village dibahas.
 2. **Acara & Pengumuman:** (a) sembunyikan menunya untuk tenant non-Palm Village sampai RTRW-3 membangun tabelnya (usulan Claude), atau (b) bangun sekarang sebelum fitur lain.
 3. **Vercel `ruangwarga-dev`:** apakah ada env `N8N_BASIC_AUTH_USER` / `N8N_BASIC_AUTH_PASS` (atau `N8N_API_BASE_URL`)? Bila ada, deployment dev ini bisa menulis ke n8n produksi Palm Village (termasuk tombol "Reset & Hapus Semua Transaksi"). Usulan Claude: hapus env itu dari proyek `ruangwarga-dev` (tidak mengubah n8n-nya). Claude tidak punya akses membaca env proyek tersebut.
-Jawaban: (menunggu user)
+Jawaban (user, 2026-10-11):
+1. **Setuju** — login RuangWarga cukup Supabase; `/t/:tenantId` hanya Supabase + izin tenant.
+2. **Setuju** — Acara & Pengumuman disembunyikan dulu (dibangun di RTRW-3).
+3. **Tidak ada** env n8n di proyek Vercel `ruangwarga-dev` (screenshot user). Proxy `/api/n8n` di deployment ini selalu 503, jadi tidak ada risiko menulis ke n8n produksi Palm Village dari deployment dev.
