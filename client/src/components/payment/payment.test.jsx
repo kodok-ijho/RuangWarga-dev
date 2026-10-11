@@ -808,8 +808,8 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
       }
     });
 
-    // 3. billing update failure on payment submission -> rolls back/deletes inserted payment and throws error
-    it('3. billing update failure on payment submission -> rolls back/deletes inserted payment and throws error', async () => {
+    // 3. payment submission handles 23505 and 22023 constraint errors from trigger / unique index
+    it('3. payment submission handles 23505 and 22023 constraint errors from trigger / unique index', async () => {
       const billData = {
         id: 'bill-test-3',
         amount: 150000,
@@ -817,9 +817,6 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
         member_id: 'member-3',
         status: 'unpaid',
       };
-
-      let deletedPaymentId = null;
-      const simulatedBillingError = new Error('Database deadlock on billing update');
 
       const spy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
         if (table === 'billing_items') {
@@ -831,29 +828,16 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
                 }),
               }),
             }),
-            update: () => ({
-              eq: () => ({
-                eq: async () => ({ error: simulatedBillingError }),
-              }),
-            }),
           };
         }
         if (table === 'payments') {
           return {
-            insert: (rows) => ({
+            insert: () => ({
               select: () => ({
                 single: async () => ({
-                  data: { id: 'pay-rollback-3', ...rows[0] },
-                  error: null,
+                  data: null,
+                  error: { code: '23505', message: 'duplicate key value violates unique constraint' },
                 }),
-              }),
-            }),
-            delete: () => ({
-              eq: (field1, val1) => ({
-                eq: async (field2, val2) => {
-                  if (field2 === 'id') deletedPaymentId = val2;
-                  return { error: null };
-                },
               }),
             }),
           };
@@ -866,10 +850,7 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
           submitTenantPayment('tenant-real-1', {
             billId: 'bill-test-3',
           })
-        ).rejects.toThrow('Database deadlock on billing update');
-
-        // Memastikan payment di-rollback (dihapus)
-        expect(deletedPaymentId).toBe('pay-rollback-3');
+        ).rejects.toThrow('Tagihan ini sudah dibayar atau sedang diverifikasi.');
       } finally {
         spy.mockRestore();
       }

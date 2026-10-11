@@ -506,34 +506,15 @@ export async function submitTenantPayment(tenantId, {
     .single();
 
   if (payErr) {
+    if (payErr.code === '23505') {
+      throw new Error('Tagihan ini sudah dibayar atau sedang diverifikasi.');
+    }
+    if (payErr.code === '22023') {
+      throw new Error('Nominal tidak sesuai tagihan.');
+    }
     // eslint-disable-next-line no-console
     console.error('[tenantOperationalService] submitTenantPayment error:', payErr);
     throw payErr;
-  }
-
-  // 4. Update status billing_items
-  const nextBillStatus = initialStatus === 'completed' ? 'paid' : 'pending_verification';
-  const { error: billUpdateErr } = await supabase
-    .from('billing_items')
-    .update({
-      status: nextBillStatus,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('tenant_id', tenantId)
-    .eq('id', billId);
-
-  if (billUpdateErr) {
-    // eslint-disable-next-line no-console
-    console.error('[tenantOperationalService] submitTenantPayment bill update error:', billUpdateErr);
-    // Rollback: Hapus pembayaran yang ter-insert agar tidak terjadi state inkonsisten
-    if (insertedPayment?.id) {
-      await supabase
-        .from('payments')
-        .delete()
-        .eq('tenant_id', tenantId)
-        .eq('id', insertedPayment.id);
-    }
-    throw billUpdateErr;
   }
 
   return insertedPayment;
