@@ -5,6 +5,7 @@
 
 import { supabase, IS_DEMO } from './shared';
 import { fetchTenantUnits } from './members';
+import { uploadTenantFile } from '../fileStorageService';
 
 /**
  * Mengambil dan membentuk matriks tagihan multi-bulan (12 periode) generik untuk sebuah tenant
@@ -456,24 +457,28 @@ export async function submitTenantPayment(tenantId, {
 
   if (proofFile && typeof proofFile === 'object' && proofFile.size) {
     try {
-      const ext = (proofFile.name || '').split('.').pop() || 'jpg';
-      const storagePath = `${tenantId}/payments/${billId}/${Date.now()}.${ext}`;
-      const { data: uploadData, error: uploadErr } = await supabase.storage
-        .from('payment-proofs')
-        .upload(storagePath, proofFile, { upsert: false });
+      const uploadedPath = await uploadTenantFile({
+        kind: 'payment_proof',
+        tenantId,
+        billingItemId: billId,
+        file: proofFile,
+      });
 
-      if (uploadErr || !uploadData?.path) {
+      if (!uploadedPath) {
         if (!isStaff && method === 'bank_transfer') {
           throw new Error('Bukti transfer gagal diunggah. Coba lagi.');
         }
         resolvedProofPath = '';
         isProofUploaded = false;
       } else {
-        resolvedProofPath = uploadData.path;
+        resolvedProofPath = uploadedPath;
         isProofUploaded = true;
       }
     } catch (err) {
       if (!isStaff && method === 'bank_transfer') {
+        if (err?.status === 413 || err?.status === 415) {
+          throw err;
+        }
         throw err instanceof Error && err.message === 'Bukti transfer gagal diunggah. Coba lagi.'
           ? err
           : new Error('Bukti transfer gagal diunggah. Coba lagi.');

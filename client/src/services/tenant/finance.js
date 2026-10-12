@@ -22,7 +22,7 @@ import {
   buildContiguousBalanceChain,
 } from '../finance/financialAggregation';
 import { getReportingPeriodRange } from '../finance/financialDateResolver';
-import { buildCanonicalExpenseReceiptPath } from '../../utils/storagePolicy';
+import { uploadTenantFile } from '../fileStorageService';
 
 /**
  * Mengambil daftar pengeluaran kas tenant
@@ -100,21 +100,12 @@ export async function createTenantExpense(tenantId, { date, category, amount, de
   let receiptPath = null;
   if (file && typeof file === 'object' && (file.size || file.name)) {
     try {
-      const storagePath = buildCanonicalExpenseReceiptPath({
+      receiptPath = await uploadTenantFile({
+        kind: 'expense_receipt',
         tenantId,
         expenseDate,
-        fileName: file.name || 'receipt.jpg',
+        file,
       });
-      const { data: uploadData, error: uploadErr } = await supabase.storage
-        .from('expense-receipts')
-        .upload(storagePath, file, { upsert: false });
-
-      if (uploadErr) {
-        // eslint-disable-next-line no-console
-        console.error('[tenantOperationalService] Upload receipt error:', uploadErr);
-        throw uploadErr;
-      }
-      receiptPath = uploadData?.path || storagePath;
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('[tenantOperationalService] Failed to upload receipt to expense-receipts:', err);
@@ -194,21 +185,19 @@ export async function updateTenantExpense(tenantId, expenseId, { date, category,
 
   if (file && typeof file === 'object' && (file.size || file.name)) {
     const expenseDate = date || new Date().toISOString().substring(0, 10);
-    const storagePath = buildCanonicalExpenseReceiptPath({
-      tenantId,
-      expenseDate,
-      fileName: file.name || 'receipt.jpg',
-    });
-    const { data: uploadData, error: uploadErr } = await supabase.storage
-      .from('expense-receipts')
-      .upload(storagePath, file, { upsert: false });
-
-    if (uploadErr) {
+    try {
+      const uploadedPath = await uploadTenantFile({
+        kind: 'expense_receipt',
+        tenantId,
+        expenseDate,
+        file,
+      });
+      updateFields.receipt_url = uploadedPath;
+    } catch (err) {
       // eslint-disable-next-line no-console
-      console.error('[tenantOperationalService] Upload receipt error on update:', uploadErr);
-      throw uploadErr;
+      console.error('[tenantOperationalService] Upload receipt error on update:', err);
+      throw err;
     }
-    updateFields.receipt_url = uploadData?.path || storagePath;
   } else if (typeof file === 'string' && file) {
     updateFields.receipt_url = file;
   }

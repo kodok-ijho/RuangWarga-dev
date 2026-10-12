@@ -11,6 +11,8 @@
  * 4. Path traversal / non-canonical structure denied
  */
 
+import { getTenantFileUrl } from '../services/fileStorageService';
+
 const CANONICAL_PATH_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/expenses\/[12][0-9]{3}\/[a-zA-Z0-9_\-.]+$/;
 const CANONICAL_PAYMENT_PROOF_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/payments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[a-zA-Z0-9_\-.]+$/;
 
@@ -159,10 +161,11 @@ export async function createReceiptSignedUrl(supabaseClient, path, expiresInSeco
     throw new Error('Path storage bukti pengeluaran tidak valid atau melanggar struktur canonical.');
   }
 
-  const { data, error } = await supabaseClient.storage
-    .from(bucket)
-    .createSignedUrl(path, expiresInSeconds);
-
-  if (error) throw error;
-  return data?.signedUrl || '';
+  const kind = bucket === 'payment-proofs' ? 'payment_proof' : 'expense_receipt';
+  return getTenantFileUrl({
+    kind,
+    path,
+    expiresIn: expiresInSeconds,
+    client: supabaseClient,
+  });
 }

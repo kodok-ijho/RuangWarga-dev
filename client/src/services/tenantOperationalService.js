@@ -6,8 +6,8 @@
  * keuangan, arisan, dan RBAC v2.
  *
  * Seluruh implementasi telah dimodularisasi ke dalam direktori `./tenant/`.
- * Dokumen bukti pengeluaran dikelola pada bucket supabase.storage.from('expense-receipts')
- * dengan path kanonikal yang divalidasi oleh buildCanonicalExpenseReceiptPath.
+ * Dokumen bukti pengeluaran dan pembayaran dikelola di Cloudflare R2 via Edge Function
+ * dengan path kanonikal yang divalidasi sebelum pembuatan signed URL.
  */
 
 export * from './tenant/settings';

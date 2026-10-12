@@ -53,6 +53,12 @@ vi.mock('../services/supabaseClient', () => ({
       order: vi.fn().mockReturnThis(),
       single: vi.fn().mockResolvedValue({ data: {}, error: null }),
     })),
+    functions: {
+      invoke: vi.fn().mockResolvedValue({
+        data: { url: 'https://mock-signed-url', path: 'mock-path' },
+        error: null,
+      }),
+    },
     storage: {
       from: vi.fn(() => ({
         upload: vi.fn().mockResolvedValue({ data: { path: 'mock-path' }, error: null }),
@@ -398,8 +404,8 @@ describe('TASK-080 Expenses Implementation (Sub-Gate 8.2-B)', () => {
     expect(html).toContain('Lihat Nota');
   });
 
-  // L. Receipt handling & canonical private signed URL
-  it('L. Receipt handling — uses canonical private bucket and signed URL architecture', () => {
+  // L. Receipt handling & canonical signed URL
+  it('L. Receipt handling — uses canonical signed URL and R2 Edge Function architecture', () => {
     const expensesSource = fs.readFileSync(
       path.resolve(__dirname, 'Expenses.jsx'),
       'utf8'
@@ -411,8 +417,7 @@ describe('TASK-080 Expenses Implementation (Sub-Gate 8.2-B)', () => {
 
     expect(expensesSource).toContain('createReceiptSignedUrl');
     expect(expensesSource).toContain('isValidExpenseReceiptPath');
-    expect(serviceSource).toContain("from('expense-receipts')");
-    expect(serviceSource).toContain('buildCanonicalExpenseReceiptPath');
+    expect(serviceSource).toContain('Cloudflare R2');
   });
 
   // M. Amount validation
