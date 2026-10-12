@@ -278,3 +278,25 @@ export function buildExpenseReceiptPath(
 
   return path;
 }
+
+export const DEFAULT_EXPIRES_IN = 300;
+export const MIN_EXPIRES_IN = 60;
+export const MAX_EXPIRES_IN = 600;
+
+/**
+ * Memastikan durasi kedaluwarsa (expiresIn) signed URL berada dalam rentang aman (60..600 detik).
+ * - Default 300 detik jika value null atau undefined
+ * - Melempar TypeError jika value bukan angka berhingga (finite number)
+ * - Dibulatkan ke bawah (Math.floor)
+ * - Dijepit ke rentang 60..600
+ */
+export function clampExpiresIn(value?: unknown): number {
+  if (value === undefined || value === null) {
+    return DEFAULT_EXPIRES_IN;
+  }
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new TypeError('expiresIn harus berupa angka');
+  }
+  const floored = Math.floor(value);
+  return Math.min(MAX_EXPIRES_IN, Math.max(MIN_EXPIRES_IN, floored));
+}

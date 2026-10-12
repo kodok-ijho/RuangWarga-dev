@@ -11,6 +11,10 @@ import {
   buildExpenseReceiptPath,
   PAYMENT_PROOF_PATH_REGEX,
   EXPENSE_RECEIPT_PATH_REGEX,
+  clampExpiresIn,
+  DEFAULT_EXPIRES_IN,
+  MIN_EXPIRES_IN,
+  MAX_EXPIRES_IN,
 } from '../../../supabase/functions/_shared/fileRules.ts';
 
 describe('STOR-1.2: fileRules helper', () => {
@@ -216,6 +220,49 @@ describe('STOR-1.2: fileRules helper', () => {
       expect(() => buildExpenseReceiptPath(VALID_TENANT_ID, 'invalid-date', 'file.jpg', VALID_RECEIPT_UUID)).toThrow();
       expect(() => buildExpenseReceiptPath(VALID_TENANT_ID, '2026-05-20', '', VALID_RECEIPT_UUID)).toThrow();
       expect(() => buildExpenseReceiptPath(VALID_TENANT_ID, '2026-05-20', 'file.jpg', 'not-uuid')).toThrow();
+    });
+  });
+
+  describe('STOR-1.3: clampExpiresIn', () => {
+    it('mengembalikan default 300 detik bila undefined atau null', () => {
+      expect(clampExpiresIn()).toBe(300);
+      expect(clampExpiresIn(undefined)).toBe(300);
+      expect(clampExpiresIn(null)).toBe(300);
+      expect(DEFAULT_EXPIRES_IN).toBe(300);
+    });
+
+    it('menjepit nilai < 60 detik menjadi 60 detik', () => {
+      expect(clampExpiresIn(0)).toBe(60);
+      expect(clampExpiresIn(-10)).toBe(60);
+      expect(clampExpiresIn(59)).toBe(60);
+      expect(clampExpiresIn(60)).toBe(60);
+      expect(MIN_EXPIRES_IN).toBe(60);
+    });
+
+    it('menjepit nilai > 600 detik menjadi 600 detik', () => {
+      expect(clampExpiresIn(600)).toBe(600);
+      expect(clampExpiresIn(601)).toBe(600);
+      expect(clampExpiresIn(3600)).toBe(600);
+      expect(MAX_EXPIRES_IN).toBe(600);
+    });
+
+    it('membulatkan ke bawah jika diberikan nilai desimal', () => {
+      expect(clampExpiresIn(120.9)).toBe(120);
+      expect(clampExpiresIn(59.9)).toBe(60); // Math.floor(59.9) = 59, lalu dijepit ke 60
+    });
+
+    it('mengembalikan nilai apa adanya jika berada dalam rentang 60..600', () => {
+      expect(clampExpiresIn(180)).toBe(180);
+      expect(clampExpiresIn(300)).toBe(300);
+      expect(clampExpiresIn(450)).toBe(450);
+    });
+
+    it('melempar TypeError untuk input non-angka', () => {
+      expect(() => clampExpiresIn('300')).toThrow(TypeError);
+      expect(() => clampExpiresIn(true)).toThrow(TypeError);
+      expect(() => clampExpiresIn(NaN)).toThrow(TypeError);
+      expect(() => clampExpiresIn(Infinity)).toThrow(TypeError);
+      expect(() => clampExpiresIn({})).toThrow(TypeError);
     });
   });
 });
