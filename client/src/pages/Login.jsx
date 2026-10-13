@@ -14,6 +14,28 @@ import pkg from '../../package.json';
 const GOOGLE_SCRIPT_ID = 'google-identity-services';
 const APP_VERSION = `v${pkg.version || '1.0.1'}`;
 
+export function resolveSafeRedirectPath(fromState) {
+  let target = '/';
+
+  if (typeof fromState === 'string') {
+    target = fromState;
+  } else if (fromState && typeof fromState === 'object' && typeof fromState.pathname === 'string') {
+    target = `${fromState.pathname}${fromState.search || ''}${fromState.hash || ''}`;
+  }
+
+  // Sanitasi: hanya path internal yang diizinkan (cegah open redirect)
+  if (
+    !target.startsWith('/') ||
+    target.startsWith('//') ||
+    target.includes('://') ||
+    target.includes('\\')
+  ) {
+    return '/';
+  }
+
+  return target;
+}
+
 export default function Login() {
   const {
     signIn,
@@ -29,7 +51,7 @@ export default function Login() {
   } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = location.state?.from?.pathname || '/';
+  const from = resolveSafeRedirectPath(location.state?.from);
 
   const googleButtonRef = useRef(null);
   const [mode, setMode] = useState('login'); // 'login' | 'register_google'
@@ -350,7 +372,7 @@ export default function Login() {
                     setError('');
                     setSubmitting(true);
                     try {
-                      await signInWithSupabaseGoogle({ redirectTo: window.location.origin });
+                      await signInWithSupabaseGoogle({ redirectTo: window.location.origin + from });
                     } catch (err) {
                       setError(err.message || 'Gagal memulai login Google.');
                       setSubmitting(false);

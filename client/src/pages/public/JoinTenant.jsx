@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   AiOutlineHome,
@@ -12,6 +12,47 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { getInviteDetails, requestJoinTenant } from '../../services/tenantOperationalService';
+
+const PENDING_JOIN_STORAGE_KEY = 'rw_pending_join';
+
+function getPendingJoinDraft() {
+  try {
+    const raw = sessionStorage.getItem(PENDING_JOIN_STORAGE_KEY);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      try {
+        sessionStorage.removeItem(PENDING_JOIN_STORAGE_KEY);
+      } catch {
+        // Abaikan error sessionStorage
+      }
+      return null;
+    }
+  } catch {
+    return null;
+  }
+}
+
+function removePendingJoinDraft() {
+  try {
+    sessionStorage.removeItem(PENDING_JOIN_STORAGE_KEY);
+  } catch {
+    // Abaikan error sessionStorage
+  }
+}
+
+function isMatchingInviteCode(draftCode, activeCode) {
+  if (!draftCode || !activeCode) return false;
+  return draftCode.trim().toLowerCase() === activeCode.trim().toLowerCase();
+}
+
+function hasMatchingPendingDraft(activeCode) {
+  if (!activeCode) return false;
+  const draft = getPendingJoinDraft();
+  if (!draft) return false;
+  return isMatchingInviteCode(draft.inviteCode, activeCode);
+}
 
 export default function JoinTenant() {
   const { inviteCode: paramInviteCode } = useParams();
@@ -31,6 +72,7 @@ export default function JoinTenant() {
   const [occupancyStatus, setOccupancyStatus] = useState('owner_occupied');
   const [submitting, setSubmitting] = useState(false);
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
+  const draftRestoredRef = useRef(false);
 
   // Otomatis lookup jika ada kode di URL param
   useEffect(() => {
@@ -39,15 +81,19 @@ export default function JoinTenant() {
     }
   }, [paramInviteCode]);
 
-  // Sync profile data jika baru login
+  // Sync profile data jika baru login (draft diprioritaskan)
   useEffect(() => {
+    if (draftRestoredRef.current) return;
+    const activeCode = (inputCode || paramInviteCode || '').trim();
+    if (hasMatchingPendingDraft(activeCode)) return;
+
     if (profile?.full_name && !fullName) {
       setFullName(profile.full_name);
     }
     if (profile?.phone && !phone) {
       setPhone(profile.phone);
     }
-  }, [profile, fullName, phone]);
+  }, [profile, fullName, phone, inputCode, paramInviteCode]);
 
   const loadTenantByCode = async (codeToLookup) => {
     if (!codeToLookup?.trim()) {
@@ -63,9 +109,31 @@ export default function JoinTenant() {
       const res = await getInviteDetails(codeToLookup.trim());
       if (res && res.found) {
         setTenantInfo(res);
+        let selectedUnitId = '';
         if (res.units && res.units.length > 0) {
-          setUnitId(String(res.units[0].id));
+          selectedUnitId = String(res.units[0].id);
         }
+
+        // Pulihkan draft jika user sudah login dan kode cocok
+        if (isAuthenticated && !draftRestoredRef.current) {
+          const draft = getPendingJoinDraft();
+          if (draft && isMatchingInviteCode(draft.inviteCode, codeToLookup)) {
+            draftRestoredRef.current = true;
+            if (draft.fullName) setFullName(draft.fullName);
+            if (draft.phone) setPhone(draft.phone);
+            if (draft.occupancyStatus) setOccupancyStatus(draft.occupancyStatus);
+
+            const units = res.units || [];
+            if (draft.unitId && units.some((u) => String(u.id) === String(draft.unitId))) {
+              selectedUnitId = String(draft.unitId);
+            }
+
+            removePendingJoinDraft();
+            toast.info('Data pendaftaran dipulihkan. Periksa lalu tekan "Ajukan Pendaftaran Anggota".');
+          }
+        }
+
+        setUnitId(selectedUnitId);
       } else {
         setLookupError(res?.message || 'Komunitas dengan kode undangan tersebut tidak ditemukan.');
       }
@@ -77,6 +145,27 @@ export default function JoinTenant() {
       setLoadingTenant(false);
     }
   };
+
+  // Efek pemulihan draft jika tenantInfo telah dimuat dan user sudah login
+  useEffect(() => {
+    if (!isAuthenticated || !tenantInfo || draftRestoredRef.current) return;
+    const activeCode = (inputCode || paramInviteCode || '').trim();
+    const draft = getPendingJoinDraft();
+    if (!draft || !isMatchingInviteCode(draft.inviteCode, activeCode)) return;
+
+    draftRestoredRef.current = true;
+    if (draft.fullName) setFullName(draft.fullName);
+    if (draft.phone) setPhone(draft.phone);
+    if (draft.occupancyStatus) setOccupancyStatus(draft.occupancyStatus);
+
+    const units = tenantInfo.units || [];
+    if (draft.unitId && units.some((u) => String(u.id) === String(draft.unitId))) {
+      setUnitId(String(draft.unitId));
+    }
+
+    removePendingJoinDraft();
+    toast.info('Data pendaftaran dipulihkan. Periksa lalu tekan "Ajukan Pendaftaran Anggota".');
+  }, [isAuthenticated, tenantInfo, inputCode, paramInviteCode, toast]);
 
   const handleManualLookup = (e) => {
     e.preventDefault();
@@ -98,17 +187,21 @@ export default function JoinTenant() {
 
     if (!isAuthenticated) {
       // Simpan draft form di sessionStorage lalu arahkan ke login
-      sessionStorage.setItem(
-        'rw_pending_join',
-        JSON.stringify({
-          inviteCode: inputCode || paramInviteCode,
-          tenantId: tenantInfo.tenant_id,
-          unitId,
-          fullName,
-          phone,
-          occupancyStatus,
-        })
-      );
+      try {
+        sessionStorage.setItem(
+          PENDING_JOIN_STORAGE_KEY,
+          JSON.stringify({
+            inviteCode: inputCode || paramInviteCode,
+            tenantId: tenantInfo.tenant_id,
+            unitId,
+            fullName,
+            phone,
+            occupancyStatus,
+          })
+        );
+      } catch {
+        // Abaikan error sessionStorage (misal: private browsing mode)
+      }
       toast.info('Silakan masuk dengan akun Google untuk menyelesaikan pendaftaran.');
       navigate('/login', {
         state: { from: `/join/${inputCode || paramInviteCode}` },
