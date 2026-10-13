@@ -55,10 +55,10 @@ import { ResidentDetailDrawer } from '../components/residents/ResidentDetailDraw
 export default function Residents() {
   const params = useParams();
   const { role, token } = useAuth();
-  const { currentTenant, userTenants } = useTenant();
-  const activeTenantId = params.tenantId || currentTenant?.id || userTenants?.[0]?.id || null;
-  const activeTenant = currentTenant?.id === activeTenantId
-    ? currentTenant
+  const { activeTenant: contextActiveTenant, userTenants } = useTenant();
+  const activeTenantId = params.tenantId || contextActiveTenant?.id || userTenants?.[0]?.id || null;
+  const activeTenant = contextActiveTenant?.id === activeTenantId
+    ? contextActiveTenant
     : (userTenants || []).find((t) => t.id === activeTenantId) || null;
   const template = useTenantTemplate(activeTenant?.type);
 
@@ -343,7 +343,7 @@ export default function Residents() {
 
   const handleExportCSV = () => {
     const header = ['Nama', 'Email', 'Telepon', 'Blok', 'Unit', 'Status', 'Status Tinggal', 'Pemilik', 'Role'];
-    const rows = filtered.map((p) => {
+    const rows = filteredAndSorted.map((p) => {
       const unit = getUnitById(p.unit_id);
       // Pemilik unit: kalau profil ini BUKAN owner, tampilkan nama pemilik
       const owner =
@@ -1178,7 +1178,7 @@ function UploadCSVModal({ onImport, onClose, isSaving }) {
               />
               <div>
                 <p className="text-sm font-semibold text-slate-800">Delete & Insert</p>
-                <p className="text-[11px] text-slate-500">Hapus SEMUA warga, ganti dengan data CSV. Admin & Koordinator Palm Village dipertahankan.</p>
+                <p className="text-[11px] text-slate-500">Hapus SEMUA warga, ganti dengan data CSV. Akun Admin & Koordinator dipertahankan.</p>
               </div>
             </label>
           </div>

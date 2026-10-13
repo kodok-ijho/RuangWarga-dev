@@ -153,15 +153,13 @@ describe('Dashboard Architecture & Components (Phase 5)', () => {
       expect(html).toContain('Rumah A/12');
       expect(html).toContain('Bayar IPL Sekarang');
 
-      // Max 4 quick actions
+      // Quick actions (Pengumuman disembunyikan sampai RTRW-3)
       expect(html).toContain('Bayar IPL');
       expect(html).toContain('Riwayat Bayar');
-      expect(html).toContain('Pengumuman');
       expect(html).toContain('Daftar Warga');
 
-      // Community Info & Activity
+      // Community Activity
       expect(html).toContain('Aktivitas Terbaru');
-      expect(html).toContain('Informasi Komunitas');
     });
 
     it('adapts obligation terminology to Kost (kos) template', () => {
@@ -312,6 +310,35 @@ describe('Dashboard Architecture & Components (Phase 5)', () => {
 
       expect(html).toContain('Semua pembayaran dan pendaftaran operasional telah terverifikasi bersih');
       expect(html).not.toContain('perlu diverifikasi');
+    });
+
+    it('menyembunyikan blok kode undangan saat inviteCode null atau tidak ditemukan (SEC-3.2 / SEC-3.5)', () => {
+      const template = TENANT_TEMPLATES.kos;
+      const dashData = {
+        pendingPaymentCount: 0,
+        pendingRegistrationCount: 0,
+        billing: { totalBilled: 10000000, totalCollected: 10000000, totalOutstanding: 0, collectionRate: 100, billCount: 10 },
+        finance: { totalIncome: 10000000, totalExpense: 2000000, netCashflow: 8000000 },
+        units: { total: 10, occupied: 10, vacant: 0 },
+        members: { total: 10 },
+        recentPayments: [],
+      };
+
+      const rawHtml = renderToString(
+        <MemoryRouter>
+          <StaffDashboard
+            tenantId="t-tenant-tanpa-kode"
+            template={template}
+            dashData={dashData}
+            periodLabel="September 2026"
+            activeTenant={{ id: 't-tenant-tanpa-kode' }}
+          />
+        </MemoryRouter>
+      );
+      const html = cleanHtml(rawHtml);
+
+      expect(html).not.toContain('Kode Undangan');
+      expect(html).not.toContain('Salin Link Pendaftaran');
     });
   });
 
@@ -486,8 +513,8 @@ describe('Dashboard Architecture & Components (Phase 5)', () => {
       expect(html).not.toContain('Blok A/12');
     });
 
-    // 8. Tidak ada announcement -> empty state
-    it('8. missing announcements displays empty state without mock Palm Village injection', () => {
+    // 8. CitizenDashboard tidak memuat pengumuman (disembunyikan sampai RTRW-3)
+    it('8. citizen dashboard does not render announcements or announcements link', () => {
       const rawHtml = renderToString(
         <MemoryRouter>
           <CitizenDashboard
@@ -504,7 +531,8 @@ describe('Dashboard Architecture & Components (Phase 5)', () => {
         </MemoryRouter>
       );
       const html = cleanHtml(rawHtml);
-      expect(html).toContain('Belum ada pengumuman terbaru untuk komunitas ini');
+      expect(html).not.toContain('/announcements');
+      expect(html).not.toContain('Pengumuman');
       expect(html).not.toContain('Fogging Nyamuk DBD');
     });
 

@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTenant } from '../hooks/useTenant';
+import { useTenantAccess } from '../hooks/useTenantAccess';
 import { useTenantTemplate } from '../hooks/useTenantTemplate';
 import { useToast } from '../hooks/useToast';
 import { useTour } from '../context/TourContext';
@@ -25,6 +27,7 @@ import {
   isBendaharaOrAbove,
   canModifyData,
   getQrisProviderLabel,
+  roleLabel,
 } from '../services/dataHelpers';
 import {
   fetchBillMatrix,
@@ -40,6 +43,7 @@ import {
   verifyQrisPayment,
   IS_DEMO,
 } from '../services/dataService';
+import { fetchTenantPayments } from '../services/tenantOperationalService';
 import { portalApiPost } from '../services/apiClient';
 import {
   getPaymentForBill,
@@ -50,10 +54,12 @@ import {
   rejectPayment,
   revisePayment,
   cancelPayment,
-  downloadDigitalReceipt,
   sendEmailReceipt,
 } from '../services/mockData';
-import { autoGenerateKosBilling, generateKelasSppBilling, fetchTenantMembers } from '../services/tenantOperationalService';
+import { downloadDigitalReceipt } from '../services/receiptService';
+import { supabase } from '../services/supabaseClient';
+import { createReceiptSignedUrl } from '../utils/storagePolicy';
+import { autoGenerateKosBilling, generateKelasSppBilling, fetchTenantMembers, isLegacyQrisEnabled } from '../services/tenantOperationalService';
 import { compressImage } from '../utils/imageCompressor';
 import { AiOutlineDownload } from 'react-icons/ai';
 import { ResidentIplOverview, PaymentFlowModal, PaymentHistoryList } from '../components/payment';
@@ -76,9 +82,77 @@ export function isHangingPayment(payment, bill, cellStatus) {
   return false;
 }
 
+export function buildStaffCashPaymentArgs({
+  bill,
+  unit,
+  index = 0,
+  customAmounts,
+  receiptFile = null,
+  firstPayment = null,
+  note = '',
+  paidAt,
+  role,
+  activeTenantId,
+  staffVerifier,
+}) {
+  const billMemberId = bill?.member_id || unit?.member_id || unit?.members?.[0]?.id || null;
+  const amount = customAmounts?.[bill?.id] ?? (Number(bill?.amount || 0) + Number(bill?.late_fee || 0));
+  const file = index === 0 ? receiptFile : null;
+  const calculatedNote = index === 0
+    ? note
+    : note + (firstPayment?.file_url ? ` (Lampiran: ${firstPayment.file_url})` : '');
+
+  return {
+    bill_id: bill?.id,
+    amount,
+    file,
+    note: calculatedNote,
+    paid_at: paidAt,
+    recorderRole: role,
+    tenantId: activeTenantId,
+    memberId: billMemberId,
+    verifiedBy: staffVerifier,
+  };
+}
+
+export function buildDetailActionArgs(actionType, {
+  paymentId,
+  activeTenantId,
+  verifier,
+  reason,
+}) {
+  const staffVerifier = verifier || 'staff';
+  if (actionType === 'approve') {
+    return {
+      payment_id: paymentId,
+      tenantId: activeTenantId,
+      verifiedBy: staffVerifier,
+    };
+  }
+  if (actionType === 'reject') {
+    return {
+      payment_id: paymentId,
+      note: reason || 'Bukti transfer tidak valid/blur',
+      tenantId: activeTenantId,
+      rejectedBy: staffVerifier,
+    };
+  }
+  if (actionType === 'cancel') {
+    return {
+      tenantId: activeTenantId,
+      payment_id: paymentId,
+      note: 'Dibatalkan oleh pengurus',
+      rejectedBy: staffVerifier,
+    };
+  }
+  throw new Error(`Aksi detail tidak dikenali: ${actionType}`);
+}
+
 export default function PaymentMatrix() {
-  const { profile, role, session, isReadOnly } = useAuth();
+  const { profile, role, session, isReadOnly, user } = useAuth();
+  const { tenantId: routeTenantId } = useParams();
   const { activeTenantId, activeTenant } = useTenant();
+  const tenantAccess = useTenantAccess();
   const template = useTenantTemplate();
   const { triggerTour } = useTour();
   const toast = useToast();
@@ -114,12 +188,12 @@ export default function PaymentMatrix() {
   const [detailModal, setDetailModal] = useState(null); // { bill, payment }
 
   // Semua role bisa LIHAT semua unit. Interaksi (bayar) di-gate per baris.
-  const isStaff = isStaffRole(role);
-  const canWrite = canModifyData(role) && !isReadOnly;
+  const isStaff = activeTenantId ? tenantAccess.isStaff : isStaffRole(role);
+  const canWrite = activeTenantId ? (tenantAccess.canWrite && !isReadOnly) : (canModifyData(role) && !isReadOnly);
   // Admin Demo memakai role internal admin_viewer dan tetap read-only untuk
   // seluruh fitur lain. QRIS adalah satu-satunya pengecualian sementara.
   const isDemoAdmin = isReadOnly && (role === 'admin' || role === 'admin_viewer');
-  const canUseQris = true;
+  const canUseQris = isLegacyQrisEnabled(activeTenant);
   const [resolvedMyUnitId, setResolvedMyUnitId] = useState(null);
   const [isUnitResolving, setIsUnitResolving] = useState(true);
 
@@ -255,6 +329,11 @@ export default function PaymentMatrix() {
     if (!silent) {
       setIsLoading(true);
       setLoadError('');
+    }
+
+    // Workspace tenant: bila activeTenantId belum siap, JANGAN panggil fetch (hindari jatuh ke jalur n8n)
+    if (routeTenantId && !activeTenantId) {
+      return;
     }
 
     // Citizen / member: Tunggu hingga proses resolveUnit selesai
@@ -796,32 +875,34 @@ export default function PaymentMatrix() {
           return;
         } else if (method === 'cash') {
           let firstPayment = null;
+          const staffVerifier = profile?.full_name || user?.email || 'staff';
           for (let i = 0; i < manualModal.bills.length; i++) {
             const bill = manualModal.bills[i];
+            const paymentArgs = buildStaffCashPaymentArgs({
+              bill,
+              unit: manualModal.unit,
+              index: i,
+              customAmounts,
+              receiptFile,
+              firstPayment,
+              note: noteWithDate,
+              paidAt,
+              role,
+              activeTenantId,
+              staffVerifier,
+            });
             if (i === 0) {
-              firstPayment = await createCashPayment(session?.access_token, {
-                bill_id: bill.id,
-                amount: customAmounts?.[bill.id] ?? (Number(bill.amount || 0) + Number(bill.late_fee || 0)),
-                file: receiptFile,
-                note: noteWithDate,
-                paid_at: paidAt,
-                recorderRole: role,
-              });
+              firstPayment = await createCashPayment(session?.access_token, paymentArgs);
             } else {
-              await createCashPayment(session?.access_token, {
-                bill_id: bill.id,
-                amount: customAmounts?.[bill.id] ?? (Number(bill.amount || 0) + Number(bill.late_fee || 0)),
-                file: null,
-                note: noteWithDate + (firstPayment?.file_url ? ` (Lampiran: ${firstPayment.file_url})` : ''),
-                paid_at: paidAt,
-                recorderRole: role,
-              });
+              await createCashPayment(session?.access_token, paymentArgs);
             }
             completedCount += 1;
           }
           toast.success(`Pembayaran tunai untuk ${manualModal.bills.length} tagihan berhasil dicatat dan langsung terverifikasi.`);
         } else if (method === 'bank_transfer') {
+          const staffVerifier = profile?.full_name || user?.email || 'staff';
           for (const bill of manualModal.bills) {
+            const billMemberId = bill.member_id || manualModal.unit?.member_id || manualModal.unit?.members?.[0]?.id || null;
             await submitManualPayment(session?.access_token, {
               bill_id: bill.id,
               method: 'bank_transfer',
@@ -829,10 +910,13 @@ export default function PaymentMatrix() {
               file: receiptFile,
               note: noteWithDate,
               paid_at: paidAt,
+              tenantId: activeTenantId,
+              memberId: billMemberId,
+              verifiedBy: staffVerifier,
             });
             completedCount += 1;
           }
-          const isDirectVerifyTransfer = isBendaharaOrAbove(role);
+          const isDirectVerifyTransfer = activeTenantId ? tenantAccess.canVerifyPayments : isBendaharaOrAbove(role);
           toast.success(
             isDirectVerifyTransfer
               ? `Pembayaran transfer untuk ${manualModal.bills.length} tagihan berhasil dicatat dan langsung terverifikasi.`
@@ -856,6 +940,10 @@ export default function PaymentMatrix() {
   };
 
   const handleCleanupAllData = async () => {
+    if (activeTenantId) {
+      toast.warning('Fitur reset transaksi tidak tersedia pada mode tenant.');
+      return;
+    }
     if (isReadOnly) {
       toast.warning('⚠️ Tindakan pembersihan data dinonaktifkan untuk akun Admin Demo (View-Only).');
       return;
@@ -947,7 +1035,7 @@ export default function PaymentMatrix() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {isBendaharaOrAbove(role) && (
+          {!activeTenantId && isBendaharaOrAbove(role) && (
             <button
               onClick={handleCleanupAllData}
               className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-semibold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-xs transition"
@@ -1089,7 +1177,21 @@ export default function PaymentMatrix() {
             payments={myPayments}
             bills={myBills}
             template={template}
-            onDownloadReceipt={IS_DEMO ? (item) => downloadDigitalReceipt(item?.payment || item) : undefined}
+            onDownloadReceipt={IS_DEMO ? (item) => {
+              const targetBill = item?.bill || item?.payment || item;
+              downloadDigitalReceipt({
+                bill: {
+                  ...targetBill,
+                  amount: item?.amount ?? targetBill?.amount,
+                  period: item?.period ?? targetBill?.period,
+                  method: item?.method ?? targetBill?.method,
+                },
+                unit: myRow?.unit,
+                tenantName: activeTenant?.name,
+                billLabel: template?.billLabel,
+                unitLabel: template?.unitLabel,
+              });
+            } : undefined}
           />
         </div>
       ) : (
@@ -1391,6 +1493,7 @@ export default function PaymentMatrix() {
           total={totalToPay}
           canUseQris={canUseQris}
           billLabel={template.billLabel}
+          tenant={activeTenant}
           onConfirm={confirmPay}
           onClose={() => setPayModal(null)}
         />
@@ -1422,7 +1525,7 @@ export default function PaymentMatrix() {
           onConfirm={async () => {
             const billIds = (qrisCheckoutData.bills || []).map((b) => (typeof b === 'object' ? b.id : b));
             if (IS_DEMO || qrisCheckoutData.demo) {
-              if (isStaffRole(role)) {
+              if (isStaff) {
                 for (const billId of billIds) {
                   recordManualPayment(billId, {
                     method: 'qris',
@@ -1547,7 +1650,7 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
     );
   }
   const { status, bill } = cell;
-  const payment = propPayment || (status === 'paid' ? getPaymentForBill(bill.id) : null);
+  const payment = propPayment || (IS_DEMO && status === 'paid' ? getPaymentForBill(bill.id) : null);
   const isPaid = status === 'paid';
   const isOverdue = status === 'overdue';
   const isPending = status === 'pending';
@@ -1918,8 +2021,11 @@ function ResidentPayModal({ bills, total, canUseQris, billLabel = 'IPL', onConfi
 // Staff can record transfer proof for residents who cannot use the app yet.
 // Cash remains limited to bendahara/admin.
 function ManualPaymentModal({ bills, unit, role, canWrite, canUseQris, billLabel = 'IPL', onConfirm, onClose }) {
-  const canRecordCash = isBendaharaOrAbove(role) && canWrite;
-  const canRecordTransfer = canWrite;
+  const toast = useToast();
+  const { activeTenantId } = useTenant();
+  const tenantAccess = useTenantAccess();
+  const canRecordCash = activeTenantId ? (tenantAccess.canRecordCash && canWrite) : (isBendaharaOrAbove(role) && canWrite);
+  const canRecordTransfer = activeTenantId ? (tenantAccess.canRecordTransfer && canWrite) : canWrite;
   const methodCount = Number(canRecordCash) + Number(canRecordTransfer) + Number(canUseQris);
   const [method, setMethod] = useState(
     canRecordCash ? 'cash' : canRecordTransfer ? 'bank_transfer' : 'qris'
@@ -1931,7 +2037,7 @@ function ManualPaymentModal({ bills, unit, role, canWrite, canUseQris, billLabel
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Khusus admin/bendahara: nominal tagihan dapat diubah
-  const canEditNominal = isBendaharaOrAbove(role) && canWrite;
+  const canEditNominal = activeTenantId ? (tenantAccess.canVerifyPayments && canWrite) : (isBendaharaOrAbove(role) && canWrite);
   const [customAmounts, setCustomAmounts] = useState(() => {
     const initial = {};
     bills.forEach((bill) => {
@@ -2274,10 +2380,8 @@ function getPaymentProofPreviewUrl(payment) {
     return sourceUrl;
   }
 
-  // 3. Supabase Storage relative file path (e.g. "2026-09__unit-13__payment-...")
-  const cleanPath = sourceUrl.replace(/^payments\//, '');
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://mzjgliclzihrdjaqzmqg.supabase.co';
-  return `${supabaseUrl.replace(/\/+$/, '')}/storage/v1/object/public/payments/${encodeURIComponent(cleanPath)}`;
+  // Relative storage path diselesaikan melalui signed URL di modal
+  return null;
 }
 
 function getResolvedPaymentDate(payment, bill) {
@@ -2301,17 +2405,82 @@ function getResolvedPaymentDate(payment, bill) {
   );
 }
 
+/**
+ * Komponen tombol aksi kuitansi pada detail pembayaran (DEBT-1.1).
+ * Tombol kirim ke email hanya dirender pada mode IS_DEMO.
+ */
+export function ReceiptActions({
+  resolvedBill,
+  payment,
+  targetUnit,
+  activeTenant,
+  template,
+  role,
+  isDemo = IS_DEMO,
+  onSendEmail,
+}) {
+  const isPaidOrVerified =
+    resolvedBill?.status === 'paid' ||
+    payment?.status === 'verified' ||
+    payment?.status === 'completed';
+  if (!isPaidOrVerified) return null;
+
+  return (
+    <div className={`${isDemo ? 'grid grid-cols-2' : 'grid grid-cols-1'} gap-2 pb-1 border-b border-slate-200`}>
+      <button
+        type="button"
+        onClick={() => {
+          downloadDigitalReceipt({
+            bill: resolvedBill,
+            unit: targetUnit,
+            tenantName: activeTenant?.name,
+            billLabel: template?.billLabel,
+            unitLabel: template?.unitLabel,
+          });
+        }}
+        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-xs hover:bg-slate-50 transition-colors w-full"
+      >
+        📥 Download Kuitansi
+      </button>
+      {isDemo && (
+        <button
+          type="button"
+          onClick={onSendEmail}
+          disabled={!canModifyData(role)}
+          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gold-300 bg-gold-50 px-3 py-2 text-xs font-semibold text-gold-800 shadow-sm hover:bg-gold-100 transition-colors disabled:opacity-50"
+        >
+          📧 Kirim ke Email
+        </button>
+      )}
+    </div>
+  );
+}
+
 // Modal Detail Pembayaran Lunas
 // Modal Detail / Verifikasi / Revisi Pembayaran
-function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, session, isHanging: initialIsHanging, billLabel = 'IPL', onRefresh, onRetry, onClose }) {
+export function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, session, isHanging: initialIsHanging, billLabel = 'IPL', onRefresh, onRetry, onClose }) {
   const toast = useToast();
+  const { template } = useTenantTemplate();
+  const { activeTenant, activeTenantId } = useTenant();
+  const tenantAccess = useTenantAccess();
   const [asyncPayment, setAsyncPayment] = useState(null);
 
   // Selalu fetch data payment lengkap dari backend
   useEffect(() => {
     let isMounted = true;
 
-    if ((bill?.id || bill?.period) && !IS_DEMO) {
+    if (bill?.id && activeTenantId && !IS_DEMO) {
+      fetchTenantPayments(activeTenantId)
+        .then((payments) => {
+          if (!isMounted) return;
+          const matching = (payments || []).filter((p) => String(p.billing_item_id) === String(bill.id));
+          matching.sort((a, b) => new Date(b.created_at || b.paid_at || 0) - new Date(a.created_at || a.paid_at || 0));
+          if (matching.length > 0) {
+            setAsyncPayment(matching[0]);
+          }
+        })
+        .catch(() => {});
+    } else if ((bill?.id || bill?.period) && !IS_DEMO) {
       const context = {
         unit_id: unit?.id || bill?.unit_id,
         period: bill?.period,
@@ -2324,7 +2493,7 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
         .catch(() => {});
     }
     return () => { isMounted = false; };
-  }, [bill?.id, bill?.period, bill?.unit_id, bill?.payment_id, unit?.id, session?.access_token]);
+  }, [bill?.id, bill?.period, bill?.unit_id, bill?.payment_id, unit?.id, session?.access_token, activeTenantId]);
 
   // Merge: asyncPayment fields take priority over cellPayment for proof/date fields
   const activePayment = useMemo(() => {
@@ -2367,9 +2536,11 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
     (profile?.id && bill?.resident_id && String(bill.resident_id) === String(profile.id)) ||
     (profile?.id && activePayment?.resident_id && String(activePayment.resident_id) === String(profile.id));
 
-  const canViewReceipt = isStaffRole(role) || isMyUnit;
-  const canVerify = isBendaharaOrAbove(role) && canModifyData(role);
-  const canRepair = isBendaharaOrAbove(role) && canModifyData(role);
+  const isStaff = activeTenantId ? tenantAccess.isStaff : isStaffRole(role);
+  const canViewReceipt = isStaff || isMyUnit;
+  const canVerify = activeTenantId ? (tenantAccess.canVerifyPayments && tenantAccess.canWrite) : (isBendaharaOrAbove(role) && canModifyData(role));
+  const canRepair = activeTenantId ? (tenantAccess.canVerifyPayments && tenantAccess.canWrite) : (isBendaharaOrAbove(role) && canModifyData(role));
+  const canWrite = activeTenantId ? tenantAccess.canWrite : canModifyData(role);
   const isHanging = Boolean(initialIsHanging || isHangingPayment(activePayment, resolvedBill, resolvedBill?.status));
   const paymentMethod = activePayment?.method || activePayment?.payment_method || activePayment?.paymentMethod;
 
@@ -2405,10 +2576,46 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
     proofFileUrl = proofFileName;
   }
 
-  const hasProofFile = Boolean(proofFileUrl || proofFileName);
+  const [signedProofUrl, setSignedProofUrl] = useState(null);
+
+  useEffect(() => {
+    let isCancelled = false;
+    setSignedProofUrl(null);
+    const rawPath =
+      activePayment?.proof_url ||
+      activePayment?.proof_file_path ||
+      activePayment?.proof_file_url ||
+      activePayment?.metadata?.proof_path ||
+      activePayment?.metadata?.proof_file_path ||
+      '';
+
+    if (!rawPath) return;
+
+    if (rawPath.startsWith('http://') || rawPath.startsWith('https://')) {
+      setSignedProofUrl(rawPath);
+      return;
+    }
+
+    createReceiptSignedUrl(supabase, rawPath, 300, 'payment-proofs')
+      .then((signed) => {
+        if (!isCancelled) setSignedProofUrl(signed);
+      })
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error('[PaymentMatrix] Gagal resolve signed URL bukti transfer:', err);
+        if (!isCancelled) setSignedProofUrl(null);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [activePayment]);
+
+  const resolvedProofFileUrl = signedProofUrl || (proofFileUrl?.startsWith('http') ? proofFileUrl : '');
+  const hasProofFile = Boolean(proofFileUrl || proofFileName || signedProofUrl);
   const proofPreviewPayment = { ...activePayment, proof_file_url: proofFileUrl, proof_file_name: proofFileName };
-  const proofPreviewUrl = getPaymentProofPreviewUrl(proofPreviewPayment);
-  const canPreviewProofImage = Boolean(proofPreviewUrl && isImagePaymentProof(proofPreviewPayment));
+  const proofPreviewUrl = signedProofUrl || getPaymentProofPreviewUrl(proofPreviewPayment);
+  const canPreviewProofImage = Boolean(proofPreviewUrl && (signedProofUrl || isImagePaymentProof(proofPreviewPayment)));
   const resolvedPaidAt = getResolvedPaymentDate(activePayment, resolvedBill);
 
   const missingProofText =
@@ -2451,7 +2658,7 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
   useEffect(() => {
     setProofPreviewError(false);
     setIsProofPreviewOpen(false);
-  }, [payment?.id, proofFileUrl]);
+  }, [payment?.id, proofFileUrl, signedProofUrl]);
 
   const handleVerify = async () => {
     if (!payment || isActing) return;
@@ -2460,7 +2667,14 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
       if (IS_DEMO) {
         verifyPayment(payment.id, { verifiedBy: roleLabel(role) });
       } else {
-        await approveManualPayment(session?.access_token, { payment_id: payment.id });
+        await approveManualPayment(
+          session?.access_token,
+          buildDetailActionArgs('approve', {
+            paymentId: payment.id,
+            activeTenantId,
+            verifier: profile?.full_name || 'staff',
+          })
+        );
       }
       toast.success('Pembayaran berhasil diverifikasi & status tagihan menjadi Lunas!');
       if (onRefresh) onRefresh();
@@ -2481,7 +2695,15 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
       if (IS_DEMO) {
         rejectPayment(payment.id, { rejectedBy: roleLabel(role), reason: reason || 'Bukti transfer tidak valid/blur' });
       } else {
-        await rejectManualPayment(session?.access_token, { payment_id: payment.id, note: reason || 'Bukti transfer tidak valid/blur' });
+        await rejectManualPayment(
+          session?.access_token,
+          buildDetailActionArgs('reject', {
+            paymentId: payment.id,
+            activeTenantId,
+            verifier: profile?.full_name || 'staff',
+            reason: reason || 'Bukti transfer tidak valid/blur',
+          })
+        );
       }
       toast.warning('Pembayaran ditolak. Warga dapat mengunggah ulang bukti transfer.');
       if (onRefresh) onRefresh();
@@ -2523,13 +2745,39 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
         note: editForm.note,
         file: editForm.file,
         status: editForm.markCompleted ? 'completed' : undefined,
+        tenantId: activeTenantId,
       });
 
-      toast.success(
-        editForm.markCompleted
-          ? 'Transaksi berhasil diperbaiki dan status tagihan menjadi LUNAS!'
-          : 'Detail transaksi berhasil diperbarui.'
-      );
+      if (activeTenantId) {
+        if (editForm.markCompleted && activePayment?.status === 'pending_verification') {
+          try {
+            await approveManualPayment(
+              session?.access_token,
+              buildDetailActionArgs('approve', {
+                paymentId,
+                activeTenantId,
+                verifier: profile?.full_name || 'staff',
+              })
+            );
+            toast.success('Transaksi berhasil diperbaiki dan status tagihan menjadi LUNAS!');
+          } catch (err) {
+            toast.error(
+              `Perubahan transaksi tersimpan, tetapi verifikasi gagal: ${err.message || 'kesalahan tidak diketahui'}. Pembayaran masih menunggu verifikasi.`
+            );
+            if (onRefresh) onRefresh();
+            onClose();
+            return;
+          }
+        } else {
+          toast.success('Detail transaksi berhasil diperbarui.');
+        }
+      } else {
+        toast.success(
+          editForm.markCompleted
+            ? 'Transaksi berhasil diperbaiki dan status tagihan menjadi LUNAS!'
+            : 'Detail transaksi berhasil diperbarui.'
+        );
+      }
       if (onRefresh) onRefresh();
       onClose();
     } catch (err) {
@@ -2550,6 +2798,15 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
     try {
       if (IS_DEMO) {
         cancelPayment(paymentId);
+      } else if (activeTenantId) {
+        await rejectManualPayment(
+          session?.access_token,
+          buildDetailActionArgs('cancel', {
+            paymentId,
+            activeTenantId,
+            verifier: profile?.full_name || 'staff',
+          })
+        );
       } else {
         await portalApiPost('/payments/cancel', {
           token: session?.access_token,
@@ -2714,20 +2971,22 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-forest-800 mb-1">
-                Ganti File Bukti <span className="text-forest-400 font-normal">(opsional)</span>
-              </label>
-              <input
-                type="file"
-                accept="image/*,.pdf"
-                onChange={(e) => setEditForm((prev) => ({ ...prev, file: e.target.files?.[0] || null }))}
-                className="block w-full text-xs text-forest-600 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:font-medium file:bg-forest-100 file:text-forest-800 hover:file:bg-forest-200"
-              />
-              {proofFileName && !editForm.file && (
-                <p className="mt-1 text-[10px] text-forest-400">File bukti saat ini: {proofFileName}</p>
-              )}
-            </div>
+            {!activeTenantId && (
+              <div>
+                <label className="block text-xs font-semibold text-forest-800 mb-1">
+                  Ganti File Bukti <span className="text-forest-400 font-normal">(opsional)</span>
+                </label>
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, file: e.target.files?.[0] || null }))}
+                  className="block w-full text-xs text-forest-600 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:font-medium file:bg-forest-100 file:text-forest-800 hover:file:bg-forest-200"
+                />
+                {proofFileName && !editForm.file && (
+                  <p className="mt-1 text-[10px] text-forest-400">File bukti saat ini: {proofFileName}</p>
+                )}
+              </div>
+            )}
 
             <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-2.5 flex items-center gap-2">
               <input
@@ -2881,11 +3140,11 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
                       </span>
                     </div>
                     <a
-                      href={proofFileUrl || '#'}
+                      href={resolvedProofFileUrl || '#'}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => {
-                        if (!proofFileUrl) {
+                        if (!resolvedProofFileUrl) {
                           e.preventDefault();
                           alert(`File bukti tercatat: ${proofFileName}`);
                         }
@@ -2932,35 +3191,24 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
               Pilih Tagihan untuk Bayar Ulang
             </button>
           )}
-          {(resolvedBill.status === 'paid' || payment?.status === 'verified' || payment?.status === 'completed') && (
-            <div className="grid grid-cols-2 gap-2 pb-1 border-b border-slate-200">
-              <button
-                type="button"
-                onClick={() => {
-                  downloadDigitalReceipt({ bill: resolvedBill, unit: targetUnit });
-                }}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-xs hover:bg-slate-50 transition-colors"
-              >
-                📥 Download Kuitansi
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (!canModifyData(role)) {
-                    toast.error('Akun read-only tidak dapat mengirim kuitansi email.');
-                    return;
-                  }
-                  toast.info('Mengirim kuitansi digital ke email...');
-                  const res = await sendEmailReceipt({ bill, unit: targetUnit });
-                  toast.success(res.message);
-                }}
-                disabled={!canModifyData(role)}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gold-300 bg-gold-50 px-3 py-2 text-xs font-semibold text-gold-800 shadow-sm hover:bg-gold-100 transition-colors disabled:opacity-50"
-              >
-                📧 Kirim ke Email
-              </button>
-            </div>
-          )}
+          <ReceiptActions
+            resolvedBill={resolvedBill}
+            payment={payment}
+            targetUnit={targetUnit}
+            activeTenant={activeTenant}
+            template={template}
+            role={role}
+            isDemo={IS_DEMO}
+            onSendEmail={async () => {
+              if (!canWrite) {
+                toast.error('Akun read-only tidak dapat mengirim kuitansi email.');
+                return;
+              }
+              toast.info('Mengirim kuitansi digital ke email...');
+              const res = await sendEmailReceipt({ bill, unit: targetUnit });
+              toast.success(res.message);
+            }}
+          />
 
           {payment?.status === 'pending_verification' && canVerify && !isEditing && (
             <div className="flex gap-2">
@@ -2973,18 +3221,20 @@ function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, sess
             </div>
           )}
 
-          {payment?.status === 'rejected' && (isMyUnit || isStaffRole(role)) && !isRevising && canModifyData(role) && !isEditing && (
+          {payment?.status === 'rejected' && (isMyUnit || isStaff) && !isRevising && canWrite && !isEditing && (
             <div className="flex gap-2">
               <button type="button" onClick={() => setIsRevising(true)} className="pv-btn-primary flex-1 text-xs">
                 🔄 Revisi & Upload Ulang
               </button>
-              <button type="button" onClick={handleCancel} disabled={isActing} className="pv-btn-ghost flex-1 text-xs border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50">
-                🗑 Batalkan
-              </button>
+              {(!activeTenantId || canVerify) && (
+                <button type="button" onClick={handleCancel} disabled={isActing} className="pv-btn-ghost flex-1 text-xs border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50">
+                  🗑 Batalkan
+                </button>
+              )}
             </div>
           )}
 
-          {(isHanging || payment?.status === 'pending_verification') && (isMyUnit || isStaffRole(role)) && canModifyData(role) && !isEditing && (
+          {(isHanging || payment?.status === 'pending_verification') && (isMyUnit || isStaff) && canWrite && !isEditing && (!activeTenantId || canVerify) && (
             <button type="button" onClick={handleCancel} disabled={isActing} className="pv-btn-ghost w-full text-xs border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50 flex items-center justify-center gap-1">
               <span>🗑</span>
               <span>Batalkan Transaksi {isHanging ? 'Menggantung' : 'Pembayaran'}</span>

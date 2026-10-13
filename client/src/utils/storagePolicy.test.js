@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildCanonicalExpenseReceiptPath,
   isValidExpenseReceiptPath,
+  isValidPaymentProofPath,
   extractTenantIdFromPath,
   canAccessExpenseReceipt,
   sanitizeStorageFileName,
@@ -170,21 +171,18 @@ describe('Sub-Gate 8.1-B5: Storage RLS & Path Security Invariants', () => {
     });
   });
 
-  describe('Signed URL Model (60-minute target lifetime)', () => {
-    it('requests signed URL with 3600 seconds default lifetime for valid canonical path', async () => {
+  describe('Signed URL Model (R2 presigned via storage-sign-url, clamped 60..600s)', () => {
+    it('requests signed URL with 600s clamped lifetime for valid canonical expense receipt path', async () => {
       const mockSupabase = {
-        storage: {
-          from: (bucket) => {
-            expect(bucket).toBe('expense-receipts');
+        functions: {
+          invoke: async (functionName, { body }) => {
+            expect(functionName).toBe('storage-sign-url');
+            expect(body.kind).toBe('expense_receipt');
+            expect(body.path).toBe(CANONICAL_PATH_A);
+            expect(body.expiresIn).toBe(600); // 3600 dijepit ke batas atas 600 detik
             return {
-              createSignedUrl: async (path, expiresIn) => {
-                expect(path).toBe(CANONICAL_PATH_A);
-                expect(expiresIn).toBe(3600);
-                return {
-                  data: { signedUrl: `https://supabase.co/storage/v1/object/sign/expense-receipts/${path}?token=mock-token` },
-                  error: null,
-                };
-              },
+              data: { url: `https://r2.ruangwarga.test/${body.path}?token=mock-token`, expiresIn: 600 },
+              error: null,
             };
           },
         },
@@ -192,14 +190,64 @@ describe('Sub-Gate 8.1-B5: Storage RLS & Path Security Invariants', () => {
 
       const signedUrl = await createReceiptSignedUrl(mockSupabase, CANONICAL_PATH_A);
       expect(signedUrl).toContain('mock-token');
-      expect(signedUrl).toContain('expense-receipts');
+      expect(signedUrl).toContain('expenses/2026');
     });
 
     it('rejects signed URL generation if path violates canonical format', async () => {
-      const mockSupabase = { storage: { from: () => ({}) } };
+      const mockSupabase = { functions: { invoke: () => ({}) } };
       await expect(createReceiptSignedUrl(mockSupabase, '../etc/passwd')).rejects.toThrow(
         'Path storage bukti pengeluaran tidak valid atau melanggar struktur canonical.'
       );
     });
+
+    it('generates signed URL for payment-proofs bucket with custom lifetime (300s)', async () => {
+      const BILL_ID = '33333333-3333-3333-3333-333333333333';
+      const CANONICAL_PAYMENT_PATH = `${TENANT_A}/payments/${BILL_ID}/1712345678.jpg`;
+
+      const mockSupabase = {
+        functions: {
+          invoke: async (functionName, { body }) => {
+            expect(functionName).toBe('storage-sign-url');
+            expect(body.kind).toBe('payment_proof');
+            expect(body.path).toBe(CANONICAL_PAYMENT_PATH);
+            expect(body.expiresIn).toBe(300);
+            return {
+              data: { url: `https://r2.ruangwarga.test/${body.path}?token=mock-payment-token`, expiresIn: 300 },
+              error: null,
+            };
+          },
+        },
+      };
+
+      const signedUrl = await createReceiptSignedUrl(mockSupabase, CANONICAL_PAYMENT_PATH, 300, 'payment-proofs');
+      expect(signedUrl).toContain('mock-payment-token');
+      expect(signedUrl).toContain('payments/');
+    });
+
+    it('rejects payment-proofs signed URL if path violates payment proof canonical structure', async () => {
+      const mockSupabase = { functions: { invoke: () => ({}) } };
+      await expect(
+        createReceiptSignedUrl(mockSupabase, `${TENANT_A}/invalid/path.jpg`, 300, 'payment-proofs')
+      ).rejects.toThrow('Path storage bukti pembayaran tidak valid atau melanggar struktur canonical.');
+    });
+  });
+
+  describe('SEC-5.4: Canonical Payment Proof Validation', () => {
+    const BILL_ID = '33333333-3333-3333-3333-333333333333';
+
+    it('accepts valid canonical payment proof paths', () => {
+      expect(isValidPaymentProofPath(`${TENANT_A}/payments/${BILL_ID}/1712345678.jpg`)).toBe(true);
+      expect(isValidPaymentProofPath(`${TENANT_A}/payments/${BILL_ID}/transfer_receipt.png`)).toBe(true);
+    });
+
+    it('rejects invalid or traversal payment proof paths', () => {
+      expect(isValidPaymentProofPath(null)).toBe(false);
+      expect(isValidPaymentProofPath('')).toBe(false);
+      expect(isValidPaymentProofPath('../etc/passwd')).toBe(false);
+      expect(isValidPaymentProofPath(`${TENANT_A}/payments/${BILL_ID}/../evil.png`)).toBe(false);
+      expect(isValidPaymentProofPath(`invalid-uuid/payments/${BILL_ID}/proof.jpg`)).toBe(false);
+      expect(isValidPaymentProofPath(`${TENANT_A}/expenses/2026/file.jpg`)).toBe(false);
+    });
   });
 });
+

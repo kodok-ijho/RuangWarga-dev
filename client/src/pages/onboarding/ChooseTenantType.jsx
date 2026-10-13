@@ -26,7 +26,7 @@ export const TENANT_TYPE_OPTIONS = [
       'Laporan arus kas & transparansi warga',
       'Manajemen data warga & bukti bayar',
     ],
-    placeholderName: 'Contoh: Palm Village RT 05 / Cluster Bougenville',
+    placeholderName: 'Contoh: Griya Asri RT 05 / Cluster Bougenville',
   },
   {
     type: 'kos',

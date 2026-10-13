@@ -1164,8 +1164,7 @@ export async function fetchPaymentByBillId(token, billId, billContext = {}) {
 
 
 function normalizeQrisProvider(provider) {
-  const value = String(provider || import.meta.env.VITE_QRIS_DEFAULT_PROVIDER || 'doku').trim().toLowerCase();
-  return value === 'midtrans' ? 'midtrans' : 'doku';
+  return 'doku';
 }
 
 function qrisRoute(provider, suffix) {
@@ -1242,7 +1241,7 @@ export async function createNonIplQrisPayment(token, { amount, base_amount, qris
       qris_fee_amount: fee,
       qris_fee_rate: 0.007,
       total_amount: total,
-      qr_content: `00020101021226550012COM.DOKU.WWW011893600899000010181002061018100303UKE51440014ID.CO.QRIS.WWW0215ID10265631295470303UKE5204864153033605407${total.toFixed(2)}5802ID5921Palm Village - Social6005BOGOR61051691462440703A015033DEMO-NONIPL-${Date.now()}6304ABCD`,
+      qr_content: `DEMO-QRIS-TIDAK-UNTUK-PEMBAYARAN-${Date.now()}`,
       demo: true,
     };
   }

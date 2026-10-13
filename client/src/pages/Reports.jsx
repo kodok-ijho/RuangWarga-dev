@@ -18,6 +18,7 @@ import {
 import Papa from 'papaparse';
 import { useAuth } from '../hooks/useAuth';
 import { useTenant } from '../context/TenantContext';
+import { useTenantAccess } from '../hooks/useTenantAccess';
 import { useTenantTemplate } from '../hooks/useTenantTemplate';
 import { useToast } from '../hooks/useToast';
 import {
@@ -120,6 +121,8 @@ export default function Reports() {
   const { role, session } = useAuth();
   const { activeTenant, activeTenantId: contextTenantId, userTenants } = useTenant();
   const activeTenantId = params.tenantId || contextTenantId || activeTenant?.id || userTenants?.[0]?.id || null;
+  const tenantAccess = useTenantAccess();
+  const canViewReports = activeTenantId ? tenantAccess.canViewReports : canViewFinancialReports(role);
   const template = useTenantTemplate(activeTenant?.type || 'rt_rw');
   const toast = useToast();
 
@@ -199,12 +202,16 @@ export default function Reports() {
       if (reportType === 'monthly' || reportType === 'non_ipl') {
         const [finRes, nonIplRes, eventsRes, balRes] = await Promise.all([
           fetchMonthlyFinance(session?.access_token, { year, month, tenantId: requestedTenantId }),
-          fetchNonIplIncomes(session?.access_token, {
-            from: `${year}-${String(month).padStart(2, '0')}-01`,
-            to: `${year}-${String(month).padStart(2, '0')}-31`,
-            tenantId: requestedTenantId,
-          }).catch(() => []),
-          fetchEvents(session?.access_token).catch(() => []),
+          requestedTenantId
+            ? Promise.resolve([])
+            : fetchNonIplIncomes(session?.access_token, {
+                from: `${year}-${String(month).padStart(2, '0')}-01`,
+                to: `${year}-${String(month).padStart(2, '0')}-31`,
+                tenantId: requestedTenantId,
+              }).catch(() => []),
+          requestedTenantId
+            ? Promise.resolve([])
+            : fetchEvents(session?.access_token).catch(() => []),
           fetchRunningBalance(session?.access_token, { year, month, tenantId: requestedTenantId }),
         ]);
 
@@ -216,8 +223,12 @@ export default function Reports() {
         setReport(finData.report);
         setExpenses(finData.expenses);
         setCashPayments(finData.cashPayments);
-        setNonIplIncomes(Array.isArray(nonIplRes) && nonIplRes.length > 0 ? nonIplRes : (finData.nonIplIncomes || []));
-        setEvents(Array.isArray(eventsRes) ? eventsRes : []);
+        setNonIplIncomes(
+          requestedTenantId
+            ? (finData.nonIplIncomes || [])
+            : (Array.isArray(nonIplRes) && nonIplRes.length > 0 ? nonIplRes : (finData.nonIplIncomes || []))
+        );
+        setEvents(requestedTenantId ? [] : (Array.isArray(eventsRes) ? eventsRes : []));
         setRunningChain(normalizeRunningBalance(balRes));
         setUnresolvedCount(Number(finData.unresolvedCount || 0));
       } else {
@@ -232,12 +243,16 @@ export default function Reports() {
           mapWithConcurrency(periods, YEARLY_REQUEST_CONCURRENCY, ({ year: y, month: m }) => {
             return fetchMonthlyFinance(session?.access_token, { year: y, month: m, tenantId: requestedTenantId });
           }),
-          fetchNonIplIncomes(session?.access_token, {
-            from: `${year}-07-01`,
-            to: `${year + 1}-06-30`,
-            tenantId: requestedTenantId,
-          }).catch(() => []),
-          fetchEvents(session?.access_token).catch(() => []),
+          requestedTenantId
+            ? Promise.resolve([])
+            : fetchNonIplIncomes(session?.access_token, {
+                from: `${year}-07-01`,
+                to: `${year + 1}-06-30`,
+                tenantId: requestedTenantId,
+              }).catch(() => []),
+          requestedTenantId
+            ? Promise.resolve([])
+            : fetchEvents(session?.access_token).catch(() => []),
           fetchRunningBalance(session?.access_token, { year: year + 1, month: 6, tenantId: requestedTenantId }),
         ]);
 
@@ -245,8 +260,22 @@ export default function Reports() {
           return;
         }
 
-        setNonIplIncomes(Array.isArray(nonIplYearlyRes) ? nonIplYearlyRes : []);
-        setEvents(Array.isArray(eventsRes) ? eventsRes : []);
+        let aggregatedNonIplIncomes = [];
+        if (requestedTenantId) {
+          results.forEach((res) => {
+            const data = normalizeMonthlyFinance(res);
+            if (data.nonIplIncomes) {
+              aggregatedNonIplIncomes.push(...data.nonIplIncomes);
+            }
+          });
+        }
+
+        setNonIplIncomes(
+          requestedTenantId
+            ? aggregatedNonIplIncomes
+            : (Array.isArray(nonIplYearlyRes) ? nonIplYearlyRes : [])
+        );
+        setEvents(requestedTenantId ? [] : (Array.isArray(eventsRes) ? eventsRes : []));
 
         // Aggregate 12 months data
         let totalBilled = 0;
@@ -379,10 +408,10 @@ export default function Reports() {
   }, [session?.access_token, year, month, reportType, activeTenantId, toast]);
 
   useEffect(() => {
-    if (canViewFinancialReports(role)) {
+    if (canViewReports) {
       loadData();
     }
-  }, [loadData, role]);
+  }, [loadData, canViewReports]);
 
   const periodLabel = useMemo(() => {
     if (reportType === 'monthly' || reportType === 'non_ipl') {
@@ -631,9 +660,10 @@ export default function Reports() {
   // Daftar bulan: tampilkan 12 bulan penuh
   const availableMonths = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
-  // Financial reports are visible to koordinator, bendahara, admin, and admin viewer.
-  if (!canViewFinancialReports(role)) {
-    return <Navigate to="/" replace />;
+  // Financial reports are visible to koordinator, bendahara, admin, and admin viewer (legacy) or canViewReports (tenant).
+  if (!canViewReports) {
+    const fallbackPath = activeTenantId ? `/t/${activeTenantId}/dashboard` : '/';
+    return <Navigate to={fallbackPath} replace />;
   }
 
   const handleExportCSV = () => {
@@ -859,7 +889,7 @@ export default function Reports() {
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
               Ringkasan Pemasukan Non-IPL ({periodLabel})
             </h3>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className={`grid grid-cols-2 ${activeTenantId ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-3`}>
               <SummaryCard
                 label="Total Pemasukan Non-IPL"
                 value={formatRupiah(nonIplSummary.total)}
@@ -872,12 +902,14 @@ export default function Reports() {
                 icon="🏛️"
                 color="bg-white border border-slate-200 text-blue-700 shadow-xs"
               />
-              <SummaryCard
-                label="Kegiatan / Event"
-                value={formatRupiah(nonIplSummary.eventTotal)}
-                icon="🎪"
-                color="bg-white border border-slate-200 text-purple-700 shadow-xs"
-              />
+              {!activeTenantId && (
+                <SummaryCard
+                  label="Kegiatan / Event"
+                  value={formatRupiah(nonIplSummary.eventTotal)}
+                  icon="🎪"
+                  color="bg-white border border-slate-200 text-purple-700 shadow-xs"
+                />
+              )}
               <SummaryCard
                 label="Total Transaksi"
                 value={`${nonIplSummary.count} Transaksi`}
@@ -987,14 +1019,16 @@ export default function Reports() {
                 >
                   🏛️ Kas Umum
                 </button>
-                <button
-                  onClick={() => setNonIplScopeFilter('event')}
-                  className={`px-3 py-1.5 font-bold transition-colors border-l border-slate-200 ${
-                    nonIplScopeFilter === 'event' ? 'bg-forest-800 text-gold-400' : 'bg-white text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  🎪 Event / Kegiatan
-                </button>
+                {!activeTenantId && (
+                  <button
+                    onClick={() => setNonIplScopeFilter('event')}
+                    className={`px-3 py-1.5 font-bold transition-colors border-l border-slate-200 ${
+                      nonIplScopeFilter === 'event' ? 'bg-forest-800 text-gold-400' : 'bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    🎪 Event / Kegiatan
+                  </button>
+                )}
               </div>
 
               {nonIplCategories.length > 0 && (

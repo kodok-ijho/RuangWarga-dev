@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './context/AuthContext';
 import { TenantProvider } from './context/TenantContext';
@@ -15,6 +15,7 @@ import NotFound from './pages/NotFound';
 import { lazy, Suspense } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { useTenant } from './hooks/useTenant';
+import { TenantAccessGuard, TenantPermissionGuard } from './components/tenant/TenantGuards';
 import {
   canViewFinancialReports,
   canViewPaymentMatrix,
@@ -89,21 +90,14 @@ function RoleGuard({ allowed, canAccess, children }) {
 }
 
 /**
- * TenantPermissionGuard — memastikan user memiliki permission tertentu atau merupakan Owner / Platform Admin.
+ * TenantRedirectToDashboard — redirect ke dashboard workspace tenant saat fitur disembunyikan (RTRW-1.2).
  */
-function TenantPermissionGuard({ permission, children }) {
-  const { isOwner, isPlatformAdmin, hasPermission, loading } = useTenant();
-
-  if (loading) {
-    return <PageLoader />;
-  }
-
-  const allowed = isPlatformAdmin || isOwner || (hasPermission && hasPermission(permission));
-  if (!allowed) {
-    return <Navigate to="/" replace />;
-  }
-
-  return children;
+function TenantRedirectToDashboard() {
+  const { tenantId } = useParams();
+  const { activeTenantId } = useTenant();
+  const targetTenantId = tenantId || activeTenantId || '';
+  const fallbackPath = targetTenantId ? `/t/${targetTenantId}/dashboard` : '/';
+  return <Navigate to={fallbackPath} replace />;
 }
 
 const queryClient = new QueryClient({
@@ -298,9 +292,9 @@ export default function App() {
                     path="payment-verification"
                     element={
                       <Suspense fallback={<PageLoader />}>
-                        <RoleGuard canAccess={canViewPaymentVerification}>
+                        <TenantAccessGuard require="canVerifyPayments">
                           <PaymentVerification />
-                        </RoleGuard>
+                        </TenantAccessGuard>
                       </Suspense>
                     }
                   />
@@ -308,9 +302,9 @@ export default function App() {
                     path="expenses"
                     element={
                       <Suspense fallback={<PageLoader />}>
-                        <RoleGuard canAccess={canViewExpenses}>
+                        <TenantAccessGuard require="canViewReports">
                           <Expenses />
-                        </RoleGuard>
+                        </TenantAccessGuard>
                       </Suspense>
                     }
                   />
@@ -318,9 +312,9 @@ export default function App() {
                     path="reports"
                     element={
                       <Suspense fallback={<PageLoader />}>
-                        <RoleGuard canAccess={canViewFinancialReports}>
+                        <TenantAccessGuard require="canViewReports">
                           <Reports />
-                        </RoleGuard>
+                        </TenantAccessGuard>
                       </Suspense>
                     }
                   />
@@ -328,49 +322,36 @@ export default function App() {
                     path="payment-matrix"
                     element={
                       <Suspense fallback={<PageLoader />}>
-                        <RoleGuard canAccess={canViewPaymentMatrix}>
+                        <TenantAccessGuard require="isMember">
                           <PaymentMatrix />
-                        </RoleGuard>
+                        </TenantAccessGuard>
                       </Suspense>
                     }
                   />
+                  {/* Disembunyikan sampai RTRW-3 */}
                   <Route
                     path="announcements"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <Announcements />
-                      </Suspense>
-                    }
+                    element={<TenantRedirectToDashboard />}
                   />
                   <Route
                     path="residents"
                     element={
                       <Suspense fallback={<PageLoader />}>
-                        <RoleGuard canAccess={canViewResidents}>
+                        <TenantAccessGuard require="isMember">
                           <Residents />
-                        </RoleGuard>
+                        </TenantAccessGuard>
                       </Suspense>
                     }
                   />
+                  {/* Disembunyikan sampai RTRW-3 */}
                   <Route
                     path="events"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <RoleGuard canAccess={canViewEvents}>
-                          <Events />
-                        </RoleGuard>
-                      </Suspense>
-                    }
+                    element={<TenantRedirectToDashboard />}
                   />
+                  {/* Disembunyikan sampai RTRW-3 */}
                   <Route
                     path="events/:eventId"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <RoleGuard canAccess={canViewEvents}>
-                          <EventFinance />
-                        </RoleGuard>
-                      </Suspense>
-                    }
+                    element={<TenantRedirectToDashboard />}
                   />
                   <Route
                     path="roles"

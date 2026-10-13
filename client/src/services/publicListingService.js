@@ -6,7 +6,7 @@
  */
 
 import { supabase } from './supabaseClient';
-import { mockListingPricing, mockPublicListings } from './mockData';
+import { calculateQrisFee } from './dokuProtocol';
 
 /**
  * Memeriksa apakah sebuah listing memenuhi syarat untuk dilihat oleh publik (termasuk anonim)
@@ -115,7 +115,8 @@ export async function fetchPublicListings(filters = {}) {
   const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
 
   if (!isSupabaseConfigured() || isDemo) {
-    let result = filterPublicListings(inMemoryListings, {
+    const listings = await getInMemoryListings();
+    let result = filterPublicListings(listings, {
       type: filters.type,
       featuredOnly: filters.is_featured,
       query: filters.query,
@@ -163,7 +164,8 @@ export async function fetchPublicListingById(id) {
   const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
 
   if (!isSupabaseConfigured() || isDemo || String(id).startsWith('mock-') || String(id).startsWith('listing-')) {
-    const found = inMemoryListings.find((l) => String(l.id) === String(id));
+    const listings = await getInMemoryListings();
+    const found = listings.find((l) => String(l.id) === String(id));
     return found || null;
   }
 
@@ -211,6 +213,7 @@ export async function fetchListingPricing(options = {}) {
   const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
 
   if (!isSupabaseConfigured() || isDemo) {
+    const { mockListingPricing } = await import('./mockData');
     let result = [...mockListingPricing];
     if (options.listingType) {
       result = result.filter((p) => p.listing_type === options.listingType);
@@ -236,8 +239,19 @@ export async function fetchListingPricing(options = {}) {
 }
 
 // In-memory list untuk demo mode
-let inMemoryListings = [...mockPublicListings];
+let inMemoryListings = null;
 let inMemoryListingPayments = [];
+
+/**
+ * Mengambil cache in-memory listing publik secara lazy (DEBT-1.3)
+ */
+export async function getInMemoryListings() {
+  if (inMemoryListings === null) {
+    const { mockPublicListings } = await import('./mockData');
+    inMemoryListings = [...mockPublicListings];
+  }
+  return inMemoryListings;
+}
 
 /**
  * Membuat postingan listing publik baru (FR-25, FR-27, FR-28, FR-29)
@@ -257,10 +271,7 @@ export async function createPublicListing(tenantId, payload = {}) {
     throw new Error('Nomor kontak WhatsApp/telepon wajib diisi.');
   }
 
-  const durationDays = Number(payload.duration_days) || 30;
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000).toISOString();
-  const isFeatured = Boolean(payload.is_featured);
 
   const listingRecord = {
     tenant_id: tenantId,
@@ -274,10 +285,10 @@ export async function createPublicListing(tenantId, payload = {}) {
     photos: Array.isArray(payload.photos) ? payload.photos : [],
     contact_phone: payload.contact_phone.trim(),
     location_hint: payload.location_hint ? payload.location_hint.trim() : null,
-    is_featured: isFeatured,
-    featured_until: isFeatured ? expiresAt : null,
-    status: payload.status || 'active',
-    expires_at: expiresAt,
+    is_featured: false,
+    featured_until: null,
+    status: 'pending_payment',
+    expires_at: null,
     created_at: now.toISOString(),
     updated_at: now.toISOString(),
   };
@@ -285,17 +296,30 @@ export async function createPublicListing(tenantId, payload = {}) {
   const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
 
   if (!isSupabaseConfigured() || isDemo || String(tenantId).startsWith('demo-')) {
+    const listings = await getInMemoryListings();
     const createdItem = {
       id: `listing-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       ...listingRecord,
     };
-    inMemoryListings.unshift(createdItem);
+    listings.unshift(createdItem);
     return createdItem;
   }
 
   const { data, error } = await supabase
     .from('public_listings')
-    .insert([listingRecord])
+    .insert([{
+      tenant_id: listingRecord.tenant_id,
+      unit_id: listingRecord.unit_id,
+      posted_by: listingRecord.posted_by,
+      type: listingRecord.type,
+      title: listingRecord.title,
+      description: listingRecord.description,
+      category: listingRecord.category,
+      price: listingRecord.price,
+      photos: listingRecord.photos,
+      contact_phone: listingRecord.contact_phone,
+      location_hint: listingRecord.location_hint,
+    }])
     .select()
     .single();
 
@@ -318,7 +342,8 @@ export async function fetchTenantListings(tenantId) {
   const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
 
   if (!isSupabaseConfigured() || isDemo || String(tenantId).startsWith('demo-')) {
-    return inMemoryListings.filter((l) => l.tenant_id === tenantId);
+    const listings = await getInMemoryListings();
+    return listings.filter((l) => l.tenant_id === tenantId);
   }
 
   const { data, error } = await supabase
@@ -354,16 +379,34 @@ export async function updateListingStatus(listingId, newStatus) {
   const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
 
   if (!isSupabaseConfigured() || isDemo || String(listingId).startsWith('listing-') || String(listingId).startsWith('mock-')) {
-    const idx = inMemoryListings.findIndex((l) => String(l.id) === String(listingId));
+    const listings = await getInMemoryListings();
+    const idx = listings.findIndex((l) => String(l.id) === String(listingId));
     if (idx !== -1) {
-      inMemoryListings[idx] = {
-        ...inMemoryListings[idx],
+      listings[idx] = {
+        ...listings[idx],
         status: newStatus,
         updated_at: new Date().toISOString(),
       };
-      return inMemoryListings[idx];
+      return listings[idx];
     }
     return { id: listingId, status: newStatus };
+  }
+
+  // Non-demo: validasi transisi status konsisten dengan trigger database
+  if (newStatus === 'active') {
+    const { data: existing, error: fetchErr } = await supabase
+      .from('public_listings')
+      .select('expires_at')
+      .eq('id', listingId)
+      .single();
+
+    if (fetchErr || !existing) {
+      throw new Error(`Listing tidak ditemukan: ${fetchErr?.message || ''}`);
+    }
+
+    if (new Date(existing.expires_at) <= new Date()) {
+      throw new Error('Listing yang sudah kedaluwarsa tidak dapat diaktifkan kembali tanpa perpanjangan pembayaran.');
+    }
   }
 
   const { data, error } = await supabase
@@ -392,43 +435,37 @@ export async function renewListing(listingId, { durationDays = 30, isFeatured = 
     throw new Error('Listing ID wajib disertakan.');
   }
 
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000).toISOString();
-
-  const updateData = {
-    status: 'active',
-    expires_at: expiresAt,
-    is_featured: Boolean(isFeatured),
-    featured_until: Boolean(isFeatured) ? expiresAt : null,
-    updated_at: now.toISOString(),
-  };
-
   const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
 
   if (!isSupabaseConfigured() || isDemo || String(listingId).startsWith('listing-') || String(listingId).startsWith('mock-')) {
-    const idx = inMemoryListings.findIndex((l) => String(l.id) === String(listingId));
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000).toISOString();
+
+    const updateData = {
+      status: 'active',
+      expires_at: expiresAt,
+      is_featured: Boolean(isFeatured),
+      featured_until: Boolean(isFeatured) ? expiresAt : null,
+      updated_at: now.toISOString(),
+    };
+
+    const listings = await getInMemoryListings();
+    const idx = listings.findIndex((l) => String(l.id) === String(listingId));
     if (idx !== -1) {
-      inMemoryListings[idx] = {
-        ...inMemoryListings[idx],
+      listings[idx] = {
+        ...listings[idx],
         ...updateData,
       };
-      return inMemoryListings[idx];
+      return listings[idx];
     }
     return { id: listingId, ...updateData };
   }
 
-  const { data, error } = await supabase
-    .from('public_listings')
-    .update(updateData)
-    .eq('id', listingId)
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(`Gagal memperpanjang listing: ${error.message}`);
-  }
-
-  return data;
+  // Non-demo: Dilarang update kolom masa tayang secara langsung dari klien.
+  // Wajib melalui alur pembuatan invoice pembayaran (createListingPayment) dan webhook gateway.
+  throw new Error(
+    'Perpanjangan masa tayang di lingkungan live hanya dapat dilakukan melalui alur pembayaran resmi (createListingPayment).'
+  );
 }
 
 /**
@@ -445,6 +482,7 @@ export async function deleteListing(listingId) {
   const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
 
   if (!isSupabaseConfigured() || isDemo || String(listingId).startsWith('listing-') || String(listingId).startsWith('mock-')) {
+    await getInMemoryListings();
     inMemoryListings = inMemoryListings.filter((l) => String(l.id) !== String(listingId));
     return true;
   }
@@ -478,12 +516,14 @@ export async function createListingPayment(listingId, { isFeatured = false, dura
 
   if (!isSupabaseConfigured() || isDemo || String(listingId).startsWith('listing-') || String(listingId).startsWith('mock-')) {
     const paymentId = `pay-lst-${Date.now()}`;
-    const gatewayRef = `MYR-LST-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-    const targetListing = inMemoryListings.find((l) => String(l.id) === String(listingId));
+    const gatewayRef = `DOKU-LST-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    const listings = await getInMemoryListings();
+    const targetListing = listings.find((l) => String(l.id) === String(listingId));
     const listingType = targetListing?.type || 'room_vacancy';
-    const amount = listingType === 'room_vacancy'
+    const baseAmount = listingType === 'room_vacancy'
       ? (isFeatured ? 35000 : 15000)
       : (isFeatured ? 25000 : 10000);
+    const { fee: qrisFee, total: amount } = calculateQrisFee(baseAmount);
 
     const paymentRecord = {
       id: paymentId,
@@ -503,89 +543,30 @@ export async function createListingPayment(listingId, { isFeatured = false, dura
       paymentId,
       gatewayRef,
       amount,
+      baseAmount,
+      qrisFee,
       isFeatured: Boolean(isFeatured),
       durationDays: Number(durationDays),
       paymentUrl: paymentRecord.payment_url,
-      qrisString: `00020101021126580016ID.CO.MAYAR.WWW0118${gatewayRef}520458125303360540${amount}5802ID5910RuangWarga6007Jakarta6304ABCD`,
+      qrContent: `00020101021126580014ID.DOKU.WWW0118${gatewayRef}520458125303360540${amount}5802ID5910RuangWarga6007Jakarta6304ABCD`,
+      qrisString: `00020101021126580014ID.DOKU.WWW0118${gatewayRef}520458125303360540${amount}5802ID5910RuangWarga6007Jakarta6304ABCD`,
     };
   }
 
-  // Coba invoke Edge Function create-listing-payment
-  try {
-    const { data, error } = await supabase.functions.invoke('create-listing-payment', {
-      body: {
-        listingId,
-        isFeatured: Boolean(isFeatured),
-        durationDays: Number(durationDays),
-      },
-    });
+  // Invoke Edge Function create-listing-payment (DOKU Platform QRIS)
+  const { data, error } = await supabase.functions.invoke('create-listing-payment', {
+    body: {
+      listingId,
+      isFeatured: Boolean(isFeatured),
+      durationDays: Number(durationDays),
+    },
+  });
 
-    if (!error && data?.success) {
-      return data;
-    }
-    if (error && !error.message?.includes('Failed to send a request') && !error.message?.includes('FunctionsFetchError')) {
-      throw new Error(error.message || 'Gagal memproses pembuatan invoice pembayaran listing.');
-    }
-  } catch (edgeErr) {
-    // eslint-disable-next-line no-console
-    console.warn('[createListingPayment] Edge Function invoke failed, fallback to direct DB transaction:', edgeErr);
+  if (error || !data?.success) {
+    throw new Error(data?.error || error?.message || 'Gagal memproses pembuatan invoice pembayaran listing.');
   }
 
-  // Fallback: Direct DB query & insert jika Edge Function belum dideploy
-  const { data: listingData, error: lErr } = await supabase
-    .from('public_listings')
-    .select('id, tenant_id, type, title')
-    .eq('id', listingId)
-    .single();
-
-  if (lErr || !listingData) {
-    throw new Error('Listing tidak ditemukan di database.');
-  }
-
-  const { data: pricingRows } = await supabase
-    .from('listing_pricing')
-    .select('price')
-    .eq('listing_type', listingData.type)
-    .eq('is_featured', Boolean(isFeatured))
-    .eq('duration_days', Number(durationDays));
-
-  let amount = 0;
-  if (pricingRows && pricingRows.length > 0) {
-    amount = Number(pricingRows[0].price);
-  } else {
-    amount = listingData.type === 'room_vacancy' ? (isFeatured ? 35000 : 15000) : (isFeatured ? 25000 : 10000);
-  }
-
-  const gatewayRef = `MYR-DIR-${Date.now().toString(36).toUpperCase()}`;
-
-  const { data: paymentRecord, error: payErr } = await supabase
-    .from('listing_payments')
-    .insert({
-      listing_id: listingId,
-      amount,
-      status: 'pending',
-      is_featured: Boolean(isFeatured),
-      duration_days: Number(durationDays),
-      qris_ref: gatewayRef,
-      payment_url: `/t/${listingData.tenant_id}/listings?payRef=${gatewayRef}`,
-    })
-    .select()
-    .single();
-
-  if (payErr) {
-    throw new Error(`Gagal membuat catatan pembayaran: ${payErr.message}`);
-  }
-
-  return {
-    success: true,
-    paymentId: paymentRecord.id,
-    gatewayRef,
-    amount,
-    isFeatured: Boolean(isFeatured),
-    durationDays: Number(durationDays),
-    paymentUrl: paymentRecord.payment_url,
-    qrisString: `00020101021126580016ID.CO.MAYAR.WWW0118${gatewayRef}520458125303360540${amount}5802ID5910RuangWarga6007Jakarta6304ABCD`,
-  };
+  return data;
 }
 
 /**
@@ -631,34 +612,21 @@ export async function verifyListingPayment(paymentId, gatewayRef = null) {
     };
   }
 
-  // Coba Edge Function verify-listing-payment
-  try {
-    const { data, error } = await supabase.functions.invoke('verify-listing-payment', {
-      body: { paymentId, gatewayRef },
-    });
+  // Non-demo: baca status listing_payments by id
+  const { data: payRecord, error: payError } = await supabase
+    .from('listing_payments')
+    .select('status')
+    .eq('id', paymentId)
+    .single();
 
-    if (!error && data?.success) {
-      return data;
-    }
-  } catch (edgeErr) {
-    // eslint-disable-next-line no-console
-    console.warn('[verifyListingPayment] Edge function invoke failed, fallback to RPC activate_listing_payment:', edgeErr);
+  if (payError) {
+    throw new Error(`Gagal membaca status pembayaran listing: ${payError.message}`);
   }
 
-  // Fallback ke RPC database activate_listing_payment
-  const { data: rpcResult, error: rpcError } = await supabase.rpc('activate_listing_payment', {
-    p_payment_id: paymentId,
-    p_gateway_ref: gatewayRef || null,
-  });
-
-  if (rpcError) {
-    throw new Error(`Gagal aktivasi pembayaran listing via database: ${rpcError.message}`);
-  }
-
+  const status = payRecord?.status;
   return {
-    success: true,
-    message: 'Pembayaran iklan berhasil diverifikasi',
-    activationResult: rpcResult,
+    success: status === 'paid',
+    status,
   };
 }
 
@@ -691,57 +659,5 @@ export async function fetchListingPaymentStatus(paymentId) {
   return data;
 }
 
-/**
- * Mengecek dan memproses kedaluwarsa listing dan status featured (T10.7, FR-28, FR-29)
- * Memanggil database RPC check_listing_expirations atau in-memory simulation
- * 
- * @param {Date|string} [referenceTime=new Date()]
- * @returns {Promise<Object>}
- */
-export async function checkListingExpirations(referenceTime = new Date()) {
-  const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
-  const now = new Date(referenceTime);
 
-  if (!isSupabaseConfigured() || isDemo) {
-    let expiredCount = 0;
-    let unfeaturedCount = 0;
-
-    inMemoryListings = inMemoryListings.map((item) => {
-      const updated = { ...item };
-      const expiry = new Date(item.expires_at);
-
-      // Transisi active ke expired
-      if (item.status === 'active' && expiry.getTime() <= now.getTime()) {
-        updated.status = 'expired';
-        updated.updated_at = now.toISOString();
-        expiredCount += 1;
-      }
-
-      // Nonaktifkan featured jika lewat featured_until
-      if (item.is_featured && item.featured_until && new Date(item.featured_until).getTime() <= now.getTime()) {
-        updated.is_featured = false;
-        updated.featured_until = null;
-        updated.updated_at = now.toISOString();
-        unfeaturedCount += 1;
-      }
-
-      return updated;
-    });
-
-    return {
-      success: true,
-      expired_listings_count: expiredCount,
-      unfeatured_listings_count: unfeaturedCount,
-      processed_at: now.toISOString(),
-    };
-  }
-
-  // Supabase RPC
-  const { data, error } = await supabase.rpc('check_listing_expirations');
-  if (error) {
-    throw new Error(`Gagal memproses kedaluwarsa listing: ${error.message}`);
-  }
-
-  return data;
-}
 

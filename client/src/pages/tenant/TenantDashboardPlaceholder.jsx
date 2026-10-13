@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   AiOutlineHome,
@@ -12,6 +12,7 @@ import {
 import { useTenant } from '../../hooks/useTenant';
 import { useTenantTemplate } from '../../hooks/useTenantTemplate';
 import TrialCountdownBanner from '../../components/TrialCountdownBanner';
+import { fetchTenantInviteCode, getCachedTenantInviteCode } from '../../services/tenantOperationalService';
 
 export default function TenantDashboardPlaceholder() {
   const { tenantId } = useParams();
@@ -26,6 +27,10 @@ export default function TenantDashboardPlaceholder() {
   } = useTenant();
 
   const template = useTenantTemplate();
+  const [inviteCode, setInviteCode] = useState(() => {
+    const targetId = tenantId || activeTenantId || activeTenant?.id;
+    return getCachedTenantInviteCode(targetId);
+  });
 
   // Sinkronkan activeTenantId dengan URL param jika berbeda
   useEffect(() => {
@@ -33,6 +38,21 @@ export default function TenantDashboardPlaceholder() {
       switchTenant(tenantId);
     }
   }, [tenantId, activeTenantId, switchTenant]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const targetTenantId = tenantId || activeTenantId || activeTenant?.id;
+    if (targetTenantId) {
+      fetchTenantInviteCode(targetTenantId).then((code) => {
+        if (isMounted) setInviteCode(code);
+      });
+    } else {
+      setInviteCode(null);
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [tenantId, activeTenantId, activeTenant?.id]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 py-10 px-4 sm:px-6 lg:px-8">
@@ -155,19 +175,19 @@ export default function TenantDashboardPlaceholder() {
         )}
 
         {/* Invite Link Card (T6.3) */}
-        {activeTenant?.settings?.invite_code && (
+        {inviteCode && (
           <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
             <div className="flex items-center gap-2.5">
               <span className="text-xl">🔗</span>
               <div>
                 <span className="text-slate-600">Kode Undangan: </span>
                 <strong className="font-mono text-forest-900 bg-forest-50 border border-forest-200 px-2 py-0.5 rounded-lg text-sm font-bold tracking-wide">
-                  {activeTenant.settings.invite_code}
+                  {inviteCode}
                 </strong>
               </div>
             </div>
             <Link
-              to={`/join/${activeTenant.settings.invite_code}`}
+              to={`/join/${inviteCode}`}
               target="_blank"
               className="text-forest-800 hover:text-forest-900 inline-flex items-center gap-1.5 font-bold"
             >

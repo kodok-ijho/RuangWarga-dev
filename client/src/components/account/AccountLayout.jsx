@@ -10,6 +10,7 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { Avatar } from '../ui/Avatar';
 import Dropdown, { DropdownItem } from '../ui/Dropdown';
+import BrandLogo from '../BrandLogo';
 
 export default function AccountLayout() {
   const { profile, user, signOut } = useAuth();
@@ -37,13 +38,8 @@ export default function AccountLayout() {
           {/* Kiri: Brand RuangWarga Global */}
           <div className="flex items-center gap-6">
             <Link to="/account" className="flex items-center gap-2.5 group">
-              <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-base shadow-xs group-hover:bg-slate-800 transition-colors">
-                RW
-              </div>
+              <BrandLogo size="md" />
               <div className="flex flex-col">
-                <span className="text-base font-extrabold text-slate-900 tracking-tight leading-none">
-                  RuangWarga
-                </span>
                 <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase mt-0.5">
                   Platform Akun
                 </span>

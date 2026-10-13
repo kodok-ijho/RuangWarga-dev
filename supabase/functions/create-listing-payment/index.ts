@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { createQris, calculateQrisFee } from "../_shared/doku.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -68,27 +69,30 @@ serve(async (req) => {
       );
     }
 
-    // 2. Validasi otorisasi user (Pemilik listing, Admin Tenant, atau Platform Admin)
-    const { data: isPlatAdmin } = await adminClient
-      .from("platform_admins")
-      .select("user_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    // 2. Validasi otorisasi user (G2: pemasang listing, owner tenant, has_permission 'post_listing', atau platform admin)
+    let isPoster = false;
+    if (listing.posted_by) {
+      const { data: posterMember } = await userClient
+        .from("tenant_members")
+        .select("id")
+        .eq("id", listing.posted_by)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      isPoster = Boolean(posterMember?.id);
+    }
 
-    const { data: memberRow } = await adminClient
-      .from("tenant_members")
-      .select("id, role, status")
-      .eq("tenant_id", listing.tenant_id)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const { data: isOwner } = await userClient.rpc("is_tenant_owner", { p_tenant_id: listing.tenant_id });
+    const { data: canPost } = await userClient.rpc("has_permission", {
+      p_tenant_id: listing.tenant_id,
+      p_permission_key: "post_listing",
+    });
+    const { data: isPlatformAdmin } = await userClient.rpc("is_platform_admin");
 
-    const isOwner = memberRow && memberRow.id === listing.posted_by;
-    const isTenantAdmin = memberRow && memberRow.role === "admin" && memberRow.status === "approved";
-    const isAuthorized = Boolean(isPlatAdmin?.user_id) || isOwner || isTenantAdmin;
+    const isAuthorized = isPoster || Boolean(isOwner) || Boolean(canPost) || Boolean(isPlatformAdmin);
 
     if (!isAuthorized) {
       return new Response(
-        JSON.stringify({ error: "Hanya pemilik listing atau admin tenant yang berhak melakukan transaksi pembayaran listing" }),
+        JSON.stringify({ error: "Hanya pemasang listing, admin/owner tenant, atau platform admin yang berhak melakukan pembayaran listing" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -107,43 +111,49 @@ serve(async (req) => {
       );
     }
 
-    // 4. Tentukan harga dari listing_pricing
-    const { data: pricingRows } = await adminClient
+    // 4. Tentukan harga dari listing_pricing dan MDR QRIS (0.75%)
+    const { data: pricingRows, error: pricingErr } = await adminClient
       .from("listing_pricing")
       .select("id, price")
       .eq("listing_type", listing.type)
       .eq("is_featured", Boolean(isFeatured))
       .eq("duration_days", Number(durationDays));
 
-    let finalPrice = 0;
-    if (pricingRows && pricingRows.length > 0) {
-      finalPrice = Number(pricingRows[0].price);
-    } else {
-      // Fallback default pricing sesuai seed specification.md
-      if (listing.type === "room_vacancy") {
-        finalPrice = isFeatured ? 35000 : 15000;
-      } else {
-        finalPrice = isFeatured ? 25000 : 10000;
-      }
+    if (pricingErr || !pricingRows || pricingRows.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "Konfigurasi tarif listing tidak ditemukan" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // 5. Buat record transaksi pending di listing_payments
+    const basePrice = Number(pricingRows[0].price);
+    const { fee: qrisFee, total: totalAmount } = calculateQrisFee(basePrice);
+
+    // 5. Susun metadata awal untuk pesanan & MDR (G4)
+    const initialMetadata = {
+      listing_title: listing.title,
+      listing_type: listing.type,
+      tenant_id: listing.tenant_id,
+      user_id: user.id,
+      is_featured: Boolean(isFeatured),
+      duration_days: Number(durationDays),
+      base_amount: basePrice,
+      qris_fee: qrisFee,
+      qris_fee_amount: qrisFee,
+      qris_total_amount: totalAmount,
+    };
+
+    // 6. Buat record transaksi pending di listing_payments
+    // Kolom amount menyimpan harga dasar katalog; fee dan total disimpan di metadata (keputusan user)
     const { data: paymentRecord, error: payErr } = await adminClient
       .from("listing_payments")
       .insert({
         listing_id: listing.id,
-        amount: finalPrice,
+        amount: basePrice,
         status: "pending",
         is_featured: Boolean(isFeatured),
         duration_days: Number(durationDays),
-        metadata: {
-          listing_title: listing.title,
-          listing_type: listing.type,
-          tenant_id: listing.tenant_id,
-          user_id: user.id,
-          is_featured: Boolean(isFeatured),
-          duration_days: Number(durationDays),
-        },
+        metadata: initialMetadata,
       })
       .select("id")
       .single();
@@ -152,56 +162,38 @@ serve(async (req) => {
       throw new Error("Gagal membuat catatan pembayaran listing: " + payErr?.message);
     }
 
-    // 6. Integrasi Mayar API (atau fallback simulated QRIS jika key tidak tersedia)
-    const mayarApiKey = Deno.env.get("MAYAR_API_KEY");
-    let gatewayRef = `MYR-LST-${paymentRecord.id.substring(0, 8).toUpperCase()}`;
-    let paymentUrl = "";
-    let qrisString = "";
+    // 7. Integrasi Gateway SNAP DOKU Platform
+    const partnerReferenceNo = `LST-${paymentRecord.id.replace(/-/g, "").substring(0, 18).toUpperCase()}`;
+    let dokuRes;
 
-    if (mayarApiKey) {
-      try {
-        const mayarRes = await fetch("https://api.mayar.id/hl/v1/payment/create", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${mayarApiKey}`,
-          },
-          body: JSON.stringify({
-            name: user.user_metadata?.full_name || user.email || "Pemasang Iklan",
-            email: user.email,
-            amount: finalPrice,
-            description: `Iklan RuangWarga: ${listing.title} (${isFeatured ? "Unggulan" : "Standar"}, ${durationDays} Hari)`,
-            mobile: user.user_metadata?.phone || "081234567890",
-            redirectUrl: `${req.headers.get("origin") || ""}/t/${listing.tenant_id}/listings?paymentId=${paymentRecord.id}`,
-            metadata: {
-              payment_id: paymentRecord.id,
-              listing_id: listing.id,
-              tenant_id: listing.tenant_id,
-              type: "listing_payment",
-            },
-          }),
-        });
+    try {
+      dokuRes = await createQris({
+        partnerReferenceNo,
+        amount: totalAmount,
+      });
+    } catch (dokuErr: any) {
+      console.error("[DOKU SNAP] Create listing payment error:", dokuErr);
+      await adminClient
+        .from("listing_payments")
+        .update({ status: "failed", updated_at: new Date().toISOString() })
+        .eq("id", paymentRecord.id);
 
-        const mayarData = await mayarRes.json();
-        if (mayarData?.data) {
-          gatewayRef = mayarData.data.id || gatewayRef;
-          paymentUrl = mayarData.data.link || "";
-          qrisString = mayarData.data.qrCodeString || "";
-        }
-      } catch (mErr) {
-        // eslint-disable-next-line no-console
-        console.warn("[Mayar API] Listing payment request failed, fallback:", mErr);
-      }
+      return new Response(
+        JSON.stringify({ error: "Payment gateway rejected request" }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    const fallbackUrl = `/t/${listing.tenant_id}/listings?payRef=${gatewayRef}`;
-
-    // Update listing_payments record dengan ref & url
+    // Update listing_payments record dengan ref & gabungkan metadata awal (G4)
     await adminClient
       .from("listing_payments")
       .update({
-        qris_ref: gatewayRef,
-        payment_url: paymentUrl || fallbackUrl,
+        qris_ref: partnerReferenceNo,
+        payment_url: null,
+        metadata: {
+          ...initialMetadata,
+          doku_reference_no: dokuRes.referenceNo,
+        },
         updated_at: new Date().toISOString(),
       })
       .eq("id", paymentRecord.id);
@@ -210,18 +202,22 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         paymentId: paymentRecord.id,
-        gatewayRef,
-        amount: finalPrice,
+        gatewayRef: partnerReferenceNo,
+        amount: totalAmount,
+        baseAmount: basePrice,
+        qrisFee,
         isFeatured: Boolean(isFeatured),
         durationDays: Number(durationDays),
-        paymentUrl: paymentUrl || fallbackUrl,
-        qrisString,
+        paymentUrl: null,
+        qrContent: dokuRes.qrContent,
+        qrisString: dokuRes.qrContent,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
+    console.error("[create-listing-payment] Unexpected internal error:", err);
     return new Response(
-      JSON.stringify({ error: err?.message || "Internal Server Error" }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

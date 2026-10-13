@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { supabase } from './supabaseClient';
 import {
   isListingVisibleToPublic,
   canMemberPostListing,
@@ -14,7 +15,6 @@ import {
   createListingPayment,
   verifyListingPayment,
   fetchListingPaymentStatus,
-  checkListingExpirations,
   fetchPublicListings,
   fetchPublicListingById,
 } from './publicListingService';
@@ -315,7 +315,7 @@ describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () =>
       );
     });
 
-    it('berhasil membuat listing kamar kos baru dengan prefill unit_id dan tanggal kedaluwarsa 30 hari', async () => {
+    it('berhasil membuat listing kamar kos baru dengan status pending_payment (F6 pay-first)', async () => {
       const newListing = await createPublicListing('demo-tenant-kos', {
         unit_id: 101,
         type: 'room_vacancy',
@@ -333,16 +333,17 @@ describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () =>
       expect(newListing.tenant_id).toBe('demo-tenant-kos');
       expect(newListing.unit_id).toBe(101);
       expect(newListing.type).toBe('room_vacancy');
-      expect(newListing.status).toBe('active');
-      expect(newListing.expires_at).toBeDefined();
+      expect(newListing.status).toBe('pending_payment');
+      expect(newListing.expires_at).toBeNull();
+      expect(newListing.is_featured).toBe(false);
 
-      const createdDate = new Date(newListing.created_at);
-      const expiryDate = new Date(newListing.expires_at);
-      const diffDays = Math.round((expiryDate - createdDate) / (1000 * 60 * 60 * 24));
-      expect(diffDays).toBe(30);
+      // Setelah invoice dibayar dan diverifikasi, status menjadi active
+      const pay = await createListingPayment(newListing.id, { isFeatured: false, durationDays: 30 });
+      const verified = await verifyListingPayment(pay.paymentId, pay.gatewayRef);
+      expect(verified.status).toBe('active');
     });
 
-    it('berhasil membuat listing UMKM warga dengan paket unggulan (is_featured = true)', async () => {
+    it('berhasil membuat listing UMKM warga dengan status pending_payment dan aktif setelah bayar featured', async () => {
       const umkmListing = await createPublicListing('demo-tenant-rtrw', {
         unit_id: null,
         type: 'umkm',
@@ -358,9 +359,15 @@ describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () =>
 
       expect(umkmListing).toBeDefined();
       expect(umkmListing.type).toBe('umkm');
-      expect(umkmListing.is_featured).toBe(true);
-      expect(umkmListing.featured_until).toBeDefined();
-      expect(umkmListing.featured_until).toBe(umkmListing.expires_at);
+      expect(umkmListing.status).toBe('pending_payment');
+      expect(umkmListing.is_featured).toBe(false);
+      expect(umkmListing.expires_at).toBeNull();
+
+      // Bayar paket unggulan
+      const pay = await createListingPayment(umkmListing.id, { isFeatured: true, durationDays: 30 });
+      const verified = await verifyListingPayment(pay.paymentId, pay.gatewayRef);
+      expect(verified.status).toBe('active');
+      expect(verified.isFeatured).toBe(true);
     });
 
     it('fetchTenantListings mengembalikan daftar listing milik tenant yang diminta', async () => {
@@ -423,6 +430,23 @@ describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () =>
       await expect(renewListing('')).rejects.toThrow('Listing ID wajib disertakan.');
     });
 
+    it('non-demo renewListing tidak memanggil .update() kolom masa tayang dan melempar error proteksi', async () => {
+      vi.stubEnv('VITE_DEMO_MODE', 'false');
+      vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co');
+      vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY', 'valid-key-xyz');
+
+      const fromSpy = vi.spyOn(supabase, 'from');
+
+      await expect(renewListing('live-listing-uuid-1', { durationDays: 30 })).rejects.toThrow(
+        'Perpanjangan masa tayang di lingkungan live hanya dapat dilakukan melalui alur pembayaran resmi (createListingPayment).'
+      );
+
+      expect(fromSpy).not.toHaveBeenCalled();
+
+      fromSpy.mockRestore();
+      vi.unstubAllEnvs();
+    });
+
     it('deleteListing berhasil menghapus listing dari daftar', async () => {
       const item = await createPublicListing('demo-tenant-rtrw', {
         title: 'Listing Untuk Dihapus',
@@ -457,20 +481,22 @@ describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () =>
 
       expect(regPayment.success).toBe(true);
       expect(regPayment.paymentId).toBeDefined();
-      expect(regPayment.amount).toBe(15000);
+      expect(regPayment.baseAmount).toBe(15000);
+      expect(regPayment.amount).toBe(15113);
       expect(regPayment.isFeatured).toBe(false);
-      expect(regPayment.gatewayRef).toMatch(/^MYR-/);
+      expect(regPayment.gatewayRef).toMatch(/^DOKU-/);
       expect(regPayment.qrisString).toBeDefined();
       expect(regPayment.paymentUrl).toBeDefined();
 
-      // Featured: 35.000
+      // Featured: 35.000 + MDR 0.75% (263) = 35.263
       const featPayment = await createListingPayment(kosItem.id, {
         isFeatured: true,
         durationDays: 30,
       });
 
       expect(featPayment.success).toBe(true);
-      expect(featPayment.amount).toBe(35000);
+      expect(featPayment.baseAmount).toBe(35000);
+      expect(featPayment.amount).toBe(35263);
       expect(featPayment.isFeatured).toBe(true);
     });
 
@@ -481,19 +507,21 @@ describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () =>
         type: 'umkm',
       });
 
-      // Reguler: 10.000
+      // Reguler: 10.000 + MDR 0.75% (75) = 10.075
       const regPayment = await createListingPayment(umkmItem.id, {
         isFeatured: false,
         durationDays: 30,
       });
-      expect(regPayment.amount).toBe(10000);
+      expect(regPayment.baseAmount).toBe(10000);
+      expect(regPayment.amount).toBe(10075);
 
-      // Featured: 25.000
+      // Featured: 25.000 + MDR 0.75% (188) = 25.188
       const featPayment = await createListingPayment(umkmItem.id, {
         isFeatured: true,
         durationDays: 30,
       });
-      expect(featPayment.amount).toBe(25000);
+      expect(featPayment.baseAmount).toBe(25000);
+      expect(featPayment.amount).toBe(25188);
     });
 
     it('createListingPayment melempar error jika listingId tidak disertakan', async () => {
@@ -529,54 +557,40 @@ describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () =>
     it('verifyListingPayment melempar error jika paymentId kosong', async () => {
       await expect(verifyListingPayment('')).rejects.toThrow('Payment ID wajib disertakan.');
     });
-  });
 
-  describe('publicListingService - Unit Tests (T10.7: Scheduled Job / checkListingExpirations)', () => {
-    it('checkListingExpirations menandai listing active yang expires_at telah terlewati menjadi expired', async () => {
-      // 1. Buat listing dengan expires_at sekarang + 2 jam
-      const futureListing = await createPublicListing('demo-tenant-kos', {
-        title: 'Kamar Kos Belum Expired',
-        contact_phone: '08123456789',
-        type: 'room_vacancy',
-        duration_days: 1,
+    it('verifyListingPayment pada mode non-demo membaca status tabel dan tidak memanggil activate_listing_payment RPC', async () => {
+      vi.stubEnv('VITE_DEMO_MODE', 'false');
+      vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co');
+      vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'anon-key-123');
+
+      const rpcSpy = vi.spyOn(supabase, 'rpc');
+      const fromSpy = vi.spyOn(supabase, 'from').mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { status: 'paid' },
+              error: null,
+            }),
+          }),
+        }),
       });
 
-      // 2. Jalankan checkListingExpirations dengan waktu 2 hari ke depan
-      const futureTime = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
-      const res = await checkListingExpirations(futureTime);
-
-      expect(res.success).toBe(true);
-      expect(res.expired_listings_count).toBeGreaterThanOrEqual(1);
-
-      // 3. Verifikasi status listing berubah jadi expired
-      const listAfter = await fetchTenantListings('demo-tenant-kos');
-      const target = listAfter.find((l) => l.id === futureListing.id);
-      expect(target.status).toBe('expired');
-    });
-
-    it('checkListingExpirations menonaktifkan status featured jika masa featured_until sudah terlewati', async () => {
-      // 1. Buat listing featured yang masa aktif panjang tapi featured_until pendek
-      const featuredListing = await createPublicListing('demo-tenant-rtrw', {
-        title: 'Laundry Kilat Berkah',
-        contact_phone: '081233445566',
-        type: 'umkm',
-        is_featured: true,
-        duration_days: 30,
-      });
-
-      // Simulasikan featured_until sudah lewat (misal kita evaluasi pada waktu 35 hari ke depan)
-      const evaluationTime = new Date(Date.now() + 35 * 24 * 60 * 60 * 1000);
-      const res = await checkListingExpirations(evaluationTime);
-
-      expect(res.success).toBe(true);
-
-      // Verifikasi status is_featured dinonaktifkan
-      const listAfter = await fetchTenantListings('demo-tenant-rtrw');
-      const target = listAfter.find((l) => l.id === featuredListing.id);
-      expect(target.is_featured).toBe(false);
-      expect(target.featured_until).toBeNull();
+      try {
+        const res = await verifyListingPayment('550e8400-e29b-41d4-a716-446655440000');
+        expect(res).toEqual({
+          success: true,
+          status: 'paid',
+        });
+        expect(rpcSpy).not.toHaveBeenCalledWith('activate_listing_payment', expect.anything());
+        expect(fromSpy).toHaveBeenCalledWith('listing_payments');
+      } finally {
+        rpcSpy.mockRestore();
+        fromSpy.mockRestore();
+        vi.unstubAllEnvs();
+      }
     });
   });
+
 
   describe('publicListingService - Unit Tests (T10.8 & T10.9: Public Directory & Featured Priority)', () => {
     it('fetchPublicListings mengembalikan kamar kos aktif dengan listing is_featured di posisi teratas', async () => {

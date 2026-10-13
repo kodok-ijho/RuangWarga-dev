@@ -324,7 +324,7 @@ export default function UmkmListingDirectory() {
           <div className="flex items-center gap-4 text-forest-600">
             <Link to="/listing/kos" className="hover:text-forest-900">Kamar Kos</Link>
             <Link to="/listing/umkm" className="hover:text-forest-900">UMKM Warga</Link>
-            <Link to="/login" className="hover:text-forest-900">Portal Warga</Link>
+            <Link to="/login" className="hover:text-forest-900">Masuk ke RuangWarga</Link>
           </div>
         </div>
       </footer>

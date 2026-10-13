@@ -20,14 +20,15 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../hooks/useTenant';
 import { useTenantTemplate } from '../../hooks/useTenantTemplate';
-import { useSubscriptionGate } from '../../hooks/useSubscriptionGate';
+import { useTenantAccess } from '../../hooks/useTenantAccess';
 import TenantSwitcher from '../TenantSwitcher';
 import TrialCountdownBanner from '../TrialCountdownBanner';
 import { Avatar } from '../ui/Avatar';
 import { Drawer } from '../ui/Drawer';
 import Dropdown, { DropdownItem } from '../ui/Dropdown';
 import { Badge } from '../ui/Badge';
-import { roleLabel, isStaffRole, canViewFinancialReports } from '../../services/dataHelpers';
+import { isSafeLogoUrl } from '../../utils/brand';
+import { roleLabel } from '../../services/dataHelpers';
 
 export default function TenantShell() {
   const { tenantId: routeTenantId } = useParams();
@@ -46,7 +47,7 @@ export default function TenantShell() {
   } = useTenant();
 
   const template = useTenantTemplate();
-  const { isReadOnly } = useSubscriptionGate();
+  const { canViewReports } = useTenantAccess();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const tenantId = routeTenantId || activeTenantId;
@@ -85,9 +86,11 @@ export default function TenantShell() {
       label: isArisan ? 'Putaran Arisan' : template.billLabel || 'Tagihan',
       icon: isArisan ? AiOutlineCalendar : AiOutlineTable,
     },
-    { to: '/residents', label: template.memberLabel || 'Anggota', icon: AiOutlineTeam },
-    { to: `${tenantBase}/expenses`, label: 'Pengeluaran', icon: AiOutlineWallet },
-    ...(canViewFinancialReports(role) || hasPermission('view_reports')
+    { to: `${tenantBase}/residents`, label: template.memberLabel || 'Anggota', icon: AiOutlineTeam },
+    ...(canViewReports
+      ? [{ to: `${tenantBase}/expenses`, label: 'Pengeluaran', icon: AiOutlineWallet }]
+      : []),
+    ...(canViewReports
       ? [{ to: `${tenantBase}/reports`, label: 'Laporan', icon: AiOutlineBarChart }]
       : []),
   ];
@@ -109,10 +112,10 @@ export default function TenantShell() {
         location.pathname.includes('/arisan'),
     },
     {
-      to: '/residents',
+      to: `${tenantBase}/residents`,
       label: template.memberLabel || 'Anggota',
       icon: AiOutlineTeam,
-      isActive: location.pathname.startsWith('/residents'),
+      isActive: location.pathname.includes('/residents'),
     },
   ];
 
@@ -140,9 +143,17 @@ export default function TenantShell() {
 
             {/* Tenant Identity Box */}
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="text-xl sm:text-2xl p-1.5 bg-slate-100 rounded-lg border border-slate-200 shrink-0 select-none">
-                {template.icon}
-              </span>
+              {isSafeLogoUrl(activeTenant?.settings?.logo_url) ? (
+                <img
+                  src={activeTenant.settings.logo_url}
+                  alt={activeTenant.name}
+                  className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg object-cover border border-slate-200 shrink-0"
+                />
+              ) : (
+                <span className="text-xl sm:text-2xl p-1.5 bg-slate-100 rounded-lg border border-slate-200 shrink-0 select-none">
+                  {template.icon}
+                </span>
+              )}
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <h1 className="text-sm sm:text-base font-bold text-slate-900 leading-tight truncate">

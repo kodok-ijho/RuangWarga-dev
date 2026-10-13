@@ -31,6 +31,7 @@ import {
   verifyListingPayment,
 } from '../../services/publicListingService';
 import Modal from '../../components/Modal';
+import QrisCheckoutModal from '../../components/QrisCheckoutModal';
 
 function formatRupiah(amount) {
   if (amount === undefined || amount === null || isNaN(amount)) return 'Rp 0';
@@ -74,6 +75,10 @@ export default function MyListings() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Modal State: Bayar Iklan Pending (PAY-1.7)
+  const [payCheckoutData, setPayCheckoutData] = useState(null);
+  const [isPaying, setIsPaying] = useState(false);
+
   // Load data listings tenant dan katalog pricing
   const loadData = useCallback(async () => {
     if (!tenantId) return;
@@ -99,11 +104,13 @@ export default function MyListings() {
 
   // Status Filter Counts
   const counts = useMemo(() => {
+    const now = new Date();
     return {
       all: listings.length,
-      active: listings.filter((l) => l.status === 'active' && new Date(l.expires_at) > new Date()).length,
+      pending_payment: listings.filter((l) => l.status === 'pending_payment').length,
+      active: listings.filter((l) => l.status === 'active' && l.expires_at && new Date(l.expires_at) > now).length,
       rented_or_sold: listings.filter((l) => l.status === 'rented_or_sold').length,
-      expired: listings.filter((l) => l.status === 'expired' || new Date(l.expires_at) <= new Date()).length,
+      expired: listings.filter((l) => l.status === 'expired' || (l.status === 'active' && (!l.expires_at || new Date(l.expires_at) <= now))).length,
     };
   }, [listings]);
 
@@ -111,9 +118,12 @@ export default function MyListings() {
   const filteredListings = useMemo(() => {
     const now = new Date();
     return listings.filter((item) => {
-      const isExpiredByDate = new Date(item.expires_at) <= now;
+      const isExpiredByDate = item.status === 'active' && (!item.expires_at || new Date(item.expires_at) <= now);
+      if (activeTab === 'pending_payment') {
+        return item.status === 'pending_payment';
+      }
       if (activeTab === 'active') {
-        return item.status === 'active' && !isExpiredByDate;
+        return item.status === 'active' && item.expires_at && new Date(item.expires_at) > now;
       }
       if (activeTab === 'rented_or_sold') {
         return item.status === 'rented_or_sold';
@@ -124,6 +134,46 @@ export default function MyListings() {
       return true;
     });
   }, [listings, activeTab]);
+
+  // Handler: Bayar Iklan Menunggu Pembayaran (PAY-1.7)
+  const handlePayNow = async (item) => {
+    if (!canTransact) {
+      toast.error(tooltip || 'Layanan sedang Read-Only.');
+      return;
+    }
+    setIsPaying(true);
+    try {
+      const payRes = await createListingPayment(item.id, {
+        isFeatured: Boolean(item.is_featured),
+        durationDays: 30,
+      });
+
+      const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
+      if (isDemo || String(tenantId).startsWith('demo-')) {
+        if (payRes?.paymentId) {
+          try {
+            await verifyListingPayment(payRes.paymentId, payRes.gatewayRef);
+          } catch (e) {
+            console.warn('Demo verify listing error:', e);
+          }
+        }
+        toast.success('Pembayaran iklan berhasil disimulasikan dan iklan kini aktif!');
+        loadData();
+      } else {
+        setPayCheckoutData({
+          ...payRes,
+          title: 'PEMBAYARAN IKLAN QRIS DOKU',
+          subtitle: 'RUANGWARGA DIRECTORY',
+          category: item.is_featured ? 'Listing Unggulan (30 Hari)' : 'Listing Standar (30 Hari)',
+          description: `Iklan: ${item.title}`,
+        });
+      }
+    } catch (err) {
+      toast.error(err.message || 'Gagal memproses pembayaran iklan.');
+    } finally {
+      setIsPaying(false);
+    }
+  };
 
   // Handler: Ubah Status (Tandai Rented/Sold vs Aktif)
   const handleToggleStatus = async (item) => {
@@ -287,6 +337,20 @@ export default function MyListings() {
         </button>
         <button
           type="button"
+          onClick={() => setActiveTab('pending_payment')}
+          className={`flex items-center gap-2 border-b-2 px-4 py-3 transition-colors ${
+            activeTab === 'pending_payment'
+              ? 'border-amber-500 font-bold text-amber-800'
+              : 'border-transparent text-forest-600 hover:text-forest-800'
+          }`}
+        >
+          Menunggu Pembayaran
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
+            {counts.pending_payment}
+          </span>
+        </button>
+        <button
+          type="button"
           onClick={() => setActiveTab('active')}
           className={`flex items-center gap-2 border-b-2 px-4 py-3 transition-colors ${
             activeTab === 'active'
@@ -365,10 +429,11 @@ export default function MyListings() {
         /* Grid Daftar Listing */
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           {filteredListings.map((item) => {
-            const isExpired = item.status === 'expired' || new Date(item.expires_at) <= new Date();
+            const isPendingPayment = item.status === 'pending_payment';
+            const isExpired = item.status === 'expired' || (item.status === 'active' && (!item.expires_at || new Date(item.expires_at) <= new Date()));
             const isRentedOrSold = item.status === 'rented_or_sold';
             const isActive = item.status === 'active' && !isExpired;
-            const daysRemaining = getDaysRemaining(item.expires_at);
+            const daysRemaining = item.expires_at ? getDaysRemaining(item.expires_at) : 0;
 
             return (
               <div
@@ -409,6 +474,11 @@ export default function MyListings() {
                       )}
 
                       {/* Status Badge */}
+                      {isPendingPayment && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-800">
+                          <AiOutlineClockCircle /> Menunggu Pembayaran
+                        </span>
+                      )}
                       {isActive && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
                           <AiOutlineCheckCircle /> Aktif ({daysRemaining} hari)
@@ -419,7 +489,7 @@ export default function MyListings() {
                           <AiOutlineCheckCircle /> {item.type === 'room_vacancy' ? 'Tersewa' : 'Terjual'}
                         </span>
                       )}
-                      {isExpired && !isRentedOrSold && (
+                      {isExpired && !isRentedOrSold && !isPendingPayment && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-[11px] font-bold text-red-800">
                           <AiOutlineClockCircle /> Kedaluwarsa
                         </span>
@@ -476,19 +546,25 @@ export default function MyListings() {
                 <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-forest-100 pt-3 text-xs">
                   <div className="flex items-center gap-2">
                     {/* Tombol Toggle Tersewa / Terjual (FR-28) */}
-                    <button
-                      type="button"
-                      onClick={() => handleToggleStatus(item)}
-                      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 font-medium transition-colors ${
-                        isRentedOrSold
-                          ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                          : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                      }`}
-                    >
-                      {isRentedOrSold
-                        ? 'Aktifkan Kembali'
-                        : item.type === 'room_vacancy' ? 'Tandai Tersewa' : 'Tandai Terjual'}
-                    </button>
+                    {isPendingPayment ? (
+                      <span className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 font-medium bg-slate-100 text-slate-400 cursor-not-allowed">
+                        Belum Aktif
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStatus(item)}
+                        className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 font-medium transition-colors ${
+                          isRentedOrSold
+                            ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                            : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                        }`}
+                      >
+                        {isRentedOrSold
+                          ? 'Aktifkan Kembali'
+                          : item.type === 'room_vacancy' ? 'Tandai Tersewa' : 'Tandai Terjual'}
+                      </button>
+                    )}
 
                     {/* Tombol Hapus */}
                     <button
@@ -501,16 +577,27 @@ export default function MyListings() {
                     </button>
                   </div>
 
-                  {/* Tombol Perpanjang (FR-28) */}
-                  <button
-                    type="button"
-                    onClick={() => handleOpenRenewModal(item)}
-                    disabled={!canTransact}
-                    title={tooltip}
-                    className="inline-flex items-center gap-1 rounded-lg bg-forest-800 px-3 py-1.5 font-semibold text-white shadow-sm hover:bg-forest-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <AiOutlineReload /> Perpanjang 30 Hari
-                  </button>
+                  {/* Tombol Aksi Utama: Bayar Sekarang (Pending) vs Perpanjang (Aktif/Expired) */}
+                  {isPendingPayment ? (
+                    <button
+                      type="button"
+                      onClick={() => handlePayNow(item)}
+                      disabled={!canTransact || isPaying}
+                      className="inline-flex items-center gap-1 rounded-lg bg-gold-500 px-3 py-1.5 font-bold text-forest-950 shadow-sm hover:bg-gold-400 disabled:opacity-50 transition-colors"
+                    >
+                      <HiOutlineSparkles /> Bayar Sekarang
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenRenewModal(item)}
+                      disabled={!canTransact}
+                      title={tooltip}
+                      className="inline-flex items-center gap-1 rounded-lg bg-forest-800 px-3 py-1.5 font-semibold text-white shadow-sm hover:bg-forest-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <AiOutlineReload /> Perpanjang 30 Hari
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -638,6 +725,25 @@ export default function MyListings() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* MODAL CHECKOUT QRIS DOKU (PAY-1.7) */}
+      {payCheckoutData && (
+        <QrisCheckoutModal
+          data={payCheckoutData}
+          provider="doku"
+          title="PEMBAYARAN IKLAN QRIS DOKU"
+          subtitle="RUANGWARGA DIRECTORY"
+          onClose={() => {
+            setPayCheckoutData(null);
+            loadData();
+          }}
+          onConfirm={() => {
+            toast.info('Menunggu konfirmasi pembayaran dari DOKU...');
+            setPayCheckoutData(null);
+            loadData();
+          }}
+        />
       )}
     </div>
   );

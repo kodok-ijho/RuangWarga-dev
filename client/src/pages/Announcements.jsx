@@ -8,8 +8,8 @@ import { getAnnouncementsByTenant } from '../services/communityData';
 
 export default function Announcements() {
   const { tenantId: routeTenantId } = useParams();
-  const { currentTenant, activeTenantId } = useTenant();
-  const tenantId = routeTenantId || activeTenantId || currentTenant?.id;
+  const { activeTenant, activeTenantId } = useTenant();
+  const tenantId = routeTenantId || activeTenantId || activeTenant?.id;
 
   const [search, setSearch] = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState('all');
@@ -31,7 +31,7 @@ export default function Announcements() {
       {/* Page Header */}
       <PageHeader
         title="Pengumuman Warga"
-        description={`Papan informasi resmi dan pengumuman terkini ${currentTenant?.name || 'Komunitas'}`}
+        description={`Papan informasi resmi dan pengumuman terkini ${activeTenant?.name || 'Komunitas'}`}
         action={
           urgentCount > 0 && (
             <div className="rounded-xl bg-rose-50 border border-rose-200 px-3 py-1.5 text-xs font-bold text-rose-700 flex items-center gap-1.5 shadow-2xs">

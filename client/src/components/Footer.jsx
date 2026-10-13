@@ -1,3 +1,4 @@
+import BrandLogo from './BrandLogo';
 import { IS_DEMO_MODE } from '../hooks/useAuth';
 import pkg from '../../package.json';
 
@@ -8,10 +9,7 @@ export default function Footer() {
     <footer className="mt-auto border-t border-slate-200 bg-white">
       <div className="max-w-6xl mx-auto px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <img src="/logo.png" alt="Logo" className="h-8 w-auto rounded object-cover ring-1 ring-gold-500/30" />
-          <span className="text-sm text-slate-800 font-display font-bold">
-            RuangWarga
-          </span>
+          <BrandLogo size="sm" showWordmark={true} />
           <span className="inline-flex items-center rounded bg-slate-100 text-slate-700 px-2 py-0.5 text-xs font-mono font-bold border border-slate-200">
             {APP_VERSION}
           </span>

@@ -71,6 +71,13 @@ export default function UserApproval() {
     loadPendingUsers();
   }, [loadPendingUsers, refreshKey]);
 
+  // Available units
+  const [availableUnits, setAvailableUnits] = useState([]);
+  useEffect(() => {
+    if (!isStaffRole(role)) return;
+    fetchUnits(session?.access_token).then(setAvailableUnits).catch(() => setAvailableUnits([]));
+  }, [session?.access_token, role]);
+
   // Guard: Staff-only (pengurus+)
   if (!isStaffRole(role)) {
     return <Navigate to="/" replace />;
@@ -82,12 +89,6 @@ export default function UserApproval() {
     if (role === 'bendahara') return ['warga', 'pengurus'];
     return ['warga']; // pengurus hanya bisa assign warga
   })();
-
-  // Available units
-  const [availableUnits, setAvailableUnits] = useState([]);
-  useEffect(() => {
-    fetchUnits(session?.access_token).then(setAvailableUnits).catch(() => setAvailableUnits([]));
-  }, [session?.access_token]);
 
   const openApproveModal = (user) => {
     setSelectedUser(user);

@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import AccountLayout from './AccountLayout';
 import TenantShell from '../tenant/TenantShell';
 import LegacyBottomNav from '../LegacyBottomNav';
+import { resolveSubscriptionExpiryDate } from '../../pages/account/SubscriptionStatus';
 
 // Mock useAuth
 vi.mock('../../hooks/useAuth', () => ({
@@ -173,3 +174,36 @@ describe('Phase 4.6 — Navigation Safeguards (No Duplicate Navbars)', () => {
     expect(html).toContain('Penyewa'); // adapts dynamically to mock template.memberLabel
   });
 });
+
+describe('PAY-2.6 — Subscription Expiry Date Resolution (F8 Fix)', () => {
+  it('menggunakan trial_ends_at jika status subscription adalah trial', () => {
+    const subData = {
+      status: 'trial',
+      trial_ends_at: '2026-05-15T12:00:00Z',
+      current_period_end: '2026-12-31T23:59:59Z',
+    };
+    const formatted = resolveSubscriptionExpiryDate(subData);
+    expect(formatted).toContain('15');
+    expect(formatted).toContain('Mei');
+    expect(formatted).toContain('2026');
+  });
+
+  it('menggunakan current_period_end jika status subscription bukan trial (misal active)', () => {
+    const subData = {
+      status: 'active',
+      trial_ends_at: '2026-01-01T12:00:00Z', // trial lama yang sudah lewat
+      current_period_end: '2026-12-31T12:00:00Z',
+    };
+    const formatted = resolveSubscriptionExpiryDate(subData);
+    expect(formatted).toContain('31');
+    expect(formatted).toContain('Desember');
+    expect(formatted).toContain('2026');
+  });
+
+  it('menampilkan "-" jika subData null atau tanggal berakhir tidak tersedia', () => {
+    expect(resolveSubscriptionExpiryDate(null)).toBe('-');
+    expect(resolveSubscriptionExpiryDate({ status: 'trial', trial_ends_at: null })).toBe('-');
+    expect(resolveSubscriptionExpiryDate({ status: 'active', current_period_end: null })).toBe('-');
+  });
+});
+

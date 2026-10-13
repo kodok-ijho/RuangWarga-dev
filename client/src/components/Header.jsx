@@ -27,6 +27,8 @@ import { useTenantTemplate } from '../hooks/useTenantTemplate';
 import { useToast } from '../hooks/useToast';
 import { useTour } from '../context/TourContext';
 import TenantSwitcher from './TenantSwitcher';
+import BrandLogo from './BrandLogo';
+import { isSafeLogoUrl } from '../utils/brand';
 import {
   isStaffRole,
   isBendaharaOrAbove,
@@ -270,14 +272,42 @@ export default function Header() {
         {/* Kiri: Brand Logo */}
         <div className="flex items-center gap-3">
           <Link to="/" className="flex items-center gap-3 group">
-            <img
-              src="/logo.png"
-              alt="Logo"
-              className="h-10 w-auto rounded-xl object-cover ring-2 ring-forest-800/10 group-hover:ring-forest-800/30 shadow-xs transition"
-            />
-            <div>
-              <h1 className="text-sm md:text-base font-extrabold text-forest-950 leading-none tracking-wide flex items-center gap-1.5 font-display">
-                {activeTenant?.name || 'RuangWarga'}
+            {activeTenant ? (
+              <>
+                {isSafeLogoUrl(activeTenant?.settings?.logo_url) ? (
+                  <img
+                    src={activeTenant.settings.logo_url}
+                    alt={activeTenant.name}
+                    className="h-10 w-auto rounded-xl object-cover ring-2 ring-forest-800/10 group-hover:ring-forest-800/30 shadow-xs transition"
+                  />
+                ) : (
+                  <BrandLogo size="md" showWordmark={false} />
+                )}
+                <div>
+                  <h1 className="text-sm md:text-base font-extrabold text-forest-950 leading-none tracking-wide flex items-center gap-1.5 font-display">
+                    {activeTenant.name}
+                    <span className="inline-flex items-center rounded-md bg-slate-100 text-slate-700 px-1.5 py-0.5 text-[10px] font-mono font-bold border border-slate-200">
+                      {APP_VERSION}
+                    </span>
+                    {IS_DEMO_MODE && (
+                      <span className="bg-amber-100 text-amber-900 border border-amber-300 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
+                        Demo
+                      </span>
+                    )}
+                    {isReadOnly && (
+                      <span className="bg-rose-50 text-rose-800 border border-rose-200 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs flex items-center gap-0.5">
+                        <span>👁️</span> View Only
+                      </span>
+                    )}
+                  </h1>
+                  <p className="text-[10px] text-slate-500 leading-tight tracking-wider uppercase mt-0.5 font-medium">
+                    {template?.communityLabel || 'Komunitas'}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-2">
+                <BrandLogo size="md" showWordmark={true} />
                 <span className="inline-flex items-center rounded-md bg-slate-100 text-slate-700 px-1.5 py-0.5 text-[10px] font-mono font-bold border border-slate-200">
                   {APP_VERSION}
                 </span>
@@ -286,16 +316,8 @@ export default function Header() {
                     Demo
                   </span>
                 )}
-                {isReadOnly && (
-                  <span className="bg-rose-50 text-rose-800 border border-rose-200 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs flex items-center gap-0.5">
-                    <span>👁️</span> View Only
-                  </span>
-                )}
-              </h1>
-              <p className="text-[10px] text-slate-500 leading-tight tracking-wider uppercase mt-0.5 font-medium">
-                {activeTenant?.type ? template?.communityLabel || 'Komunitas' : 'Platform Multi-Tenant'}
-              </p>
-            </div>
+              </div>
+            )}
           </Link>
           {isAuthenticated && (
             <div className="hidden xl:flex items-center ml-3">
@@ -430,7 +452,7 @@ export default function Header() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold border border-red-200 shadow-xs transition-all hover:scale-105"
-                title="Dokumentasi Kegiatan 17 Agustus Palm Village (Google Drive)"
+                title={`Dokumentasi Kegiatan 17 Agustus ${activeTenant?.name || 'Komunitas'} (Google Drive)`}
               >
                 <span>🇮🇩</span>
                 <span className="hidden lg:inline">Dokumentasi 17-an</span>
@@ -514,11 +536,27 @@ export default function Header() {
             {/* Topbar Mobile Menu */}
             <div className="flex items-center justify-between p-4 border-b border-slate-200 shrink-0 bg-white shadow-xs">
               <div className="flex items-center gap-2.5">
-                <img src="/logo.png" alt="Logo" className="h-8 w-auto rounded-xl ring-2 ring-forest-800/10" />
-                <div>
-                  <h2 className="text-sm font-extrabold text-forest-950 font-display">RuangWarga</h2>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Platform Komunitas</p>
-                </div>
+                {activeTenant ? (
+                  <div className="flex items-center gap-2.5">
+                    {isSafeLogoUrl(activeTenant?.settings?.logo_url) ? (
+                      <img
+                        src={activeTenant.settings.logo_url}
+                        alt={activeTenant.name}
+                        className="h-8 w-auto rounded-xl ring-2 ring-forest-800/10 object-cover"
+                      />
+                    ) : (
+                      <BrandLogo size="sm" showWordmark={false} />
+                    )}
+                    <div>
+                      <h2 className="text-sm font-extrabold text-forest-950 font-display">{activeTenant.name}</h2>
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">
+                        {template?.communityLabel || 'Komunitas'}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <BrandLogo size="sm" showWordmark={true} />
+                )}
               </div>
               <button
                 onClick={() => setMobileMenuOpen(false)}

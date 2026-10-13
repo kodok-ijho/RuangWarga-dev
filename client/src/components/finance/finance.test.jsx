@@ -202,7 +202,7 @@ describe('Finance Components (Phase 5 - TASK-016 & TASK-017)', () => {
       expect(html).toContain('Rincian Transaksi Pemasukan');
       expect(html).toContain('Sewa Lapangan');
       expect(html).toContain('Komunitas Bulutangkis');
-      expect(html).toContain('QRIS Palm Village');
+      expect(html).toContain('QRIS');
       expect(html).toContain('Terverifikasi');
     });
   });

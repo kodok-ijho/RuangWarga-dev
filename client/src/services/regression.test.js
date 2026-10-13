@@ -110,15 +110,13 @@ describe('Regression: Vertikal RT/RW — Alur Lengkap (T11.1)', () => {
   });
 
   it('5. Warga mendaftar ke tenant via requestJoinTenant (IS_DEMO fallback)', async () => {
-    // requestJoinTenant hanya cek IS_DEMO (bukan demo- prefix).
-    // Di test tanpa VITE_DEMO_MODE=true, fungsi ini akan memanggil supabase
-    // yang mungkin gagal. Kita uji validasi input saja.
+    // requestJoinTenant via RPC request_join_tenant memvalidasi code dan fullName.
     await expect(
-      requestJoinTenant({ tenantId: null, userId: 'u1', fullName: 'Test' })
-    ).rejects.toThrow('Tenant ID dan User ID wajib disertakan');
+      requestJoinTenant({ code: '', fullName: 'Test' })
+    ).rejects.toThrow('Kode undangan wajib disertakan');
     await expect(
-      requestJoinTenant({ tenantId: 't1', userId: null, fullName: 'Test' })
-    ).rejects.toThrow('Tenant ID dan User ID wajib disertakan');
+      requestJoinTenant({ code: 'RW-TEST-1234', fullName: '' })
+    ).rejects.toThrow('Nama lengkap wajib diisi');
   });
 
   it('6. Approve dan reject member — validasi input', async () => {
@@ -139,7 +137,7 @@ describe('Regression: Vertikal RT/RW — Alur Lengkap (T11.1)', () => {
 
   it('7. Generate kode undangan dengan format yang benar', () => {
     const code = generateInviteCode('Palm Village');
-    expect(code).toMatch(/^RW-PALM-[A-Z0-9]{4}$/);
+    expect(code).toMatch(/^RW-PALM-[A-Z0-9]{4}-[A-Z0-9]{4}$/);
   });
 
   it('8. Hitung preview tagihan IPL dan verifikasi komponen', () => {
@@ -545,13 +543,13 @@ describe('Regression: Cross-Vertikal — Validasi & Error Handling (T11.1)', () 
     expect(result).toBeNull();
   });
 
-  it('requestJoinTenant melempar error jika tenantId atau userId tidak ada', async () => {
+  it('requestJoinTenant melempar error jika code atau fullName kosong', async () => {
     await expect(
-      requestJoinTenant({ tenantId: null, userId: 'u1', fullName: 'Test' })
-    ).rejects.toThrow();
+      requestJoinTenant({ code: '', fullName: 'Test' })
+    ).rejects.toThrow('Kode undangan wajib disertakan');
     await expect(
-      requestJoinTenant({ tenantId: 't1', userId: null, fullName: 'Test' })
-    ).rejects.toThrow();
+      requestJoinTenant({ code: 'RW-TEST-1234', fullName: '' })
+    ).rejects.toThrow('Nama lengkap wajib diisi');
   });
 
   it('approveTenantMember melempar error jika memberId kosong', async () => {

@@ -10,6 +10,7 @@ import {
 } from 'react-icons/ai';
 import { useAuth } from '../hooks/useAuth';
 import { useTenant } from '../context/TenantContext';
+import { useTenantAccess } from '../hooks/useTenantAccess';
 import { useSubscriptionGate } from '../hooks/useSubscriptionGate';
 import { useTenantTemplate } from '../hooks/useTenantTemplate';
 import { useToast } from '../hooks/useToast';
@@ -61,10 +62,11 @@ function getGoogleDriveThumbnail(url) {
 export default function Expenses() {
   const params = useParams();
   const { role, profile, session, isReadOnly: authReadOnly, isAuthenticated } = useAuth();
-  const { currentTenant } = useTenant();
-  const activeTenantId = params.tenantId || currentTenant?.id || null;
+  const { activeTenant } = useTenant();
+  const activeTenantId = params.tenantId || activeTenant?.id || null;
   const { canWrite: subCanWrite, isReadOnly: subReadOnly } = useSubscriptionGate(activeTenantId);
-  const template = useTenantTemplate(currentTenant?.type || 'rt_rw');
+  const template = useTenantTemplate(activeTenant?.type || 'rt_rw');
+  const tenantAccess = useTenantAccess();
 
   const token = session?.access_token;
   const toast = useToast();
@@ -77,8 +79,12 @@ export default function Expenses() {
   const manageableEventIds = useMemo(() => new Set(
     (eventAccess?.events || []).filter((item) => item.can_manage_finance).map((item) => item.event_id)
   ), [eventAccess?.events]);
-  const canEdit = canEditGeneral || manageableEventIds.size > 0;
-  const canWrite = (canModifyData(role) || manageableEventIds.size > 0) && !authReadOnly && subCanWrite;
+  const canEdit = activeTenantId
+    ? tenantAccess.canManageExpenses
+    : (canEditGeneral || manageableEventIds.size > 0);
+  const canWrite = activeTenantId
+    ? (tenantAccess.canManageExpenses && tenantAccess.canWrite && !authReadOnly && subCanWrite)
+    : ((canModifyData(role) || manageableEventIds.size > 0) && !authReadOnly && subCanWrite);
 
   const requestIdRef = useRef(0);
   const [expenses, setExpenses] = useState([]);
@@ -114,16 +120,21 @@ export default function Expenses() {
       if (requestIdRef.current !== currentRequestId) return;
       setExpenses(Array.isArray(data) ? data : []);
 
-      try {
-        const [events, access] = await Promise.all([
-          fetchEvents(token, { role, profileId: profile?.id }),
-          fetchMyEventAccess(token, { role, profileId: profile?.id }),
-        ]);
-        if (requestIdRef.current !== currentRequestId) return;
-        setEventOptions(events || []);
-        setEventAccess(access || { events: [] });
-      } catch {
-        if (requestIdRef.current !== currentRequestId) return;
+      if (!activeTenantId) {
+        try {
+          const [events, access] = await Promise.all([
+            fetchEvents(token, { role, profileId: profile?.id }),
+            fetchMyEventAccess(token, { role, profileId: profile?.id }),
+          ]);
+          if (requestIdRef.current !== currentRequestId) return;
+          setEventOptions(events || []);
+          setEventAccess(access || { events: [] });
+        } catch {
+          if (requestIdRef.current !== currentRequestId) return;
+          setEventOptions([]);
+          setEventAccess({ events: [] });
+        }
+      } else {
         setEventOptions([]);
         setEventAccess({ events: [] });
       }
@@ -233,13 +244,19 @@ export default function Expenses() {
 
   const totalAmount = filtered.reduce((s, e) => s + e.amount, 0);
 
-  // Staff-only (pengurus, bendahara, admin)
-  if (!isStaff && eventAccess === null) {
-    return <div className="pv-card p-8 text-center text-sm text-slate-500">Memeriksa akses event...</div>;
-  }
+  // Akses halaman: bila mode tenant, cek canViewReports. Bila legacy, cek isStaff dan eventAccess.
+  if (activeTenantId) {
+    if (!tenantAccess.canViewReports) {
+      return <Navigate to={`/t/${activeTenantId}/dashboard`} replace />;
+    }
+  } else {
+    if (!isStaff && eventAccess === null) {
+      return <div className="pv-card p-8 text-center text-sm text-slate-500">Memeriksa akses event...</div>;
+    }
 
-  if (!isStaff && manageableEventIds.size === 0) {
-    return <Navigate to="/" replace />;
+    if (!isStaff && manageableEventIds.size === 0) {
+      return <Navigate to="/" replace />;
+    }
   }
 
   const handleSave = async (data, file) => {
@@ -309,7 +326,7 @@ export default function Expenses() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Pengeluaran Kas {currentTenant?.name || 'Komunitas'}</h2>
+          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Pengeluaran Kas {activeTenant?.name || 'Komunitas'}</h2>
           <p className="text-xs text-slate-500 mt-0.5">
             {filtered.length} transaksi · Total {formatRupiah(totalAmount)}
           </p>
@@ -432,7 +449,7 @@ export default function Expenses() {
               keyExtractor={(exp) => exp.id}
               emptyMessage="Belum ada pengeluaran tercatat."
               renderItem={(exp) => {
-                const canEditThis = canEdit && canWrite && ((exp.scope || 'general') === 'event' ? manageableEventIds.has(exp.event_id) : canEditGeneral);
+                const canEditThis = canEdit && canWrite && (activeTenantId ? true : ((exp.scope || 'general') === 'event' ? manageableEventIds.has(exp.event_id) : canEditGeneral));
                 return (
                   <ExpenseCard
                     expense={exp}
@@ -469,7 +486,7 @@ export default function Expenses() {
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
                   {filtered.map((exp) => {
-                    const canEditThis = canEdit && canWrite && ((exp.scope || 'general') === 'event' ? manageableEventIds.has(exp.event_id) : canEditGeneral);
+                    const canEditThis = canEdit && canWrite && (activeTenantId ? true : ((exp.scope || 'general') === 'event' ? manageableEventIds.has(exp.event_id) : canEditGeneral));
                     return (
                       <tr
                         key={exp.id}
@@ -562,9 +579,11 @@ export default function Expenses() {
           canEdit &&
           canWrite &&
           selectedExpenseForDrawer &&
-          ((selectedExpenseForDrawer.scope || 'general') === 'event'
-            ? manageableEventIds.has(selectedExpenseForDrawer.event_id)
-            : canEditGeneral)
+          (activeTenantId
+            ? true
+            : ((selectedExpenseForDrawer.scope || 'general') === 'event'
+                ? manageableEventIds.has(selectedExpenseForDrawer.event_id)
+                : canEditGeneral))
         }
         onEdit={(item) => {
           setSelectedExpenseForDrawer(null);
@@ -585,10 +604,11 @@ export default function Expenses() {
       {modalForm && canWrite && (
         <ExpenseFormModal
           expense={modalForm === 'add' ? null : modalForm}
-          initialScope={canEditGeneral ? 'general' : 'event'}
+          initialScope={activeTenantId ? 'general' : (canEditGeneral ? 'general' : 'event')}
           eventOptions={eventOptions}
           manageableEventIds={manageableEventIds}
-          canEditGeneral={canEditGeneral}
+          canEditGeneral={activeTenantId ? true : canEditGeneral}
+          hideScopeSelector={Boolean(activeTenantId)}
           isSaving={isLoading}
           onSave={handleSave}
           onClose={() => setModalForm(null)}
@@ -700,8 +720,17 @@ export default function Expenses() {
   );
 }
 
-// ── Form modal ────────────────────────────────────────────────────
-function ExpenseFormModal({ expense, initialScope = 'general', eventOptions = [], manageableEventIds = new Set(), canEditGeneral = false, isSaving, onSave, onClose }) {
+function ExpenseFormModal({
+  expense,
+  initialScope = 'general',
+  eventOptions = [],
+  manageableEventIds = new Set(),
+  canEditGeneral = false,
+  hideScopeSelector = false,
+  isSaving,
+  onSave,
+  onClose,
+}) {
   const [selectedFile, setSelectedFile] = useState(null);
   const isEdit = !!expense;
   const [form, setForm] = useState({
@@ -775,14 +804,22 @@ function ExpenseFormModal({ expense, initialScope = 'general', eventOptions = []
     if (!form.description.trim()) {
       return;
     }
-    if (form.scope === 'event' && !form.event_id) {
+    if (!hideScopeSelector && form.scope === 'event' && !form.event_id) {
       return;
     }
     const numAmount = Number(form.amount);
     if (isNaN(numAmount) || numAmount <= 0) {
       return;
     }
-    onSave({ ...form, amount: numAmount, description: form.description.trim() }, selectedFile);
+    const payloadScope = hideScopeSelector ? 'general' : form.scope;
+    const payloadEventId = hideScopeSelector ? null : (form.event_id || null);
+    onSave({
+      ...form,
+      scope: payloadScope,
+      event_id: payloadEventId,
+      amount: numAmount,
+      description: form.description.trim(),
+    }, selectedFile);
   };
 
   return (
@@ -811,18 +848,20 @@ function ExpenseFormModal({ expense, initialScope = 'general', eventOptions = []
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Lingkup Pengeluaran</label>
-            <select
-              value={form.scope}
-              onChange={(e) => setForm({ ...form, scope: e.target.value, event_id: '' })}
-              className="pv-input text-xs"
-            >
-              {canEditGeneral && <option value="general">Operasional Umum</option>}
-              {(canEditGeneral || manageableEventIds.size > 0) && <option value="event">Kegiatan / Event Khusus</option>}
-            </select>
-          </div>
-          {form.scope === 'event' && (
+          {!hideScopeSelector && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Lingkup Pengeluaran</label>
+              <select
+                value={form.scope}
+                onChange={(e) => setForm({ ...form, scope: e.target.value, event_id: '' })}
+                className="pv-input text-xs"
+              >
+                {canEditGeneral && <option value="general">Operasional Umum</option>}
+                {(canEditGeneral || manageableEventIds.size > 0) && <option value="event">Kegiatan / Event Khusus</option>}
+              </select>
+            </div>
+          )}
+          {!hideScopeSelector && form.scope === 'event' && (
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Pilih Event *</label>
               <select

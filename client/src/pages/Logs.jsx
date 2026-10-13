@@ -43,11 +43,6 @@ export default function Logs() {
   const [offset, setOffset] = useState(0);
   const limit = 50;
 
-  // Guard: Admin-only
-  if (!hasMinRole(role, 'admin')) {
-    return <Navigate to="/" replace />;
-  }
-
   const loadLogs = useCallback(
     async (currentOffset, reset = false) => {
       if (!token && !IS_DEMO) return;
@@ -87,9 +82,15 @@ export default function Logs() {
 
   // Load logs on filter change
   useEffect(() => {
+    if (!hasMinRole(role, 'admin')) return;
     setOffset(0);
     loadLogs(0, true);
-  }, [filterAction, search, loadLogs]);
+  }, [filterAction, search, loadLogs, role]);
+
+  // Guard: Admin-only
+  if (!hasMinRole(role, 'admin')) {
+    return <Navigate to="/" replace />;
+  }
 
   const handleLoadMore = () => {
     const nextOffset = offset + limit;

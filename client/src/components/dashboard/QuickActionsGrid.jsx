@@ -115,26 +115,7 @@ export function QuickActionsGrid({
           </div>
         </Link>
 
-        {/* 5. Pengumuman Komunitas */}
-        <Link
-          to={`/t/${tenantId}/announcements`}
-          className="p-4 rounded-xl bg-white border border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/80 transition-all flex flex-col justify-between group min-h-[104px]"
-        >
-          <div className="flex items-center justify-between">
-            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 group-hover:bg-slate-900 group-hover:text-white flex items-center justify-center text-base transition-colors">
-              <AiOutlineNotification aria-hidden="true" />
-            </div>
-            <AiOutlineArrowRight className="text-slate-300 group-hover:text-slate-900 transition-colors text-xs" />
-          </div>
-          <div className="mt-2">
-            <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-slate-900 leading-tight">
-              Pengumuman
-            </h4>
-            <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-              Papan info warga
-            </p>
-          </div>
-        </Link>
+        {/* 5. Pengumuman Komunitas — Disembunyikan sampai RTRW-3 */}
 
         {/* Khusus Arisan */}
         {template?.features?.hasArisanDraw && (

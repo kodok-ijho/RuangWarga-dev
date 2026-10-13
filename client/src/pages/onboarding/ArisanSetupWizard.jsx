@@ -23,7 +23,8 @@ import {
   fetchTenantDetails,
   updateTenantProfileAndSettings,
   bulkCreateTenantUnits,
-  generateInviteCode,
+  saveInviteCodeWithRetry,
+  normalizeBankAccount,
 } from '../../services/tenantOperationalService';
 import { formatRupiah } from '../../services/dataHelpers';
 
@@ -262,6 +263,18 @@ export default function ArisanSetupWizard({ tenantId: propTenantId, initialData 
       return;
     }
 
+    let normalizedBank = null;
+    try {
+      normalizedBank = normalizeBankAccount({
+        bank_name: bankName,
+        account_number: bankAccountNo,
+        account_holder: bankAccountHolder,
+      });
+    } catch (err) {
+      toast.error(err.message);
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -280,14 +293,13 @@ export default function ArisanSetupWizard({ tenantId: propTenantId, initialData 
 
       await bulkCreateTenantUnits(tenantId, unitPayload);
 
-      // 2. Generate invite code untuk grup arisan
-      const inviteCode = await generateInviteCode(tenantId);
-      setGeneratedInviteCode(inviteCode);
+      // 2. Simpan kode undangan ke tabel privat tenant_invites dengan retry otomatis jika bentrok (SEC-3F.2)
+      const savedInviteCode = await saveInviteCodeWithRetry(tenantId, groupName);
+      setGeneratedInviteCode(savedInviteCode);
 
-      // 3. Simpan setting arisan ke tenants.settings
+      // 3. Simpan setting arisan ke tenants.settings (hanya ditandai onboarding_completed jika kode berhasil disimpan)
       const settingsPayload = {
         onboarding_completed: true,
-        invite_code: inviteCode,
         category,
         arisan_rules: arisanRules.trim(),
         slot_count: slotList.length,
@@ -295,11 +307,7 @@ export default function ArisanSetupWizard({ tenantId: propTenantId, initialData 
         draw_frequency: drawFrequency,
         draw_day: Number(drawDay) || 1,
         total_prize_per_round: totalPrizePerRound,
-        bank_account: {
-          bank_name: bankName.trim(),
-          account_number: bankAccountNo.trim(),
-          account_holder: bankAccountHolder.trim(),
-        },
+        bank_account: normalizedBank,
       };
 
       await updateTenantProfileAndSettings(tenantId, {

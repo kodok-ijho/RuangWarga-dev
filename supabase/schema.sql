@@ -86,7 +86,7 @@ create table if not exists public.ipl_bills (
   late_fee      numeric(12,2) not null default 0,
   due_date      date        not null,
   status        bill_status not null default 'pending',
-  qris_ref      text,                                 -- reference QRIS dari Mayar (Edge Function)
+  qris_ref      text,                                 -- reference QRIS dari payment gateway (Edge Function)
   payment_id    uuid        references public.payments(id) on delete set null,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
@@ -105,7 +105,7 @@ create table if not exists public.payments (
   resident_id    uuid            references public.profiles(id) on delete set null,
   amount         numeric(12,2)   not null,
   method         payment_method  not null default 'qris',
-  transaction_id text,                                   -- ID transaksi dari Mayar
+  transaction_id text,                                   -- ID transaksi dari payment gateway
   status         payment_status  not null default 'pending',
   paid_at        timestamptz,
   metadata       jsonb           not null default '{}'::jsonb,

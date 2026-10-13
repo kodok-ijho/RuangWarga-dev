@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   AiOutlineCheckCircle,
   AiOutlineClockCircle,
@@ -9,6 +10,7 @@ import {
   AiOutlineQrcode,
 } from 'react-icons/ai';
 import { supabase } from '../../services/supabaseClient';
+import { calculateQrisFee } from '../../services/dokuProtocol';
 import { useTenant } from '../../hooks/useTenant';
 import { useTenantTemplate } from '../../hooks/useTenantTemplate';
 import { useToast } from '../../hooks/useToast';
@@ -43,12 +45,16 @@ export default function SubscriptionCheckout() {
 
       if (isDemo) {
         // Mock payment di Demo mode
+        const { fee, total } = calculateQrisFee(finalTotal);
         setPaymentData({
           paymentId: `pay-mock-${Date.now()}`,
-          gatewayRef: `MYR-DEMO-${Math.floor(Math.random() * 90000) + 10000}`,
-          amount: finalTotal,
+          gatewayRef: `DOKU-DEMO-${Math.floor(Math.random() * 90000) + 10000}`,
+          amount: total,
+          baseAmount: finalTotal,
+          qrisFee: fee,
           paymentUrl: '#',
-          qrisString: '00020101021126580014ID.LINKAJA.WWW0118936009140000000000',
+          qrContent: '00020101021126580014ID.DOKU.WWW0118936009140000000000',
+          qrisString: '00020101021126580014ID.DOKU.WWW0118936009140000000000',
         });
         setLoading(false);
         return;
@@ -71,16 +77,7 @@ export default function SubscriptionCheckout() {
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error('[SubscriptionCheckout] Gagal membuat tagihan:', err);
-        // Fallback simulated payment jika edge function belum live di server
-        if (!isCancelled) {
-          setPaymentData({
-            paymentId: `sim-pay-${Date.now()}`,
-            gatewayRef: `MYR-SIM-${Date.now().toString().slice(-6)}`,
-            amount: finalTotal,
-            paymentUrl: '#',
-            qrisString: '00020101021126580014ID.LINKAJA.WWW0118936009140000000000',
-          });
-        }
+        toast.error(err.message || 'Gagal menyiapkan pembayaran QRIS.');
       } finally {
         if (!isCancelled) setLoading(false);
       }
@@ -90,39 +87,51 @@ export default function SubscriptionCheckout() {
     return () => {
       isCancelled = true;
     };
-  }, [tenantId, blocks10, blocks5, durationMonths, finalTotal, isDemo]);
+  }, [tenantId, blocks10, blocks5, durationMonths, finalTotal, isDemo, toast]);
 
-  // Handler simulasi verifikasi pembayaran (berguna saat pengujian & demo)
-  const handleSimulatePaymentSuccess = async () => {
-    setActivating(true);
-
-    if (isDemo) {
-      setTimeout(() => {
-        setIsSuccess(true);
-        setActivating(false);
-        toast.success('Pembayaran QRIS berhasil! Layanan aktif selama ' + durationMonths + ' bulan.');
-        refreshTenant();
-      }, 800);
-      return;
-    }
-
-    try {
-      // Panggil RPC activate_tenant_subscription atau webhook verifikasi
-      const { data, error } = await supabase.rpc('activate_tenant_subscription', {
-        p_payment_id: paymentData?.paymentId,
-        p_gateway_ref: paymentData?.gatewayRef || 'MYR-SIMULATED',
-      });
-
+  // Polling status pembayaran subscription_payments pada non-demo
+  const paymentId = paymentData?.paymentId;
+  const { data: paymentRecord } = useQuery({
+    queryKey: ['subscription-payment-status', paymentId],
+    queryFn: async () => {
+      if (!paymentId) return null;
+      const { data, error } = await supabase
+        .from('subscription_payments')
+        .select('status')
+        .eq('id', paymentId)
+        .single();
       if (error) throw error;
+      return data;
+    },
+    enabled: !isDemo && Boolean(paymentId) && !isSuccess,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status === 'settled' || status === 'failed' || status === 'expired') {
+        return false;
+      }
+      return 5000;
+    },
+  });
 
+  // Saat pembayaran terverifikasi settled di database, aktifkan sukses & refresh tenant
+  useEffect(() => {
+    if (!isDemo && paymentRecord?.status === 'settled' && !isSuccess) {
       setIsSuccess(true);
       toast.success('Pembayaran terverifikasi! Paket langganan berhasil diaktifkan.');
-      await refreshTenant();
-    } catch (err) {
-      toast.error('Gagal aktivasi: ' + (err.message || 'Terjadi kesalahan database'));
-    } finally {
-      setActivating(false);
+      refreshTenant();
     }
+  }, [paymentRecord?.status, isDemo, isSuccess, refreshTenant, toast]);
+
+  // Handler simulasi verifikasi pembayaran (hanya tersedia saat Demo mode)
+  const handleSimulatePaymentSuccess = () => {
+    if (!isDemo) return;
+    setActivating(true);
+    setTimeout(() => {
+      setIsSuccess(true);
+      setActivating(false);
+      toast.success('Pembayaran QRIS berhasil! Layanan aktif selama ' + durationMonths + ' bulan.');
+      refreshTenant();
+    }, 800);
   };
 
   return (
@@ -182,7 +191,7 @@ export default function SubscriptionCheckout() {
             <div className="text-center space-y-1 pb-4 border-b border-slate-200">
               <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-800 text-xs font-semibold">
                 <AiOutlineSafetyCertificate />
-                <span>Mayar QRIS Resmi</span>
+                <span>QRIS DOKU Resmi</span>
               </div>
               <h1 className="text-xl font-bold text-slate-900 font-display mt-2">
                 Scan QRIS untuk Menyelesaikan Pembayaran
@@ -195,7 +204,7 @@ export default function SubscriptionCheckout() {
             {loading ? (
               <div className="py-16 text-center space-y-3">
                 <div className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin mx-auto" />
-                <p className="text-xs text-slate-500">Menyiapkan QRIS pembayaran dari Mayar gateway...</p>
+                <p className="text-xs text-slate-500">Menyiapkan QRIS pembayaran dari gateway DOKU...</p>
               </div>
             ) : (
               <div className="space-y-6">
@@ -206,13 +215,28 @@ export default function SubscriptionCheckout() {
                     <span className="text-[10px] font-bold text-red-600">GPN</span>
                   </div>
 
-                  {/* QR Visual Canvas / Placeholder */}
-                  <div className="w-52 h-52 mx-auto bg-white border border-slate-200 rounded-xl flex flex-col items-center justify-center p-3 relative overflow-hidden shadow-xs">
-                    <AiOutlineQrcode className="text-8xl text-slate-800" />
-                    <span className="text-[9px] font-mono text-slate-500 mt-1">
-                      {paymentData?.gatewayRef || 'MYR-QRIS-CODE'}
-                    </span>
-                  </div>
+                  {/* QR Visual Canvas / Image */}
+                  {paymentData?.qrContent || paymentData?.qrisString ? (
+                    <div className="w-56 h-56 mx-auto bg-white border border-slate-200 rounded-xl flex flex-col items-center justify-center p-2 relative overflow-hidden shadow-xs">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=8&data=${encodeURIComponent(
+                          paymentData.qrContent || paymentData.qrisString
+                        )}`}
+                        alt="QRIS Code"
+                        className="w-full h-full object-contain rounded-lg"
+                      />
+                      <span className="text-[9px] font-mono text-slate-500 mt-1">
+                        {paymentData?.gatewayRef || 'QRIS-DOKU'}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="w-52 h-52 mx-auto bg-white border border-slate-200 rounded-xl flex flex-col items-center justify-center p-3 relative overflow-hidden shadow-xs">
+                      <AiOutlineQrcode className="text-8xl text-slate-800" />
+                      <span className="text-[9px] font-mono text-slate-500 mt-1">
+                        {paymentData?.gatewayRef || 'QRIS-CODE'}
+                      </span>
+                    </div>
+                  )}
 
                   <div className="pt-2 border-t border-slate-200">
                     <p className="text-[11px] font-medium text-slate-600">
@@ -235,39 +259,64 @@ export default function SubscriptionCheckout() {
                     <span>Durasi Langganan:</span>
                     <span className="text-slate-900 font-medium">{durationMonths} Bulan</span>
                   </div>
+                  {paymentData?.baseAmount ? (
+                    <div className="flex justify-between text-slate-600">
+                      <span>Biaya Pokok Paket:</span>
+                      <span className="text-slate-900 font-medium">Rp {paymentData.baseAmount.toLocaleString('id-ID')}</span>
+                    </div>
+                  ) : null}
+                  {paymentData?.qrisFee ? (
+                    <div className="flex justify-between text-slate-600">
+                      <span>Biaya Layanan QRIS (0,75%):</span>
+                      <span className="text-amber-700 font-semibold">+ Rp {paymentData.qrisFee.toLocaleString('id-ID')}</span>
+                    </div>
+                  ) : null}
                   <div className="flex justify-between items-baseline pt-2 border-t border-slate-200 text-sm font-bold">
-                    <span className="text-slate-900">Total Tagihan:</span>
+                    <span className="text-slate-900">Total Pembayaran:</span>
                     <span className="text-xl text-slate-900 font-mono font-extrabold">
-                      Rp {finalTotal.toLocaleString('id-ID')}
+                      Rp {(paymentData?.amount || finalTotal).toLocaleString('id-ID')}
                     </span>
                   </div>
                 </div>
 
-                {/* Tombol Verifikasi / Testing */}
-                <div className="pt-2 space-y-3">
-                  <button
-                    type="button"
-                    onClick={handleSimulatePaymentSuccess}
-                    disabled={activating}
-                    className="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs shadow-xs transition-all flex items-center justify-center gap-2"
-                  >
-                    {activating ? (
-                      <span className="inline-flex items-center gap-2">
-                        <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                        <span>Memverifikasi Pembayaran...</span>
-                      </span>
-                    ) : (
-                      <>
-                        <AiOutlineCheckCircle className="text-base" />
-                        <span>Simulasikan Pembayaran Sukses (Uji Coba)</span>
-                      </>
-                    )}
-                  </button>
-
-                  <p className="text-[11px] text-center text-slate-500">
-                    Pada mode live, status akan otomatis terupdate via Webhook Mayar setelah pembayaran selesai.
-                  </p>
-                </div>
+                {/* Tombol Verifikasi / Testing (Hanya pada mode demo) */}
+                {isDemo ? (
+                  <div className="pt-2 space-y-3">
+                    <button
+                      type="button"
+                      onClick={handleSimulatePaymentSuccess}
+                      disabled={activating}
+                      className="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs shadow-xs transition-all flex items-center justify-center gap-2"
+                    >
+                      {activating ? (
+                        <span className="inline-flex items-center gap-2">
+                          <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                          <span>Memverifikasi Pembayaran...</span>
+                        </span>
+                      ) : (
+                        <>
+                          <AiOutlineCheckCircle className="text-base" />
+                          <span>Simulasikan Pembayaran Sukses (Mode Demo)</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="pt-2 space-y-3">
+                    <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-center space-y-1.5">
+                      <div className="inline-flex items-center gap-2 text-xs font-semibold text-blue-900">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span>
+                        </span>
+                        <span>Menunggu Verifikasi Pembayaran</span>
+                      </div>
+                      <p className="text-[11px] text-blue-700 leading-relaxed">
+                        Sistem sedang memantau pembayaran QRIS Anda secara otomatis melalui DOKU. Halaman akan langsung beralih begitu transfer terverifikasi oleh gateway.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

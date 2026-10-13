@@ -3,6 +3,7 @@ import { Navigate, useParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTenant } from '../context/TenantContext';
 import { useSubscriptionGate } from '../hooks/useSubscriptionGate';
+import { useTenantAccess } from '../hooks/useTenantAccess';
 import { useTenantTemplate } from '../hooks/useTenantTemplate';
 import {
   fetchPayments,
@@ -15,7 +16,11 @@ import {
   updatePayment,
   IS_DEMO,
 } from '../services/dataService';
-import { fetchTenantUnits, fetchTenantMembers } from '../services/tenantOperationalService';
+import {
+  fetchTenantUnits,
+  fetchTenantMembers,
+  isLegacyQrisEnabled,
+} from '../services/tenantOperationalService';
 import {
   formatRupiah,
   formatDate,
@@ -35,9 +40,12 @@ import {
   rejectPayment,
   mockPayments,
   mockSettings,
-  downloadDigitalReceipt,
+  getIPLSchemaById,
   sendEmailReceipt,
 } from '../services/mockData';
+import { downloadDigitalReceipt } from '../services/receiptService';
+import { supabase } from '../services/supabaseClient';
+import { createReceiptSignedUrl } from '../utils/storagePolicy';
 import { AiOutlineCheck, AiOutlineClose, AiOutlineEye, AiOutlineClockCircle, AiOutlineEdit } from 'react-icons/ai';
 import { useToast } from '../hooks/useToast';
 import { EmptyState, SkeletonTable, SkeletonList, SearchInput, Pagination } from '../components/ui';
@@ -145,16 +153,31 @@ function mergePaymentSources(payments, matrixRows) {
   return merged;
 }
 
+export function resolveVerificationUnit(units, unitId, isDemo = IS_DEMO) {
+  if (!unitId) return null;
+  const found = Array.isArray(units) ? units.find((u) => String(u.id) === String(unitId)) : null;
+  return found || (isDemo ? getUnitById(unitId) : null);
+}
+
+export function resolveVerificationResident(residents, residentId, isDemo = IS_DEMO) {
+  if (!residentId) return null;
+  const found = Array.isArray(residents) ? residents.find((r) => r.id === residentId) : null;
+  return found || (isDemo ? getProfileById(residentId) : null);
+}
+
 export default function PaymentVerification() {
   const params = useParams();
   const { role, profile, session, isReadOnly: authReadOnly } = useAuth();
-  const { currentTenant, userTenants } = useTenant();
-  const activeTenantId = params.tenantId || currentTenant?.id || userTenants?.[0]?.id || null;
+  const { activeTenant, userTenants } = useTenant();
+  const tenantAccess = useTenantAccess();
+  const activeTenantId = params.tenantId || activeTenant?.id || userTenants?.[0]?.id || null;
   const { canWrite: subCanWrite, isReadOnly: subReadOnly } = useSubscriptionGate(activeTenantId);
-  const template = useTenantTemplate(currentTenant?.type || 'rt_rw');
+  const template = useTenantTemplate(activeTenant?.type || 'rt_rw');
 
   const toast = useToast();
-  const canWrite = canModifyData(role) && !authReadOnly && subCanWrite;
+  const canWrite = activeTenantId
+    ? (tenantAccess.canWrite && !authReadOnly && subCanWrite)
+    : (canModifyData(role) && !authReadOnly && subCanWrite);
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState('pending');
   const [selectedPayment, setSelectedPayment] = useState(null);
@@ -179,7 +202,7 @@ export default function PaymentVerification() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [qrisEnabled, setQrisEnabled] = useState(true);
-  const [qrisProvider, setQrisProvider] = useState('midtrans');
+  const [qrisProvider, setQrisProvider] = useState('doku');
 
   const fetchSeqRef = useRef(0);
   const activeTenantRef = useRef(activeTenantId);
@@ -199,6 +222,42 @@ export default function PaymentVerification() {
     setResidents([]);
     setLoadError(null);
   }, [activeTenantId]);
+
+  const [signedProofUrl, setSignedProofUrl] = useState(null);
+
+  useEffect(() => {
+    let isCancelled = false;
+    setSignedProofUrl(null);
+    if (!selectedPayment) return;
+
+    const rawPath =
+      selectedPayment.proof_file_url ||
+      selectedPayment.proof_url ||
+      selectedPayment.metadata?.proof_path ||
+      selectedPayment.metadata?.proof_file_url ||
+      '';
+
+    if (!rawPath) return;
+
+    if (rawPath.startsWith('http://') || rawPath.startsWith('https://')) {
+      setSignedProofUrl(rawPath);
+      return;
+    }
+
+    createReceiptSignedUrl(supabase, rawPath, 300, 'payment-proofs')
+      .then((signed) => {
+        if (!isCancelled) setSignedProofUrl(signed);
+      })
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error('[PaymentVerification] Gagal resolve signed URL bukti transfer:', err);
+        if (!isCancelled) setSignedProofUrl(null);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedPayment]);
 
   const sortedUnits = useMemo(() => {
     return [...units].sort((a, b) => {
@@ -224,14 +283,13 @@ export default function PaymentVerification() {
           setUnits([]);
           setResidents([]);
           setQrisEnabled(mockSettings.qris_enabled ?? true);
-          setQrisProvider(String(mockSettings.qris_provider || 'midtrans').toLowerCase());
+          setQrisProvider(String(mockSettings.qris_provider || 'doku').toLowerCase());
         } else if (targetTenantId) {
           // Multi-tenant mode
-          const [payData, unitData, memberData, settingsData] = await Promise.all([
+          const [payData, unitData, memberData] = await Promise.all([
             fetchPayments(session?.access_token, { tenantId: targetTenantId }),
             fetchTenantUnits(targetTenantId),
             fetchTenantMembers(targetTenantId),
-            fetchSettings(session?.access_token).catch(() => null),
           ]);
           if (seq !== fetchSeqRef.current || activeTenantRef.current !== targetTenantId) {
             return;
@@ -245,10 +303,8 @@ export default function PaymentVerification() {
             }))
           );
           setResidents(memberData || []);
-          if (settingsData) {
-            setQrisEnabled(settingsData.qris_enabled ?? true);
-            setQrisProvider(String(settingsData.qris_provider || 'midtrans').toLowerCase());
-          }
+          setQrisEnabled(isLegacyQrisEnabled(activeTenant));
+          setQrisProvider(String(activeTenant?.settings?.qris_provider || 'doku').toLowerCase());
         } else {
           // Prod mode fetches from API & Supabase
           const [payData, unitData, resData, matrixData, settingsData] = await Promise.all([
@@ -266,7 +322,7 @@ export default function PaymentVerification() {
           setResidents(resData || []);
           if (settingsData) {
             setQrisEnabled(settingsData.qris_enabled ?? true);
-            setQrisProvider(String(settingsData.qris_provider || 'midtrans').toLowerCase());
+            setQrisProvider(String(settingsData.qris_provider || 'doku').toLowerCase());
           }
         }
       } catch (err) {
@@ -290,15 +346,13 @@ export default function PaymentVerification() {
     setReceiptPreviewError(false);
   }, [selectedPayment?.id]);
 
-  const showQrisOption = qrisEnabled || paymentForm.method === 'qris';
+  const showQrisOption = activeTenant
+    ? isLegacyQrisEnabled(activeTenant)
+    : (qrisEnabled || paymentForm.method === 'qris');
 
-  const getUnit = (unitId) => {
-    return units.find((u) => String(u.id) === String(unitId)) || getUnitById(unitId);
-  };
+  const getUnit = (unitId) => resolveVerificationUnit(units, unitId, IS_DEMO);
 
-  const getResident = (residentId) => {
-    return residents.find((r) => r.id === residentId) || getProfileById(residentId);
-  };
+  const getResident = (residentId) => resolveVerificationResident(residents, residentId, IS_DEMO);
 
   const pendingPayments = useMemo(
     () => payments.filter((p) => isPendingVerificationStatus(p.status)),
@@ -314,11 +368,6 @@ export default function PaymentVerification() {
     () => payments.filter((p) => p.status === 'rejected'),
     [payments]
   );
-
-  // Guard: Bendahara+ only
-  if (!isBendaharaOrAbove(role)) {
-    return <Navigate to="/" replace />;
-  }
 
   const currentList =
     activeTab === 'pending'
@@ -353,6 +402,13 @@ export default function PaymentVerification() {
     const start = (currentPage - 1) * pageSize;
     return filteredList.slice(start, start + pageSize);
   }, [filteredList, currentPage, pageSize]);
+
+  // Guard: Bendahara+ only (legacy) atau canVerifyPayments (tenant)
+  const isAllowed = activeTenantId ? tenantAccess.canVerifyPayments : isBendaharaOrAbove(role);
+  if (!isAllowed) {
+    const fallbackPath = activeTenantId ? `/t/${activeTenantId}/dashboard` : '/';
+    return <Navigate to={fallbackPath} replace />;
+  }
 
   const handleVerify = async (payment) => {
     if (!canWrite) {
@@ -498,7 +554,11 @@ export default function PaymentVerification() {
     return '';
   }
 
-  const selectedReceiptPreviewUrl = getReceiptPreviewUrl(selectedPayment);
+  const selectedReceiptPreviewUrl =
+    signedProofUrl ||
+    (selectedPayment?.proof_file_url?.startsWith('http')
+      ? getReceiptPreviewUrl(selectedPayment)
+      : null);
   const selectedUnit = selectedPayment
     ? selectedPayment._unit || getUnit(selectedPayment.unit_id || selectedPayment._bill?.unit_id)
     : null;
@@ -721,8 +781,8 @@ export default function PaymentVerification() {
                       <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-xs leading-5 text-slate-400 sm:flex sm:flex-wrap">
                         <span>{payment.method === 'cash' ? '💵 Tunai' : '🏦 Transfer Bank'}</span>
                         <span>📅 {formatDate(payment.paid_at)}</span>
-                        {(payment.proof_file_url || payment.receipt_file) && (
-                          payment.proof_file_url ? (
+                        {(payment.proof_file_url || payment.receipt_file || payment.proof_url || payment.metadata?.proof_path) && (
+                          payment.proof_file_url?.startsWith('http') ? (
                             <a
                               href={payment.proof_file_url}
                               target="_blank"
@@ -732,9 +792,16 @@ export default function PaymentVerification() {
                               <span className="truncate">📎 {payment.proof_file_name || payment.receipt_file || 'Bukti pembayaran'}</span>
                             </a>
                           ) : (
-                            <span className="col-span-2 flex min-w-0 items-center gap-1 text-slate-400 text-xs italic">
-                              <span className="truncate">📎 {payment.proof_file_name || payment.receipt_file || 'Bukti'} (URL tidak tersedia)</span>
-                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedPayment(payment);
+                                setModalMode(payment.status === 'pending_verification' ? 'verify' : 'detail');
+                              }}
+                              className="col-span-2 flex min-w-0 items-center gap-1 text-slate-700 font-semibold hover:underline text-left cursor-pointer"
+                            >
+                              <span className="truncate">📎 {payment.proof_file_name || payment.receipt_file || 'Bukti pembayaran'}</span>
+                            </button>
                           )
                         )}
                       </div>
@@ -874,12 +941,12 @@ export default function PaymentVerification() {
                   </div>
                 </div>
               )}
-              {(selectedPayment.proof_file_url || selectedPayment.receipt_file) && (
+              {(selectedPayment.proof_file_url || selectedPayment.receipt_file || selectedPayment.proof_url || selectedPayment.metadata?.proof_path) && (
                 <div className="mt-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
                   <p className="text-xs font-semibold text-slate-700 mb-2">📎 Bukti Transfer</p>
-                  {selectedPayment.proof_file_url ? (
+                  {(signedProofUrl || selectedPayment.proof_file_url?.startsWith('http')) ? (
                     <a
-                      href={selectedPayment.proof_file_url}
+                      href={signedProofUrl || selectedPayment.proof_file_url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="block p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors shadow-xs"
@@ -917,7 +984,14 @@ export default function PaymentVerification() {
                     onClick={() => {
                       const bill = mockIPLBills.find((b) => b.id === selectedPayment.bill_id) || { id: selectedPayment.bill_id, period: selectedPayment.period || '2026-01', amount: selectedPayment.amount };
                       const unit = getUnit(selectedPayment.unit_id || bill.unit_id);
-                      downloadDigitalReceipt({ bill, unit });
+                      downloadDigitalReceipt({
+                        bill,
+                        unit,
+                        tenantName: activeTenant?.name,
+                        billLabel: template?.billLabel,
+                        unitLabel: template?.unitLabel,
+                        schemaName: getIPLSchemaById(unit?.ipl_schema_id)?.name,
+                      });
                     }}
                     className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-xs hover:bg-slate-50 transition-colors"
                   >
@@ -990,7 +1064,7 @@ export default function PaymentVerification() {
             <form onSubmit={handleUpdatePayment} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-forest-700 mb-1">
-                  {template.unitLabel} {currentTenant?.name || ''} *
+                  {template.unitLabel} {activeTenant?.name || ''} *
                 </label>
                 <select
                   value={paymentForm.unit_id}
@@ -1100,7 +1174,7 @@ export default function PaymentVerification() {
           <div className="pv-dialog-panel">
             <h2 className="text-lg font-bold text-red-700 mb-1">Tolak Pembayaran</h2>
             <p className="mb-4 break-words text-sm leading-5 text-forest-500">
-              Tolak bukti transfer dari <strong>{(selectedPayment._profile || getResident(selectedPayment.resident_id))?.full_name}</strong>.
+              Tolak bukti transfer dari <strong>{(selectedPayment._profile || getResident(selectedPayment.resident_id))?.full_name || 'Warga'}</strong>.
               Warga akan dapat mengirim ulang bukti baru atau membatalkan pembayaran.
             </p>
 

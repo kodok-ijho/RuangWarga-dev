@@ -395,6 +395,11 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
               total={150000}
               canUseQris={false} // force bank transfer
               billLabel="IPL"
+              bankAccount={{
+                bank_name: 'BCA',
+                account_number: '1234567890',
+                account_holder: 'Kas RT',
+              }}
               onConfirm={() => {}}
               onClose={() => {}}
             />
@@ -405,6 +410,127 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
       expect(html).toContain('Transfer Bank');
       expect(html).toContain('Unggah Bukti Transfer');
       expect(html).toContain('Pilih File Bukti Transfer');
+    });
+
+    it('20a. payment flow modal dengan rekening terisi — menampilkan nomor rekening, nama bank, atas nama, dan form unggah bukti', () => {
+      const html = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <PaymentFlowModal
+              open={true}
+              bills={[{ id: 'b1', period: '2026-09', amount: 150000 }]}
+              total={150000}
+              canUseQris={false}
+              billLabel="IPL"
+              bankAccount={{
+                bank_name: 'BCA',
+                account_number: '8830123456',
+                account_holder: 'Kas RT 05 Palm Village',
+              }}
+              onConfirm={() => {}}
+              onClose={() => {}}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      expect(html).toContain('Bank BCA');
+      expect(html).toContain('8830123456');
+      expect(html).toContain('Kas RT 05 Palm Village');
+      expect(html).toContain('Salin Nomor Rekening');
+      expect(html).toContain('Unggah Bukti Transfer');
+      expect(html).toContain('Pilih File Bukti Transfer');
+      expect(html).toContain('Kirim Bukti Transfer');
+    });
+
+    it('20b. payment flow modal tanpa rekening — menyembunyikan form unggah bukti dan menampilkan peringatan rekening belum tersedia', () => {
+      const html = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <PaymentFlowModal
+              open={true}
+              bills={[{ id: 'b1', period: '2026-09', amount: 150000 }]}
+              total={150000}
+              canUseQris={false}
+              billLabel="IPL"
+              bankAccount={null}
+              onConfirm={() => {}}
+              onClose={() => {}}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      expect(html).toContain('Rekening Transfer Belum Tersedia');
+      expect(html).toContain('Pengelola belum mencantumkan rekening bank tujuan pembayaran');
+      expect(html).not.toContain('Unggah Bukti Transfer');
+      expect(html).not.toContain('Pilih File Bukti Transfer');
+      expect(html).toContain('Rekening Belum Tersedia');
+    });
+
+    it('20c. payment flow modal tanpa flag legacy_qris_enabled — opsi QRIS tidak dirender dan modal mulai di bank_transfer', () => {
+      const html = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <PaymentFlowModal
+              open={true}
+              bills={[{ id: 'b1', period: '2026-09', amount: 150000 }]}
+              total={150000}
+              billLabel="IPL"
+              tenant={{
+                id: 'tenant-no-qris',
+                name: 'Kos Bunga Melati',
+                settings: {
+                  bank_account: {
+                    bank_name: 'BCA',
+                    account_number: '1234567890',
+                    account_holder: 'Pengelola',
+                  },
+                },
+              }}
+              onConfirm={() => {}}
+              onClose={() => {}}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      expect(html).not.toContain('QRIS Otomatis');
+      expect(html).toContain('Transfer Bank');
+      expect(html).toContain('Rekening Tujuan Transfer');
+    });
+
+    it('20d. payment flow modal dengan flag legacy_qris_enabled: true — opsi QRIS tampil dan aktif', () => {
+      const html = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <PaymentFlowModal
+              open={true}
+              bills={[{ id: 'b1', period: '2026-09', amount: 150000 }]}
+              total={150000}
+              billLabel="IPL"
+              tenant={{
+                id: 'demo-tenant-rtrw',
+                name: 'Palm Village RT 05',
+                settings: {
+                  legacy_qris_enabled: true,
+                  bank_account: {
+                    bank_name: 'BCA',
+                    account_number: '8830123456',
+                    account_holder: 'Kas RT 05',
+                  },
+                },
+              }}
+              onConfirm={() => {}}
+              onClose={() => {}}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      expect(html).toContain('QRIS Otomatis');
+      expect(html).toContain('Transfer Bank');
+      expect(html).toContain('Biaya Transaksi QRIS (MDR 0,7%)');
     });
 
     it('21. empty history — menampilkan status kosong yang jelas tanpa baris palsu', () => {
@@ -682,8 +808,8 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
       }
     });
 
-    // 3. billing update failure on payment submission -> rolls back/deletes inserted payment and throws error
-    it('3. billing update failure on payment submission -> rolls back/deletes inserted payment and throws error', async () => {
+    // 3. payment submission handles 23505 and 22023 constraint errors from trigger / unique index
+    it('3. payment submission handles 23505 and 22023 constraint errors from trigger / unique index', async () => {
       const billData = {
         id: 'bill-test-3',
         amount: 150000,
@@ -691,9 +817,6 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
         member_id: 'member-3',
         status: 'unpaid',
       };
-
-      let deletedPaymentId = null;
-      const simulatedBillingError = new Error('Database deadlock on billing update');
 
       const spy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
         if (table === 'billing_items') {
@@ -705,29 +828,16 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
                 }),
               }),
             }),
-            update: () => ({
-              eq: () => ({
-                eq: async () => ({ error: simulatedBillingError }),
-              }),
-            }),
           };
         }
         if (table === 'payments') {
           return {
-            insert: (rows) => ({
+            insert: () => ({
               select: () => ({
                 single: async () => ({
-                  data: { id: 'pay-rollback-3', ...rows[0] },
-                  error: null,
+                  data: null,
+                  error: { code: '23505', message: 'duplicate key value violates unique constraint' },
                 }),
-              }),
-            }),
-            delete: () => ({
-              eq: (field1, val1) => ({
-                eq: async (field2, val2) => {
-                  if (field2 === 'id') deletedPaymentId = val2;
-                  return { error: null };
-                },
               }),
             }),
           };
@@ -740,10 +850,7 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
           submitTenantPayment('tenant-real-1', {
             billId: 'bill-test-3',
           })
-        ).rejects.toThrow('Database deadlock on billing update');
-
-        // Memastikan payment di-rollback (dihapus)
-        expect(deletedPaymentId).toBe('pay-rollback-3');
+        ).rejects.toThrow('Tagihan ini sudah dibayar atau sedang diverifikasi.');
       } finally {
         spy.mockRestore();
       }
