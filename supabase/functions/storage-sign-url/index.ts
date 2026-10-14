@@ -48,7 +48,7 @@ serve(async (req) => {
     const {
       data: { user },
       error: userError,
-    } = await userClient.auth.getUser();
+    } = await userClient.auth.getUser(authHeader.replace(/^Bearer\s+/i, ""));
 
     if (userError || !user) {
       return new Response(
