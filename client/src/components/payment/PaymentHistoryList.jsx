@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, StatusBadge, Dialog, Button, EmptyState } from '../ui';
 import { formatRupiah, formatDate, formatPeriod } from '../../services/dataHelpers';
+import { supabase } from '../../services/supabaseClient';
+import { createReceiptSignedUrl, isValidPaymentProofPath } from '../../utils/storagePolicy';
 import {
   AiOutlineHistory,
   AiOutlineFileText,
@@ -34,7 +36,40 @@ export function PaymentHistoryList({
   className = '',
 }) {
   const [selectedItem, setSelectedItem] = useState(initialSelectedItem);
+  const [signedUrl, setSignedUrl] = useState(null);
+  const [proofError, setProofError] = useState(null);
   const billLabel = template?.billLabel || 'Tagihan';
+
+  const rawProof = selectedItem?.proofUrl;
+  const isDirectUrl = typeof rawProof === 'string' && (rawProof.startsWith('http://') || rawProof.startsWith('https://'));
+  const isCanonical = typeof rawProof === 'string' && isValidPaymentProofPath(rawProof);
+
+  useEffect(() => {
+    let isCancelled = false;
+    setSignedUrl(null);
+    setProofError(null);
+
+    const proofPath = selectedItem?.proofUrl;
+
+    if (proofPath && typeof proofPath === 'string' && isValidPaymentProofPath(proofPath)) {
+      createReceiptSignedUrl(supabase, proofPath, 300, 'payment-proofs')
+        .then((url) => {
+          if (!isCancelled) {
+            setSignedUrl(url);
+          }
+        })
+        .catch((err) => {
+          if (!isCancelled) {
+            setSignedUrl(null);
+            setProofError(err?.message || 'Gagal memuat bukti pembayaran.');
+          }
+        });
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedItem]);
 
   // Gabungkan payment dengan bill terkait jika ada (tanpa fake status default!)
   const historyItems = (payments || []).map((pay) => {
@@ -227,21 +262,50 @@ export function PaymentHistoryList({
                 <span className="text-xs font-bold text-slate-700 block">
                   Lampiran Bukti Pembayaran:
                 </span>
-                <div className="p-2 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+                <div className="p-2 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <AiOutlineFileText className="text-lg text-slate-500 shrink-0" />
                     <span className="text-xs text-slate-700 truncate font-medium">
                       {selectedItem.proofFileName || `Bukti_Transfer_${selectedItem.period || 'file'}.jpg`}
                     </span>
                   </div>
-                  <a
-                    href={selectedItem.proofUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs font-bold text-slate-900 hover:text-slate-700 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-xs min-h-[36px]"
-                  >
-                    <span>Buka</span>
-                  </a>
+                  {isDirectUrl ? (
+                    <a
+                      href={rawProof}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-bold text-slate-900 hover:text-slate-700 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-xs min-h-[36px] shrink-0"
+                    >
+                      <span>Buka</span>
+                    </a>
+                  ) : isCanonical ? (
+                    signedUrl ? (
+                      <a
+                        href={signedUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-bold text-slate-900 hover:text-slate-700 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-xs min-h-[36px] shrink-0"
+                      >
+                        <span>Buka</span>
+                      </a>
+                    ) : proofError ? (
+                      <span className="text-[11px] text-red-600 font-medium text-right shrink-0">
+                        Bukti tidak dapat dibuka: {proofError}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        className="inline-flex items-center gap-1 text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 shadow-xs min-h-[36px] shrink-0 cursor-not-allowed"
+                      >
+                        <span>Memuat…</span>
+                      </button>
+                    )
+                  ) : (
+                    <span className="text-[11px] text-slate-500 font-medium text-right shrink-0">
+                      Bukti tidak tersedia
+                    </span>
+                  )}
                 </div>
               </div>
             ) : selectedItem.proofFileName ? (
