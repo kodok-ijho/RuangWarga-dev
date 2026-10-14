@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTenant } from './useTenant';
 
@@ -52,12 +52,25 @@ export function useSubscriptionGate(options = {}) {
     return 'Layanan sedang dalam pemeliharaan sistem. Silakan hubungi pengurus atau pengelola Anda.';
   }, [isReadOnly, isStaff, actionName]);
 
-  const redirectToRenewal = () => {
+  const redirectToRenewal = useCallback(() => {
     const tid = activeTenant?.id || activeTenantId;
     if (tid) {
       navigate(`/account/choose-plan?tenantId=${tid}`);
     }
-  };
+  }, [activeTenant?.id, activeTenantId, navigate]);
+
+  const guardAction = useCallback(
+    (fn) => {
+      if (canTransact) {
+        return typeof fn === 'function' ? fn() : undefined;
+      }
+      if (isStaff) {
+        redirectToRenewal();
+      }
+      return undefined;
+    },
+    [canTransact, isStaff, redirectToRenewal]
+  );
 
   return {
     canTransact,
@@ -66,5 +79,6 @@ export function useSubscriptionGate(options = {}) {
     isTenantAdmin,
     tooltip,
     redirectToRenewal,
+    guardAction,
   };
 }
