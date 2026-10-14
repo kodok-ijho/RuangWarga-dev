@@ -11,7 +11,6 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../hooks/useTenant';
 import { useTenantTemplate } from '../../hooks/useTenantTemplate';
 import { useSubscriptionGate } from '../../hooks/useSubscriptionGate';
-import TrialCountdownBanner from '../../components/TrialCountdownBanner';
 import { MONTHS_LONG } from '../../services/dataHelpers';
 import { fetchTenantDashboardData } from '../../services/tenantOperationalService';
 import { Button, StatusBadge } from '../../components/ui';
@@ -194,9 +193,7 @@ export default function TenantDashboard() {
           </div>
         </header>
 
-        {/* ── 2. CONTEXTUAL SYSTEM BANNERS (Trial, Read-Only, Setup) ────────── */}
-        <TrialCountdownBanner tenantId={tenantId} />
-
+        {/* ── 2. CONTEXTUAL SYSTEM BANNERS (Read-Only, Setup) ────────── */}
         {isReadOnly && (
           <div
             role="status"

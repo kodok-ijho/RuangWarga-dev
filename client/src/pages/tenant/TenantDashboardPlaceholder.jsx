@@ -11,7 +11,6 @@ import {
 } from 'react-icons/ai';
 import { useTenant } from '../../hooks/useTenant';
 import { useTenantTemplate } from '../../hooks/useTenantTemplate';
-import TrialCountdownBanner from '../../components/TrialCountdownBanner';
 import { fetchTenantInviteCode, getCachedTenantInviteCode } from '../../services/tenantOperationalService';
 
 export default function TenantDashboardPlaceholder() {
@@ -147,9 +146,6 @@ export default function TenantDashboardPlaceholder() {
             </div>
           </div>
         </div>
-
-        {/* Trial Countdown Banner (T4.3) */}
-        <TrialCountdownBanner tenantId={tenantId} />
 
         {/* Setup Wizard Warning Banner jika belum selesai (T6.2) */}
         {isTenantAdmin && !activeTenant?.settings?.onboarding_completed && (
