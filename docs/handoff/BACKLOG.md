@@ -1,6 +1,6 @@
 # Backlog (belum untuk dikerjakan executor)
 
-Urutan rencana: **SEC-1 ✅ → SEC-2 ✅ (sudah di dev) → PAY-2 ✅ → PAY-2F ✅ → PAY-1 + PAY-1F ✅ (di dev; deploy menunggu akun DOKU) → SEC-3 ✅ → SEC-3F ✅ → BRAND-1 ✅ → BRAND-1F ✅ → DEBT-1 ✅ → DEBT-1F ✅ → SEC-4 ✅ (di dev) → fase B: AUDIT-RTRW ✅ → SEC-5 ✅ (di dev) → RTRW-1 ✅ → RTRW-1F (aktif) → RTRW-2 → RTRW-3 → audit Kos/Arisan/Kelas → dashboard Platform**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
+Urutan rencana: **SEC-1 ✅ → SEC-2 ✅ (sudah di dev) → PAY-2 ✅ → PAY-2F ✅ → PAY-1 + PAY-1F ✅ (di dev; deploy menunggu akun DOKU) → SEC-3 ✅ → SEC-3F ✅ → BRAND-1 ✅ → BRAND-1F ✅ → DEBT-1 ✅ → DEBT-1F ✅ → SEC-4 ✅ (di dev) → fase B: AUDIT-RTRW ✅ → SEC-5 ✅ (di dev) → RTRW-1 ✅ → RTRW-1F ✅ → STOR-1 ✅ (R2, di dev) → JOIN-1F/GATE-1F/NAV-1/UI-1F ✅ → RTRW-2 → RTRW-3 → audit Kos/Arisan/Kelas → dashboard Platform**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
 
 ## Keputusan user yang mengikat
 - Palm Village **tetap tenant**. Branding-nya (nama, logo, warna, peta) hanya dari data tenant dan hanya tampil di `/t/:tenantId`. Lapisan global (login, beranda, `/account`, `/platform`, `/listing`, PWA) netral "RuangWarga".
@@ -19,6 +19,9 @@ Urutan rencana: **SEC-1 ✅ → SEC-2 ✅ (sudah di dev) → PAY-2 ✅ → PAY-2
   - Boleh: **membaca saja** (lihat definisi workflow sebagai referensi, mis. untuk mencontek protokol SNAP DOKU).
   - Berlaku untuk Claude maupun Antigravity. Tidak ada batch n8n di roadmap ini.
 - **Tidak ada rencana memensiunkan n8n** di repo ini. RuangWarga membangun jalur barunya sendiri (Supabase Edge Functions) **berdampingan** dengan n8n, tanpa mengganggunya.
+- **Arah backend RuangWarga: Supabase saja** (user, 2026-10-11). Semua jalur baru dan hasil migrasi memakai Supabase (RLS, RPC, Edge Functions); pemanggilan n8n baru dianggap regresi. n8n tetap hidup untuk Portal Warga dan tidak disentuh.
+- **File (bukti bayar, nota) disimpan di Cloudflare R2** bucket privat, akses lewat Edge Function `storage-upload` / `storage-sign-url` (STOR-1, user 2026-10-12). Opsi Google Drive dengan link publik ditolak.
+- **Warga tidak diblokir membuat tenant**; anggota biasa diarahkan ke dashboard tenant-nya (NAV-1, user 2026-10-14).
 - Penamaan internal **dibiarkan**: class `.pv-*`, nama workflow n8n "PV API", prefix order `PV-QRIS`.
 
 ## PAY-2 — Rekening tenant: isi & tampilkan ke warga  ← berikutnya setelah SEC-2
@@ -55,7 +58,7 @@ Selesai — `DEBT-1.md` + `DEBT-1F.md`, review `DEBT-1-review.md` dan `DEBT-1F-r
 
 ## Fase B — Vertikal RT/RW (dari `AUDIT-RTRW.md`)
 - **SEC-5** ✅ (aktif di dev, `SEC-5-review.md`): join lewat RPC berkode undangan, penjaga kolom `tenant_members`/`tenants`, integritas pembayaran + sinkron status tagihan, bucket privat `payment-proofs`, unique index tagihan IPL.
-- **RTRW-1** ✅ (`RTRW-1-review.md`; perbaikan T1–T3 di `RTRW-1F.md`, aktif): workspace `/t/` memakai izin tenant (bukan `role` n8n); PaymentMatrix/Verifikasi/Laporan/Pengeluaran sepenuhnya Supabase; hapus `CLEANUP_ALL` & tulis n8n dari konteks tenant; Acara & Pengumuman disembunyikan. Keputusan user sudah ada (`questions.md` [AUDIT-RTRW]).
+- **RTRW-1** ✅ (`RTRW-1-review.md`; perbaikan T1–T3 di `RTRW-1F.md` ✅, `RTRW-1F-report.md`): workspace `/t/` memakai izin tenant (bukan `role` n8n); PaymentMatrix/Verifikasi/Laporan/Pengeluaran sepenuhnya Supabase; hapus `CLEANUP_ALL` & tulis n8n dari konteks tenant; Acara & Pengumuman disembunyikan. Keputusan user sudah ada (`questions.md` [AUDIT-RTRW]).
 - **RTRW-2**: kelola warga & unit di Supabase, navigasi tetap di `/t/:tenantId`, SetupWizard tidak menimpa settings/unit.
 - **RTRW-3**: tabel & halaman Pengumuman + Acara multi-tenant.
 - Catatan migrasi Palm Village (nanti): tautkan `tenant_members.user_id` hasil migrasi ke `auth.users` (via email), dedupe pembayaran lama sebelum index `uq_payments_open_per_bill`, isi `logo_url` + `legacy_qris_enabled`.
@@ -68,3 +71,10 @@ di pemilik Portal Warga live (repo lain), bukan di batch RuangWarga.
 - Workflow `PV API - Payments QRIS DOKU Webhook` (aktif, kredensial service role): `authentication: none`, tanpa verifikasi signature DOKU. Siapa pun yang tahu URL-nya bisa mengirim notifikasi palsu dan menandai pembayaran `completed`. Juga mengambil SELURUH baris tabel `payments` tiap request, dan memuat beberapa ID tagihan hardcode.
 - Workflow `PV ADMIN - Cleanup All Transactions` aktif.
 - `api/n8n.js` di repo ini meneruskan request apa pun ke n8n memakai basic auth server, tanpa allowlist path. **Jangan diubah tanpa persetujuan eksplisit user**, karena bisa memutus alur Palm Village.
+
+## Setelah STOR-1 (dari `STOR-1-report.md`)
+- **EDGE-AUTH-1** (perlu persetujuan user, menyentuh pembayaran DOKU): `create-subscription-payment`, `create-listing-payment`, `check-listing-expirations`, `auto-generate-kos-bills` memanggil `auth.getUser()` tanpa token, sehingga selalu 401 bila di-deploy. Ubah ke `getUser(token)` seperti STOR-1F, sebelum fungsi-fungsi itu di-deploy.
+- **AUDIT-VERIFY-1** (perlu persetujuan user, schema + pembayaran): isi `payments.verified_by = auth.uid()` di database saat status menjadi `completed`. Nama di `metadata.verified_by_name` berasal dari browser.
+- **STOR-2**: hapus bucket Supabase lama `payment-proofs` / `expense-receipts` (kosong) beserta policy-nya. Uji manual penolakan file (di atas 5 MB / tipe palsu) dan nota pengeluaran ke R2.
+- **Region Supabase**: project dev ada di Seoul (`ap-northeast-2`). Pertimbangkan project baru di Singapore sebelum ada tenant sungguhan.
+
