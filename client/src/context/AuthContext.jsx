@@ -489,6 +489,7 @@ function useProductionAuth() {
       // ignore
     }
     localStorage.removeItem('pv_active_tenant_id');
+    try { sessionStorage.removeItem('rw_auto_tenant_redirect_done'); } catch (_e) { /* ignore */ }
     setSupabaseUser(null);
     persist(null, null);
   }, [persist]);

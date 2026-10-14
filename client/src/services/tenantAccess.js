@@ -83,3 +83,40 @@ export function computeTenantAccess({
     canManageMembers: hasPerm('manage_members'),
   };
 }
+
+/**
+ * Memeriksa apakah pengguna berstatus anggota biasa di seluruh tenant-nya
+ * (bukan owner, tidak punya izin staf di tenant manapun, dan bukan platform admin).
+ *
+ * @param {object} [params]
+ * @param {Array} [params.userTenants=[]]
+ * @param {boolean} [params.isPlatformAdmin=false]
+ * @returns {boolean}
+ */
+export function isRegularMemberOnly({ userTenants = [], isPlatformAdmin = false } = {}) {
+  if (isPlatformAdmin) return false;
+  if (!Array.isArray(userTenants) || userTenants.length === 0) return false;
+
+  return userTenants.every((t) => {
+    if (!t || t.is_owner) return false;
+    const perms = Array.isArray(t.permissions) ? t.permissions : [];
+    return !perms.some((p) => STAFF_PERMISSIONS.includes(p));
+  });
+}
+
+/**
+ * Menentukan id tenant untuk pengalihan otomatis saat user login.
+ * Mengembalikan tenantId hanya bila user adalah anggota biasa pada tepat 1 tenant.
+ *
+ * @param {object} [params]
+ * @param {Array} [params.userTenants=[]]
+ * @param {boolean} [params.isPlatformAdmin=false]
+ * @returns {string|null}
+ */
+export function getAutoRedirectTenantId({ userTenants = [], isPlatformAdmin = false } = {}) {
+  if (isRegularMemberOnly({ userTenants, isPlatformAdmin }) && userTenants.length === 1) {
+    return userTenants[0]?.id || null;
+  }
+  return null;
+}
+

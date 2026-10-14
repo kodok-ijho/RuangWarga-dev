@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { computeTenantAccess, STAFF_PERMISSIONS } from './tenantAccess';
+import {
+  computeTenantAccess,
+  STAFF_PERMISSIONS,
+  isRegularMemberOnly,
+  getAutoRedirectTenantId,
+} from './tenantAccess';
 
 describe('RTRW-1.1: computeTenantAccess (Pure RBAC v2 Engine)', () => {
   it('menolak seluruh akses bila tidak ada tenant aktif (hasActiveTenant = false)', () => {
@@ -154,5 +159,60 @@ describe('RTRW-1.1: computeTenantAccess (Pure RBAC v2 Engine)', () => {
     expect(access.canWrite).toBe(false); // Blokir mutasi tulis
     expect(access.canViewReports).toBe(true);
     expect(access.canVerifyPayments).toBe(true);
+  });
+});
+
+describe('NAV-1.1: isRegularMemberOnly & getAutoRedirectTenantId', () => {
+  it('1 tenant anggota → isRegularMemberOnly true, getAutoRedirectTenantId mengembalikan id tenant', () => {
+    const userTenants = [
+      { id: 'tenant-warga-1', is_owner: false, role_name: 'Warga', permissions: [] },
+    ];
+    expect(isRegularMemberOnly({ userTenants, isPlatformAdmin: false })).toBe(true);
+    expect(getAutoRedirectTenantId({ userTenants, isPlatformAdmin: false })).toBe('tenant-warga-1');
+  });
+
+  it('1 tenant owner → isRegularMemberOnly false, getAutoRedirectTenantId mengembalikan null', () => {
+    const userTenants = [
+      { id: 'tenant-owner-1', is_owner: true, role_name: 'Ketua RT', permissions: STAFF_PERMISSIONS },
+    ];
+    expect(isRegularMemberOnly({ userTenants, isPlatformAdmin: false })).toBe(false);
+    expect(getAutoRedirectTenantId({ userTenants, isPlatformAdmin: false })).toBe(null);
+  });
+
+  it('anggota dengan permission staf (mis. manage_billing_cash) → isRegularMemberOnly false, getAutoRedirectTenantId null', () => {
+    const userTenants = [
+      {
+        id: 'tenant-bendahara-1',
+        is_owner: false,
+        role_name: 'Bendahara',
+        permissions: ['manage_billing_cash'],
+      },
+    ];
+    expect(isRegularMemberOnly({ userTenants, isPlatformAdmin: false })).toBe(false);
+    expect(getAutoRedirectTenantId({ userTenants, isPlatformAdmin: false })).toBe(null);
+  });
+
+  it('2 tenant anggota → isRegularMemberOnly true, getAutoRedirectTenantId null (karena > 1 tenant)', () => {
+    const userTenants = [
+      { id: 'tenant-warga-1', is_owner: false, role_name: 'Warga', permissions: [] },
+      { id: 'tenant-arisan-2', is_owner: false, role_name: 'Peserta', permissions: [] },
+    ];
+    expect(isRegularMemberOnly({ userTenants, isPlatformAdmin: false })).toBe(true);
+    expect(getAutoRedirectTenantId({ userTenants, isPlatformAdmin: false })).toBe(null);
+  });
+
+  it('platform admin → isRegularMemberOnly false, getAutoRedirectTenantId null', () => {
+    const userTenants = [
+      { id: 'tenant-warga-1', is_owner: false, role_name: 'Warga', permissions: [] },
+    ];
+    expect(isRegularMemberOnly({ userTenants, isPlatformAdmin: true })).toBe(false);
+    expect(getAutoRedirectTenantId({ userTenants, isPlatformAdmin: true })).toBe(null);
+  });
+
+  it('userTenants kosong → isRegularMemberOnly false, getAutoRedirectTenantId null', () => {
+    expect(isRegularMemberOnly({ userTenants: [], isPlatformAdmin: false })).toBe(false);
+    expect(getAutoRedirectTenantId({ userTenants: [], isPlatformAdmin: false })).toBe(null);
+    expect(isRegularMemberOnly()).toBe(false);
+    expect(getAutoRedirectTenantId()).toBe(null);
   });
 });

@@ -16,6 +16,7 @@ import {
   AiOutlineCalendar,
   AiOutlineFileText,
   AiOutlineSafetyCertificate,
+  AiOutlinePlusCircle,
 } from 'react-icons/ai';
 import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../hooks/useTenant';
@@ -244,6 +245,16 @@ export default function TenantShell() {
                     }}
                   >
                     Portal Akun (Ganti Komunitas)
+                  </DropdownItem>
+
+                  <DropdownItem
+                    icon={AiOutlinePlusCircle}
+                    onClick={() => {
+                      close();
+                      navigate('/onboarding/choose-type');
+                    }}
+                  >
+                    Buka Layanan Sendiri
                   </DropdownItem>
 
                   {(isOwner || hasPermission('manage_settings')) && (

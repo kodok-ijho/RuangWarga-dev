@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   AiOutlinePlus,
@@ -14,6 +14,7 @@ import {
 } from 'react-icons/ai';
 import { useAuth, IS_DEMO_MODE } from '../hooks/useAuth';
 import { useTenant } from '../hooks/useTenant';
+import { isRegularMemberOnly, getAutoRedirectTenantId } from '../services/tenantAccess';
 import BrandLogo from '../components/BrandLogo';
 import { TENANT_TYPE_OPTIONS } from './onboarding/ChooseTenantType';
 import { getTenantTemplate } from '../config/tenantTemplates';
@@ -360,6 +361,36 @@ function AuthenticatedWorkspaceHub() {
     refreshTenant,
   } = useTenant();
 
+  const hasAttemptedRedirectRef = useRef(false);
+
+  useEffect(() => {
+    if (loading) return;
+    if (hasAttemptedRedirectRef.current) return;
+
+    const targetTenantId = getAutoRedirectTenantId({ userTenants, isPlatformAdmin });
+    if (!targetTenantId) return;
+
+    let alreadyRedirected = false;
+    try {
+      alreadyRedirected = Boolean(sessionStorage.getItem('rw_auto_tenant_redirect_done'));
+    } catch {
+      // Abaikan error sessionStorage bila akses dibatasi
+    }
+
+    if (alreadyRedirected) return;
+
+    hasAttemptedRedirectRef.current = true;
+    try {
+      sessionStorage.setItem('rw_auto_tenant_redirect_done', '1');
+    } catch {
+      // Abaikan error sessionStorage
+    }
+
+    navigate(`/t/${targetTenantId}/dashboard`, { replace: true });
+  }, [loading, userTenants, isPlatformAdmin, navigate]);
+
+  const isRegularMember = isRegularMemberOnly({ userTenants, isPlatformAdmin });
+
   const handleSelectTenant = (tenantId) => {
     switchTenant(tenantId);
     navigate(`/t/${tenantId}/dashboard`);
@@ -497,13 +528,22 @@ function AuthenticatedWorkspaceHub() {
                 <span className="hidden sm:inline">Segarkan</span>
               </button>
 
-              <Link
-                to="/onboarding/choose-type"
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition"
-              >
-                <AiOutlinePlus className="text-sm font-bold" />
-                <span>Daftarkan Tenant Baru</span>
-              </Link>
+              {isRegularMember ? (
+                <Link
+                  to="/onboarding/choose-type"
+                  className="text-xs sm:text-sm text-slate-500 hover:text-slate-900 transition font-medium"
+                >
+                  Punya kos, arisan, atau kelas sendiri? Buka layanan sendiri →
+                </Link>
+              ) : (
+                <Link
+                  to="/onboarding/choose-type"
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition"
+                >
+                  <AiOutlinePlus className="text-sm font-bold" />
+                  <span>Daftarkan Tenant Baru</span>
+                </Link>
+              )}
             </div>
           </div>
 
