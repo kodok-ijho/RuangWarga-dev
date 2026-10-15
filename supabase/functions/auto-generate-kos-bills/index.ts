@@ -64,7 +64,7 @@ serve(async (req) => {
       const {
         data: { user },
         error: userError,
-      } = await userClient.auth.getUser();
+      } = await userClient.auth.getUser(token);
 
       if (userError || !user) {
         return new Response(
