@@ -1,6 +1,6 @@
 # RTRW-2: Kelola warga, unit, dan pengaturan tenant di Supabase
 
-Status: **draft, menunggu persetujuan user** (2026-10-15).
+Status: **disetujui user 2026-10-15** ("perdalam RT/RW dulu"), termasuk task 2.6 Jabatan Pengurus.
 Sumber: `AUDIT-RTRW.md` F6, F10, F11, dan F12. Keputusan user 2026-10-15: **penghuni dicatat per unit**.
 
 ## Requirement
@@ -27,10 +27,22 @@ Sumber: `AUDIT-RTRW.md` F6, F10, F11, dan F12. Keputusan user 2026-10-15: **peng
    - Link "Kelola Unit" di `StaffDashboard` (`/houses`) diarahkan ke `/t/:id/units`.
    - "Pengaturan Komunitas" di `TenantShell` (dua tempat) diarahkan ke `/t/:id/settings`.
    - Kartu acara `/events/*` tidak dirender di konteks tenant. Acara sudah disembunyikan di RTRW-1.2, jadi cukup pastikan saja.
-5. **SetupWizard** (F11):
+5. **Jabatan pengurus** (RTRW-2.6):
+   - Menu "Jabatan & Hak Akses" ke halaman `/t/:id/roles` yang sudah ada (ManageRoles), untuk owner atau `manage_tenant_users`.
+   - Tombol "Atur Jabatan" per anggota ke `/t/:id/members/:id/role` (AssignMemberRole), dan label jabatan di daftar warga.
+   - Tombol "Gunakan Template Jabatan RT/RW" yang membuat jabatan berikut bila belum ada (berdasarkan nama, case-insensitive):
+     | Jabatan | Izin |
+     |---|---|
+     | Ketua RT/RW | manage_members, manage_settings, generate_billing, manage_billing_cash, manage_billing_transfer, manage_expenses, view_reports |
+     | Sekretaris | manage_members, view_reports, post_listing |
+     | Bendahara | generate_billing, manage_billing_cash, manage_billing_transfer, manage_expenses, view_reports |
+     | Koordinator Blok | manage_billing_cash, view_reports |
+   - `manage_tenant_users` (atur jabatan) tetap hanya dimiliki owner/Admin.
+   - Label izin dalam Bahasa Indonesia yang mudah dipahami.
+6. **SetupWizard** (F11):
    - Menyimpan settings dengan **merge** ke settings yang ada. `logo_url`, `legacy_qris_enabled`, dan kunci lain tidak hilang.
    - Menjalankan wizard ulang **tidak membuat unit ganda**: label yang sudah ada (case-insensitive dan di-trim) dilewati.
-6. Semua fitur di atas tetap jalan di mode demo, dan isolasi tenant dijaga RLS. **Tidak ada migration.**
+7. Semua fitur di atas tetap jalan di mode demo, dan isolasi tenant dijaga RLS. **Tidak ada migration.**
 
 ## Plan
 | Task | Isi |
@@ -40,6 +52,7 @@ Sumber: `AUDIT-RTRW.md` F6, F10, F11, dan F12. Keputusan user 2026-10-15: **peng
 | RTRW-2.3 | Halaman baru Unit (`/t/:id/units`) dan rute di `App.jsx` dengan `TenantAccessGuard`/`TenantPermissionGuard` (`manage_settings`). Link "Kelola Unit" diarahkan ke halaman ini. |
 | RTRW-2.4 | Halaman Pengaturan tenant (`/t/:id/settings`), dibuat dengan memecah bagian tenant dari `Settings.jsx` atau membuat komponen baru. Link "Pengaturan Komunitas" diarahkan ke halaman ini. |
 | RTRW-2.5 | SetupWizard: merge settings dan dedupe unit. |
+| RTRW-2.6 | Jabatan pengurus: menu, tombol Atur Jabatan, label jabatan, template jabatan RT/RW, dan label izin Bahasa Indonesia. |
 
 Setiap task berjalan dalam satu panggilan agy dan satu commit, lalu QA dengan `VITE_DEMO_MODE=false npx vitest run`, `npm run build`, dan `npm run lint`. Setelah itu push ke production, lalu uji manual oleh user.
 

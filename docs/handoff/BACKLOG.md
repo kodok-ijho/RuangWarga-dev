@@ -77,4 +77,4 @@ di pemilik Portal Warga live (repo lain), bukan di batch RuangWarga.
 - **AUDIT-VERIFY-1** (perlu persetujuan user, schema + pembayaran): isi `payments.verified_by = auth.uid()` di database saat status menjadi `completed`. Nama di `metadata.verified_by_name` berasal dari browser.
 - **STOR-2**: hapus bucket Supabase lama `payment-proofs` / `expense-receipts` (kosong) beserta policy-nya. Uji manual penolakan file (di atas 5 MB / tipe palsu) dan nota pengeluaran ke R2.
 - **Region Supabase**: project dev ada di Seoul (`ap-northeast-2`). Pertimbangkan project baru di Singapore sebelum ada tenant sungguhan.
-
+- **Ide vertikal** (Kos, Kelas, Arisan, lintas vertikal, pendalaman RT/RW): `VERTIKAL-requirement.md`. Belum dijadwalkan. Urutan: RT/RW, audit Kos/Arisan/Kelas, Kos, Kelas, Arisan.
