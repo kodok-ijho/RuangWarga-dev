@@ -15,8 +15,10 @@ const EXPECTED_EXPORTS = [
   "createTenantBillingItem",
   "createTenantExpense",
   "createTenantRole",
+  "createTenantUnit",
   "deleteTenantExpense",
   "deleteTenantRole",
+  "deleteTenantUnit",
   "drawArisanWinner",
   "enrollArisanParticipants",
   "fetchArisanCandidates",
@@ -45,30 +47,37 @@ const EXPECTED_EXPORTS = [
   "getCachedTenantInviteCode",
   "getInviteDetails",
   "getTenantBankAccount",
+  "importTenantUnitsCSV",
   "isLegacyQrisEnabled",
   "normalizeBankAccount",
+  "normalizeOccupant",
+  "parseUnitsCsv",
   "payArisanBillManual",
   "pickBankAccountForForm",
   "rejectTenantMember",
   "rejectTenantPayment",
+  "removeTenantMember",
   "requestJoinTenant",
   "resolveCitizenObligationAndUnit",
   "saveInviteCodeWithRetry",
   "saveTenantBankAccount",
   "saveTenantInviteCode",
+  "setTenantUnitStatus",
   "startNewArisanCycle",
   "submitTenantPayment",
   "updateTenantExpense",
+  "updateTenantMember",
   "updateTenantPayment",
   "updateTenantProfileAndSettings",
   "updateTenantRole",
+  "updateTenantUnit",
   "verifyTenantPayment",
 ];
 
 describe('tenantOperationalService Exports Guard (DEBT-1.4)', () => {
-  it('harus mengekspor 61 fungsi/konstanta yang sama persis', () => {
+  it('harus mengekspor 70 fungsi/konstanta yang sama persis', () => {
     const exportsList = Object.keys(tenantOperationalService).sort();
     expect(exportsList).toEqual(EXPECTED_EXPORTS);
-    expect(exportsList.length).toBe(61);
+    expect(exportsList.length).toBe(70);
   });
 });

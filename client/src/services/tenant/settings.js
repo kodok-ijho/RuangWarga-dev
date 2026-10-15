@@ -146,7 +146,28 @@ export async function updateTenantProfileAndSettings(tenantId, { name, address, 
   if (name !== undefined) payload.name = name.trim();
   if (address !== undefined) payload.address = address ? address.trim() : null;
   if (contact_phone !== undefined) payload.contact_phone = contact_phone ? contact_phone.trim() : null;
-  if (settings !== undefined) payload.settings = settings;
+
+  if (settings !== undefined) {
+    let oldSettings = {};
+    if (IS_DEMO || String(tenantId).startsWith('demo-')) {
+      const details = await fetchTenantDetails(tenantId);
+      oldSettings = (details && details.settings) || {};
+    } else {
+      const { data: currentTenant, error: fetchError } = await supabase
+        .from('tenants')
+        .select('settings')
+        .eq('id', tenantId)
+        .single();
+
+      if (fetchError) {
+        // eslint-disable-next-line no-console
+        console.error('[tenantOperationalService] updateTenantProfileAndSettings fetch error:', fetchError);
+        throw fetchError;
+      }
+      oldSettings = (currentTenant && currentTenant.settings) || {};
+    }
+    payload.settings = { ...oldSettings, ...settings };
+  }
 
   if (IS_DEMO || String(tenantId).startsWith('demo-')) {
     return { id: tenantId, ...payload };
