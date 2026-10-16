@@ -33,6 +33,8 @@ export function ResidentDetailDrawer({
   onClose,
   onEdit,
   onDelete,
+  deleteLabel = 'Hapus',
+  canDelete = true,
 }) {
   if (!profile) return null;
 
@@ -182,14 +184,16 @@ export function ResidentDetailDrawer({
                 Edit
               </Button>
 
-              <Button
-                variant="danger"
-                onClick={onDelete}
-                icon={AiOutlineDelete}
-                className="text-xs"
-              >
-                Hapus
-              </Button>
+              {canDelete && (
+                <Button
+                  variant="danger"
+                  onClick={onDelete}
+                  icon={AiOutlineDelete}
+                  className="text-xs"
+                >
+                  {deleteLabel}
+                </Button>
+              )}
             </>
           )}
         </div>

@@ -11,6 +11,7 @@ import {
 import Papa from 'papaparse';
 import { useAuth } from '../hooks/useAuth';
 import { useTenant } from '../hooks/useTenant';
+import { useTenantAccess } from '../hooks/useTenantAccess';
 import { useTenantTemplate } from '../hooks/useTenantTemplate';
 import { useToast } from '../hooks/useToast';
 import { useTour } from '../context/TourContext';
@@ -26,6 +27,10 @@ import {
 import {
   fetchTenantMembers,
   fetchTenantUnits,
+  updateTenantMember,
+  removeTenantMember,
+  fetchTenantInviteCode,
+  getCachedTenantInviteCode,
 } from '../services/tenantOperationalService';
 import {
   canModifyData,
@@ -55,8 +60,9 @@ import { ResidentDetailDrawer } from '../components/residents/ResidentDetailDraw
 export default function Residents() {
   const params = useParams();
   const { role, token } = useAuth();
-  const { activeTenant: contextActiveTenant, userTenants } = useTenant();
-  const activeTenantId = params.tenantId || contextActiveTenant?.id || userTenants?.[0]?.id || null;
+  const { activeTenant: contextActiveTenant, userTenants, activeTenantId: contextTenantId } = useTenant();
+  const tenantAccess = useTenantAccess();
+  const activeTenantId = params.tenantId || contextTenantId || contextActiveTenant?.id || userTenants?.[0]?.id || null;
   const activeTenant = contextActiveTenant?.id === activeTenantId
     ? contextActiveTenant
     : (userTenants || []).find((t) => t.id === activeTenantId) || null;
@@ -64,7 +70,9 @@ export default function Residents() {
 
   const toast = useToast();
   const { triggerTour } = useTour();
-  const canManage = canModifyData(role);
+  const canManage = activeTenantId
+    ? Boolean(tenantAccess.canManageMembers && tenantAccess.canWrite)
+    : canModifyData(role);
 
   // Data states
   const [profiles, setProfiles] = useState([]);
@@ -88,9 +96,10 @@ export default function Residents() {
   const [pageSize, setPageSize] = useState(10);
   const [selectedId, setSelectedId] = useState(null);
 
-  // State untuk CRUD & upload
+  // State untuk CRUD, upload & invite
   const [modalAddEdit, setModalAddEdit] = useState(null); // null | 'add' | profile obj
   const [modalUpload, setModalUpload] = useState(false);
+  const [modalInvite, setModalInvite] = useState(false);
 
   // Reset all transient state on tenant switch
   useEffect(() => {
@@ -104,6 +113,7 @@ export default function Residents() {
     setCurrentPage(1);
     setModalAddEdit(null);
     setModalUpload(false);
+    setModalInvite(false);
     setProfiles([]);
     setUnits([]);
     setLoadError(null);
@@ -115,7 +125,7 @@ export default function Residents() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      if (targetTenantId && !String(targetTenantId).startsWith('demo-')) {
+      if (targetTenantId) {
         const [members, tenantUnits] = await Promise.all([
           fetchTenantMembers(targetTenantId),
           fetchTenantUnits(targetTenantId),
@@ -283,30 +293,48 @@ export default function Residents() {
   // ── Handlers ──────────────────────────────────────────
   const handleSaveProfile = async (data) => {
     if (!canManage) {
-      toast.error('Hanya Pengurus, Bendahara, atau Admin yang dapat menambah/mengubah data warga.');
+      toast.error(
+        activeTenantId
+          ? 'Anda tidak memiliki hak untuk mengelola anggota.'
+          : 'Hanya Pengurus, Bendahara, atau Admin yang dapat menambah/mengubah data warga.'
+      );
       return;
     }
     setIsSaving(true);
     try {
-      if (modalAddEdit === 'add') {
-        const payload = {
-          ...data,
+      if (activeTenantId) {
+        // Mode Tenant
+        await updateTenantMember(activeTenantId, data.id, {
+          full_name: data.full_name,
+          phone: data.phone,
           unit_id: data.unit_id ? Number(data.unit_id) : null,
-          is_active: data.is_active ?? true,
-        };
-        await createResident(token, payload);
-        toast.success(`Warga "${data.full_name}" berhasil ditambahkan.`);
+          occupancy_status: data.occupancy_status || null,
+        });
+        toast.success(`Data ${template.memberLabel.toLowerCase()} "${data.full_name}" berhasil diperbarui.`);
+        await loadData();
+        setModalAddEdit(null);
       } else {
-        // edit
-        const payload = {
-          ...data,
-          unit_id: data.unit_id ? Number(data.unit_id) : null,
-        };
-        await updateResident(token, data.id, payload);
-        toast.success(`Data warga "${data.full_name}" berhasil diperbarui.`);
+        // Mode Legacy Portal Warga
+        if (modalAddEdit === 'add') {
+          const payload = {
+            ...data,
+            unit_id: data.unit_id ? Number(data.unit_id) : null,
+            is_active: data.is_active ?? true,
+          };
+          await createResident(token, payload);
+          toast.success(`Warga "${data.full_name}" berhasil ditambahkan.`);
+        } else {
+          // edit
+          const payload = {
+            ...data,
+            unit_id: data.unit_id ? Number(data.unit_id) : null,
+          };
+          await updateResident(token, data.id, payload);
+          toast.success(`Data warga "${data.full_name}" berhasil diperbarui.`);
+        }
+        await loadData();
+        setModalAddEdit(null);
       }
-      await loadData();
-      setModalAddEdit(null);
     } catch (err) {
       toast.error(err.message || 'Gagal menyimpan data warga.');
       console.error(err);
@@ -323,9 +351,39 @@ export default function Residents() {
 
   const handleDelete = async (profile) => {
     if (!canManage) {
-      toast.error('Hanya Pengurus, Bendahara, atau Admin yang dapat menghapus data warga.');
+      toast.error(
+        activeTenantId
+          ? 'Anda tidak memiliki hak untuk mengelola anggota.'
+          : 'Hanya Pengurus, Bendahara, atau Admin yang dapat menghapus data warga.'
+      );
       return;
     }
+
+    if (activeTenantId) {
+      // Mode Tenant
+      if (profile.is_owner) {
+        toast.error('Pemilik komunitas tidak dapat dikeluarkan.');
+        return;
+      }
+      const confirmMsg = `Keluarkan "${profile.full_name}" dari komunitas? Riwayat pembayarannya tetap tersimpan.`;
+      if (!window.confirm(confirmMsg)) return;
+
+      setIsSaving(true);
+      try {
+        await removeTenantMember(activeTenantId, profile.id);
+        toast.success(`${template.memberLabel} "${profile.full_name}" berhasil dikeluarkan.`);
+        setSelectedId(null);
+        await loadData();
+      } catch (err) {
+        toast.error(err.message || 'Gagal mengeluarkan anggota.');
+        console.error(err);
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+
+    // Mode Legacy Portal Warga
     if (!confirm(`Hapus warga "${profile.full_name}"? Tindakan ini tidak dapat dibatalkan.`)) return;
     setIsSaving(true);
     try {
@@ -372,6 +430,11 @@ export default function Residents() {
   };
 
   const handleImportCSV = async (parsedRows, mode) => {
+    if (activeTenantId) {
+      toast.error('Impor data warga tidak tersedia di halaman ini. Silakan gunakan halaman Unit.');
+      return;
+    }
+
     // Reverse map label → key untuk occupancy_status
     const labelToStatusKey = Object.fromEntries(
       Object.entries(OCCUPANCY_STATUS).map(([k, v]) => [v.toLowerCase(), k])
@@ -454,24 +517,41 @@ export default function Residents() {
           <p className="text-xs text-slate-500 mt-0.5">
             Menampilkan {filteredAndSorted.length} dari {profiles.length} {template.memberLabel.toLowerCase()}
           </p>
+          {activeTenantId && canManage && (
+            <p className="text-[11px] text-slate-500 mt-1">
+              Impor data rumah & penghuni tersedia di halaman Unit.
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {canManage && (
             <>
-              <button
-                type="button"
-                onClick={() => setModalUpload(true)}
-                className="pv-btn-ghost text-xs shadow-xs min-h-[36px]"
-              >
-                <AiOutlineUpload /> Upload CSV
-              </button>
-              <button
-                type="button"
-                onClick={() => setModalAddEdit('add')}
-                className="pv-btn-primary text-xs shadow-xs min-h-[36px]"
-              >
-                <AiOutlinePlus /> Tambah {template.memberLabel}
-              </button>
+              {!activeTenantId ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setModalUpload(true)}
+                    className="pv-btn-ghost text-xs shadow-xs min-h-[36px]"
+                  >
+                    <AiOutlineUpload /> Upload CSV
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalAddEdit('add')}
+                    className="pv-btn-primary text-xs shadow-xs min-h-[36px]"
+                  >
+                    <AiOutlinePlus /> Tambah {template.memberLabel}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setModalInvite(true)}
+                  className="pv-btn-primary text-xs shadow-xs min-h-[36px]"
+                >
+                  <AiOutlineUserAdd /> Undang {template.memberLabel}
+                </button>
+              )}
             </>
           )}
           {canManage && (
@@ -632,13 +712,23 @@ export default function Residents() {
                   Reset Filter & Pencarian
                 </button>
               ) : canManage ? (
-                <button
-                  type="button"
-                  onClick={() => setModalAddEdit('add')}
-                  className="pv-btn-primary text-xs shadow-xs min-h-[44px]"
-                >
-                  <AiOutlinePlus /> Tambah {template.memberLabel}
-                </button>
+                activeTenantId ? (
+                  <button
+                    type="button"
+                    onClick={() => setModalInvite(true)}
+                    className="pv-btn-primary text-xs shadow-xs min-h-[44px]"
+                  >
+                    <AiOutlineUserAdd /> Undang {template.memberLabel}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setModalAddEdit('add')}
+                    className="pv-btn-primary text-xs shadow-xs min-h-[44px]"
+                  >
+                    <AiOutlinePlus /> Tambah {template.memberLabel}
+                  </button>
+                )
               ) : null
             }
           />
@@ -851,40 +941,57 @@ export default function Residents() {
             setSelectedId(null);
           }}
           onDelete={() => handleDelete(selected)}
+          deleteLabel={activeTenantId ? 'Keluarkan' : 'Hapus'}
+          canDelete={canManage && !(activeTenantId && selected?.is_owner)}
         />
       )}
- 
-       {/* Modal add/edit */}
-       {modalAddEdit && canManage && (
-         <ProfileFormModal
-           profile={modalAddEdit === 'add' ? null : modalAddEdit}
-           onSave={handleSaveProfile}
-           onClose={() => setModalAddEdit(null)}
-           isSaving={isSaving}
-           units={units}
-           currentUserRole={role}
-           template={template}
-           activeTenant={activeTenant}
-         />
-       )}
- 
-       {/* Modal upload CSV */}
-       {modalUpload && canManage && (
-         <UploadCSVModal
-           onImport={handleImportCSV}
-           onClose={() => setModalUpload(false)}
-           isSaving={isSaving}
-         />
-       )}
-     </div>
-   );
- }
+
+      {/* Modal add/edit */}
+      {modalAddEdit && canManage && (
+        <ProfileFormModal
+          profile={modalAddEdit === 'add' ? null : modalAddEdit}
+          onSave={handleSaveProfile}
+          onClose={() => setModalAddEdit(null)}
+          isSaving={isSaving}
+          units={units}
+          currentUserRole={role}
+          template={template}
+          activeTenant={activeTenant}
+          isTenantMode={Boolean(activeTenantId)}
+        />
+      )}
+
+      {/* Modal upload CSV */}
+      {modalUpload && canManage && !activeTenantId && (
+        <UploadCSVModal
+          onImport={handleImportCSV}
+          onClose={() => setModalUpload(false)}
+          isSaving={isSaving}
+        />
+      )}
+
+      {/* Modal undang warga (mode tenant) */}
+      {activeTenantId && modalInvite && canManage && (
+        <InviteResidentModal
+          isOpen={modalInvite}
+          onClose={() => setModalInvite(false)}
+          tenantId={activeTenantId}
+          tenantName={activeTenant?.name}
+          memberLabel={template.memberLabel}
+        />
+      )}
+    </div>
+  );
+}
  
  // ── Sub-komponen ──────────────────────────────────────────────────
  
- function DetailModal({ profile, canManage, template, activeTenant, getUnitById, getUnitOwner, onClose, onEdit, onDelete }) {
+ function DetailModal({ profile, canManage, template, activeTenant, activeTenantId, getUnitById, getUnitOwner, onClose, onEdit, onDelete }) {
   const unit = getUnitById(profile.unit_id);
   const owner = profile.occupancy_status === 'tenant' ? getUnitOwner(profile.unit_id) : null;
+  const isOwnerMember = Boolean(activeTenantId && profile.is_owner);
+  const deleteBtnLabel = activeTenantId ? 'Keluarkan' : 'Hapus';
+
   return (
     <Modal open onClose={onClose} title={`Detail ${template?.memberLabel || 'Penghuni'}`}>
       {/* Avatar */}
@@ -928,16 +1035,28 @@ export default function Residents() {
           <button onClick={onEdit} className="pv-btn-ghost flex-1 text-xs">
             <AiOutlineEdit /> Edit
           </button>
-          <button onClick={onDelete} className="pv-btn-danger flex-1 text-xs">
-            <AiOutlineDelete /> Hapus
-          </button>
+          {!isOwnerMember && (
+            <button onClick={onDelete} className="pv-btn-danger flex-1 text-xs">
+              <AiOutlineDelete /> {deleteBtnLabel}
+            </button>
+          )}
         </div>
       )}
     </Modal>
   );
 }
 
-function ProfileFormModal({ profile, onSave, onClose, isSaving, units, currentUserRole, template, activeTenant }) {
+function ProfileFormModal({
+  profile,
+  onSave,
+  onClose,
+  isSaving,
+  units,
+  currentUserRole,
+  template,
+  activeTenant,
+  isTenantMode = false,
+}) {
   const isEdit = !!profile;
   const isKos = activeTenant?.type === 'kos';
   const isKelas = activeTenant?.type === 'kelas';
@@ -954,6 +1073,18 @@ function ProfileFormModal({ profile, onSave, onClose, isSaving, units, currentUs
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.full_name.trim()) return;
+
+    if (isTenantMode) {
+      onSave({
+        ...(profile ? { id: profile.id } : {}),
+        full_name: form.full_name.trim(),
+        phone: form.phone ? form.phone.trim() : '',
+        unit_id: form.unit_id ? Number(form.unit_id) : null,
+        occupancy_status: form.occupancy_status || null,
+      });
+      return;
+    }
+
     let finalEmail = form.email.trim().toLowerCase();
     if (!finalEmail) {
       const rand = Math.random().toString(36).substring(2, 7);
@@ -989,22 +1120,24 @@ function ProfileFormModal({ profile, onSave, onClose, isSaving, units, currentUs
           />
         </Field>
 
-        <Field label="Email Google (Login)">
-          <input
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            placeholder="budi@gmail.com (opsional)"
-            className="pv-input text-xs"
-          />
-          <p className="mt-1 text-[11px] text-slate-500">
-            {isEdit
-              ? 'Warga dapat login mandiri jika email cocok dengan akun Google-nya.'
-              : 'Kosongkan jika warga belum memiliki akun Google. Sistem akan membuat akun sementara.'}
-          </p>
-        </Field>
+        {!isTenantMode && (
+          <Field label="Email Google (Login)">
+            <input
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              placeholder="budi@gmail.com (opsional)"
+              className="pv-input text-xs"
+            />
+            <p className="mt-1 text-[11px] text-slate-500">
+              {isEdit
+                ? 'Warga dapat login mandiri jika email cocok dengan akun Google-nya.'
+                : 'Kosongkan jika warga belum memiliki akun Google. Sistem akan membuat akun sementara.'}
+            </p>
+          </Field>
+        )}
 
         <Field label="Nomor Telepon / WhatsApp">
           <input
@@ -1041,45 +1174,56 @@ function ProfileFormModal({ profile, onSave, onClose, isSaving, units, currentUs
             className="pv-input font-medium"
           >
             <option value="">Pilih Status Tinggal</option>
-            {Object.entries(OCCUPANCY_STATUS).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
+            {isTenantMode ? (
+              <>
+                <option value="owner_occupied">Pemilik</option>
+                <option value="tenant">Penyewa / Kontrak</option>
+              </>
+            ) : (
+              Object.entries(OCCUPANCY_STATUS).map(([k, v]) => (
+                <option key={k} value={k}>{v}</option>
+              ))
+            )}
           </select>
         </Field>
 
-        <Field label="Role Akses">
-          <select
-            value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value })}
-            className="pv-input font-medium"
-          >
-            {currentUserRole === 'admin' && (
-              <>
-                <option value="admin">Admin ({roleLabel('admin', activeTenant?.type)})</option>
-                <option value="bendahara">Bendahara</option>
-                <option value="pengurus">Pengurus ({roleLabel('pengurus', activeTenant?.type)})</option>
-              </>
-            )}
-            {currentUserRole === 'bendahara' && (
-              <>
-                <option value="bendahara">Bendahara</option>
-                <option value="pengurus">Pengurus ({roleLabel('pengurus', activeTenant?.type)})</option>
-              </>
-            )}
-            <option value={isKos || isKelas ? 'anggota' : 'warga'}>{template?.memberLabel || 'Warga'}</option>
-          </select>
-        </Field>
+        {!isTenantMode && (
+          <>
+            <Field label="Role Akses">
+              <select
+                value={form.role}
+                onChange={(e) => setForm({ ...form, role: e.target.value })}
+                className="pv-input font-medium"
+              >
+                {currentUserRole === 'admin' && (
+                  <>
+                    <option value="admin">Admin ({roleLabel('admin', activeTenant?.type)})</option>
+                    <option value="bendahara">Bendahara</option>
+                    <option value="pengurus">Pengurus ({roleLabel('pengurus', activeTenant?.type)})</option>
+                  </>
+                )}
+                {currentUserRole === 'bendahara' && (
+                  <>
+                    <option value="bendahara">Bendahara</option>
+                    <option value="pengurus">Pengurus ({roleLabel('pengurus', activeTenant?.type)})</option>
+                  </>
+                )}
+                <option value={isKos || isKelas ? 'anggota' : 'warga'}>{template?.memberLabel || 'Warga'}</option>
+              </select>
+            </Field>
 
-        <div className="flex items-center gap-2 pt-1">
-          <input
-            type="checkbox"
-            id="is_active"
-            checked={form.is_active}
-            onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-            className="rounded border-slate-300 text-gold-500 focus:ring-gold-400 h-4 w-4"
-          />
-          <label htmlFor="is_active" className="text-sm text-slate-700 font-medium">Status Aktif</label>
-        </div>
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                id="is_active"
+                checked={form.is_active}
+                onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+                className="rounded border-slate-300 text-gold-500 focus:ring-gold-400 h-4 w-4"
+              />
+              <label htmlFor="is_active" className="text-sm text-slate-700 font-medium">Status Aktif</label>
+            </div>
+          </>
+        )}
 
         <div className="flex gap-2 pt-2">
           <button type="button" onClick={onClose} className="pv-btn-ghost flex-1 text-xs">Batal</button>
@@ -1262,5 +1406,154 @@ function Field({ label, required, children }) {
       </label>
       {children}
     </div>
+  );
+}
+
+export function InviteResidentModal({
+  isOpen,
+  onClose,
+  tenantId,
+  tenantName,
+  memberLabel = 'Warga',
+}) {
+  const [inviteCode, setInviteCode] = useState(() => getCachedTenantInviteCode(tenantId));
+  const [isLoading, setIsLoading] = useState(false);
+  const [copiedType, setCopiedType] = useState(null); // 'code' | 'link' | null
+
+  useEffect(() => {
+    if (isOpen && tenantId) {
+      let isMounted = true;
+      setIsLoading(true);
+      fetchTenantInviteCode(tenantId)
+        .then((code) => {
+          if (isMounted) setInviteCode(code);
+        })
+        .catch(() => {
+          if (isMounted) setInviteCode(null);
+        })
+        .finally(() => {
+          if (isMounted) setIsLoading(false);
+        });
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [isOpen, tenantId]);
+
+  if (!isOpen) return null;
+
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const inviteLink = inviteCode ? `${origin}/join/${inviteCode}` : '';
+  const waMessage = `Halo! Anda diundang untuk bergabung ke komunitas ${tenantName || 'kami'} di RuangWarga. Silakan klik tautan berikut untuk mendaftar:\n${inviteLink}\n\nAtau gunakan kode undangan: ${inviteCode}`;
+
+  const handleCopyCode = async () => {
+    if (!inviteCode) return;
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(inviteCode);
+      }
+      setCopiedType('code');
+      setTimeout(() => setCopiedType(null), 2000);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (!inviteLink) return;
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(inviteLink);
+      }
+      setCopiedType('link');
+      setTimeout(() => setCopiedType(null), 2000);
+    } catch {
+      // ignore
+    }
+  };
+
+  return (
+    <Modal open onClose={onClose} title={`Undang ${memberLabel}`}>
+      <div className="space-y-4">
+        {isLoading ? (
+          <div className="py-6 text-center text-xs text-slate-500">
+            Memuat kode undangan...
+          </div>
+        ) : inviteCode ? (
+          <>
+            <p className="text-xs text-slate-600">
+              Bagikan kode atau tautan undangan berikut agar calon {memberLabel.toLowerCase()} dapat mendaftar dan bergabung ke komunitas ini secara mandiri.
+            </p>
+
+            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+              <span className="text-[11px] font-semibold text-slate-500 block uppercase tracking-wider">
+                Kode Undangan
+              </span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono text-base font-extrabold text-forest-900 tracking-wider">
+                  {inviteCode}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyCode}
+                  className="pv-btn-ghost text-xs px-2.5 py-1 min-h-[32px]"
+                >
+                  {copiedType === 'code' ? 'Tersalin!' : 'Salin Kode'}
+                </button>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+              <span className="text-[11px] font-semibold text-slate-500 block uppercase tracking-wider">
+                Tautan Pendaftaran
+              </span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-mono text-slate-700 truncate min-w-0">
+                  {inviteLink}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  className="pv-btn-ghost text-xs px-2.5 py-1 min-h-[32px] shrink-0"
+                >
+                  {copiedType === 'link' ? 'Tersalin!' : 'Salin Tautan'}
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row gap-2">
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(waMessage)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="pv-btn-primary flex-1 text-xs justify-center min-h-[36px]"
+              >
+                Bagikan via WhatsApp
+              </a>
+              <button
+                type="button"
+                onClick={onClose}
+                className="pv-btn-ghost text-xs min-h-[36px]"
+              >
+                Tutup
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="space-y-3 py-2">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs">
+              Kode undangan belum tersedia atau gagal dimuat. Silakan buat atau periksa kode undangan di menu Pengaturan Komunitas.
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="pv-btn-ghost w-full text-xs min-h-[36px]"
+            >
+              Tutup
+            </button>
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 }
