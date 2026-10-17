@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import {
   AiOutlinePlus,
   AiOutlineEdit,
@@ -519,7 +519,12 @@ export default function Residents() {
           </p>
           {activeTenantId && canManage && (
             <p className="text-[11px] text-slate-500 mt-1">
-              Impor data rumah & penghuni tersedia di halaman Unit.
+              <Link
+                to={`/t/${activeTenantId}/units`}
+                className="text-slate-600 hover:text-emerald-700 underline font-medium transition"
+              >
+                Impor data rumah & penghuni tersedia di halaman Unit.
+              </Link>
             </p>
           )}
         </div>

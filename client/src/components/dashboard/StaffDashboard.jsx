@@ -28,14 +28,13 @@ export function StaffDashboard({
 }) {
   const navigate = useNavigate();
   const [copiedLink, setCopiedLink] = useState(false);
+  const tid = activeTenant?.id || tenantId;
   const [inviteCode, setInviteCode] = useState(() => {
-    const tid = activeTenant?.id || tenantId;
     return getCachedTenantInviteCode(tid);
   });
 
   useEffect(() => {
     let isMounted = true;
-    const tid = activeTenant?.id || tenantId;
     if (tid) {
       fetchTenantInviteCode(tid).then((code) => {
         if (isMounted) setInviteCode(code);
@@ -352,7 +351,7 @@ export function StaffDashboard({
               Kesehatan Unit &amp; Anggota
             </h2>
             <Link
-              to="/houses"
+              to={tid ? `/t/${tid}/units` : '/houses'}
               className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition inline-flex items-center gap-1"
             >
               <span>Kelola {template?.unitLabel || 'Unit'}</span>

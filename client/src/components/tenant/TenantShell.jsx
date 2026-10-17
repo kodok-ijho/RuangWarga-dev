@@ -80,6 +80,8 @@ export default function TenantShell() {
   const isArisan = activeTenant?.type === 'arisan';
   const isKos = activeTenant?.type === 'kos';
 
+  const canManageUnits = Boolean(isOwner || (hasPermission && hasPermission('manage_settings')));
+
   const desktopNavLinks = [
     { to: `${tenantBase}/dashboard`, label: 'Ringkasan', icon: AiOutlineHome },
     {
@@ -87,6 +89,9 @@ export default function TenantShell() {
       label: isArisan ? 'Putaran Arisan' : template.billLabel || 'Tagihan',
       icon: isArisan ? AiOutlineCalendar : AiOutlineTable,
     },
+    ...(canManageUnits
+      ? [{ to: `${tenantBase}/units`, label: template.unitLabel || 'Unit', icon: AiOutlineHome }]
+      : []),
     { to: `${tenantBase}/residents`, label: template.memberLabel || 'Anggota', icon: AiOutlineTeam },
     ...(canViewReports
       ? [{ to: `${tenantBase}/expenses`, label: 'Pengeluaran', icon: AiOutlineWallet }]
