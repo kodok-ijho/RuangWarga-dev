@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Card, Badge, StatusBadge } from '../ui';
 import { roleLabel, roleColor, occupancyStatusLabel, occupancyStatusColor } from '../../services/dataHelpers';
 import { AiOutlinePhone, AiOutlineWhatsApp, AiOutlineRight } from 'react-icons/ai';
@@ -16,6 +17,9 @@ export function ResidentCard({
   unit,
   template = {},
   activeTenant = {},
+  activeTenantId,
+  canManageRoles = false,
+  roleLabelText,
   onClick,
   className = '',
 }) {
@@ -60,8 +64,14 @@ export function ResidentCard({
                   {unitLabel} {unitIdentifier}
                 </span>
               )}
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${roleColor(profile.role)}`}>
-                {roleLabel(profile.role, activeTenant?.type)}
+              <span
+                className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
+                  profile.is_owner && activeTenantId
+                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                    : roleColor(profile.role)
+                }`}
+              >
+                {roleLabelText || (profile.is_owner && activeTenantId ? 'Admin' : roleLabel(profile.role, activeTenant?.type))}
               </span>
             </div>
 
@@ -73,6 +83,17 @@ export function ResidentCard({
               <span className="text-[11px] text-slate-500 block">
                 {occupancyStatusLabel(profile.occupancy_status, activeTenant?.type)}
               </span>
+            )}
+
+            {canManageRoles && activeTenantId && !profile.is_owner && (
+              <div onClick={handleActionClick}>
+                <Link
+                  to={`/t/${activeTenantId}/members/${profile.id}/role`}
+                  className="text-[11px] font-semibold text-forest-800 hover:text-forest-900 underline inline-block mt-0.5"
+                >
+                  Atur Jabatan
+                </Link>
+              </div>
             )}
           </div>
         </div>

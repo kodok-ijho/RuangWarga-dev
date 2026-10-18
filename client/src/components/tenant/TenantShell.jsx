@@ -274,6 +274,18 @@ export default function TenantShell() {
                     </DropdownItem>
                   )}
 
+                  {(isOwner || hasPermission?.('manage_tenant_users')) && (
+                    <DropdownItem
+                      icon={AiOutlineSafetyCertificate}
+                      onClick={() => {
+                        close();
+                        navigate(`${tenantBase}/roles`);
+                      }}
+                    >
+                      Jabatan &amp; Hak Akses
+                    </DropdownItem>
+                  )}
+
                   {isPlatformAdmin && (
                     <DropdownItem
                       icon={AiOutlineSafetyCertificate}
@@ -410,6 +422,18 @@ export default function TenantShell() {
               >
                 <AiOutlineSetting className="text-base text-slate-500" />
                 <span>Pengaturan Komunitas</span>
+              </button>
+            )}
+            {(isOwner || hasPermission?.('manage_tenant_users')) && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  navigate(`${tenantBase}/roles`);
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 text-left transition-colors"
+              >
+                <AiOutlineSafetyCertificate className="text-base text-slate-500" />
+                <span>Jabatan &amp; Hak Akses</span>
               </button>
             )}
             {isPlatformAdmin && (

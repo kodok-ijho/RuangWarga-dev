@@ -98,6 +98,8 @@ const mockTenantState = {
   activeTenantId: 'tenant-rtrw-1',
   userTenants: [mockTenant],
   switchTenant: vi.fn(),
+  isOwner: false,
+  hasPermission: vi.fn(() => false),
 };
 
 const mockAuth = {
@@ -174,6 +176,8 @@ describe('Residents Tenant Mode (RTRW-2.2)', () => {
     tenantOperationalService.fetchTenantUnits.mockResolvedValue([...sampleUnits]);
     tenantOperationalService.fetchTenantInviteCode.mockResolvedValue('INVITE-RT01');
     tenantOperationalService.getCachedTenantInviteCode.mockReturnValue('INVITE-RT01');
+    mockTenantState.isOwner = false;
+    mockTenantState.hasPermission = vi.fn(() => false);
   });
 
   afterEach(() => {
@@ -356,5 +360,76 @@ describe('Residents Tenant Mode (RTRW-2.2)', () => {
     expect(screen.queryByRole('button', { name: /^Edit$/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /Keluarkan/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /Hapus/i })).toBeNull();
+  });
+
+  it('e. RTRW-2.6: owner/manage_tenant_users melihat label jabatan & "Atur Jabatan" (/t/<id>/members/<id>/role); pengurus tanpa manage_tenant_users tidak melihatnya; owner tidak punya link Atur Jabatan', async () => {
+    // 1. Kasus Owner
+    mockTenantState.isOwner = true;
+    mockTenantState.hasPermission = vi.fn(() => false);
+
+    const membersWithRoles = [
+      {
+        ...sampleMembers[0], // Bambang Owner (is_owner: true)
+      },
+      {
+        ...sampleMembers[1], // Siti Warga (is_owner: false)
+        tenant_roles: { id: 'role-sekre', name: 'Sekretaris' },
+      },
+    ];
+    tenantOperationalService.fetchTenantMembers.mockResolvedValue([...membersWithRoles]);
+
+    const { unmount } = renderResidents();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Bambang Owner').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Siti Warga').length).toBeGreaterThan(0);
+    });
+
+    // Label jabatan tampil
+    // Owner tampil sebagai "Admin"
+    expect(screen.getAllByText('Admin').length).toBeGreaterThan(0);
+    // Siti Warga tampil sebagai "Sekretaris"
+    expect(screen.getAllByText('Sekretaris').length).toBeGreaterThan(0);
+
+    // Link "Atur Jabatan" untuk Siti Warga muncul dengan href yang benar
+    const aturJabatanLinks = screen.getAllByRole('link', { name: /Atur Jabatan/i });
+    expect(aturJabatanLinks.length).toBeGreaterThan(0);
+    expect(aturJabatanLinks[0].getAttribute('href')).toBe('/t/tenant-rtrw-1/members/mem-warga-2/role');
+
+    // Owner TIDAK punya link Atur Jabatan (hanya Siti Warga yang punya)
+    for (const link of aturJabatanLinks) {
+      expect(link.getAttribute('href')).not.toBe('/t/tenant-rtrw-1/members/mem-owner-1/role');
+    }
+
+    unmount();
+
+    // 2. Kasus Pengurus DENGAN izin manage_tenant_users
+    mockTenantState.isOwner = false;
+    mockTenantState.hasPermission = vi.fn((perm) => perm === 'manage_tenant_users');
+
+    const { unmount: unmountManager } = renderResidents();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Siti Warga').length).toBeGreaterThan(0);
+    });
+
+    const aturJabatanLinksManager = screen.getAllByRole('link', { name: /Atur Jabatan/i });
+    expect(aturJabatanLinksManager.length).toBeGreaterThan(0);
+    expect(aturJabatanLinksManager[0].getAttribute('href')).toBe('/t/tenant-rtrw-1/members/mem-warga-2/role');
+
+    unmountManager();
+
+    // 3. Kasus Pengurus TANPA izin manage_tenant_users (misal hanya canManageMembers)
+    mockTenantState.isOwner = false;
+    mockTenantState.hasPermission = vi.fn(() => false);
+
+    renderResidents();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Siti Warga').length).toBeGreaterThan(0);
+    });
+
+    // Tidak boleh ada link Atur Jabatan sama sekali
+    expect(screen.queryByRole('link', { name: /Atur Jabatan/i })).toBeNull();
   });
 });

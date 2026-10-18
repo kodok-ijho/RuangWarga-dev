@@ -60,13 +60,33 @@ import { ResidentDetailDrawer } from '../components/residents/ResidentDetailDraw
 export default function Residents() {
   const params = useParams();
   const { role, token } = useAuth();
-  const { activeTenant: contextActiveTenant, userTenants, activeTenantId: contextTenantId } = useTenant();
+  const {
+    activeTenant: contextActiveTenant,
+    userTenants,
+    activeTenantId: contextTenantId,
+    isOwner: contextIsOwner,
+    hasPermission,
+  } = useTenant();
   const tenantAccess = useTenantAccess();
   const activeTenantId = params.tenantId || contextTenantId || contextActiveTenant?.id || userTenants?.[0]?.id || null;
   const activeTenant = contextActiveTenant?.id === activeTenantId
     ? contextActiveTenant
     : (userTenants || []).find((t) => t.id === activeTenantId) || null;
   const template = useTenantTemplate(activeTenant?.type);
+
+  const isOwner = Boolean(contextIsOwner || activeTenant?.is_owner);
+  const canManageRoles = Boolean(
+    activeTenantId && (isOwner || (hasPermission && hasPermission('manage_tenant_users')))
+  );
+
+  const getMemberRoleLabel = (p) => {
+    if (p?.is_owner) return 'Admin';
+    if (p?.tenant_roles?.name) return p.tenant_roles.name;
+    if (Array.isArray(p?.tenant_roles) && p.tenant_roles[0]?.name) return p.tenant_roles[0].name;
+    if (p?.role_name) return p.role_name;
+    if (p?.role) return roleLabel(p.role, activeTenant?.type);
+    return 'Anggota';
+  };
 
   const toast = useToast();
   const { triggerTour } = useTour();
@@ -752,6 +772,9 @@ export default function Residents() {
                       unit={unit}
                       template={template}
                       activeTenant={activeTenant}
+                      activeTenantId={activeTenantId}
+                      canManageRoles={canManageRoles}
+                      roleLabelText={activeTenantId ? getMemberRoleLabel(p) : undefined}
                       onClick={() => setSelectedId(p.id)}
                     />
                   );
@@ -905,9 +928,32 @@ export default function Residents() {
                           })()}
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          <span className={`pv-badge ${roleColor(p.role)}`}>
-                            {roleLabel(p.role, activeTenant?.type)}
-                          </span>
+                          {activeTenantId ? (
+                            <div className="flex flex-col items-start gap-1">
+                              <span
+                                className={`pv-badge ${
+                                  p.is_owner
+                                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                    : roleColor(p.role)
+                                }`}
+                              >
+                                {getMemberRoleLabel(p)}
+                              </span>
+                              {canManageRoles && !p.is_owner && (
+                                <Link
+                                  to={`/t/${activeTenantId}/members/${p.id}/role`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-[11px] font-semibold text-forest-800 hover:text-forest-900 underline inline-block"
+                                >
+                                  Atur Jabatan
+                                </Link>
+                              )}
+                            </div>
+                          ) : (
+                            <span className={`pv-badge ${roleColor(p.role)}`}>
+                              {roleLabel(p.role, activeTenant?.type)}
+                            </span>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
@@ -940,6 +986,9 @@ export default function Residents() {
           canManage={canManage}
           template={template}
           activeTenant={activeTenant}
+          activeTenantId={activeTenantId}
+          canManageRoles={canManageRoles}
+          roleLabelText={activeTenantId ? getMemberRoleLabel(selected) : undefined}
           onClose={() => setSelectedId(null)}
           onEdit={() => {
             setModalAddEdit(selected);
@@ -991,11 +1040,25 @@ export default function Residents() {
  
  // ── Sub-komponen ──────────────────────────────────────────────────
  
- function DetailModal({ profile, canManage, template, activeTenant, activeTenantId, getUnitById, getUnitOwner, onClose, onEdit, onDelete }) {
+ function DetailModal({
+  profile,
+  canManage,
+  template,
+  activeTenant,
+  activeTenantId,
+  canManageRoles,
+  roleLabelText,
+  getUnitById,
+  getUnitOwner,
+  onClose,
+  onEdit,
+  onDelete,
+}) {
   const unit = getUnitById(profile.unit_id);
   const owner = profile.occupancy_status === 'tenant' ? getUnitOwner(profile.unit_id) : null;
   const isOwnerMember = Boolean(activeTenantId && profile.is_owner);
   const deleteBtnLabel = activeTenantId ? 'Keluarkan' : 'Hapus';
+  const memberRoleLabel = roleLabelText || (isOwnerMember ? 'Admin' : roleLabel(profile.role, activeTenant?.type));
 
   return (
     <Modal open onClose={onClose} title={`Detail ${template?.memberLabel || 'Penghuni'}`}>
@@ -1012,7 +1075,13 @@ export default function Residents() {
             <p className="text-xs text-slate-500 mt-0.5">{profile.email}</p>
           )}
           <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-            <span className={`pv-badge ${roleColor(profile.role)}`}>{roleLabel(profile.role, activeTenant?.type)}</span>
+            <span
+              className={`pv-badge ${
+                isOwnerMember ? 'bg-amber-50 text-amber-800 border-amber-200' : roleColor(profile.role)
+              }`}
+            >
+              {memberRoleLabel}
+            </span>
             {profile.occupancy_status && (
               <span className={`pv-badge ${occupancyStatusColor(profile.occupancy_status)}`}>
                 {occupancyStatusLabel(profile.occupancy_status, activeTenant?.type)}
@@ -1035,18 +1104,28 @@ export default function Residents() {
           <Row label={`Pemilik ${template?.unitLabel || 'Unit'}`} value={owner.full_name} />
         )}
       </div>
-      {canManage && (
-        <div className="mt-6 pt-4 border-t border-slate-200 flex gap-2">
-          <button onClick={onEdit} className="pv-btn-ghost flex-1 text-xs">
-            <AiOutlineEdit /> Edit
-          </button>
-          {!isOwnerMember && (
-            <button onClick={onDelete} className="pv-btn-danger flex-1 text-xs">
-              <AiOutlineDelete /> {deleteBtnLabel}
+      <div className="mt-6 pt-4 border-t border-slate-200 flex flex-wrap gap-2">
+        {canManageRoles && activeTenantId && !profile.is_owner && (
+          <Link
+            to={`/t/${activeTenantId}/members/${profile.id}/role`}
+            className="pv-btn-primary flex-1 text-xs text-center inline-flex items-center justify-center gap-1"
+          >
+            Atur Jabatan
+          </Link>
+        )}
+        {canManage && (
+          <>
+            <button onClick={onEdit} className="pv-btn-ghost flex-1 text-xs">
+              <AiOutlineEdit /> Edit
             </button>
-          )}
-        </div>
-      )}
+            {!isOwnerMember && (
+              <button onClick={onDelete} className="pv-btn-danger flex-1 text-xs">
+                <AiOutlineDelete /> {deleteBtnLabel}
+              </button>
+            )}
+          </>
+        )}
+      </div>
     </Modal>
   );
 }

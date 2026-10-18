@@ -6,6 +6,9 @@ import {
   updateTenantRole,
   deleteTenantRole,
   assignMemberRole,
+  ROLE_TEMPLATES,
+  applyRoleTemplate,
+  PLATFORM_PERMISSIONS,
 } from './rbac';
 
 describe('tenant/rbac - Unit Tests (DEBT-1F.1)', () => {
@@ -202,6 +205,106 @@ describe('tenant/rbac - Unit Tests (DEBT-1F.1)', () => {
       await expect(assignMemberRole(NON_DEMO_MEMBER_ID, '')).rejects.toThrow(
         'Member ID dan Tenant Role ID wajib disertakan.'
       );
+    });
+  });
+
+  describe('ROLE_TEMPLATES dan PLATFORM_PERMISSIONS (RTRW-2.6)', () => {
+    it('entri post_listing memiliki label dan description baru yang tepat', () => {
+      const perm = PLATFORM_PERMISSIONS.find((p) => p.key === 'post_listing');
+      expect(perm).toBeDefined();
+      expect(perm.label).toBe('Kelola Iklan Komunitas');
+      expect(perm.description).toContain('Melihat & mengelola semua iklan listing komunitas');
+    });
+
+    it('ROLE_TEMPLATES memiliki konfigurasi rt_rw dengan 6 jabatan standar', () => {
+      expect(ROLE_TEMPLATES.rt_rw).toBeDefined();
+      expect(ROLE_TEMPLATES.rt_rw).toHaveLength(6);
+
+      const names = ROLE_TEMPLATES.rt_rw.map((r) => r.name);
+      expect(names).toEqual([
+        'Ketua RT/RW',
+        'Wakil Ketua',
+        'Sekretaris',
+        'Bendahara',
+        'Koordinator Blok',
+        'Humas',
+      ]);
+
+      // Pastikan manage_tenant_users dan run_special_action TIDAK ADA di template mana pun
+      for (const tpl of Object.values(ROLE_TEMPLATES)) {
+        for (const roleDef of tpl) {
+          expect(roleDef.permissions).not.toContain('manage_tenant_users');
+          expect(roleDef.permissions).not.toContain('run_special_action');
+        }
+      }
+    });
+  });
+
+  describe('applyRoleTemplate (RTRW-2.6)', () => {
+    it('melempar error jika tenantId kosong atau template tidak dikenal', async () => {
+      await expect(applyRoleTemplate('')).rejects.toThrow('Tenant ID wajib disertakan.');
+      await expect(applyRoleTemplate('demo-t1', 'non_existent')).rejects.toThrow(
+        'Template jabatan tidak dikenal.'
+      );
+    });
+
+    it('hanya membuat jabatan yang belum ada (case-insensitive & trim); skip yang sudah ada', async () => {
+      // Misalkan role existing: 'Admin', '  bendahara  ' (lowercase)
+      fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+        if (table === 'tenant_roles') {
+          return {
+            select: vi.fn().mockImplementation((query) => {
+              if (query.includes('tenant_role_permissions')) {
+                return {
+                  eq: vi.fn().mockReturnValue({
+                    order: vi.fn().mockResolvedValue({
+                      data: [
+                        { id: 'r-admin', name: 'Admin', is_owner_role: true, tenant_role_permissions: [] },
+                        { id: 'r-bendahara', name: '  bendahara  ', is_owner_role: false, tenant_role_permissions: [] },
+                      ],
+                      error: null,
+                    }),
+                  }),
+                };
+              }
+              return {};
+            }),
+            insert: vi.fn().mockImplementation((payload) => {
+              const row = Array.isArray(payload) ? payload[0] : payload;
+              return {
+                select: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: { id: `mock-${row.name}`, ...row },
+                    error: null,
+                  }),
+                }),
+              };
+            }),
+          };
+        }
+        if (table === 'tenant_role_permissions') {
+          return {
+            insert: vi.fn().mockResolvedValue({ data: null, error: null }),
+          };
+        }
+        return {};
+      });
+
+      const result = await applyRoleTemplate(NON_DEMO_TENANT_ID, 'rt_rw');
+
+      // 'Bendahara' harus di-skip karena sudah ada '  bendahara  '
+      expect(result.skipped).toContain('Bendahara');
+      expect(result.skipped).toHaveLength(1);
+
+      // 5 jabatan lainnya dibuat
+      expect(result.created).toEqual([
+        'Ketua RT/RW',
+        'Wakil Ketua',
+        'Sekretaris',
+        'Koordinator Blok',
+        'Humas',
+      ]);
+      expect(result.created).toHaveLength(5);
     });
   });
 });

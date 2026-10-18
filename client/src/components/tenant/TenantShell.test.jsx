@@ -55,6 +55,15 @@ vi.mock('../TrialCountdownBanner', () => ({
   default: () => null,
 }));
 
+vi.mock('../ui/Dropdown', () => ({
+  default: ({ children }) => (
+    <div data-testid="mock-dropdown">
+      {typeof children === 'function' ? children({ close: () => {} }) : children}
+    </div>
+  ),
+  DropdownItem: ({ children }) => <div data-testid="mock-dropdown-item">{children}</div>,
+}));
+
 let mockTenantAccess = {
   canViewReports: true,
   isMember: true,
@@ -189,5 +198,39 @@ describe('TenantShell Navigation (RTRW-1.2)', () => {
     );
     expect(html).toContain('href="/t/t-pv-1/expenses"');
     expect(html).toContain('href="/t/t-pv-1/reports"');
+  });
+
+  it('menampilkan item "Jabatan & Hak Akses" bila user adalah owner atau memiliki izin manage_tenant_users', () => {
+    mockTenantState.isOwner = true;
+    mockTenantState.hasPermission = () => false;
+
+    const htmlOwner = renderToString(
+      <MemoryRouter initialEntries={['/t/t-pv-1/dashboard']}>
+        <TenantShell />
+      </MemoryRouter>
+    );
+    expect(htmlOwner).toContain('Jabatan &amp; Hak Akses');
+
+    mockTenantState.isOwner = false;
+    mockTenantState.hasPermission = (p) => p === 'manage_tenant_users';
+
+    const htmlManager = renderToString(
+      <MemoryRouter initialEntries={['/t/t-pv-1/dashboard']}>
+        <TenantShell />
+      </MemoryRouter>
+    );
+    expect(htmlManager).toContain('Jabatan &amp; Hak Akses');
+  });
+
+  it('menyembunyikan item "Jabatan & Hak Akses" bila user bukan owner dan tidak punya manage_tenant_users', () => {
+    mockTenantState.isOwner = false;
+    mockTenantState.hasPermission = (p) => p === 'manage_settings';
+
+    const html = renderToString(
+      <MemoryRouter initialEntries={['/t/t-pv-1/dashboard']}>
+        <TenantShell />
+      </MemoryRouter>
+    );
+    expect(html).not.toContain('Jabatan &amp; Hak Akses');
   });
 });

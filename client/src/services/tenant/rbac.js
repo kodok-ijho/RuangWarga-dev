@@ -17,7 +17,7 @@ export const PLATFORM_PERMISSIONS = [
   { key: 'manage_expenses', label: 'Kelola Pengeluaran', description: 'CRUD pengeluaran' },
   { key: 'view_reports', label: 'Lihat Laporan', description: 'Akses laporan keuangan (read-only)' },
   { key: 'run_special_action', label: 'Jalankan Aksi Khusus', description: 'Kocok arisan, checkout kos, mulai siklus baru' },
-  { key: 'post_listing', label: 'Pasang Iklan', description: 'Posting listing publik' },
+  { key: 'post_listing', label: 'Kelola Iklan Komunitas', description: 'Melihat & mengelola semua iklan listing komunitas (warga tetap bisa memasang iklannya sendiri tanpa izin ini)' },
   { key: 'manage_tenant_users', label: 'Kelola User & Audit', description: 'CRUD akun/akses user tenant, ubah role, lihat audit log' },
 ];
 
@@ -332,4 +332,93 @@ export async function assignMemberRole(memberId, tenantRoleId) {
   }
 
   return data;
+}
+
+export const ROLE_TEMPLATES = {
+  rt_rw: [
+    {
+      name: 'Ketua RT/RW',
+      permissions: [
+        'manage_billing_cash',
+        'manage_billing_transfer',
+        'generate_billing',
+        'manage_expenses',
+        'view_reports',
+        'manage_members',
+        'manage_settings',
+      ],
+    },
+    {
+      name: 'Wakil Ketua',
+      permissions: [
+        'manage_billing_cash',
+        'manage_billing_transfer',
+        'view_reports',
+        'manage_members',
+      ],
+    },
+    {
+      name: 'Sekretaris',
+      permissions: ['view_reports', 'manage_members', 'post_listing'],
+    },
+    {
+      name: 'Bendahara',
+      permissions: [
+        'manage_billing_cash',
+        'manage_billing_transfer',
+        'generate_billing',
+        'manage_expenses',
+        'view_reports',
+      ],
+    },
+    {
+      name: 'Koordinator Blok',
+      permissions: ['manage_billing_cash', 'view_reports'],
+    },
+    {
+      name: 'Humas',
+      permissions: ['post_listing'],
+    },
+  ],
+};
+
+/**
+ * Menerapkan template jabatan pengurus untuk tenant
+ * @param {string} tenantId - UUID tenant
+ * @param {string} templateKey - Kunci template (default: 'rt_rw')
+ * @returns {Promise<{ created: string[], skipped: string[] }>}
+ */
+export async function applyRoleTemplate(tenantId, templateKey = 'rt_rw') {
+  if (!tenantId) throw new Error('Tenant ID wajib disertakan.');
+
+  const template = ROLE_TEMPLATES[templateKey];
+  if (!template || !Array.isArray(template)) {
+    throw new Error('Template jabatan tidak dikenal.');
+  }
+
+  const existingRoles = await fetchTenantRoles(tenantId);
+  const existingNamesSet = new Set(
+    (existingRoles || []).map((r) => (r.name || '').trim().toLowerCase())
+  );
+
+  const created = [];
+  const skipped = [];
+
+  for (const roleDef of template) {
+    const trimmedName = (roleDef.name || '').trim();
+    const normName = trimmedName.toLowerCase();
+
+    if (existingNamesSet.has(normName)) {
+      skipped.push(trimmedName);
+    } else {
+      await createTenantRole(tenantId, {
+        name: trimmedName,
+        permissions: roleDef.permissions,
+      });
+      created.push(trimmedName);
+      existingNamesSet.add(normName);
+    }
+  }
+
+  return { created, skipped };
 }

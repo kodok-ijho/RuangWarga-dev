@@ -18,6 +18,7 @@ import {
   createTenantRole,
   updateTenantRole,
   deleteTenantRole,
+  applyRoleTemplate,
   PLATFORM_PERMISSIONS,
 } from '../../services/tenantOperationalService';
 
@@ -149,6 +150,31 @@ export default function ManageRoles() {
     });
   };
 
+  const handleApplyTemplate = () => {
+    guardAction(async () => {
+      if (
+        !window.confirm(
+          'Terapkan template jabatan pengurus RT/RW standar? Jabatan yang sudah ada tidak akan diubah atau digandakan.'
+        )
+      ) {
+        return;
+      }
+
+      setSubmitting(true);
+      try {
+        const res = await applyRoleTemplate(tenantId, 'rt_rw');
+        toast.success(`${res.created.length} jabatan ditambahkan, ${res.skipped.length} sudah ada`);
+        await loadRoles();
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('[ManageRoles] Apply template error:', err);
+        toast.error(err.message || 'Gagal menerapkan template jabatan.');
+      } finally {
+        setSubmitting(false);
+      }
+    });
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 p-4 sm:p-6 lg:p-8">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -175,7 +201,18 @@ export default function ManageRoles() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {activeTenant?.type === 'rt_rw' && (
+              <button
+                type="button"
+                onClick={handleApplyTemplate}
+                disabled={isReadOnly || !canManage || submitting}
+                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-50 text-slate-800 text-xs font-bold shadow-xs transition-all"
+              >
+                <AiOutlineSafetyCertificate className="text-sm text-forest-800" />
+                <span>Gunakan Template Jabatan RT/RW</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={openCreateModal}

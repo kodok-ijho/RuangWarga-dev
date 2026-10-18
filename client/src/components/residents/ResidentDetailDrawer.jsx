@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Dialog, Button, StatusBadge } from '../ui';
 import {
   roleLabel,
@@ -15,6 +16,7 @@ import {
   AiOutlineEdit,
   AiOutlineDelete,
   AiOutlineCheck,
+  AiOutlineSafetyCertificate,
 } from 'react-icons/ai';
 
 /**
@@ -30,6 +32,9 @@ export function ResidentDetailDrawer({
   canManage = false,
   template = {},
   activeTenant = {},
+  activeTenantId,
+  canManageRoles = false,
+  roleLabelText,
   onClose,
   onEdit,
   onDelete,
@@ -66,8 +71,14 @@ export function ResidentDetailDrawer({
               {profile.full_name}
             </h3>
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${roleColor(profile.role)}`}>
-                {roleLabel(profile.role, activeTenant?.type)}
+              <span
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                  profile.is_owner && activeTenantId
+                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                    : roleColor(profile.role)
+                }`}
+              >
+                {roleLabelText || (profile.is_owner && activeTenantId ? 'Admin' : roleLabel(profile.role, activeTenant?.type))}
               </span>
               <span
                 className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
@@ -164,7 +175,7 @@ export function ResidentDetailDrawer({
         </div>
 
         {/* Tombol Aksi Administratif untuk Pengurus */}
-        <div className="pt-2 flex items-center gap-2">
+        <div className="pt-2 flex items-center gap-2 flex-wrap">
           <Button
             variant="ghost"
             onClick={onClose}
@@ -172,6 +183,16 @@ export function ResidentDetailDrawer({
           >
             Tutup
           </Button>
+
+          {canManageRoles && activeTenantId && !profile.is_owner && (
+            <Link
+              to={`/t/${activeTenantId}/members/${profile.id}/role`}
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 text-xs font-bold transition-colors shadow-xs"
+            >
+              <AiOutlineSafetyCertificate className="text-sm" />
+              <span>Atur Jabatan</span>
+            </Link>
+          )}
 
           {canManage && (
             <>

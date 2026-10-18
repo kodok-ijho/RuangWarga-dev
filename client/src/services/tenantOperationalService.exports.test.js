@@ -4,6 +4,8 @@ import * as tenantOperationalService from './tenantOperationalService';
 const EXPECTED_EXPORTS = [
   "INVITE_CODE_ALPHABET",
   "PLATFORM_PERMISSIONS",
+  "ROLE_TEMPLATES",
+  "applyRoleTemplate",
   "approveTenantMember",
   "assignMemberRole",
   "assignRoomContract",
@@ -75,9 +77,9 @@ const EXPECTED_EXPORTS = [
 ];
 
 describe('tenantOperationalService Exports Guard (DEBT-1.4)', () => {
-  it('harus mengekspor 70 fungsi/konstanta yang sama persis', () => {
+  it('harus mengekspor 72 fungsi/konstanta yang sama persis', () => {
     const exportsList = Object.keys(tenantOperationalService).sort();
     expect(exportsList).toEqual(EXPECTED_EXPORTS);
-    expect(exportsList.length).toBe(70);
+    expect(exportsList.length).toBe(72);
   });
 });
