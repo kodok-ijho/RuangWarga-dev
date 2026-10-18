@@ -33,10 +33,13 @@ Sumber: `AUDIT-RTRW.md` F6, F10, F11, dan F12. Keputusan user 2026-10-15: **peng
    - Tombol "Gunakan Template Jabatan RT/RW" yang membuat jabatan berikut bila belum ada (berdasarkan nama, case-insensitive):
      | Jabatan | Izin |
      |---|---|
-     | Ketua RT/RW | manage_members, manage_settings, generate_billing, manage_billing_cash, manage_billing_transfer, manage_expenses, view_reports |
-     | Sekretaris | manage_members, view_reports, post_listing |
-     | Bendahara | generate_billing, manage_billing_cash, manage_billing_transfer, manage_expenses, view_reports |
+     | Ketua RT/RW | manage_billing_cash, manage_billing_transfer, generate_billing, manage_expenses, view_reports, manage_members, manage_settings |
+     | Wakil Ketua | manage_billing_cash, manage_billing_transfer, view_reports, manage_members |
+     | Sekretaris | view_reports, manage_members, post_listing |
+     | Bendahara | manage_billing_cash, manage_billing_transfer, generate_billing, manage_expenses, view_reports |
      | Koordinator Blok | manage_billing_cash, view_reports |
+     | Humas | post_listing |
+   - Label izin `post_listing` diganti **"Kelola Iklan Komunitas"**. Izin ini untuk melihat dan mengelola semua iklan di tenant; warga biasa tetap boleh memasang iklannya sendiri tanpa izin ini (sudah diizinkan RLS). Keputusan user 2026-10-18.
    - `manage_tenant_users` (atur jabatan) tetap hanya dimiliki owner/Admin.
    - Label izin dalam Bahasa Indonesia yang mudah dipahami.
 6. **SetupWizard** (F11):

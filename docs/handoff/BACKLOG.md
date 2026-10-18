@@ -78,3 +78,8 @@ di pemilik Portal Warga live (repo lain), bukan di batch RuangWarga.
 - **STOR-2**: hapus bucket Supabase lama `payment-proofs` / `expense-receipts` (kosong) beserta policy-nya. Uji manual penolakan file (di atas 5 MB / tipe palsu) dan nota pengeluaran ke R2.
 - **Region Supabase**: project dev ada di Seoul (`ap-northeast-2`). Pertimbangkan project baru di Singapore sebelum ada tenant sungguhan.
 - **Ide vertikal** (Kos, Kelas, Arisan, lintas vertikal, pendalaman RT/RW): `VERTIKAL-requirement.md`. Belum dijadwalkan. Urutan: RT/RW, audit Kos/Arisan/Kelas, Kos, Kelas, Arisan.
+- **NOTIF-1** (setelah RTRW-2, user 2026-10-18): tombol "Ingatkan via WA" (`wa.me`, gratis) untuk tagihan yang belum dibayar. WA otomatis lewat API berbayar **diurungkan** (biaya naik terus). Email otomatis menyusul (Edge Function + penyedia email).
+- **LIST-1** (perlu persetujuan user; menyentuh aktivasi iklan setelah pembayaran DOKU dan status listing):
+  - menu "Pasang Iklan" dan "Iklan Saya" untuk semua anggota;
+  - **toggle moderasi iklan** per tenant. Mati: iklan warga langsung tayang setelah dibayar dan pengurus mendapat notifikasi di aplikasi. Nyala: iklan menunggu persetujuan pengurus (pemegang `post_listing`/owner) sebelum tayang.
+
