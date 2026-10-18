@@ -83,3 +83,4 @@ di pemilik Portal Warga live (repo lain), bukan di batch RuangWarga.
   - menu "Pasang Iklan" dan "Iklan Saya" untuk semua anggota;
   - **toggle moderasi iklan** per tenant. Mati: iklan warga langsung tayang setelah dibayar dan pengurus mendapat notifikasi di aplikasi. Nyala: iklan menunggu persetujuan pengurus (pemegang `post_listing`/owner) sebelum tayang.
 
+- **BILL-AUTO-1** (disetujui user 2026-10-18, setelah RTRW-2.6): terbitkan tagihan otomatis harian lewat pg_cron. RT/RW: semua rumah aktif; Kos: kamar terisi. Tanggal terbit terpisah dari jatuh tempo. Lihat `BILL-AUTO-1.md`.
