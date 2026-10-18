@@ -21,6 +21,8 @@ import {
   fetchTenantDetails,
   updateTenantProfileAndSettings,
   bulkCreateTenantUnits,
+  fetchTenantUnits,
+  fetchTenantInviteCode,
   saveInviteCodeWithRetry,
   normalizeBankAccount,
 } from '../../services/tenantOperationalService';
@@ -34,6 +36,44 @@ const DEFAULT_IPL_COMPONENTS = [
   { id: 'comp-3', name: 'Kas Paguyuban / RT', amount: 20000 },
   { id: 'comp-4', name: 'Dana Duka Cita (Sosial)', amount: 10000 },
 ];
+
+/**
+ * Memilih label unit baru yang belum ada di database dan membuang duplikat di input.
+ * Perbandingan dilakukan secara case-insensitive dan di-trim (RTRW-2.5).
+ *
+ * @param {Array<object|string>} existingUnits - Daftar unit yang sudah ada di database
+ * @param {Array<object|string>} unitList - Daftar unit yang diinputkan pengguna
+ * @returns {Array<string> & { skippedCount: number, newCount: number }} Array label baru
+ */
+export function selectNewUnitLabels(existingUnits = [], unitList = []) {
+  const existingSet = new Set(
+    (existingUnits || [])
+      .map((u) => (typeof u === 'string' ? u : u?.label || '').trim().toLowerCase())
+      .filter(Boolean)
+  );
+
+  const seenInInput = new Set();
+  const result = [];
+
+  for (const item of (unitList || [])) {
+    const rawLabel = typeof item === 'string' ? item : item?.label || '';
+    const trimmed = rawLabel.trim();
+    if (!trimmed) continue;
+
+    const normalized = trimmed.toLowerCase();
+    if (existingSet.has(normalized)) {
+      continue;
+    }
+    if (seenInInput.has(normalized)) {
+      continue;
+    }
+
+    seenInInput.add(normalized);
+    result.push(trimmed);
+  }
+
+  return result;
+}
 
 export default function SetupWizard() {
   const { tenantId } = useParams();
@@ -50,6 +90,7 @@ export default function SetupWizard() {
   const [copiedCode, setCopiedCode] = useState(false);
   const [tenantType, setTenantType] = useState('rt_rw');
   const [tenantDetails, setTenantDetails] = useState(null);
+  const [unitStats, setUnitStats] = useState({ created: 0, skipped: 0 });
 
   // Step 1: Identitas Komplek
   const [complexName, setComplexName] = useState('');
@@ -248,18 +289,31 @@ export default function SetupWizard() {
 
     setSaving(true);
     try {
-      // 1. Simpan unit ke tenant_units
-      await bulkCreateTenantUnits(
-        tenantId,
-        unitList.map((u) => ({
-          label: u.label,
-          status: 'active',
-          metadata: { initial_wizard: true },
-        }))
-      );
+      // 1. Simpan unit ke tenant_units (hanya label yang belum ada, deduplikasi case-insensitive & trim)
+      const existingUnits = await fetchTenantUnits(tenantId);
+      const newLabels = selectNewUnitLabels(existingUnits, unitList);
+      const createdCount = newLabels.length;
+      const skippedCount = Math.max(0, unitList.length - createdCount);
+      setUnitStats({ created: createdCount, skipped: skippedCount });
 
-      // 2. Simpan kode undangan ke tabel privat tenant_invites dengan retry otomatis jika bentrok (SEC-3F.2)
-      const savedInviteCode = await saveInviteCodeWithRetry(tenantId, complexName);
+      if (createdCount > 0) {
+        await bulkCreateTenantUnits(
+          tenantId,
+          newLabels.map((lbl) => ({
+            label: lbl,
+            status: 'active',
+            metadata: { initial_wizard: true },
+          }))
+        );
+      }
+
+      // 2. Kode undangan: ambil kode yang sudah ada lebih dulu.
+      // Bila sudah ada, gunakan kode lama (jangan buat baru agar link undangan lama tidak mati).
+      // Hanya panggil saveInviteCodeWithRetry bila belum ada kode.
+      let savedInviteCode = await fetchTenantInviteCode(tenantId);
+      if (!savedInviteCode) {
+        savedInviteCode = await saveInviteCodeWithRetry(tenantId, complexName);
+      }
 
       // 3. Simpan settings dan profil tenant (hanya ditandai onboarding_completed jika kode berhasil disimpan)
       const settingsPayload = {
@@ -282,7 +336,14 @@ export default function SetupWizard() {
       await refreshTenant();
       setGeneratedInviteCode(savedInviteCode);
       setSetupFinished(true);
-      toast.success('Pengaturan awal RT/RW berhasil disimpan!');
+
+      if (skippedCount > 0) {
+        toast.success(
+          `Pengaturan awal RT/RW berhasil disimpan! ${createdCount} rumah baru ditambahkan, ${skippedCount} sudah ada.`
+        );
+      } else {
+        toast.success('Pengaturan awal RT/RW berhasil disimpan!');
+      }
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('[SetupWizard] Save failed:', err);
@@ -347,6 +408,11 @@ export default function SetupWizard() {
               {unitList.length} unit rumah telah terdaftar dengan tarif IPL {formatIDR(totalIplAmount)} / bulan.
               Sekarang Anda dapat mulai mengundang warga untuk bergabung.
             </p>
+            {unitStats.skipped > 0 && (
+              <p className="text-xs text-slate-500 mt-1">
+                ({unitStats.created} rumah baru ditambahkan, {unitStats.skipped} sudah ada.)
+              </p>
+            )}
           </div>
 
           {/* Kartu Kode Undangan */}
