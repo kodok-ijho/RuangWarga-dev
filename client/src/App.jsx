@@ -55,6 +55,7 @@ const SubscriptionStatus = lazy(() => import('./pages/account/SubscriptionStatus
 const SubscriptionCheckout = lazy(() => import('./pages/account/SubscriptionCheckout'));
 const TenantDashboard = lazy(() => import('./pages/tenant/TenantDashboard'));
 const TenantUnits = lazy(() => import('./pages/tenant/TenantUnits'));
+const TenantSettings = lazy(() => import('./pages/tenant/TenantSettings'));
 const PlatformLayout = lazy(() => import('./pages/platform/PlatformLayout'));
 const PlatformTenantList = lazy(() => import('./pages/platform/PlatformTenantList'));
 const PlatformPricingConfig = lazy(() => import('./pages/platform/PlatformPricingConfig'));
@@ -350,6 +351,16 @@ export default function App() {
                       <Suspense fallback={<PageLoader />}>
                         <TenantPermissionGuard permission="manage_settings">
                           <TenantUnits />
+                        </TenantPermissionGuard>
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="settings"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <TenantPermissionGuard permission="manage_settings">
+                          <TenantSettings />
                         </TenantPermissionGuard>
                       </Suspense>
                     }

@@ -267,7 +267,7 @@ export default function TenantShell() {
                       icon={AiOutlineSetting}
                       onClick={() => {
                         close();
-                        navigate('/settings');
+                        navigate(`${tenantBase}/settings`);
                       }}
                     >
                       Pengaturan Komunitas
@@ -405,7 +405,7 @@ export default function TenantShell() {
             </button>
             {(isOwner || hasPermission('manage_settings')) && (
               <button
-                onClick={() => navigate('/settings')}
+                onClick={() => navigate(`${tenantBase}/settings`)}
                 className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 text-left transition-colors"
               >
                 <AiOutlineSetting className="text-base text-slate-500" />
