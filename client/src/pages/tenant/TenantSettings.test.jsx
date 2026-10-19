@@ -21,6 +21,7 @@ if (typeof window !== 'undefined' && !window.ResizeObserver) {
 let mockTenantContext = {
   activeTenant: { id: 'tenant-rtrw-1', name: 'Palm Village RT 05', type: 'rt_rw' },
   activeTenantId: 'tenant-rtrw-1',
+  tenantType: 'rt_rw',
   isOwner: true,
   hasPermission: vi.fn(() => true),
   refreshTenant: vi.fn(),
@@ -70,6 +71,7 @@ vi.mock('../../services/dataService', () => ({
 const sampleDetails = {
   id: 'tenant-rtrw-1',
   name: 'Palm Village RT 05',
+  type: 'rt_rw',
   address: 'Jl. Boulevard Palm No. 1',
   contact_phone: '081234567890',
   settings: {
@@ -109,6 +111,7 @@ vi.mock('../../services/tenantOperationalService', async () => {
     saveInviteCodeWithRetry: vi.fn(),
     saveTenantBankAccount: vi.fn(),
     fetchTenantSettingsAudit: vi.fn(),
+    fetchBillingAutoRuns: vi.fn(),
   };
 });
 
@@ -119,6 +122,7 @@ describe('TenantSettings (RTRW-2.4)', () => {
     mockTenantContext = {
       activeTenant: { id: 'tenant-rtrw-1', name: 'Palm Village RT 05', type: 'rt_rw' },
       activeTenantId: 'tenant-rtrw-1',
+      tenantType: 'rt_rw',
       isOwner: true,
       hasPermission: vi.fn(() => true),
       refreshTenant: vi.fn(),
@@ -135,6 +139,7 @@ describe('TenantSettings (RTRW-2.4)', () => {
     );
     tenantOperationalService.fetchTenantInviteCode.mockResolvedValue('RW-PALM-7K8M-2N9P');
     tenantOperationalService.fetchTenantSettingsAudit.mockResolvedValue(sampleAuditLogs);
+    tenantOperationalService.fetchBillingAutoRuns.mockResolvedValue([]);
     tenantOperationalService.updateTenantProfileAndSettings.mockResolvedValue({ success: true });
     tenantOperationalService.saveInviteCodeWithRetry.mockResolvedValue('RW-PALM-9999-XXXX');
     tenantOperationalService.saveTenantBankAccount.mockResolvedValue({ success: true });
@@ -245,6 +250,8 @@ describe('TenantSettings (RTRW-2.4)', () => {
               { name: 'Keamanan', amount: 80000 },
               { name: 'Kebersihan', amount: 30000 },
             ],
+            auto_billing_enabled: false,
+            billing_issue_day: 1,
           },
         }
       );
@@ -358,4 +365,217 @@ describe('TenantSettings (RTRW-2.4)', () => {
     expect(mockToast.success).toHaveBeenCalledWith('Rekening penerima pembayaran berhasil disimpan.');
     expect(mockTenantContext.refreshTenant).toHaveBeenCalled();
   });
+
+  describe('Penerbitan Tagihan Otomatis (BILL-AUTO-1.2)', () => {
+    it('a. toggle dan tanggal terbit tersimpan ke settings', async () => {
+      renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Palm Village RT 05')).toBeTruthy();
+      });
+
+      const toggle = screen.getByLabelText(/terbitkan tagihan otomatis/i);
+      expect(toggle.checked).toBe(false);
+
+      // (a) Asersi teks manual tampil saat toggle mati
+      expect(
+        screen.getByText(
+          'Tagihan saat ini hanya diterbitkan manual. Aktifkan untuk menerbitkan tagihan bulan berjalan otomatis pada tanggal terbit.'
+        )
+      ).toBeTruthy();
+      expect(
+        screen.queryByText(/tagihan bulan berjalan diterbitkan otomatis setiap tanggal/i)
+      ).toBeNull();
+
+      // Toggle switch ON
+      fireEvent.click(toggle);
+      expect(toggle.checked).toBe(true);
+
+      // (a) Asersi teks otomatis tampil saat toggle menyala
+      expect(
+        screen.getByText(
+          /tagihan bulan berjalan diterbitkan otomatis setiap tanggal 1 pukul 00:05 WIB, jatuh tempo tanggal 10\./i
+        )
+      ).toBeTruthy();
+      expect(
+        screen.queryByText(
+          'Tagihan saat ini hanya diterbitkan manual. Aktifkan untuk menerbitkan tagihan bulan berjalan otomatis pada tanggal terbit.'
+        )
+      ).toBeNull();
+
+      // Select tanggal terbit diubah ke 5
+      const issueDaySelect = screen.getByLabelText(/tanggal terbit/i);
+      expect(issueDaySelect.disabled).toBe(false);
+      fireEvent.change(issueDaySelect, { target: { value: '5' } });
+
+      // Teks otomatis terupdate tanggalnya
+      expect(
+        screen.getByText(
+          /tagihan bulan berjalan diterbitkan otomatis setiap tanggal 5 pukul 00:05 WIB, jatuh tempo tanggal 10\./i
+        )
+      ).toBeTruthy();
+
+      // Simpan tagihan
+      const saveBillingBtn = screen.getByRole('button', { name: /simpan tagihan/i });
+      fireEvent.click(saveBillingBtn);
+
+      await waitFor(() => {
+        expect(tenantOperationalService.updateTenantProfileAndSettings).toHaveBeenCalledWith(
+          'tenant-rtrw-1',
+          {
+            settings: {
+              due_day: 10,
+              ipl_components: [
+                { name: 'Keamanan', amount: 80000 },
+                { name: 'Kebersihan', amount: 30000 },
+              ],
+              auto_billing_enabled: true,
+              billing_issue_day: 5,
+            },
+          }
+        );
+      });
+
+      expect(mockToast.success).toHaveBeenCalledWith('Pengaturan tagihan IPL berhasil disimpan.');
+    });
+
+    it('b. blok tidak tampil untuk tenant tipe arisan atau kelas', async () => {
+      // 1. Tipe Arisan
+      mockTenantContext = {
+        ...mockTenantContext,
+        activeTenant: { id: 'tenant-arisan-1', name: 'Arisan Ceria', type: 'arisan' },
+        activeTenantId: 'tenant-arisan-1',
+        tenantType: 'arisan',
+      };
+      tenantOperationalService.fetchTenantDetails.mockResolvedValueOnce({
+        ...sampleDetails,
+        id: 'tenant-arisan-1',
+        name: 'Arisan Ceria',
+        type: 'arisan',
+      });
+
+      const { unmount } = renderComponent('tenant-arisan-1');
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Arisan Ceria')).toBeTruthy();
+      });
+
+      expect(screen.queryByLabelText(/terbitkan tagihan otomatis/i)).toBeNull();
+      expect(screen.queryByText(/riwayat penerbitan otomatis/i)).toBeNull();
+
+      unmount();
+
+      // 2. Tipe Kelas
+      mockTenantContext = {
+        ...mockTenantContext,
+        activeTenant: { id: 'tenant-kelas-1', name: 'Bimbel Mandiri', type: 'kelas' },
+        activeTenantId: 'tenant-kelas-1',
+        tenantType: 'kelas',
+      };
+      tenantOperationalService.fetchTenantDetails.mockResolvedValueOnce({
+        ...sampleDetails,
+        id: 'tenant-kelas-1',
+        name: 'Bimbel Mandiri',
+        type: 'kelas',
+      });
+
+      renderComponent('tenant-kelas-1');
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Bimbel Mandiri')).toBeTruthy();
+      });
+
+      expect(screen.queryByLabelText(/terbitkan tagihan otomatis/i)).toBeNull();
+      expect(screen.queryByText(/riwayat penerbitan otomatis/i)).toBeNull();
+    });
+
+    it('c. riwayat dirender dari fetchBillingAutoRuns yang dimock, termasuk pesan error dan keadaan kosong', async () => {
+      const mockRuns = [
+        {
+          id: 'run-1',
+          period: '2026-10',
+          run_at: '2026-10-10T00:05:00+07:00',
+          created_count: 24,
+          skipped_count: 1,
+          error: null,
+        },
+        {
+          id: 'run-2',
+          period: '2026-09',
+          run_at: '2026-09-10T00:05:00+07:00',
+          created_count: 0,
+          skipped_count: 25,
+          error: 'Koneksi DOKU timeout',
+        },
+      ];
+      tenantOperationalService.fetchBillingAutoRuns.mockResolvedValueOnce(mockRuns);
+
+      const { unmount } = renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByText('Periode 2026-10')).toBeTruthy();
+      });
+
+      expect(screen.getByText(/24 tagihan dibuat, 1 dilewati/i)).toBeTruthy();
+      expect(screen.getByText('Periode 2026-09')).toBeTruthy();
+      expect(screen.getByText(/0 tagihan dibuat, 25 dilewati/i)).toBeTruthy();
+      expect(screen.getByText('Koneksi DOKU timeout')).toBeTruthy();
+
+      unmount();
+
+      // Keadaan kosong
+      tenantOperationalService.fetchBillingAutoRuns.mockResolvedValueOnce([]);
+      renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByText('Belum ada penerbitan otomatis.')).toBeTruthy();
+      });
+    });
+
+    it('d. peringatan muncul bila tanggal terbit lebih besar dari jatuh tempo dan tidak tampil saat toggle mati', async () => {
+      // 1. Initial state dengan billing_issue_day (15) > due_day (10), toggle awal mati (auto_billing_enabled false)
+      tenantOperationalService.fetchTenantDetails.mockResolvedValueOnce({
+        ...sampleDetails,
+        settings: {
+          ...sampleDetails.settings,
+          due_day: 10,
+          billing_issue_day: 15,
+          auto_billing_enabled: false,
+        },
+      });
+
+      renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Palm Village RT 05')).toBeTruthy();
+      });
+
+      const toggle = screen.getByLabelText(/terbitkan tagihan otomatis/i);
+      expect(toggle.checked).toBe(false);
+
+      // (b) Peringatan TIDAK tampil saat toggle mati walaupun tanggal terbit (15) > jatuh tempo (10)
+      expect(screen.queryByText(/tagihan akan langsung lewat jatuh tempo saat terbit/i)).toBeNull();
+
+      // Toggle ON -> peringatan muncul karena issueDay 15 > dueDay 10
+      fireEvent.click(toggle);
+      expect(toggle.checked).toBe(true);
+      expect(screen.getByText(/tagihan akan langsung lewat jatuh tempo saat terbit/i)).toBeTruthy();
+
+      // Toggle OFF kembali -> peringatan tidak tampil saat toggle mati walaupun tanggal terbit > jatuh tempo
+      fireEvent.click(toggle);
+      expect(toggle.checked).toBe(false);
+      expect(screen.queryByText(/tagihan akan langsung lewat jatuh tempo saat terbit/i)).toBeNull();
+
+      // Toggle ON kembali
+      fireEvent.click(toggle);
+      expect(toggle.checked).toBe(true);
+      expect(screen.getByText(/tagihan akan langsung lewat jatuh tempo saat terbit/i)).toBeTruthy();
+
+      // Ubah tanggal terbit kembali ke 5 (<= dueDay 10) -> peringatan hilang
+      const issueDaySelect = screen.getByLabelText(/tanggal terbit/i);
+      fireEvent.change(issueDaySelect, { target: { value: '5' } });
+      expect(screen.queryByText(/tagihan akan langsung lewat jatuh tempo saat terbit/i)).toBeNull();
+    });
+  });
 });
+

@@ -668,3 +668,104 @@ export async function checkoutKosRoom(tenantId, {
 export async function generateKelasSppBilling(tenantId, { period, dry_run = false } = {}) {
   return generateTenantBillingItems(tenantId, { period, dry_run });
 }
+
+const mockBillingAutoRuns = {
+  'demo-tenant-rtrw': [
+    {
+      id: 'mock-auto-run-1',
+      period: '2026-10',
+      run_at: '2026-10-10T00:05:00+07:00',
+      created_count: 42,
+      skipped_count: 0,
+      error: null,
+    },
+    {
+      id: 'mock-auto-run-2',
+      period: '2026-09',
+      run_at: '2026-09-10T00:05:00+07:00',
+      created_count: 40,
+      skipped_count: 2,
+      error: null,
+    },
+    {
+      id: 'mock-auto-run-3',
+      period: '2026-08',
+      run_at: '2026-08-10T00:05:00+07:00',
+      created_count: 38,
+      skipped_count: 4,
+      error: null,
+    },
+  ],
+  'demo-tenant-kos': [
+    {
+      id: 'mock-auto-run-kos-1',
+      period: '2026-10',
+      run_at: '2026-10-05T00:05:00+07:00',
+      created_count: 12,
+      skipped_count: 1,
+      error: null,
+    },
+    {
+      id: 'mock-auto-run-kos-2',
+      period: '2026-09',
+      run_at: '2026-09-05T00:05:00+07:00',
+      created_count: 11,
+      skipped_count: 2,
+      error: null,
+    },
+  ],
+};
+
+const defaultMockBillingAutoRuns = [
+  {
+    id: 'mock-auto-run-def-1',
+    period: '2026-10',
+    run_at: '2026-10-10T00:05:00+07:00',
+    created_count: 20,
+    skipped_count: 1,
+    error: null,
+  },
+  {
+    id: 'mock-auto-run-def-2',
+    period: '2026-09',
+    run_at: '2026-09-10T00:05:00+07:00',
+    created_count: 19,
+    skipped_count: 2,
+    error: null,
+  },
+];
+
+/**
+ * Mengambil riwayat penerbitan tagihan otomatis (BILL-AUTO-1.2)
+ *
+ * @param {string} tenantId - UUID tenant
+ * @param {number} [limit=6] - Batas maksimal baris riwayat
+ * @returns {Promise<Array<{ id: string, period: string, run_at: string, created_count: number, skipped_count: number, error: string|null }>>}
+ */
+export async function fetchBillingAutoRuns(tenantId, limit = 6) {
+  if (!tenantId) return [];
+
+  if (IS_DEMO || String(tenantId).startsWith('demo-')) {
+    const list = mockBillingAutoRuns[tenantId] || defaultMockBillingAutoRuns;
+    return list.slice(0, limit);
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('billing_auto_runs')
+      .select('id, period, run_at, created_count, skipped_count, error')
+      .eq('tenant_id', tenantId)
+      .order('run_at', { ascending: false })
+      .limit(limit);
+
+    if (error || !data) {
+      return [];
+    }
+
+    return data;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('[tenantOperationalService] fetchBillingAutoRuns error:', err);
+    return [];
+  }
+}

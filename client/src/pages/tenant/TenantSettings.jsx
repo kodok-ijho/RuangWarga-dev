@@ -23,11 +23,12 @@ import {
   fetchTenantInviteCode,
   saveInviteCodeWithRetry,
   fetchTenantSettingsAudit,
+  fetchBillingAutoRuns,
 } from '../../services/tenantOperationalService';
 
 export default function TenantSettings() {
   const { tenantId: routeTenantId } = useParams();
-  const { activeTenant, activeTenantId, isOwner, hasPermission, refreshTenant } = useTenant();
+  const { activeTenant, activeTenantId, tenantType: ctxTenantType, isOwner, hasPermission, refreshTenant } = useTenant();
   const tenantId = routeTenantId || activeTenantId;
 
   const template = useTenantTemplate();
@@ -35,6 +36,12 @@ export default function TenantSettings() {
   const unitLabel = template?.unitLabel || 'Unit';
   const memberLabel = template?.memberLabel || 'Warga';
   const toast = useToast();
+
+  const [tenantType, setTenantType] = useState(null);
+
+  const effectiveTenantType = tenantType || ctxTenantType || null;
+
+  const isAutoBillingSupported = effectiveTenantType === 'rt_rw' || effectiveTenantType === 'kos';
 
   const canManage = Boolean(isOwner || (hasPermission && hasPermission('manage_settings')));
   const { canTransact, isReadOnly, tooltip } = useSubscriptionGate({
@@ -56,6 +63,10 @@ export default function TenantSettings() {
     { name: `Iuran Pokok`, amount: 0 },
   ]);
   const [isSavingBilling, setIsSavingBilling] = useState(false);
+  const [autoBillingEnabled, setAutoBillingEnabled] = useState(false);
+  const [billingIssueDay, setBillingIssueDay] = useState(1);
+  const [autoRuns, setAutoRuns] = useState([]);
+  const [isLoadingAutoRuns, setIsLoadingAutoRuns] = useState(false);
 
   // Bagian 3: Rekening Penerima
   const [bankName, setBankName] = useState('');
@@ -86,6 +97,20 @@ export default function TenantSettings() {
     }
   }, [tenantId, isOwner]);
 
+  // Riwayat penerbitan tagihan otomatis (BILL-AUTO-1.2)
+  const loadAutoRuns = useCallback(async () => {
+    if (!tenantId || !isAutoBillingSupported) return;
+    try {
+      setIsLoadingAutoRuns(true);
+      const runs = await fetchBillingAutoRuns(tenantId, 6);
+      setAutoRuns(runs || []);
+    } catch {
+      setAutoRuns([]);
+    } finally {
+      setIsLoadingAutoRuns(false);
+    }
+  }, [tenantId, isAutoBillingSupported]);
+
   // Load Data awal
   const loadData = useCallback(async () => {
     if (!tenantId) return;
@@ -100,12 +125,23 @@ export default function TenantSettings() {
         setName(details.name || '');
         setAddress(details.address || '');
         setContactPhone(details.contact_phone || '');
+        if (details.type) {
+          setTenantType(details.type);
+        }
 
         const settings = details.settings || {};
         if (settings.due_day !== undefined && settings.due_day !== null) {
           setDueDay(settings.due_day);
         } else {
           setDueDay(10);
+        }
+
+        setAutoBillingEnabled(Boolean(settings.auto_billing_enabled));
+        if (settings.billing_issue_day !== undefined && settings.billing_issue_day !== null) {
+          const parsedIssueDay = parseInt(settings.billing_issue_day, 10);
+          setBillingIssueDay(!isNaN(parsedIssueDay) && parsedIssueDay >= 1 && parsedIssueDay <= 28 ? parsedIssueDay : 1);
+        } else {
+          setBillingIssueDay(1);
         }
 
         if (Array.isArray(settings.ipl_components) && settings.ipl_components.length > 0) {
@@ -157,6 +193,12 @@ export default function TenantSettings() {
       loadAudit();
     }
   }, [isOwner, loadAudit]);
+
+  useEffect(() => {
+    if (isAutoBillingSupported) {
+      loadAutoRuns();
+    }
+  }, [isAutoBillingSupported, loadAutoRuns]);
 
   // ── Handler Bagian 1: Profil Komunitas ──────────────────────────────────────
   const handleSaveProfile = async (e) => {
@@ -220,6 +262,15 @@ export default function TenantSettings() {
       return;
     }
 
+    let issueDayNum = 1;
+    if (isAutoBillingSupported) {
+      issueDayNum = parseInt(billingIssueDay, 10);
+      if (isNaN(issueDayNum) || issueDayNum < 1 || issueDayNum > 28) {
+        toast.error('Tanggal terbit tagihan harus berupa angka antara 1 hingga 28.');
+        return;
+      }
+    }
+
     for (let i = 0; i < iplComponents.length; i++) {
       const c = iplComponents[i];
       if (!c.name || !c.name.trim()) {
@@ -238,13 +289,20 @@ export default function TenantSettings() {
       amount: Math.round(Number(c.amount) || 0),
     }));
 
+    const billingSettings = {
+      due_day: dueDayNum,
+      ipl_components: cleanedComponents,
+    };
+
+    if (isAutoBillingSupported) {
+      billingSettings.auto_billing_enabled = Boolean(autoBillingEnabled);
+      billingSettings.billing_issue_day = issueDayNum;
+    }
+
     setIsSavingBilling(true);
     try {
       await updateTenantProfileAndSettings(tenantId, {
-        settings: {
-          due_day: dueDayNum,
-          ipl_components: cleanedComponents,
-        },
+        settings: billingSettings,
       });
       toast.success(`Pengaturan tagihan ${billLabel} berhasil disimpan.`);
       if (typeof refreshTenant === 'function') {
@@ -490,6 +548,138 @@ export default function TenantSettings() {
               Tagihan bulanan akan diterbitkan setiap tanggal ini.
             </p>
           </div>
+
+          {/* Blok Terbitkan Tagihan Otomatis (BILL-AUTO-1.2) - HANYA tipe rt_rw atau kos */}
+          {isAutoBillingSupported && (
+            <div className="pt-2 border-t border-slate-100 space-y-4">
+              <div className="p-4 rounded-xl border border-slate-200/90 bg-slate-50/70 space-y-3.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <label
+                      htmlFor="autoBillingEnabledToggle"
+                      className="text-xs sm:text-sm font-bold text-slate-800 cursor-pointer block"
+                    >
+                      Terbitkan tagihan otomatis
+                    </label>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Otomatisasi pembuatan tagihan berkala setiap bulan tanpa perlu terbit manual.
+                    </p>
+                  </div>
+                  <label
+                    htmlFor="autoBillingEnabledToggle"
+                    className="relative inline-flex items-center cursor-pointer select-none shrink-0"
+                  >
+                    <input
+                      id="autoBillingEnabledToggle"
+                      type="checkbox"
+                      checked={autoBillingEnabled}
+                      onChange={(e) => setAutoBillingEnabled(e.target.checked)}
+                      disabled={!canEdit || isSavingBilling}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed" />
+                  </label>
+                </div>
+
+                <div className="max-w-xs">
+                  <label
+                    htmlFor="billingIssueDaySelect"
+                    className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1"
+                  >
+                    Tanggal Terbit (1–28)
+                  </label>
+                  <select
+                    id="billingIssueDaySelect"
+                    value={billingIssueDay}
+                    onChange={(e) => setBillingIssueDay(parseInt(e.target.value, 10))}
+                    disabled={!canEdit || isSavingBilling || !autoBillingEnabled}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-100 disabled:text-slate-400 font-medium transition"
+                  >
+                    {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
+                      <option key={day} value={day}>
+                        Tanggal {day}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {autoBillingEnabled ? (
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Tagihan bulan berjalan diterbitkan otomatis setiap tanggal {billingIssueDay} pukul 00:05 WIB, jatuh tempo tanggal {dueDay}.{' '}
+                    {effectiveTenantType === 'kos'
+                      ? 'Berlaku untuk kamar terisi dengan kontrak berjalan.'
+                      : 'Berlaku untuk semua rumah aktif, termasuk rumah kosong.'}{' '}
+                    Tombol terbit manual tetap bisa dipakai.
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Tagihan saat ini hanya diterbitkan manual. Aktifkan untuk menerbitkan tagihan bulan berjalan otomatis pada tanggal terbit.
+                  </p>
+                )}
+
+                {autoBillingEnabled && Number(billingIssueDay) > Number(dueDay) && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-800 flex items-start gap-2">
+                    <AiOutlineWarning className="text-base text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-semibold">Peringatan: </span>
+                      Tanggal terbit ({billingIssueDay}) lebih besar dari tanggal jatuh tempo ({dueDay}). Tagihan akan langsung lewat jatuh tempo saat terbit.
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Riwayat Penerbitan Otomatis (6 run terakhir) */}
+              <div className="pt-2">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <AiOutlineClockCircle className="text-slate-400" size={14} />
+                    Riwayat Penerbitan Otomatis
+                  </h3>
+                  <span className="text-[11px] text-slate-400">6 Run Terakhir</span>
+                </div>
+
+                {isLoadingAutoRuns ? (
+                  <p className="text-xs text-slate-400 italic py-2">Memuat riwayat penerbitan otomatis...</p>
+                ) : autoRuns.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic py-1">Belum ada penerbitan otomatis.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {autoRuns.map((run) => {
+                      const runAtStr = run.run_at
+                        ? new Date(run.run_at).toLocaleString('id-ID', {
+                            timeZone: 'Asia/Jakarta',
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })
+                        : '-';
+
+                      return (
+                        <div
+                          key={run.id || `${run.period}-${run.run_at}`}
+                          className="p-3 rounded-lg border border-slate-200 bg-slate-50/70 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-1.5"
+                        >
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-800">Periode {run.period}</span>
+                              <span className="text-[11px] text-slate-400">• {runAtStr}</span>
+                            </div>
+                            <div className="text-[11px] text-slate-600">
+                              {run.created_count ?? 0} tagihan dibuat, {run.skipped_count ?? 0} dilewati
+                            </div>
+                            {run.error && (
+                              <p className="text-[11px] text-red-600 font-medium mt-0.5">
+                                {run.error}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div>
             <div className="flex items-center justify-between mb-2">

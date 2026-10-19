@@ -23,4 +23,4 @@ Status: **disetujui user 2026-10-18**. Dikerjakan setelah RTRW-2.6. Menyentuh ta
 | Task | Isi |
 |---|---|
 | BILL-AUTO-1.1 ✅ (`f165cd8`, terpasang di dev 2026-10-19 lewat SQL Editor) | Migration: aktifkan `pg_cron`; tabel `billing_auto_runs` + RLS; fungsi `run_auto_billing(p_today date default current_date)` + `generate_auto_bills_for_tenant`; jadwal `cron.schedule` harian 17:05 UTC (00:05 WIB). Test SQL matriks (rumah aktif/nonaktif, idempoten, read_only dilewati, tanggal bukan hari terbit dilewati). |
-| BILL-AUTO-1.2 | UI di Pengaturan Komunitas: toggle, tanggal terbit, keterangan jatuh tempo, dan riwayat 6 penerbitan terakhir. Test. |
+| BILL-AUTO-1.2 ✅ | UI di Pengaturan Komunitas: toggle, tanggal terbit, keterangan jatuh tempo, dan riwayat 6 penerbitan terakhir. Test. |
