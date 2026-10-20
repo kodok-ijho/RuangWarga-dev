@@ -16,7 +16,6 @@ import {
   AiOutlineWarning,
 } from 'react-icons/ai';
 import { useTenant } from '../../hooks/useTenant';
-import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { useSubscriptionGate } from '../../hooks/useSubscriptionGate';
 import {
@@ -58,7 +57,6 @@ export default function ArisanRounds() {
   const { tenantId: routeTenantId } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
-  const { user } = useAuth();
   const { activeTenant, activeTenantId, isTenantAdmin } = useTenant();
   const { isReadOnly, bannerText } = useSubscriptionGate();
 
@@ -265,7 +263,8 @@ export default function ArisanRounds() {
 
     try {
       setResettingCycle(true);
-      const res = await startNewArisanCycle(tenantId, user?.id, force);
+      // Operator dicatat server (VERT-2); user.id bukan tenant_members.id.
+      const res = await startNewArisanCycle(tenantId, null, force);
       toast.success(`Siklus baru #${res.new_cycle || ''} berhasil dimulai! Status seluruh peserta telah direset.`);
       setIsResetCycleModalOpen(false);
       await loadData();
