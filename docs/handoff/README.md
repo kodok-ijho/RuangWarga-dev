@@ -21,7 +21,7 @@ Folder ini adalah satu-satunya jalur serah-terima tugas di repo ini.
 
 ## Aturan untuk Executor
 
-- Kerja di branch `claude/eloquent-tesla-f0ddcr`. Jangan push ke `main`.
+- Kerja di branch yang ditulis di bagian atas batch aktif (saat ini `claude/ruangwarga-remote-2-disconnect-m4oku0`). Jangan push ke `main`.
 - **Jangan** menjalankan migration ke Supabase, Vercel, atau secret apa pun. Cukup tulis file migration/kode; penerapan & verifikasi live dilakukan Claude.
 - 🚫 **n8n dilarang disentuh, oleh siapa pun.** Instance n8n dan workflow-nya masih dipakai Portal Warga yang sudah LIVE di repo lain. Membaca definisi workflow sebagai referensi boleh; mengubah, menonaktifkan, atau menyentuh kredensial/path webhook-nya tidak boleh. `api/n8n.js` di repo ini juga jangan diubah tanpa persetujuan eksplisit user.
 - Jangan mengubah hal di luar task. Jangan install package kecuali task memintanya (sebut alasan di commit).
