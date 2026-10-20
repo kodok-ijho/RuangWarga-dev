@@ -86,9 +86,9 @@ serve(async (req) => {
 
     const { kind, path, expiresIn } = body;
 
-    if (kind !== "payment_proof" && kind !== "expense_receipt") {
+    if (kind !== "payment_proof" && kind !== "expense_receipt" && kind !== "announcement_image") {
       return new Response(
-        JSON.stringify({ error: "Parameter kind harus bernilai 'payment_proof' atau 'expense_receipt'." }),
+        JSON.stringify({ error: "Parameter kind harus bernilai 'payment_proof', 'expense_receipt', atau 'announcement_image'." }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -149,7 +149,7 @@ serve(async (req) => {
         );
       }
     } else {
-      if (kind === "expense_receipt") {
+      if (kind === "expense_receipt" || kind === "announcement_image") {
         return new Response(
           JSON.stringify({ error: "Anda tidak memiliki izin untuk melihat file ini." }),
           {

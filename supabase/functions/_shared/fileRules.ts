@@ -16,6 +16,14 @@ export const ALLOWED_MIME = [
 
 export type AllowedMimeType = typeof ALLOWED_MIME[number];
 
+export const ALLOWED_IMAGE_MIME = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+] as const;
+
+export type AllowedImageMimeType = typeof ALLOWED_IMAGE_MIME[number];
+
 export const MIME_TO_EXTENSION: Record<AllowedMimeType, string> = {
   'image/jpeg': '.jpg',
   'image/png': '.png',
@@ -26,6 +34,7 @@ export const MIME_TO_EXTENSION: Record<AllowedMimeType, string> = {
 // Regex path canonical disalin persis dari client/src/utils/storagePolicy.js
 export const EXPENSE_RECEIPT_PATH_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/expenses\/[12][0-9]{3}\/[a-zA-Z0-9_\-.]+$/;
 export const PAYMENT_PROOF_PATH_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/payments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[a-zA-Z0-9_\-.]+$/;
+export const ANNOUNCEMENT_IMAGE_PATH_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/announcements\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|jpeg|png|webp)$/i;
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ISO_DATE_REGEX = /^[12][0-9]{3}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])$/;
@@ -170,7 +179,7 @@ export function adjustFileNameExtension(fileName: string, mime?: string | null):
 /**
  * Validasi ketat path penyimpanan canonical:
  * - Menolak traversal ('..'), leading slash ('/'), dan backslash ('\')
- * - Memverifikasi kesesuaian pola regex per kind ('payment_proof' atau 'expense_receipt')
+ * - Memverifikasi kesesuaian pola regex per kind ('payment_proof', 'expense_receipt', atau 'announcement_image')
  */
 export function isValidPath(kind: string, path: unknown): boolean {
   if (!path || typeof path !== 'string') return false;
@@ -184,6 +193,10 @@ export function isValidPath(kind: string, path: unknown): boolean {
 
   if (kind === 'expense_receipt') {
     return EXPENSE_RECEIPT_PATH_REGEX.test(path);
+  }
+
+  if (kind === 'announcement_image') {
+    return ANNOUNCEMENT_IMAGE_PATH_REGEX.test(path);
   }
 
   return false;
@@ -274,6 +287,47 @@ export function buildExpenseReceiptPath(
 
   if (!isValidPath('expense_receipt', path)) {
     throw new Error('Path nota pengeluaran tidak valid atau melanggar struktur canonical');
+  }
+
+  return path;
+}
+
+/**
+ * Menyusun canonical path untuk gambar pengumuman tenant:
+ * Format: {tenant_id}/announcements/{image_uuid}.{jpg|jpeg|png|webp}
+ */
+export function buildAnnouncementImagePath(
+  tenantId: string,
+  imageUuid?: string,
+  detectedMime?: string | null
+): string {
+  if (!isUuid(tenantId)) {
+    throw new Error('tenantId harus berupa UUID yang valid');
+  }
+
+  let finalUuid = imageUuid;
+  let finalMime = detectedMime;
+
+  // Menangani fleksibilitas bila dipanggil sebagai buildAnnouncementImagePath(tenantId, detectedMime)
+  if (imageUuid && !isUuid(imageUuid) && (imageUuid.startsWith('image/') || imageUuid in MIME_TO_EXTENSION)) {
+    finalMime = imageUuid;
+    finalUuid = undefined;
+  }
+
+  const generatedUuid = finalUuid || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : '');
+  if (!isUuid(generatedUuid)) {
+    throw new Error('imageUuid harus berupa UUID yang valid');
+  }
+
+  if (!finalMime || !(ALLOWED_IMAGE_MIME as readonly string[]).includes(finalMime)) {
+    throw new Error('Format file tidak didukung. Gambar pengumuman hanya mendukung JPEG, PNG, dan WebP.');
+  }
+
+  const ext = MIME_TO_EXTENSION[finalMime as AllowedMimeType] || '.jpg';
+  const path = `${tenantId.trim().toLowerCase()}/announcements/${generatedUuid.trim().toLowerCase()}${ext}`;
+
+  if (!isValidPath('announcement_image', path)) {
+    throw new Error('Path gambar pengumuman tidak valid atau melanggar struktur canonical');
   }
 
   return path;
