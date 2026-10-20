@@ -40,5 +40,31 @@ Latar belakang: AUDIT-RTRW F7 (Acara masih memakai n8n Palm Village) dan F8 (Pen
 | RTRW-3.1b ✅ (`5c553c3`, deploy CLI: storage-upload v4, storage-sign-url v3) | Edge Function `storage-upload` dan `storage-sign-url` + `_shared/fileRules.ts` menerima jenis `announcement_image`. **Perlu deploy ulang** kedua fungsi; cara deploy disepakati dulu karena konfirmasi konektor Supabase tidak tampil di session Remote Control. |
 | RTRW-3.1c ✅ (`72d9085`, `e53483b`) | Frontend: service `client/src/services/tenant/announcements.js`, halaman Pengumuman tenant, widget dashboard, izin di `rbac.js` (katalog + template Ketua/Sekretaris), `canManageAnnouncements` di akses tenant, data demo, dan test. |
 
-## RTRW-3.2 Acara (rencana kasar)
-Tabel `tenant_events` (nama, deskripsi, lokasi, waktu mulai dan selesai, gambar opsional) dengan izin yang sama, plus halaman daftar acara mendatang dan yang sudah lewat. Keuangan acara menyusul terpisah. Detail ditulis setelah RTRW-3.1 selesai.
+## RTRW-3.2 Acara
+
+Status: **disetujui user 2026-10-20** (menyentuh schema dan RLS).
+Tabel lama `public.events` / `public.rsvp` (single-tenant Palm Village) dan rute `/events` di luar `/t/` tidak disentuh.
+
+### Requirement
+1. Tabel `tenant_events` dengan kolom:
+   - `id`, `tenant_id` (cascade)
+   - `title` (1–150 karakter), `description` (maksimal 5000 karakter), `location` (maksimal 200 karakter, boleh kosong)
+   - `starts_at` (wajib), `ends_at` (boleh kosong, tidak boleh sebelum `starts_at`)
+   - `image_path` (boleh kosong)
+   - `created_by`, `created_at`, `updated_at`
+2. RLS sama dengan Pengumuman: baca oleh anggota approved, owner, dan platform admin; tulis oleh `can_manage_announcements(tenant_id)` dan ditolak bila `read_only`.
+3. Gambar **memakai ulang** jenis file `announcement_image` dan path `{tenant}/announcements/{uuid}.{ext}`, sehingga tidak perlu mengubah fungsi storage dan tidak perlu deploy Edge Function. Validator path yang sama dipakai di check constraint.
+4. Halaman Acara di `/t/:tenantId/events` (menu dimunculkan untuk semua anggota):
+   - tab **Mendatang** (urut terdekat) dan **Selesai** (urut terbaru);
+   - kartu berisi tanggal, jam (WIB), lokasi, deskripsi, dan gambar;
+   - tombol **Bagikan ke WA** dan **Tambah ke Google Calendar** (link `calendar.google.com/calendar/render?action=TEMPLATE…`, gratis);
+   - buat/ubah/hapus untuk pemegang izin.
+5. Dashboard tenant menampilkan 3 acara mendatang.
+6. Mode demo dan mode Supabase. RSVP/kehadiran dan keuangan acara **belum** (tugas terpisah).
+
+### Task
+| Task | Isi |
+|---|---|
+| RTRW-3.2a | Migration `tenant_events` + RLS + index `(tenant_id, starts_at)` + test SQL matriks. Dry-run lalu terapkan di dev lewat SQL Editor. |
+| RTRW-3.2b | Service `client/src/services/tenant/events.js` (CRUD, whitelist field, gambar lewat `uploadAnnouncementImage`), data demo, dan test. |
+| RTRW-3.2c | Halaman Acara tenant, rute, menu, kartu dashboard, dan test. |
