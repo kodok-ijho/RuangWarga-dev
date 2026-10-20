@@ -14,10 +14,12 @@ const EXPECTED_EXPORTS = [
   "calculateBillingPreview",
   "checkoutKosRoom",
   "createArisanRound",
+  "createTenantAnnouncement",
   "createTenantBillingItem",
   "createTenantExpense",
   "createTenantRole",
   "createTenantUnit",
+  "deleteTenantAnnouncement",
   "deleteTenantExpense",
   "deleteTenantRole",
   "deleteTenantUnit",
@@ -30,6 +32,7 @@ const EXPECTED_EXPORTS = [
   "fetchBillingAutoRuns",
   "fetchPendingTenantMembers",
   "fetchPlatformPermissions",
+  "fetchTenantAnnouncements",
   "fetchTenantBillMatrix",
   "fetchTenantBillingItems",
   "fetchTenantDashboardData",
@@ -47,6 +50,7 @@ const EXPECTED_EXPORTS = [
   "generateInviteCode",
   "generateKelasSppBilling",
   "generateTenantBillingItems",
+  "getAnnouncementImageUrl",
   "getCachedTenantInviteCode",
   "getInviteDetails",
   "getTenantBankAccount",
@@ -68,19 +72,21 @@ const EXPECTED_EXPORTS = [
   "setTenantUnitStatus",
   "startNewArisanCycle",
   "submitTenantPayment",
+  "updateTenantAnnouncement",
   "updateTenantExpense",
   "updateTenantMember",
   "updateTenantPayment",
   "updateTenantProfileAndSettings",
   "updateTenantRole",
   "updateTenantUnit",
+  "uploadAnnouncementImage",
   "verifyTenantPayment",
 ];
 
 describe('tenantOperationalService Exports Guard (DEBT-1.4)', () => {
-  it('harus mengekspor 73 fungsi/konstanta yang sama persis', () => {
+  it('harus mengekspor 79 fungsi/konstanta yang sama persis', () => {
     const exportsList = Object.keys(tenantOperationalService).sort();
     expect(exportsList).toEqual(EXPECTED_EXPORTS);
-    expect(exportsList.length).toBe(73);
+    expect(exportsList.length).toBe(79);
   });
 });

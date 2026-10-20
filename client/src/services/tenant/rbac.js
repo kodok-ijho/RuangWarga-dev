@@ -19,6 +19,7 @@ export const PLATFORM_PERMISSIONS = [
   { key: 'run_special_action', label: 'Jalankan Aksi Khusus', description: 'Kocok arisan, checkout kos, mulai siklus baru' },
   { key: 'post_listing', label: 'Kelola Iklan Komunitas', description: 'Melihat & mengelola semua iklan listing komunitas (warga tetap bisa memasang iklannya sendiri tanpa izin ini)' },
   { key: 'manage_tenant_users', label: 'Kelola User & Audit', description: 'CRUD akun/akses user tenant, ubah role, lihat audit log' },
+  { key: 'manage_announcements', label: 'Kelola Pengumuman & Acara', description: 'Tulis, ubah, dan hapus pengumuman serta acara tenant' },
 ];
 
 let mockCustomRolesStore = [
@@ -346,6 +347,7 @@ export const ROLE_TEMPLATES = {
         'view_reports',
         'manage_members',
         'manage_settings',
+        'manage_announcements',
       ],
     },
     {
@@ -359,7 +361,7 @@ export const ROLE_TEMPLATES = {
     },
     {
       name: 'Sekretaris',
-      permissions: ['view_reports', 'manage_members', 'post_listing'],
+      permissions: ['view_reports', 'manage_members', 'post_listing', 'manage_announcements'],
     },
     {
       name: 'Bendahara',

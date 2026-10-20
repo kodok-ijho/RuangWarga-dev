@@ -208,12 +208,20 @@ describe('tenant/rbac - Unit Tests (DEBT-1F.1)', () => {
     });
   });
 
-  describe('ROLE_TEMPLATES dan PLATFORM_PERMISSIONS (RTRW-2.6)', () => {
+  describe('ROLE_TEMPLATES dan PLATFORM_PERMISSIONS (RTRW-2.6 & RTRW-3.1)', () => {
     it('entri post_listing memiliki label dan description baru yang tepat', () => {
       const perm = PLATFORM_PERMISSIONS.find((p) => p.key === 'post_listing');
       expect(perm).toBeDefined();
       expect(perm.label).toBe('Kelola Iklan Komunitas');
       expect(perm.description).toContain('Melihat & mengelola semua iklan listing komunitas');
+    });
+
+    it('entri manage_announcements memiliki konfigurasi izin yang tepat (RTRW-3.1)', () => {
+      const perm = PLATFORM_PERMISSIONS.find((p) => p.key === 'manage_announcements');
+      expect(perm).toBeDefined();
+      expect(perm.label).toBe('Kelola Pengumuman & Acara');
+      expect(perm.description).toBe('Tulis, ubah, dan hapus pengumuman serta acara tenant');
+      expect(PLATFORM_PERMISSIONS).toHaveLength(11);
     });
 
     it('ROLE_TEMPLATES memiliki konfigurasi rt_rw dengan 6 jabatan standar', () => {
@@ -229,6 +237,20 @@ describe('tenant/rbac - Unit Tests (DEBT-1F.1)', () => {
         'Koordinator Blok',
         'Humas',
       ]);
+
+      // Ketua RT/RW dan Sekretaris memiliki izin manage_announcements (RTRW-3.1)
+      const ketua = ROLE_TEMPLATES.rt_rw.find((r) => r.name === 'Ketua RT/RW');
+      const sekretaris = ROLE_TEMPLATES.rt_rw.find((r) => r.name === 'Sekretaris');
+      expect(ketua.permissions).toContain('manage_announcements');
+      expect(sekretaris.permissions).toContain('manage_announcements');
+
+      // Jabatan lain di RT/RW tidak memiliki izin manage_announcements secara default
+      const others = ROLE_TEMPLATES.rt_rw.filter(
+        (r) => r.name !== 'Ketua RT/RW' && r.name !== 'Sekretaris'
+      );
+      for (const roleDef of others) {
+        expect(roleDef.permissions).not.toContain('manage_announcements');
+      }
 
       // Pastikan manage_tenant_users dan run_special_action TIDAK ADA di template mana pun
       for (const tpl of Object.values(ROLE_TEMPLATES)) {

@@ -69,7 +69,7 @@ export async function parseInvokeError(error) {
  * Mengunggah file tenant ke Cloudflare R2 via Edge Function storage-upload.
  *
  * @param {object} params
- * @param {'payment_proof'|'expense_receipt'} params.kind - Jenis file
+ * @param {'payment_proof'|'expense_receipt'|'announcement_image'} params.kind - Jenis file
  * @param {string} params.tenantId - UUID tenant
  * @param {string} [params.billingItemId] - UUID billing_item (wajib jika kind === 'payment_proof')
  * @param {string} [params.expenseDate] - Tanggal ISO 'YYYY-MM-DD' (wajib jika kind === 'expense_receipt')
@@ -89,6 +89,9 @@ export async function uploadTenantFile({
     const fileName = file?.name || 'file.jpg';
     if (kind === 'payment_proof') {
       return `${tenantId || 'demo-tenant'}/payments/${billingItemId || 'demo-bill'}/${Date.now()}_${fileName}`;
+    }
+    if (kind === 'announcement_image') {
+      return `${tenantId || 'demo-tenant'}/announcements/${Date.now()}_${fileName}`;
     }
     const year = expenseDate ? String(expenseDate).slice(0, 4) : '2026';
     return `${tenantId || 'demo-tenant'}/expenses/${year}/${Date.now()}_${fileName}`;
@@ -122,7 +125,7 @@ export async function uploadTenantFile({
  * Mendapatkan presigned URL dari Cloudflare R2 via Edge Function storage-sign-url.
  *
  * @param {object} params
- * @param {'payment_proof'|'expense_receipt'} params.kind - Jenis file
+ * @param {'payment_proof'|'expense_receipt'|'announcement_image'} params.kind - Jenis file
  * @param {string} params.path - Canonical path file
  * @param {number} [params.expiresIn=300] - Durasi berlaku dalam detik (60..600)
  * @param {object} [params.client] - Supabase client instance opsional (default: singleton)

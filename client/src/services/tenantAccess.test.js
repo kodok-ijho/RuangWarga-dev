@@ -25,6 +25,7 @@ describe('RTRW-1.1: computeTenantAccess (Pure RBAC v2 Engine)', () => {
       canManageExpenses: false,
       canViewReports: false,
       canManageMembers: false,
+      canManageAnnouncements: false,
     });
   });
 
@@ -47,6 +48,7 @@ describe('RTRW-1.1: computeTenantAccess (Pure RBAC v2 Engine)', () => {
     expect(access.canManageExpenses).toBe(true);
     expect(access.canViewReports).toBe(true);
     expect(access.canManageMembers).toBe(true);
+    expect(access.canManageAnnouncements).toBe(true);
   });
 
   it('memberikan akses penuh untuk Platform Admin pada tenant aktif', () => {
@@ -68,6 +70,7 @@ describe('RTRW-1.1: computeTenantAccess (Pure RBAC v2 Engine)', () => {
     expect(access.canManageExpenses).toBe(true);
     expect(access.canViewReports).toBe(true);
     expect(access.canManageMembers).toBe(true);
+    expect(access.canManageAnnouncements).toBe(true);
   });
 
   it('membatasi hak akses untuk Warga Biasa (role dasar tanpa izin staf)', () => {
@@ -90,6 +93,7 @@ describe('RTRW-1.1: computeTenantAccess (Pure RBAC v2 Engine)', () => {
     expect(access.canManageExpenses).toBe(false);
     expect(access.canViewReports).toBe(false);
     expect(access.canManageMembers).toBe(false);
+    expect(access.canManageAnnouncements).toBe(false);
   });
 
   it('memberikan izin verifikasi dan pencatatan kas/transfer untuk Bendahara', () => {
@@ -159,6 +163,48 @@ describe('RTRW-1.1: computeTenantAccess (Pure RBAC v2 Engine)', () => {
     expect(access.canWrite).toBe(false); // Blokir mutasi tulis
     expect(access.canViewReports).toBe(true);
     expect(access.canVerifyPayments).toBe(true);
+  });
+
+  describe('canManageAnnouncements flag (RTRW-3.1)', () => {
+    it('memberikan canManageAnnouncements: true untuk pemegang izin manage_announcements', () => {
+      const access = computeTenantAccess({
+        hasActiveTenant: true,
+        isOwner: false,
+        isPlatformAdmin: false,
+        permissions: ['manage_announcements'],
+      });
+      expect(access.canManageAnnouncements).toBe(true);
+    });
+
+    it('memberikan canManageAnnouncements: true untuk pemegang izin manage_settings', () => {
+      const access = computeTenantAccess({
+        hasActiveTenant: true,
+        isOwner: false,
+        isPlatformAdmin: false,
+        permissions: ['manage_settings'],
+      });
+      expect(access.canManageAnnouncements).toBe(true);
+    });
+
+    it('memberikan canManageAnnouncements: false bila user hanya memiliki izin lain', () => {
+      const access = computeTenantAccess({
+        hasActiveTenant: true,
+        isOwner: false,
+        isPlatformAdmin: false,
+        permissions: ['manage_billing_cash', 'view_reports'],
+      });
+      expect(access.canManageAnnouncements).toBe(false);
+    });
+
+    it('memberikan canManageAnnouncements: false bila permissions kosong dan bukan owner/admin', () => {
+      const access = computeTenantAccess({
+        hasActiveTenant: true,
+        isOwner: false,
+        isPlatformAdmin: false,
+        permissions: [],
+      });
+      expect(access.canManageAnnouncements).toBe(false);
+    });
   });
 });
 

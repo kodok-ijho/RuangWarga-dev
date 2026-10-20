@@ -12,6 +12,7 @@
  * - canManageExpenses: manage_expenses
  * - canViewReports: view_reports ATAU manage_expenses
  * - canManageMembers: manage_members
+ * - canManageAnnouncements: owner, platform admin, manage_announcements, ATAU manage_settings
  */
 
 export const STAFF_PERMISSIONS = [
@@ -58,6 +59,7 @@ export function computeTenantAccess({
       canManageExpenses: false,
       canViewReports: false,
       canManageMembers: false,
+      canManageAnnouncements: false,
     };
   }
 
@@ -81,6 +83,7 @@ export function computeTenantAccess({
     canManageExpenses: hasPerm('manage_expenses'),
     canViewReports: hasPerm('view_reports') || hasPerm('manage_expenses'),
     canManageMembers: hasPerm('manage_members'),
+    canManageAnnouncements: hasPerm('manage_announcements') || hasPerm('manage_settings'),
   };
 }
 

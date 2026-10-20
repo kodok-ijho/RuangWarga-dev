@@ -1719,3 +1719,42 @@ export const mockPublicListings = [
     updated_at: new Date().toISOString(),
   },
 ];
+
+export const mockAnnouncements = [
+  {
+    id: 'mock-ann-1',
+    tenant_id: 'demo-tenant-rtrw',
+    title: 'Kerja Bakti Lingkungan & Fogging Nyamuk DBD',
+    body: 'Sehubungan dengan musim hujan dan pencegahan penyakit demam berdarah (DBD), pengurus mengundang seluruh warga untuk berpartisipasi dalam kerja bakti massal hari Minggu pukul 07.00 WIB di Pos Satpam Utama. Mohon membawa peralatan kebersihan masing-masing.',
+    image_path: null,
+    is_pinned: true,
+    published_at: '2026-10-18T08:00:00.000Z',
+    created_by: 'demo-admin',
+    created_at: '2026-10-18T08:00:00.000Z',
+    updated_at: '2026-10-18T08:00:00.000Z',
+  },
+  {
+    id: 'mock-ann-2',
+    tenant_id: 'demo-tenant-rtrw',
+    title: 'Pemberitahuan Pemeliharaan Lampu Jalan & Gerbang Utama',
+    body: 'Akan dilakukan perbaikan instalasi kabel lampu penerangan jalan di Blok A dan Blok B serta penggantian sensor gerbang otomatis pada hari Kamis mulai pukul 13.00 s/d 16.00 WIB. Mohon maklum atas ketidaknyamanan sementara.',
+    image_path: null,
+    is_pinned: false,
+    published_at: '2026-10-15T10:00:00.000Z',
+    created_by: 'demo-admin',
+    created_at: '2026-10-15T10:00:00.000Z',
+    updated_at: '2026-10-15T10:00:00.000Z',
+  },
+  {
+    id: 'mock-ann-3',
+    tenant_id: 'demo-tenant-rtrw',
+    title: 'Jadwal Pengambilan Sampah Daur Ulang Mandiri',
+    body: 'Mulai pekan depan, tim kebersihan lingkungan akan menjadwalkan pengambilan sampah anorganik dan kardus terpilah setiap hari Sabtu pagi pukul 09.00 WIB. Warga dimohon memilah sampah sebelum dikumpulkan.',
+    image_path: null,
+    is_pinned: false,
+    published_at: '2026-10-10T09:00:00.000Z',
+    created_by: 'demo-admin',
+    created_at: '2026-10-10T09:00:00.000Z',
+    updated_at: '2026-10-10T09:00:00.000Z',
+  },
+];
