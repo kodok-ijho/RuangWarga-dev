@@ -16,8 +16,10 @@ import { MONTHS_LONG } from '../../services/dataHelpers';
 import {
   fetchTenantDashboardData,
   fetchTenantAnnouncements,
+  fetchTenantEvents,
 } from '../../services/tenantOperationalService';
 import { formatAnnouncementDate } from './TenantAnnouncements';
+import { formatEventDateTimeWib } from '../../utils/eventLinks';
 import { Button, StatusBadge } from '../../components/ui';
 
 // Persona Dashboards & Skeletons
@@ -58,6 +60,7 @@ export default function TenantDashboard() {
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
   const [dashData, setDashData] = useState(null);
   const [announcements, setAnnouncements] = useState([]);
+  const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
@@ -94,7 +97,7 @@ export default function TenantDashboard() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const [data, annList] = await Promise.all([
+      const [data, annList, evtList] = await Promise.all([
         fetchTenantDashboardData(tenantId, {
           role: userRole,
           period: selectedPeriod,
@@ -106,9 +109,15 @@ export default function TenantDashboard() {
           console.warn('Gagal memuat pengumuman dashboard:', err);
           return [];
         }),
+        fetchTenantEvents(tenantId, { scope: 'upcoming', limit: 3 }).catch((err) => {
+          // eslint-disable-next-line no-console
+          console.warn('Gagal memuat acara dashboard:', err);
+          return [];
+        }),
       ]);
       setDashData(data);
       setAnnouncements(Array.isArray(annList) ? annList : []);
+      setUpcomingEvents(Array.isArray(evtList) ? evtList : []);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Gagal memuat dashboard operasional tenant:', err);
@@ -311,6 +320,56 @@ export default function TenantDashboard() {
                     {snippet && (
                       <p className="text-xs text-slate-600 line-clamp-2 break-words">
                         {snippet}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* ── ACARA MENDATANG (RTRW-3.2) ───────────────────────── */}
+        {!isLoading && !loadError && upcomingEvents.length > 0 && (
+          <section
+            aria-labelledby="upcoming-events-heading"
+            className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 space-y-3 shadow-xs"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-base sm:text-lg">🗓️</span>
+                <h2 id="upcoming-events-heading" className="text-xs sm:text-sm font-bold text-slate-900">
+                  Acara Mendatang
+                </h2>
+              </div>
+              <Link
+                to={`/t/${tenantId}/events`}
+                className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 transition inline-flex items-center gap-1"
+              >
+                <span>Lihat semua</span>
+                <AiOutlineArrowRight className="text-[10px]" />
+              </Link>
+            </div>
+
+            <div className="divide-y divide-slate-100">
+              {upcomingEvents.map((evt) => {
+                const timeStr = formatEventDateTimeWib(evt.starts_at, evt.ends_at);
+
+                return (
+                  <div key={evt.id} className="py-2.5 first:pt-1 last:pb-0 space-y-1">
+                    <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
+                      <span className="font-bold text-slate-900">
+                        {evt.title}
+                      </span>
+                      {timeStr && (
+                        <span className="text-[11px] text-slate-500 font-medium shrink-0">
+                          {timeStr}
+                        </span>
+                      )}
+                    </div>
+                    {evt.location && (
+                      <p className="text-xs text-slate-600 flex items-center gap-1">
+                        <span>📍 {evt.location}</span>
                       </p>
                     )}
                   </div>

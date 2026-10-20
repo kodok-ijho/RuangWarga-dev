@@ -57,6 +57,7 @@ const TenantDashboard = lazy(() => import('./pages/tenant/TenantDashboard'));
 const TenantUnits = lazy(() => import('./pages/tenant/TenantUnits'));
 const TenantSettings = lazy(() => import('./pages/tenant/TenantSettings'));
 const TenantAnnouncements = lazy(() => import('./pages/tenant/TenantAnnouncements'));
+const TenantEvents = lazy(() => import('./pages/tenant/TenantEvents'));
 const PlatformLayout = lazy(() => import('./pages/platform/PlatformLayout'));
 const PlatformTenantList = lazy(() => import('./pages/platform/PlatformTenantList'));
 const PlatformPricingConfig = lazy(() => import('./pages/platform/PlatformPricingConfig'));
@@ -100,6 +101,17 @@ function TenantRedirectToDashboard() {
   const { activeTenantId } = useTenant();
   const targetTenantId = tenantId || activeTenantId || '';
   const fallbackPath = targetTenantId ? `/t/${targetTenantId}/dashboard` : '/';
+  return <Navigate to={fallbackPath} replace />;
+}
+
+/**
+ * TenantRedirectToEvents — redirect ke halaman acara workspace tenant (RTRW-3.2c).
+ */
+function TenantRedirectToEvents() {
+  const { tenantId } = useParams();
+  const { activeTenantId } = useTenant();
+  const targetTenantId = tenantId || activeTenantId || '';
+  const fallbackPath = targetTenantId ? `/t/${targetTenantId}/events` : '/';
   return <Navigate to={fallbackPath} replace />;
 }
 
@@ -371,15 +383,19 @@ export default function App() {
                       </Suspense>
                     }
                   />
-                  {/* Disembunyikan sampai RTRW-3 */}
                   <Route
                     path="events"
-                    element={<TenantRedirectToDashboard />}
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <TenantAccessGuard require="isMember">
+                          <TenantEvents />
+                        </TenantAccessGuard>
+                      </Suspense>
+                    }
                   />
-                  {/* Disembunyikan sampai RTRW-3 */}
                   <Route
                     path="events/:eventId"
-                    element={<TenantRedirectToDashboard />}
+                    element={<TenantRedirectToEvents />}
                   />
                   <Route
                     path="roles"

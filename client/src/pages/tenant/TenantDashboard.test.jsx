@@ -58,6 +58,7 @@ vi.mock('../../services/tenantOperationalService', () => ({
   fetchTenantInviteCode: vi.fn().mockResolvedValue('INVITE123'),
   getCachedTenantInviteCode: vi.fn().mockReturnValue('INVITE123'),
   fetchTenantAnnouncements: vi.fn().mockResolvedValue([]),
+  fetchTenantEvents: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('../../components/dashboard/CitizenDashboard', () => ({
@@ -151,5 +152,55 @@ describe('RTRW-3.1: Kartu Pengumuman Terbaru di TenantDashboard', () => {
     const linkLihatSemua = screen.getByText('Lihat semua').closest('a');
     expect(linkLihatSemua).toBeTruthy();
     expect(linkLihatSemua.getAttribute('href')).toBe('/t/t-test-1/announcements');
+  });
+});
+
+describe('RTRW-3.2: Kartu Acara Mendatang di TenantDashboard', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('menyembunyikan kartu acara mendatang bila daftar acara kosong', async () => {
+    const { fetchTenantEvents } = await import('../../services/tenantOperationalService');
+    fetchTenantEvents.mockResolvedValueOnce([]);
+
+    render(
+      <MemoryRouter initialEntries={['/t/t-test-1']}>
+        <TenantDashboard />
+      </MemoryRouter>
+    );
+
+    await screen.findByTestId('staff-dashboard');
+    expect(screen.queryByText('Acara Mendatang')).toBeNull();
+  });
+
+  it('menampilkan kartu acara mendatang dengan tanggal, jam WIB, judul, lokasi, dan link lihat semua', async () => {
+    const { fetchTenantEvents } = await import('../../services/tenantOperationalService');
+    fetchTenantEvents.mockResolvedValueOnce([
+      {
+        id: 'evt-1',
+        title: 'Senam Pagi Bersama Warga RT 05',
+        description: 'Senam kesegaran jasmani.',
+        location: 'Lapangan Blok C',
+        starts_at: '2026-10-25T00:00:00.000Z',
+        ends_at: '2026-10-25T02:00:00.000Z',
+      },
+    ]);
+
+    render(
+      <MemoryRouter initialEntries={['/t/t-test-1']}>
+        <TenantDashboard />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Acara Mendatang')).toBeTruthy();
+    expect(screen.getByText('Senam Pagi Bersama Warga RT 05')).toBeTruthy();
+    expect(screen.getByText(/Lapangan Blok C/)).toBeTruthy();
+    expect(screen.getByText(/WIB/)).toBeTruthy();
+
+    const linkLihatSemua = screen.getAllByText('Lihat semua').find(
+      (el) => el.closest('a')?.getAttribute('href') === '/t/t-test-1/events'
+    );
+    expect(linkLihatSemua).toBeTruthy();
   });
 });

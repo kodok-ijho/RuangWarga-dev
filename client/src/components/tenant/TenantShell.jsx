@@ -95,6 +95,7 @@ export default function TenantShell() {
       : []),
     { to: `${tenantBase}/residents`, label: template.memberLabel || 'Anggota', icon: AiOutlineTeam },
     { to: `${tenantBase}/announcements`, label: 'Pengumuman', icon: AiOutlineNotification },
+    { to: `${tenantBase}/events`, label: 'Acara', icon: AiOutlineCalendar },
     ...(canViewReports
       ? [{ to: `${tenantBase}/expenses`, label: 'Pengeluaran', icon: AiOutlineWallet }]
       : []),
