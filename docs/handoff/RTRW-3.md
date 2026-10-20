@@ -36,9 +36,9 @@ Latar belakang: AUDIT-RTRW F7 (Acara masih memakai n8n Palm Village) dan F8 (Pen
 ### Task
 | Task | Isi |
 |---|---|
-| RTRW-3.1a | Migration: izin `manage_announcements`, helper `can_manage_announcements(tenant_id)`, tabel `tenant_announcements` + RLS + index, cabang `announcement_image` di `can_upload_tenant_file` / `can_read_tenant_file` beserta validator path. Test SQL matriks (anggota baca, warga tidak bisa tulis, pemegang izin bisa tulis, tenant lain terisolasi, read_only ditolak, path gambar). Dry-run lalu terapkan di dev lewat SQL Editor. |
-| RTRW-3.1b | Edge Function `storage-upload` dan `storage-sign-url` + `_shared/fileRules.ts` menerima jenis `announcement_image`. **Perlu deploy ulang** kedua fungsi; cara deploy disepakati dulu karena konfirmasi konektor Supabase tidak tampil di session Remote Control. |
-| RTRW-3.1c | Frontend: service `client/src/services/tenant/announcements.js`, halaman Pengumuman tenant, widget dashboard, izin di `rbac.js` (katalog + template Ketua/Sekretaris), `canManageAnnouncements` di akses tenant, data demo, dan test. |
+| RTRW-3.1a ✅ (`e2702f1`, terpasang di dev 2026-10-20) | Migration: izin `manage_announcements`, helper `can_manage_announcements(tenant_id)`, tabel `tenant_announcements` + RLS + index, cabang `announcement_image` di `can_upload_tenant_file` / `can_read_tenant_file` beserta validator path. Test SQL matriks (anggota baca, warga tidak bisa tulis, pemegang izin bisa tulis, tenant lain terisolasi, read_only ditolak, path gambar). Dry-run lalu terapkan di dev lewat SQL Editor. |
+| RTRW-3.1b ✅ (`5c553c3`, deploy CLI: storage-upload v4, storage-sign-url v3) | Edge Function `storage-upload` dan `storage-sign-url` + `_shared/fileRules.ts` menerima jenis `announcement_image`. **Perlu deploy ulang** kedua fungsi; cara deploy disepakati dulu karena konfirmasi konektor Supabase tidak tampil di session Remote Control. |
+| RTRW-3.1c ✅ (`72d9085`, `e53483b`) | Frontend: service `client/src/services/tenant/announcements.js`, halaman Pengumuman tenant, widget dashboard, izin di `rbac.js` (katalog + template Ketua/Sekretaris), `canManageAnnouncements` di akses tenant, data demo, dan test. |
 
 ## RTRW-3.2 Acara (rencana kasar)
 Tabel `tenant_events` (nama, deskripsi, lokasi, waktu mulai dan selesai, gambar opsional) dengan izin yang sama, plus halaman daftar acara mendatang dan yang sudah lewat. Keuangan acara menyusul terpisah. Detail ditulis setelah RTRW-3.1 selesai.

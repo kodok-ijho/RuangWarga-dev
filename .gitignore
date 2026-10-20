@@ -112,3 +112,6 @@ docs/screenshots/capture.js
 **/~$*
 graphify-out/
 
+
+# Supabase CLI cache lokal
+supabase/.temp/
