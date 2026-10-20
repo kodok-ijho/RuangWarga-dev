@@ -1758,3 +1758,65 @@ export const mockAnnouncements = [
     updated_at: '2026-10-10T09:00:00.000Z',
   },
 ];
+
+// ── EVENTS (RTRW-3.2) ──────────────────────────────────────────
+// Daftar acara contoh untuk demo mode dengan tanggal relatif terhadap waktu berjalan
+const nowMs = Date.now();
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const ONE_HOUR_MS = 60 * 60 * 1000;
+
+export const mockEvents = [
+  {
+    id: 'mock-evt-1',
+    tenant_id: 'demo-tenant-rtrw',
+    title: 'Kerja Bakti Lingkungan RW 05',
+    description: 'Pembersihan saluran air, pemangkasan dahan pohon, dan penataan taman warga menjelang musim penghujan. Mohon warga membawa peralatan kebersihan seperti cangkul, sapu lidi, dan karung sampah.',
+    location: 'Pos Satpam Utama & Lapangan RT 02',
+    starts_at: new Date(nowMs + 3 * ONE_DAY_MS - 2 * ONE_HOUR_MS).toISOString(),
+    ends_at: new Date(nowMs + 3 * ONE_DAY_MS + 2 * ONE_HOUR_MS).toISOString(),
+    image_path: null,
+    created_by: 'demo-admin',
+    created_at: new Date(nowMs - 7 * ONE_DAY_MS).toISOString(),
+    updated_at: new Date(nowMs - 7 * ONE_DAY_MS).toISOString(),
+  },
+  {
+    id: 'mock-evt-2',
+    tenant_id: 'demo-tenant-rtrw',
+    title: 'Rapat Koordinasi Keamanan & Ronda Malam',
+    description: 'Evaluasi jadwal ronda malam, penambahan titik lampu penerangan gang, dan rencana pemasangan 4 unit kamera CCTV baru di akses masuk gerbang perumahan.',
+    location: 'Balai Pertemuan Warga',
+    starts_at: new Date(nowMs + 6 * ONE_DAY_MS + 12 * ONE_HOUR_MS).toISOString(),
+    ends_at: null, // ends_at null, starts_at >= hari ini
+    image_path: null,
+    created_by: 'demo-admin',
+    created_at: new Date(nowMs - 5 * ONE_DAY_MS).toISOString(),
+    updated_at: new Date(nowMs - 5 * ONE_DAY_MS).toISOString(),
+  },
+  {
+    id: 'mock-evt-3',
+    tenant_id: 'demo-tenant-rtrw',
+    title: 'Senam Sehat & Posyandu Lansia Bersama',
+    description: 'Kegiatan senam jantung sehat bersama instruktur, dilanjutkan cek tekanan darah, asam urat, dan gula darah gratis untuk seluruh warga usia lanjut.',
+    location: 'Taman Blok B',
+    starts_at: new Date(nowMs - 4 * ONE_DAY_MS).toISOString(),
+    ends_at: new Date(nowMs - 4 * ONE_DAY_MS + 3 * ONE_HOUR_MS).toISOString(),
+    image_path: null,
+    created_by: 'demo-admin',
+    created_at: new Date(nowMs - 14 * ONE_DAY_MS).toISOString(),
+    updated_at: new Date(nowMs - 14 * ONE_DAY_MS).toISOString(),
+  },
+  {
+    id: 'mock-evt-4',
+    tenant_id: 'demo-tenant-rtrw',
+    title: 'Malam Puncak Peringatan HUT RI & Pentas Warga',
+    description: 'Pentas seni tari anak-anak, pembagian piala lomba 17 Agustus, ramah tamah, dan makan malam bersama seluruh warga RT/RW.',
+    location: 'Lapangan Utama Blok A',
+    starts_at: new Date(nowMs - 20 * ONE_DAY_MS).toISOString(),
+    ends_at: new Date(nowMs - 20 * ONE_DAY_MS + 4 * ONE_HOUR_MS).toISOString(),
+    image_path: null,
+    created_by: 'demo-admin',
+    created_at: new Date(nowMs - 30 * ONE_DAY_MS).toISOString(),
+    updated_at: new Date(nowMs - 30 * ONE_DAY_MS).toISOString(),
+  },
+];
+

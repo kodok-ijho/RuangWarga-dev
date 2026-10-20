@@ -16,10 +16,12 @@ const EXPECTED_EXPORTS = [
   "createArisanRound",
   "createTenantAnnouncement",
   "createTenantBillingItem",
+  "createTenantEvent",
   "createTenantExpense",
   "createTenantRole",
   "createTenantUnit",
   "deleteTenantAnnouncement",
+  "deleteTenantEvent",
   "deleteTenantExpense",
   "deleteTenantRole",
   "deleteTenantUnit",
@@ -37,6 +39,7 @@ const EXPECTED_EXPORTS = [
   "fetchTenantBillingItems",
   "fetchTenantDashboardData",
   "fetchTenantDetails",
+  "fetchTenantEvents",
   "fetchTenantExpenses",
   "fetchTenantInviteCode",
   "fetchTenantMembers",
@@ -73,6 +76,7 @@ const EXPECTED_EXPORTS = [
   "startNewArisanCycle",
   "submitTenantPayment",
   "updateTenantAnnouncement",
+  "updateTenantEvent",
   "updateTenantExpense",
   "updateTenantMember",
   "updateTenantPayment",
@@ -84,9 +88,9 @@ const EXPECTED_EXPORTS = [
 ];
 
 describe('tenantOperationalService Exports Guard (DEBT-1.4)', () => {
-  it('harus mengekspor 79 fungsi/konstanta yang sama persis', () => {
+  it('harus mengekspor 83 fungsi/konstanta yang sama persis', () => {
     const exportsList = Object.keys(tenantOperationalService).sort();
     expect(exportsList).toEqual(EXPECTED_EXPORTS);
-    expect(exportsList.length).toBe(79);
+    expect(exportsList.length).toBe(83);
   });
 });

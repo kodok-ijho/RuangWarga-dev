@@ -265,3 +265,13 @@ export function buildAnnouncementShareUrl(params) {
   return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }
 
+// ── EVENT LINKS & SHARING (RTRW-3.2) ─────────────────────────
+export {
+  getStartOfTodayJakarta,
+  buildGoogleCalendarLink,
+  formatEventDateTimeWib,
+  buildEventShareText,
+  buildEventShareUrl,
+} from './eventLinks';
+
+

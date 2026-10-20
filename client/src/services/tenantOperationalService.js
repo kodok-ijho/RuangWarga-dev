@@ -18,3 +18,5 @@ export * from './tenant/finance';
 export * from './tenant/arisan';
 export * from './tenant/rbac';
 export * from './tenant/announcements';
+export * from './tenant/events';
+
