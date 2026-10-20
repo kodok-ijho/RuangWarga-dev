@@ -56,6 +56,7 @@ const SubscriptionCheckout = lazy(() => import('./pages/account/SubscriptionChec
 const TenantDashboard = lazy(() => import('./pages/tenant/TenantDashboard'));
 const TenantUnits = lazy(() => import('./pages/tenant/TenantUnits'));
 const TenantSettings = lazy(() => import('./pages/tenant/TenantSettings'));
+const TenantAnnouncements = lazy(() => import('./pages/tenant/TenantAnnouncements'));
 const PlatformLayout = lazy(() => import('./pages/platform/PlatformLayout'));
 const PlatformTenantList = lazy(() => import('./pages/platform/PlatformTenantList'));
 const PlatformPricingConfig = lazy(() => import('./pages/platform/PlatformPricingConfig'));
@@ -330,10 +331,15 @@ export default function App() {
                       </Suspense>
                     }
                   />
-                  {/* Disembunyikan sampai RTRW-3 */}
                   <Route
                     path="announcements"
-                    element={<TenantRedirectToDashboard />}
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <TenantAccessGuard require="isMember">
+                          <TenantAnnouncements />
+                        </TenantAccessGuard>
+                      </Suspense>
+                    }
                   />
                   <Route
                     path="residents"

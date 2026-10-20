@@ -17,6 +17,7 @@ import {
   AiOutlineFileText,
   AiOutlineSafetyCertificate,
   AiOutlinePlusCircle,
+  AiOutlineNotification,
 } from 'react-icons/ai';
 import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../hooks/useTenant';
@@ -93,6 +94,7 @@ export default function TenantShell() {
       ? [{ to: `${tenantBase}/units`, label: template.unitLabel || 'Unit', icon: AiOutlineHome }]
       : []),
     { to: `${tenantBase}/residents`, label: template.memberLabel || 'Anggota', icon: AiOutlineTeam },
+    { to: `${tenantBase}/announcements`, label: 'Pengumuman', icon: AiOutlineNotification },
     ...(canViewReports
       ? [{ to: `${tenantBase}/expenses`, label: 'Pengeluaran', icon: AiOutlineWallet }]
       : []),

@@ -200,6 +200,16 @@ describe('TenantShell Navigation (RTRW-1.2)', () => {
     expect(html).toContain('href="/t/t-pv-1/reports"');
   });
 
+  it('menampilkan menu Pengumuman untuk semua anggota (/t/:tenantId/announcements)', () => {
+    const html = renderToString(
+      <MemoryRouter initialEntries={['/t/t-pv-1/dashboard']}>
+        <TenantShell />
+      </MemoryRouter>
+    );
+    expect(html).toContain('href="/t/t-pv-1/announcements"');
+    expect(html).toContain('Pengumuman');
+  });
+
   it('menampilkan item "Jabatan & Hak Akses" bila user adalah owner atau memiliki izin manage_tenant_users', () => {
     mockTenantState.isOwner = true;
     mockTenantState.hasPermission = () => false;

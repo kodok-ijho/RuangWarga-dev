@@ -1,18 +1,23 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   AiOutlineSwap,
   AiOutlineReload,
   AiOutlineWarning,
   AiOutlineArrowRight,
   AiOutlineSetting,
+  AiOutlinePushpin,
 } from 'react-icons/ai';
 import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../hooks/useTenant';
 import { useTenantTemplate } from '../../hooks/useTenantTemplate';
 import { useSubscriptionGate } from '../../hooks/useSubscriptionGate';
 import { MONTHS_LONG } from '../../services/dataHelpers';
-import { fetchTenantDashboardData } from '../../services/tenantOperationalService';
+import {
+  fetchTenantDashboardData,
+  fetchTenantAnnouncements,
+} from '../../services/tenantOperationalService';
+import { formatAnnouncementDate } from './TenantAnnouncements';
 import { Button, StatusBadge } from '../../components/ui';
 
 // Persona Dashboards & Skeletons
@@ -52,6 +57,7 @@ export default function TenantDashboard() {
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
   const [dashData, setDashData] = useState(null);
+  const [announcements, setAnnouncements] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
@@ -88,13 +94,21 @@ export default function TenantDashboard() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const data = await fetchTenantDashboardData(tenantId, {
-        role: userRole,
-        period: selectedPeriod,
-        userId: user?.id,
-        userEmail: user?.email,
-      });
+      const [data, annList] = await Promise.all([
+        fetchTenantDashboardData(tenantId, {
+          role: userRole,
+          period: selectedPeriod,
+          userId: user?.id,
+          userEmail: user?.email,
+        }),
+        fetchTenantAnnouncements(tenantId, { limit: 3 }).catch((err) => {
+          // eslint-disable-next-line no-console
+          console.warn('Gagal memuat pengumuman dashboard:', err);
+          return [];
+        }),
+      ]);
       setDashData(data);
+      setAnnouncements(Array.isArray(annList) ? annList : []);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Gagal memuat dashboard operasional tenant:', err);
@@ -245,7 +259,68 @@ export default function TenantDashboard() {
           </div>
         )}
 
-        {/* ── 3. STATE DISPATCHER: LOADING | ERROR | CITIZEN | STAFF ────────── */}
+        {/* ── 3. PENGUMUMAN TERBARU (RTRW-3.1) ───────────────────────── */}
+        {!isLoading && !loadError && announcements.length > 0 && (
+          <section
+            aria-labelledby="latest-announcements-heading"
+            className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 space-y-3 shadow-xs"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-base sm:text-lg">📢</span>
+                <h2 id="latest-announcements-heading" className="text-xs sm:text-sm font-bold text-slate-900">
+                  Pengumuman Terbaru
+                </h2>
+              </div>
+              <Link
+                to={`/t/${tenantId}/announcements`}
+                className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 transition inline-flex items-center gap-1"
+              >
+                <span>Lihat semua</span>
+                <AiOutlineArrowRight className="text-[10px]" />
+              </Link>
+            </div>
+
+            <div className="divide-y divide-slate-100">
+              {announcements.map((ann) => {
+                const dateStr = formatAnnouncementDate(ann.published_at || ann.created_at);
+                const snippet = ann.body
+                  ? ann.body.length > 140
+                    ? ann.body.slice(0, 140) + '…'
+                    : ann.body
+                  : '';
+
+                return (
+                  <div key={ann.id} className="py-2.5 first:pt-1 last:pb-0 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap text-xs">
+                      {ann.is_pinned && (
+                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                          <AiOutlinePushpin className="text-[10px]" />
+                          Disematkan
+                        </span>
+                      )}
+                      <span className="font-bold text-slate-900">
+                        {ann.title}
+                      </span>
+                      {dateStr && (
+                        <span className="text-[11px] text-slate-400 ml-auto shrink-0">
+                          {dateStr}
+                        </span>
+                      )}
+                    </div>
+                    {snippet && (
+                      <p className="text-xs text-slate-600 line-clamp-2 break-words">
+                        {snippet}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* ── 4. STATE DISPATCHER: LOADING | ERROR | CITIZEN | STAFF ────────── */}
         {isLoading && !dashData ? (
           <DashboardSkeleton isStaff={isStaff} />
         ) : loadError ? (

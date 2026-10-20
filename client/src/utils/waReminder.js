@@ -228,3 +228,40 @@ export function buildWaLink(phone, text) {
   }
   return `https://wa.me/${normalized}?text=${encodedText}`;
 }
+
+/**
+ * Membentuk teks pengumuman untuk dibagikan ke WhatsApp.
+ * Format: judul + baris kosong + isi (potong sekitar 500 karakter dengan '…') + baris kosong + 'Selengkapnya: ' + window.location.origin + '/t/' + tenantId + '/announcements'
+ *
+ * @param {object} params
+ * @param {string} params.title - Judul pengumuman
+ * @param {string} [params.body] - Isi pengumuman
+ * @param {string} params.tenantId - UUID atau slug tenant
+ * @param {string} [params.origin] - window.location.origin
+ * @returns {string}
+ */
+export function buildAnnouncementShareText({ title, body, tenantId, origin }) {
+  const judul = title || '';
+  const isiRaw = typeof body === 'string' ? body : '';
+  const isiTrim = isiRaw.trim();
+  const potongIsi = isiTrim.length > 500 ? isiTrim.slice(0, 500) + '…' : isiTrim;
+  const baseUrl = origin || (typeof window !== 'undefined' ? window.location.origin : '');
+  const selengkapnya = `Selengkapnya: ${baseUrl}/t/${tenantId}/announcements`;
+
+  if (potongIsi) {
+    return `${judul}\n\n${potongIsi}\n\n${selengkapnya}`;
+  }
+  return `${judul}\n\n${selengkapnya}`;
+}
+
+/**
+ * Membentuk URL wa.me untuk membagikan pengumuman.
+ *
+ * @param {object} params
+ * @returns {string}
+ */
+export function buildAnnouncementShareUrl(params) {
+  const text = buildAnnouncementShareText(params);
+  return `https://wa.me/?text=${encodeURIComponent(text)}`;
+}
+

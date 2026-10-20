@@ -5,6 +5,8 @@ import {
   getCurrentPeriodJakarta,
   buildBillReminderMessage,
   buildWaLink,
+  buildAnnouncementShareText,
+  buildAnnouncementShareUrl,
 } from './waReminder';
 
 describe('waReminder - normalizeWaPhone', () => {
@@ -225,3 +227,59 @@ describe('waReminder - buildWaLink', () => {
     expect(buildWaLink('123', 'Halo')).toBe('https://wa.me/?text=Halo');
   });
 });
+
+describe('waReminder - buildAnnouncementShareText & buildAnnouncementShareUrl (RTRW-3.1)', () => {
+  it('menyusun teks pengumuman lengkap dengan judul, isi, dan tautan', () => {
+    const text = buildAnnouncementShareText({
+      title: 'Kerja Bakti Bersama',
+      body: 'Harap membawa peralatan kebersihan masing-masing pada hari Minggu pagi.',
+      tenantId: 'tenant-123',
+      origin: 'https://ruangwarga.test',
+    });
+
+    expect(text).toBe(
+      'Kerja Bakti Bersama\n\nHarap membawa peralatan kebersihan masing-masing pada hari Minggu pagi.\n\nSelengkapnya: https://ruangwarga.test/t/tenant-123/announcements'
+    );
+  });
+
+  it('memotong isi yang melebihi 500 karakter dengan elipsis', () => {
+    const longBody = 'A'.repeat(600);
+    const text = buildAnnouncementShareText({
+      title: 'Pengumuman Panjang',
+      body: longBody,
+      tenantId: 'tenant-123',
+      origin: 'https://ruangwarga.test',
+    });
+
+    const expectedTruncated = 'A'.repeat(500) + '…';
+    expect(text).toContain(expectedTruncated);
+    expect(text).not.toContain('A'.repeat(501));
+    expect(text).toContain('Selengkapnya: https://ruangwarga.test/t/tenant-123/announcements');
+  });
+
+  it('menangani isi kosong dengan rapi', () => {
+    const text = buildAnnouncementShareText({
+      title: 'Hanya Judul',
+      body: '',
+      tenantId: 'tenant-123',
+      origin: 'https://ruangwarga.test',
+    });
+
+    expect(text).toBe('Hanya Judul\n\nSelengkapnya: https://ruangwarga.test/t/tenant-123/announcements');
+  });
+
+  it('menghasilkan tautan wa.me dengan query parameter text ter-encode', () => {
+    const url = buildAnnouncementShareUrl({
+      title: 'Rapat RT',
+      body: 'Pukul 19.30 WIB',
+      tenantId: 'tenant-123',
+      origin: 'https://ruangwarga.test',
+    });
+
+    expect(url.startsWith('https://wa.me/?text=')).toBe(true);
+    expect(url).toContain(encodeURIComponent('Rapat RT'));
+    expect(url).toContain(encodeURIComponent('Pukul 19.30 WIB'));
+    expect(url).toContain(encodeURIComponent('https://ruangwarga.test/t/tenant-123/announcements'));
+  });
+});
+

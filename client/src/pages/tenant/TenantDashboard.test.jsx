@@ -57,6 +57,7 @@ vi.mock('../../services/tenantOperationalService', () => ({
   }),
   fetchTenantInviteCode: vi.fn().mockResolvedValue('INVITE123'),
   getCachedTenantInviteCode: vi.fn().mockReturnValue('INVITE123'),
+  fetchTenantAnnouncements: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('../../components/dashboard/CitizenDashboard', () => ({
@@ -94,5 +95,61 @@ describe('UI-1F: Trial Countdown Banner Single Placement', () => {
     );
 
     expect(screen.queryByTestId('trial-countdown-banner')).toBeNull();
+  });
+});
+
+describe('RTRW-3.1: Kartu Pengumuman Terbaru di TenantDashboard', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('menyembunyikan kartu pengumuman bila daftar pengumuman kosong', async () => {
+    const { fetchTenantAnnouncements } = await import('../../services/tenantOperationalService');
+    fetchTenantAnnouncements.mockResolvedValueOnce([]);
+
+    render(
+      <MemoryRouter initialEntries={['/t/t-test-1']}>
+        <TenantDashboard />
+      </MemoryRouter>
+    );
+
+    await screen.findByTestId('staff-dashboard');
+    expect(screen.queryByText('Pengumuman Terbaru')).toBeNull();
+  });
+
+  it('menampilkan kartu pengumuman terbaru dengan judul, tanggal, potongan isi, dan link lihat semua', async () => {
+    const { fetchTenantAnnouncements } = await import('../../services/tenantOperationalService');
+    fetchTenantAnnouncements.mockResolvedValueOnce([
+      {
+        id: 'ann-1',
+        title: 'Kerja Bakti Kebersihan Lingkungan',
+        body: 'Diharapkan seluruh warga membawa cangkul dan sapu lidi untuk membersihkan selokan utama.',
+        is_pinned: true,
+        published_at: '2026-10-20T08:00:00Z',
+      },
+      {
+        id: 'ann-2',
+        title: 'Pemadaman Listrik Sementara',
+        body: 'Akan dilakukan perawatan gardu listrik pada hari Sabtu.',
+        is_pinned: false,
+        published_at: '2026-10-18T10:00:00Z',
+      },
+    ]);
+
+    render(
+      <MemoryRouter initialEntries={['/t/t-test-1']}>
+        <TenantDashboard />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Pengumuman Terbaru')).toBeTruthy();
+    expect(screen.getByText('Kerja Bakti Kebersihan Lingkungan')).toBeTruthy();
+    expect(screen.getByText('Disematkan')).toBeTruthy();
+    expect(screen.getByText(/membawa cangkul dan sapu lidi/)).toBeTruthy();
+    expect(screen.getByText('Pemadaman Listrik Sementara')).toBeTruthy();
+
+    const linkLihatSemua = screen.getByText('Lihat semua').closest('a');
+    expect(linkLihatSemua).toBeTruthy();
+    expect(linkLihatSemua.getAttribute('href')).toBe('/t/t-test-1/announcements');
   });
 });
