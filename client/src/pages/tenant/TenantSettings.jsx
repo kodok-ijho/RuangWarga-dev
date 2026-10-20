@@ -130,7 +130,19 @@ export default function TenantSettings() {
         }
 
         const settings = details.settings || {};
-        if (settings.due_day !== undefined && settings.due_day !== null) {
+        const isKos = (details.type || effectiveTenantType) === 'kos';
+        const hasBillingDueDay =
+          settings.billing_due_day !== undefined &&
+          settings.billing_due_day !== null &&
+          String(settings.billing_due_day).trim() !== '';
+        const hasDueDay =
+          settings.due_day !== undefined &&
+          settings.due_day !== null &&
+          String(settings.due_day).trim() !== '';
+
+        if (isKos && hasBillingDueDay) {
+          setDueDay(settings.billing_due_day);
+        } else if (hasDueDay) {
           setDueDay(settings.due_day);
         } else {
           setDueDay(10);
@@ -293,6 +305,10 @@ export default function TenantSettings() {
       due_day: dueDayNum,
       ipl_components: cleanedComponents,
     };
+
+    if (effectiveTenantType === 'kos') {
+      billingSettings.billing_due_day = dueDayNum;
+    }
 
     if (isAutoBillingSupported) {
       billingSettings.auto_billing_enabled = Boolean(autoBillingEnabled);

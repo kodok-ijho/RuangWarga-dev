@@ -577,5 +577,108 @@ describe('TenantSettings (RTRW-2.4)', () => {
       expect(screen.queryByText(/tagihan akan langsung lewat jatuh tempo saat terbit/i)).toBeNull();
     });
   });
+
+  describe('Jatuh Tempo Kos (NOTIF-1.2)', () => {
+    it('a. tenant kos dengan billing_due_day 5 dan due_day 10 menampilkan 5', async () => {
+      mockTenantContext = {
+        ...mockTenantContext,
+        activeTenant: { id: 'tenant-kos-1', name: 'Kos Melati', type: 'kos' },
+        activeTenantId: 'tenant-kos-1',
+        tenantType: 'kos',
+      };
+      tenantOperationalService.fetchTenantDetails.mockResolvedValueOnce({
+        ...sampleDetails,
+        id: 'tenant-kos-1',
+        name: 'Kos Melati',
+        type: 'kos',
+        settings: {
+          ...sampleDetails.settings,
+          due_day: 10,
+          billing_due_day: 5,
+        },
+      });
+
+      renderComponent('tenant-kos-1');
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Kos Melati')).toBeTruthy();
+      });
+
+      const dueDayInput = document.getElementById('billingDueDayInput');
+      expect(dueDayInput.value).toBe('5');
+    });
+
+    it('b. simpan pada tenant kos mengirim due_day dan billing_due_day yang sama', async () => {
+      mockTenantContext = {
+        ...mockTenantContext,
+        activeTenant: { id: 'tenant-kos-1', name: 'Kos Melati', type: 'kos' },
+        activeTenantId: 'tenant-kos-1',
+        tenantType: 'kos',
+      };
+      tenantOperationalService.fetchTenantDetails.mockResolvedValueOnce({
+        ...sampleDetails,
+        id: 'tenant-kos-1',
+        name: 'Kos Melati',
+        type: 'kos',
+        settings: {
+          ...sampleDetails.settings,
+          due_day: 10,
+          billing_due_day: 5,
+        },
+      });
+
+      renderComponent('tenant-kos-1');
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Kos Melati')).toBeTruthy();
+      });
+
+      const dueDayInput = document.getElementById('billingDueDayInput');
+      expect(dueDayInput.value).toBe('5');
+
+      fireEvent.change(dueDayInput, { target: { value: '15' } });
+
+      const saveBillingBtn = screen.getByRole('button', { name: /simpan tagihan/i });
+      fireEvent.click(saveBillingBtn);
+
+      await waitFor(() => {
+        expect(tenantOperationalService.updateTenantProfileAndSettings).toHaveBeenCalledWith(
+          'tenant-kos-1',
+          expect.objectContaining({
+            settings: expect.objectContaining({
+              due_day: 15,
+              billing_due_day: 15,
+            }),
+          })
+        );
+      });
+
+      const callArgs = tenantOperationalService.updateTenantProfileAndSettings.mock.calls[0];
+      expect(callArgs[1].settings.due_day).toBe(15);
+      expect(callArgs[1].settings.billing_due_day).toBe(15);
+    });
+
+    it('c. tenant rt_rw tetap hanya mengirim due_day', async () => {
+      renderComponent('tenant-rtrw-1');
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Palm Village RT 05')).toBeTruthy();
+      });
+
+      const dueDayInput = document.getElementById('billingDueDayInput');
+      fireEvent.change(dueDayInput, { target: { value: '20' } });
+
+      const saveBillingBtn = screen.getByRole('button', { name: /simpan tagihan/i });
+      fireEvent.click(saveBillingBtn);
+
+      await waitFor(() => {
+        expect(tenantOperationalService.updateTenantProfileAndSettings).toHaveBeenCalled();
+      });
+
+      const callArgs = tenantOperationalService.updateTenantProfileAndSettings.mock.calls[0];
+      expect(callArgs[1].settings.due_day).toBe(20);
+      expect(callArgs[1].settings.billing_due_day).toBeUndefined();
+    });
+  });
 });
 

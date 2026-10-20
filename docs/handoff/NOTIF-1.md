@@ -26,5 +26,5 @@ Bila rekening tenant belum diisi, baris transfer diganti dengan "Konfirmasi pemb
 ## Task
 | Task | Isi |
 |---|---|
-| NOTIF-1.1 | Helper `client/src/utils/waReminder.js` (normalisasi nomor, susun pesan, buat link `wa.me`) dengan test unit. Tombol di `PaymentMatrix.jsx` dan test. |
-| NOTIF-1.2 | Perbaikan jatuh tempo Kos di Pengaturan Komunitas. Untuk tenant `kos`, field jatuh tempo membaca `billing_due_day ?? due_day` dan menyimpan keduanya, karena tagihan sewa (`auto_generate_kos_billing`, preview) memakai `billing_due_day` lebih dulu. |
+| NOTIF-1.1 ✅ | Helper `client/src/utils/waReminder.js` (normalisasi nomor, susun pesan, buat link `wa.me`) dengan test unit. Tombol di `PaymentMatrix.jsx` dan test. |
+| NOTIF-1.2 ✅ | Perbaikan jatuh tempo Kos di Pengaturan Komunitas. Untuk tenant `kos`, field jatuh tempo membaca `billing_due_day ?? due_day` dan menyimpan keduanya, karena tagihan sewa (`auto_generate_kos_billing`, preview) memakai `billing_due_day` lebih dulu. |
