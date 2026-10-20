@@ -65,6 +65,6 @@ Tabel lama `public.events` / `public.rsvp` (single-tenant Palm Village) dan rute
 ### Task
 | Task | Isi |
 |---|---|
-| RTRW-3.2a | Migration `tenant_events` + RLS + index `(tenant_id, starts_at)` + test SQL matriks. Dry-run lalu terapkan di dev lewat SQL Editor. |
-| RTRW-3.2b | Service `client/src/services/tenant/events.js` (CRUD, whitelist field, gambar lewat `uploadAnnouncementImage`), data demo, dan test. |
+| RTRW-3.2a ✅ (`fbc3ccd`, terpasang di dev 2026-10-20 lewat Supabase CLI) | Migration `tenant_events` + RLS + index `(tenant_id, starts_at)` + test SQL matriks. Dry-run lalu terapkan di dev lewat SQL Editor. |
+| RTRW-3.2b ✅ (`1739323`) | Service `client/src/services/tenant/events.js` (CRUD, whitelist field, gambar lewat `uploadAnnouncementImage`), data demo, dan test. |
 | RTRW-3.2c | Halaman Acara tenant, rute, menu, kartu dashboard, dan test. |
