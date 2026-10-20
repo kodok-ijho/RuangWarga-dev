@@ -1,6 +1,6 @@
 # Backlog (belum untuk dikerjakan executor)
 
-Urutan rencana: **SEC-1 ✅ → SEC-2 ✅ (sudah di dev) → PAY-2 ✅ → PAY-2F ✅ → PAY-1 + PAY-1F ✅ (di dev; deploy menunggu akun DOKU) → SEC-3 ✅ → SEC-3F ✅ → BRAND-1 ✅ → BRAND-1F ✅ → DEBT-1 ✅ → DEBT-1F ✅ → SEC-4 ✅ (di dev) → fase B: AUDIT-RTRW ✅ → SEC-5 ✅ (di dev) → RTRW-1 ✅ → RTRW-1F ✅ → STOR-1 ✅ (R2, di dev) → JOIN-1F/GATE-1F/NAV-1/UI-1F ✅ → RTRW-2 ✅ → RTRW-3 ✅ → AUDIT-VERTIKAL ✅ (`AUDIT-VERTIKAL.md`) → VERT-1 → VERT-2 (perlu persetujuan user) → KOS-1 → KELAS-1 → ARISAN-1 → dashboard Platform**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
+Urutan rencana: **SEC-1 ✅ → SEC-2 ✅ (sudah di dev) → PAY-2 ✅ → PAY-2F ✅ → PAY-1 + PAY-1F ✅ (di dev; deploy menunggu akun DOKU) → SEC-3 ✅ → SEC-3F ✅ → BRAND-1 ✅ → BRAND-1F ✅ → DEBT-1 ✅ → DEBT-1F ✅ → SEC-4 ✅ (di dev) → fase B: AUDIT-RTRW ✅ → SEC-5 ✅ (di dev) → RTRW-1 ✅ → RTRW-1F ✅ → STOR-1 ✅ (R2, di dev) → JOIN-1F/GATE-1F/NAV-1/UI-1F ✅ → RTRW-2 ✅ → RTRW-3 ✅ → AUDIT-VERTIKAL ✅ (`AUDIT-VERTIKAL.md`) → VERT-1 → VERT-2 (disetujui user 2026-10-21) → KOS-1 → KELAS-1 → ARISAN-1 → dashboard Platform**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
 
 ## Keputusan user yang mengikat
 - Palm Village **tetap tenant**. Branding-nya (nama, logo, warna, peta) hanya dari data tenant dan hanya tampil di `/t/:tenantId`. Lapisan global (login, beranda, `/account`, `/platform`, `/listing`, PWA) netral "RuangWarga".
@@ -22,6 +22,7 @@ Urutan rencana: **SEC-1 ✅ → SEC-2 ✅ (sudah di dev) → PAY-2 ✅ → PAY-2
 - **Arah backend RuangWarga: Supabase saja** (user, 2026-10-11). Semua jalur baru dan hasil migrasi memakai Supabase (RLS, RPC, Edge Functions); pemanggilan n8n baru dianggap regresi. n8n tetap hidup untuk Portal Warga dan tidak disentuh.
 - **File (bukti bayar, nota) disimpan di Cloudflare R2** bucket privat, akses lewat Edge Function `storage-upload` / `storage-sign-url` (STOR-1, user 2026-10-12). Opsi Google Drive dengan link publik ditolak.
 - **Warga tidak diblokir membuat tenant**; anggota biasa diarahkan ke dashboard tenant-nya (NAV-1, user 2026-10-14).
+- **Peserta arisan** = anggota `approved` yang memegang slot (`tenant_members.unit_id`); ketua/owner tanpa slot tidak otomatis ikut (user, 2026-10-21, VERT-2.2).
 - Penamaan internal **dibiarkan**: class `.pv-*`, nama workflow n8n "PV API", prefix order `PV-QRIS`.
 
 ## PAY-2 — Rekening tenant: isi & tampilkan ke warga  ← berikutnya setelah SEC-2

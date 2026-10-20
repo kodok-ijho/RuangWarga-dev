@@ -1,6 +1,6 @@
 # VERT-2 — Perbaikan database Kos & Arisan (migration)
 
-Status: ⏸️ **MENUNGGU PERSETUJUAN USER.** Menyentuh schema dan fungsi Supabase. Jangan dikerjakan sebelum user memberi perintah eksplisit untuk VERT-2.
+Status: ✅ **Disetujui user 2026-10-21** (menyentuh schema dan fungsi Supabase), termasuk aturan peserta arisan di VERT-2.2.
 
 Dasar: `AUDIT-VERTIKAL.md` K1, A1, A2. Kerjakan **setelah VERT-1**.
 
@@ -23,7 +23,7 @@ Baca dulu: `docs/handoff/README.md`, `AGENT.md`, `AUDIT-VERTIKAL.md`, contoh mig
 - Commit: `fix(kos): VERT-2.1 hapus overload checkout_kos_room integer (PostgREST ambigu)`
 
 ## VERT-2.2 — Peserta arisan otomatis terdaftar (A1)
-Aturan: **peserta = anggota `approved` di tenant bertipe `arisan` yang memegang slot (`tenant_members.unit_id` tidak null).** Owner tanpa slot tidak otomatis ikut.
+Aturan (dikonfirmasi user 2026-10-21): **peserta = anggota `approved` di tenant bertipe `arisan` yang memegang slot (`tenant_members.unit_id` tidak null).** Owner tanpa slot tidak otomatis ikut.
 - Migration `supabase/migrations/202610210002_arisan_auto_enroll.sql`:
   - Fungsi trigger `public.sync_arisan_participant()` (`SECURITY DEFINER`, `SET search_path = public`), dipasang `AFTER INSERT OR UPDATE OF status, unit_id ON public.tenant_members FOR EACH ROW`.
   - Bila tenant bertipe `arisan`, `NEW.status = 'approved'`, dan `NEW.unit_id IS NOT NULL`:
