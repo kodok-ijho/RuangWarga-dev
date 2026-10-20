@@ -110,6 +110,7 @@ export async function fetchTenantBillMatrix(tenantId, year = 2026, opts = {}) {
         unit_number: unit.metadata?.unit_number || '',
         is_occupied: Boolean(resident),
         occupancy_status: resident?.occupancy_status || (resident ? 'owner_occupied' : 'owner_vacant'),
+        occupant_phone: unit.metadata?.occupant?.phone || null,
       },
       resident,
       residents: resident ? [resident] : [],

@@ -1,9 +1,22 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
+import { render, screen, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import PaymentMatrix, { buildStaffCashPaymentArgs, buildDetailActionArgs } from './PaymentMatrix';
 import * as apiClient from '../services/apiClient';
+
+// Polyfill ResizeObserver untuk jsdom
+if (typeof window !== 'undefined' && !window.ResizeObserver) {
+  class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  window.ResizeObserver = ResizeObserver;
+  global.ResizeObserver = ResizeObserver;
+}
 
 // Mock apiClient agar portalApiPost melempar error jika terpanggil
 vi.mock('../services/apiClient', () => ({
@@ -11,6 +24,15 @@ vi.mock('../services/apiClient', () => ({
     throw new Error('portalApiPost dipanggil padahal dalam mode tenant!');
   }),
 }));
+
+vi.mock('../services/dataService', async () => {
+  const actual = await vi.importActual('../services/dataService');
+  return {
+    ...actual,
+    fetchBillMatrix: vi.fn(() => Promise.resolve(sampleMatrixRows)),
+    fetchPayments: vi.fn(() => Promise.resolve([])),
+  };
+});
 
 const mockTenantState = {
   activeTenant: { id: 'tenant-rtrw-1', name: 'Kompleks RT 01', type: 'rt_rw' },
@@ -47,11 +69,16 @@ const mockAuth = {
   session: { access_token: 'fake-token' },
 };
 
+let currentTenantAccess = { ...mockTenantAccessState };
+let currentAuth = { ...mockAuth };
+
 const mockTenantTemplate = {
   name: 'Kompleks RT/RW',
   unitLabel: 'Rumah',
   billLabel: 'IPL',
   memberLabel: 'Warga',
+  occupiedUnitLabel: 'Dihuni',
+  emptyUnitLabel: 'Kosong',
   icon: '🏡',
 };
 
@@ -67,7 +94,7 @@ const mockTour = {
 };
 
 vi.mock('../hooks/useAuth', () => ({
-  useAuth: () => mockAuth,
+  useAuth: () => currentAuth,
 }));
 
 vi.mock('../hooks/useTenant', () => ({
@@ -75,7 +102,7 @@ vi.mock('../hooks/useTenant', () => ({
 }));
 
 vi.mock('../hooks/useTenantAccess', () => ({
-  useTenantAccess: () => mockTenantAccessState,
+  useTenantAccess: () => currentTenantAccess,
 }));
 
 vi.mock('../hooks/useTenantTemplate', () => ({
@@ -90,10 +117,82 @@ vi.mock('../context/TourContext', () => ({
   useTour: () => mockTour,
 }));
 
+const sampleMatrixRows = [
+  {
+    unit: {
+      id: 'unit-1',
+      label: 'Rumah A/01',
+      block: 'A',
+      unit_number: '01',
+      is_occupied: true,
+      occupancy_status: 'owner_occupied',
+      occupant_phone: '081234567890',
+    },
+    resident: {
+      id: 'res-1',
+      full_name: 'Budi Santoso',
+      phone: '081234567890',
+    },
+    residents: [{ id: 'res-1', full_name: 'Budi Santoso', phone: '081234567890' }],
+    cells: [
+      {
+        period: '2026-10',
+        status: 'unpaid',
+        bill: {
+          id: 'bill-unpaid-1',
+          period: '2026-10',
+          status: 'unpaid',
+          amount: 150000,
+          late_fee: 0,
+          due_date: '2026-10-10',
+        },
+      },
+    ],
+  },
+  {
+    unit: {
+      id: 'unit-2',
+      label: 'Rumah A/02',
+      block: 'A',
+      unit_number: '02',
+      is_occupied: true,
+      occupancy_status: 'owner_occupied',
+      occupant_phone: '081298765432',
+    },
+    resident: {
+      id: 'res-2',
+      full_name: 'Siti Aminah',
+      phone: '081298765432',
+    },
+    residents: [{ id: 'res-2', full_name: 'Siti Aminah', phone: '081298765432' }],
+    cells: [
+      {
+        period: '2026-10',
+        status: 'paid',
+        bill: {
+          id: 'bill-paid-2',
+          period: '2026-10',
+          status: 'paid',
+          amount: 150000,
+          late_fee: 0,
+          due_date: '2026-10-10',
+        },
+      },
+    ],
+  },
+];
+
 vi.mock('../services/tenantOperationalService', async () => {
   const actual = await vi.importActual('../services/tenantOperationalService');
   return {
     ...actual,
+    fetchTenantBillMatrix: vi.fn(() => Promise.resolve(sampleMatrixRows)),
+    fetchTenantMembers: vi.fn(() => Promise.resolve([])),
+    getTenantBankAccount: vi.fn(() => ({
+      bank_name: 'BCA',
+      account_number: '1234567890',
+      account_holder: 'Pengurus RT 01',
+    })),
     fetchTenantPayments: vi.fn(() => Promise.resolve([
       {
         id: 'p-1',
@@ -112,6 +211,12 @@ vi.mock('../services/tenantOperationalService', async () => {
 describe('PaymentMatrix Tenant Mode (RTRW-1.3 / RTRW-1F.1)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    currentTenantAccess = { ...mockTenantAccessState };
+    currentAuth = { ...mockAuth };
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it('tidak merender tombol "Reset & Hapus Semua Transaksi" saat ada activeTenantId', () => {
@@ -248,5 +353,90 @@ describe('PaymentMatrix Tenant Mode (RTRW-1.3 / RTRW-1F.1)', () => {
       rejectedBy: 'Bendahara Pak RT',
     });
     expect(cancelArgs.tenantId).toBe('tenant-rtrw-1');
+  });
+
+  describe('Fitur Pengingat Tagihan via WhatsApp (NOTIF-1.1)', () => {
+    it('link tampil untuk staf dengan izin tagihan pada baris berisi tagihan unpaid dan href berisi wa.me/62', async () => {
+      currentAuth = { ...mockAuth, role: 'bendahara' };
+      currentTenantAccess = {
+        ...mockTenantAccessState,
+        isStaff: true,
+        canRecordCash: true,
+      };
+
+      render(
+        <MemoryRouter initialEntries={['/t/tenant-rtrw-1/payment-matrix']}>
+          <PaymentMatrix />
+        </MemoryRouter>
+      );
+
+      const link = await screen.findByRole('link', {
+        name: /Ingatkan tagihan via WhatsApp untuk Rumah A\/01/i,
+      });
+      expect(link).toBeDefined();
+      expect(link.getAttribute('href')).toContain('wa.me/6281234567890');
+      expect(link.textContent).toContain('Ingatkan');
+    });
+
+    it('link tidak tampil untuk warga biasa', async () => {
+      const { fetchTenantMembers } = await import('../services/tenantOperationalService');
+      fetchTenantMembers.mockResolvedValueOnce([
+        { id: 'mem-warga', user_id: 'u-warga', email: 'warga@example.com', unit_id: 'unit-1' },
+      ]);
+
+      currentAuth = {
+        ...mockAuth,
+        role: 'warga',
+        user: { id: 'u-warga', email: 'warga@example.com' },
+        profile: { id: 'u-warga', full_name: 'Warga Biasa', email: 'warga@example.com' },
+      };
+      currentTenantAccess = {
+        ...mockTenantAccessState,
+        isStaff: false,
+        canWrite: false,
+        canVerifyPayments: false,
+        canRecordCash: false,
+        canRecordTransfer: false,
+        canGenerateBilling: false,
+      };
+
+      render(
+        <MemoryRouter initialEntries={['/t/tenant-rtrw-1/payment-matrix']}>
+          <PaymentMatrix />
+        </MemoryRouter>
+      );
+
+      await screen.findByText('Rumah A/01');
+      expect(screen.queryByRole('link', { name: /Ingatkan tagihan via WhatsApp/i })).toBeNull();
+      expect(screen.queryByText('Ingatkan')).toBeNull();
+    });
+
+    it('link tidak tampil bila baris tidak punya tagihan unpaid', async () => {
+      currentAuth = { ...mockAuth, role: 'bendahara' };
+      currentTenantAccess = {
+        ...mockTenantAccessState,
+        isStaff: true,
+        canRecordCash: true,
+      };
+
+      render(
+        <MemoryRouter initialEntries={['/t/tenant-rtrw-1/payment-matrix']}>
+          <PaymentMatrix />
+        </MemoryRouter>
+      );
+
+      // Baris 1 (Rumah A/01) punya unpaid -> tampil
+      const link1 = await screen.findByRole('link', {
+        name: /Ingatkan tagihan via WhatsApp untuk Rumah A\/01/i,
+      });
+      expect(link1).toBeDefined();
+
+      // Baris 2 (Rumah A/02) berstatus paid -> tidak tampil
+      expect(
+        screen.queryByRole('link', {
+          name: /Ingatkan tagihan via WhatsApp untuk Rumah A\/02/i,
+        })
+      ).toBeNull();
+    });
   });
 });

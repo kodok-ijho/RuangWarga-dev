@@ -804,6 +804,7 @@ function normalizeBillMatrixRows(rows) {
           row?.unit?.occupancy_status ||
           row?.resident?.occupancy_status ||
           (row?.unit?.is_occupied === false ? 'owner_vacant' : 'unknown'),
+        occupant_phone: row?.unit?.occupant_phone || null,
       };
 
       const resident = row?.resident

@@ -59,9 +59,23 @@ import {
 import { downloadDigitalReceipt } from '../services/receiptService';
 import { supabase } from '../services/supabaseClient';
 import { createReceiptSignedUrl } from '../utils/storagePolicy';
-import { autoGenerateKosBilling, generateKelasSppBilling, fetchTenantMembers, isLegacyQrisEnabled } from '../services/tenantOperationalService';
+import {
+  autoGenerateKosBilling,
+  generateKelasSppBilling,
+  fetchTenantMembers,
+  isLegacyQrisEnabled,
+  getTenantBankAccount,
+} from '../services/tenantOperationalService';
 import { compressImage } from '../utils/imageCompressor';
 import { AiOutlineDownload } from 'react-icons/ai';
+import { FaWhatsapp } from 'react-icons/fa';
+import {
+  normalizeWaPhone,
+  getUnpaidBillsForReminder,
+  getCurrentPeriodJakarta,
+  buildBillReminderMessage,
+  buildWaLink,
+} from '../utils/waReminder';
 import { ResidentIplOverview, PaymentFlowModal, PaymentHistoryList } from '../components/payment';
 
 export function isHangingPayment(payment, bill, cellStatus) {
@@ -190,6 +204,14 @@ export default function PaymentMatrix() {
   // Semua role bisa LIHAT semua unit. Interaksi (bayar) di-gate per baris.
   const isStaff = activeTenantId ? tenantAccess.isStaff : isStaffRole(role);
   const canWrite = activeTenantId ? (tenantAccess.canWrite && !isReadOnly) : (canModifyData(role) && !isReadOnly);
+  const canSendWaReminder = Boolean(
+    activeTenantId &&
+      (tenantAccess.canGenerateBilling ||
+        tenantAccess.canVerifyPayments ||
+        tenantAccess.canRecordCash ||
+        tenantAccess.canRecordTransfer)
+  );
+  const currentPeriodJakarta = useMemo(() => getCurrentPeriodJakarta(), []);
   // Admin Demo memakai role internal admin_viewer dan tetap read-only untuk
   // seluruh fitur lain. QRIS adalah satu-satunya pengecualian sementara.
   const isDemoAdmin = isReadOnly && (role === 'admin' || role === 'admin_viewer');
@@ -1338,6 +1360,34 @@ export default function PaymentMatrix() {
                         : isMyUnit
                         ? 'bg-gold-50/50'
                         : 'hover:bg-slate-50/80';
+
+                      const unpaidBillsForReminder = canSendWaReminder
+                        ? getUnpaidBillsForReminder(row.cells, currentPeriodJakarta)
+                        : [];
+                      const showWaReminder = canSendWaReminder && unpaidBillsForReminder.length > 0;
+                      const targetPhone = row.resident?.phone || row.unit?.occupant_phone || null;
+                      const normalizedPhone = normalizeWaPhone(targetPhone);
+                      const reminderUnitName =
+                        row.unit.label ||
+                        (row.unit.block ? `Blok ${row.unit.block}/${row.unit.unit_number}` : row.unit.unit_number || '');
+                      const reminderResidentName = residentNames.length > 0 ? residentNames[0] : row.resident?.full_name || '';
+                      const reminderMessage = showWaReminder
+                        ? buildBillReminderMessage({
+                            residentName: reminderResidentName,
+                            billLabel: template.billLabel,
+                            unitLabel: template.unitLabel,
+                            unitName: reminderUnitName,
+                            bills: unpaidBillsForReminder,
+                            bankAccount: getTenantBankAccount(activeTenant),
+                            appUrl:
+                              typeof window !== 'undefined'
+                                ? `${window.location.origin}/t/${activeTenantId}`
+                                : `/t/${activeTenantId}`,
+                            tenantName: activeTenant?.name || '',
+                          })
+                        : '';
+                      const waReminderHref = showWaReminder ? buildWaLink(normalizedPhone, reminderMessage) : '#';
+
                       return (
                         <tr
                           key={row.unit.id}
@@ -1367,6 +1417,26 @@ export default function PaymentMatrix() {
                               <span className="mt-0.5 inline-flex items-center rounded px-1.5 py-0.5 text-[8px] font-bold leading-none bg-amber-100 text-amber-800 border border-amber-300">
                                 {template.emptyUnitLabel}
                               </span>
+                            )}
+                            {showWaReminder && (
+                              <div className="mt-1">
+                                <a
+                                  href={waReminderHref}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  aria-label={`Ingatkan tagihan via WhatsApp untuk ${reminderUnitName || template.unitLabel}`}
+                                  title={
+                                    !normalizedPhone
+                                      ? 'Nomor HP belum tercatat, pilih kontak di WhatsApp'
+                                      : 'Ingatkan via WhatsApp'
+                                  }
+                                  className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 transition-colors"
+                                >
+                                  <FaWhatsapp className="w-2.5 h-2.5 text-emerald-600 flex-shrink-0" />
+                                  <span>Ingatkan</span>
+                                </a>
+                              </div>
                             )}
                           </td>
                           {row.cells.map((cell, mIdx) => {
