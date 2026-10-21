@@ -53,6 +53,8 @@ Monetisasi: per kamar per bulan (sesuai pricing blok yang ada), ditambah boost i
 ---
 
 ## 3. Kelas (les, bimbel, kursus, TPA/TPQ, senam, komunitas hobi)
+> **Digantikan** oleh vertikal **Kepanitiaan & Acara** (keputusan user 2026-10-21). Lihat `PANITIA-requirement.md`. Bagian di bawah disimpan sebagai arsip ide.
+
 **Masalah pemilik:** iuran tidak teratur, presensi manual, honor pengajar dihitung manual, dan komunikasi ke orang tua.
 
 Aset yang sudah ada: `KelasSetupWizard` (kuota siswa, jadwal SPP, rekening). Tagihan masih memakai modul umum.
@@ -108,5 +110,5 @@ Catatan: tidak mendukung arisan berbunga/menurun berbasis lelang, untuk menghind
 ## Urutan
 1. **RT/RW**: RTRW-2 (termasuk 2.6 Jabatan), lalu RTRW-3 (Pengumuman & Acara), lalu fitur P1 RT/RW di atas.
 2. **Audit Kos/Arisan/Kelas** di mode non-demo (seperti `AUDIT-RTRW.md`) sebelum membangun fitur baru.
-3. **Kos**, lalu **Kelas**, lalu **Arisan**.
+3. **Kos**, lalu **Kepanitiaan** (menggantikan Kelas), lalu **Arisan**.
 4. Fitur lintas vertikal P1 dikerjakan begitu dibutuhkan vertikal yang sedang digarap.

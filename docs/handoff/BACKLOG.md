@@ -1,6 +1,6 @@
 # Backlog (belum untuk dikerjakan executor)
 
-Urutan rencana: **SEC-1 ✅ → SEC-2 ✅ (sudah di dev) → PAY-2 ✅ → PAY-2F ✅ → PAY-1 + PAY-1F ✅ (di dev; deploy menunggu akun DOKU) → SEC-3 ✅ → SEC-3F ✅ → BRAND-1 ✅ → BRAND-1F ✅ → DEBT-1 ✅ → DEBT-1F ✅ → SEC-4 ✅ (di dev) → fase B: AUDIT-RTRW ✅ → SEC-5 ✅ (di dev) → RTRW-1 ✅ → RTRW-1F ✅ → STOR-1 ✅ (R2, di dev) → JOIN-1F/GATE-1F/NAV-1/UI-1F ✅ → RTRW-2 ✅ → RTRW-3 ✅ → AUDIT-VERTIKAL ✅ (`AUDIT-VERTIKAL.md`) → VERT-1 ✅ (`VERT-1-review.md`) → VERT-2 ✅ (terpasang di dev, `VERT-2-review.md`) → KOS-1 ✅ (`KOS-1-review.md`, 1.4a terpasang di dev) → KOS-1F ✅ (`KOS-1F-review.md`, 1F.6a terpasang di dev) → KELAS-1 → ARISAN-1 → dashboard Platform**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
+Urutan rencana: **SEC-1 ✅ → SEC-2 ✅ (sudah di dev) → PAY-2 ✅ → PAY-2F ✅ → PAY-1 + PAY-1F ✅ (di dev; deploy menunggu akun DOKU) → SEC-3 ✅ → SEC-3F ✅ → BRAND-1 ✅ → BRAND-1F ✅ → DEBT-1 ✅ → DEBT-1F ✅ → SEC-4 ✅ (di dev) → fase B: AUDIT-RTRW ✅ → SEC-5 ✅ (di dev) → RTRW-1 ✅ → RTRW-1F ✅ → STOR-1 ✅ (R2, di dev) → JOIN-1F/GATE-1F/NAV-1/UI-1F ✅ → RTRW-2 ✅ → RTRW-3 ✅ → AUDIT-VERTIKAL ✅ (`AUDIT-VERTIKAL.md`) → VERT-1 ✅ (`VERT-1-review.md`) → VERT-2 ✅ (terpasang di dev, `VERT-2-review.md`) → KOS-1 ✅ (`KOS-1-review.md`, 1.4a terpasang di dev) → KOS-1F ✅ (`KOS-1F-review.md`, 1F.6a terpasang di dev) → PANITIA-1 (`PANITIA-1.md`, menggantikan Kelas; menunggu persetujuan) → PANITIA-2 (iuran panitia, dokumen, LPJ) → PANITIA-HARGA (harga per acara aktif) → ARISAN-1 → dashboard Platform**. Batch baru diterbitkan Claude setelah review batch sebelumnya.
 
 ## Keputusan user yang mengikat
 - Palm Village **tetap tenant**. Branding-nya (nama, logo, warna, peta) hanya dari data tenant dan hanya tampil di `/t/:tenantId`. Lapisan global (login, beranda, `/account`, `/platform`, `/listing`, PWA) netral "RuangWarga".
@@ -22,6 +22,7 @@ Urutan rencana: **SEC-1 ✅ → SEC-2 ✅ (sudah di dev) → PAY-2 ✅ → PAY-2
 - **Arah backend RuangWarga: Supabase saja** (user, 2026-10-11). Semua jalur baru dan hasil migrasi memakai Supabase (RLS, RPC, Edge Functions); pemanggilan n8n baru dianggap regresi. n8n tetap hidup untuk Portal Warga dan tidak disentuh.
 - **File (bukti bayar, nota) disimpan di Cloudflare R2** bucket privat, akses lewat Edge Function `storage-upload` / `storage-sign-url` (STOR-1, user 2026-10-12). Opsi Google Drive dengan link publik ditolak.
 - **Warga tidak diblokir membuat tenant**; anggota biasa diarahkan ke dashboard tenant-nya (NAV-1, user 2026-10-14).
+- **Kelas diganti Kepanitiaan & Acara** (user, 2026-10-21): satu tenant = organisasi dengan banyak acara; pengeluaran langsung dicatat bendahara; pemasukan dicatat manual plus iuran panitia ditagih; harga per acara aktif. Lihat `PANITIA-requirement.md`.
 - **Peserta arisan** = anggota `approved` yang memegang slot (`tenant_members.unit_id`); ketua/owner tanpa slot tidak otomatis ikut (user, 2026-10-21, VERT-2.2).
 - Penamaan internal **dibiarkan**: class `.pv-*`, nama workflow n8n "PV API", prefix order `PV-QRIS`.
 
@@ -78,7 +79,8 @@ di pemilik Portal Warga live (repo lain), bukan di batch RuangWarga.
 - **AUDIT-VERIFY-1** (perlu persetujuan user, schema + pembayaran): isi `payments.verified_by = auth.uid()` di database saat status menjadi `completed`. Nama di `metadata.verified_by_name` berasal dari browser.
 - **STOR-2**: hapus bucket Supabase lama `payment-proofs` / `expense-receipts` (kosong) beserta policy-nya. Uji manual penolakan file (di atas 5 MB / tipe palsu) dan nota pengeluaran ke R2.
 - **Region Supabase**: project dev ada di Seoul (`ap-northeast-2`). Pertimbangkan project baru di Singapore sebelum ada tenant sungguhan.
-- **Ide vertikal** (Kos, Kelas, Arisan, lintas vertikal, pendalaman RT/RW): `VERTIKAL-requirement.md`. Belum dijadwalkan. Urutan: RT/RW, audit Kos/Arisan/Kelas, Kos, Kelas, Arisan.
+- **Ide vertikal** (Kos, Kelas, Arisan, lintas vertikal, pendalaman RT/RW): `VERTIKAL-requirement.md`. Kelas digantikan Kepanitiaan (`PANITIA-requirement.md`).
+- **KELAS-CLEANUP**: hapus kode Kelas yang tidak terpakai (wizard, cabang SPP, harga) setelah dipastikan tidak ada tenant Kelas di produksi.
 - **NOTIF-1** (setelah RTRW-2, user 2026-10-18): tombol "Ingatkan via WA" (`wa.me`, gratis) untuk tagihan yang belum dibayar. WA otomatis lewat API berbayar **diurungkan** (biaya naik terus). Email otomatis menyusul (Edge Function + penyedia email).
 - **LIST-1** (perlu persetujuan user; menyentuh aktivasi iklan setelah pembayaran DOKU dan status listing):
   - menu "Pasang Iklan" dan "Iklan Saya" untuk semua anggota;
