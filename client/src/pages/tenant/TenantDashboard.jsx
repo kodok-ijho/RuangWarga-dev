@@ -109,6 +109,7 @@ export default function TenantDashboard() {
           period: selectedPeriod,
           userId: user?.id,
           userEmail: user?.email,
+          tenantType: activeTenant?.type,
         }),
         fetchTenantAnnouncements(tenantId, { limit: 3 }).catch((err) => {
           // eslint-disable-next-line no-console

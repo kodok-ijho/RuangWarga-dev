@@ -658,13 +658,58 @@ export function resolveCitizenObligationAndUnit({
 }
 
 /**
+ * Menghitung unit terisi dan kosong per jenis tenant (KOS-1F.5).
+ * - rt_rw: status === 'active' atau is_occupied dihitung sebagai terisi, total = seluruh unit, vacant = total - occupied.
+ * - kos / kelas / arisan: unit terisi bila status === 'occupied' ATAU ada anggota approved dengan unit_id = unit.
+ *   Unit inactive tidak dihitung, baik sebagai terisi maupun kosong.
+ *   vacant = jumlah unit bukan inactive dikurangi yang terisi.
+ *
+ * @param {Array} units
+ * @param {Array} members
+ * @param {string} tenantType
+ * @returns {{ total: number, occupied: number, vacant: number }}
+ */
+export function countOccupiedUnits(units = [], members = [], tenantType = 'rt_rw') {
+  const safeUnits = Array.isArray(units) ? units : [];
+  const safeMembers = Array.isArray(members) ? members : [];
+
+  if (tenantType === 'rt_rw') {
+    const total = safeUnits.length;
+    const occupied = safeUnits.filter((u) => u.status === 'active' || u.is_occupied).length;
+    const vacant = Math.max(0, total - occupied);
+    return { total, occupied, vacant };
+  }
+
+  // kos / kelas / arisan: abaikan unit inactive
+  const nonInactiveUnits = safeUnits.filter((u) => u.status !== 'inactive');
+  const approvedMemberUnitIds = new Set(
+    safeMembers
+      .filter((m) => (!m.status || m.status === 'approved') && m.unit_id != null)
+      .map((m) => String(m.unit_id))
+  );
+
+  const occupied = nonInactiveUnits.filter((u) => {
+    const isOccupiedStatus = u.status === 'occupied';
+    const hasApprovedMember = approvedMemberUnitIds.has(String(u.id));
+    return isOccupiedStatus || hasApprovedMember;
+  }).length;
+
+  const vacant = Math.max(0, nonInactiveUnits.length - occupied);
+  return {
+    total: nonInactiveUnits.length,
+    occupied,
+    vacant,
+  };
+}
+
+/**
  * Mengambil ringkasan data operasional & dashboard tenant
  * @param {string} tenantId - UUID tenant
- * @param {object} options - { role, period, userId, userEmail, unitId }
+ * @param {object} options - { role, period, userId, userEmail, unitId, tenantType }
  */
 export async function fetchTenantDashboardData(
   tenantId,
-  { role = 'admin', period, userId, userEmail, unitId } = {}
+  { role = 'admin', period, userId, userEmail, unitId, tenantType } = {}
 ) {
   if (!tenantId) throw new Error('tenantId wajib disertakan.');
 
@@ -672,6 +717,8 @@ export async function fetchTenantDashboardData(
   const [yearStr, monthStr] = resolvedPeriod.split('-');
   const year = Number(yearStr) || new Date().getFullYear();
   const month = Number(monthStr) || new Date().getMonth() + 1;
+
+  let resolvedTenantType = tenantType;
 
   const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
 
@@ -685,9 +732,10 @@ export async function fetchTenantDashboardData(
       fetchTenantBillMatrix(tenantId, year),
     ]);
 
-    const totalUnits = units.length;
-    const occupiedUnits = units.filter((u) => u.status === 'active' || u.is_occupied).length;
-    const vacantUnits = totalUnits - occupiedUnits;
+    const unitStats = countOccupiedUnits(units, members, resolvedTenantType || 'rt_rw');
+    const totalUnits = unitStats.total;
+    const occupiedUnits = unitStats.occupied;
+    const vacantUnits = unitStats.vacant;
 
     let totalBilled = 0;
     let totalCollected = 0;
@@ -770,9 +818,21 @@ export async function fetchTenantDashboardData(
     fetchTenantBillMatrix(tenantId, year).catch(() => []),
   ]);
 
-  const totalUnits = units.length;
-  const occupiedUnits = units.filter((u) => u.status === 'active').length;
-  const vacantUnits = totalUnits - occupiedUnits;
+  if (!resolvedTenantType) {
+    try {
+      const { data: tRow } = await supabase.from('tenants').select('type').eq('id', tenantId).maybeSingle();
+      if (tRow?.type) {
+        resolvedTenantType = tRow.type;
+      }
+    } catch (_e) {
+      // ignore
+    }
+  }
+
+  const unitStats = countOccupiedUnits(units, members, resolvedTenantType || 'rt_rw');
+  const totalUnits = unitStats.total;
+  const occupiedUnits = unitStats.occupied;
+  const vacantUnits = unitStats.vacant;
 
   let totalBilled = 0;
   let totalCollected = 0;

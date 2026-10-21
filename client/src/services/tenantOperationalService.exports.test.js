@@ -13,6 +13,7 @@ const EXPECTED_EXPORTS = [
   "bulkCreateTenantUnits",
   "calculateBillingPreview",
   "checkoutKosRoom",
+  "countOccupiedUnits",
   "createArisanRound",
   "createTenantAnnouncement",
   "createTenantBillingItem",
@@ -91,9 +92,9 @@ const EXPECTED_EXPORTS = [
 ];
 
 describe('tenantOperationalService Exports Guard (DEBT-1.4)', () => {
-  it('harus mengekspor 86 fungsi/konstanta yang sama persis', () => {
+  it('harus mengekspor 87 fungsi/konstanta yang sama persis', () => {
     const exportsList = Object.keys(tenantOperationalService).sort();
     expect(exportsList).toEqual(EXPECTED_EXPORTS);
-    expect(exportsList.length).toBe(86);
+    expect(exportsList.length).toBe(87);
   });
 });
