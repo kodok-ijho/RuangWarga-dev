@@ -99,7 +99,7 @@ function GuestLandingView() {
           </h1>
 
           <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-2xl mx-auto">
-            Aplikasi manajemen modern untuk RT/RW, kos-kosan, arisan, dan kelas dengan pencatatan iuran otomatis serta laporan kas transparan.
+            Aplikasi manajemen modern untuk RT/RW, kos-kosan, arisan, dan kepanitiaan dengan pencatatan iuran otomatis serta laporan kas transparan.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
@@ -534,7 +534,7 @@ function AuthenticatedWorkspaceHub() {
                   to="/onboarding/choose-type"
                   className="text-xs sm:text-sm text-slate-500 hover:text-slate-900 transition font-medium"
                 >
-                  Punya kos, arisan, atau kelas sendiri? Buka layanan sendiri →
+                  Punya kos, arisan, atau kepanitiaan sendiri? Buka layanan sendiri →
                 </Link>
               ) : (
                 <Link
@@ -645,7 +645,7 @@ function AuthenticatedWorkspaceHub() {
                 <p className="text-xs text-slate-600 leading-relaxed">
                   {joinRequests && joinRequests.length > 0
                     ? 'Permohonan bergabung Anda ke komunitas telah terkirim dan sedang menunggu verifikasi serta persetujuan dari pengelola.'
-                    : 'Anda belum memiliki atau terdaftar di komunitas manapun. Daftarkan tenant pertama Anda sekarang untuk mulai mengelola RT/RW, Kos, Arisan, atau Kelas Anda dengan 15 hari trial gratis!'}
+                    : 'Anda belum memiliki atau terdaftar di komunitas manapun. Daftarkan tenant pertama Anda sekarang untuk mulai mengelola RT/RW, Kos, Arisan, atau Kepanitiaan Anda dengan 15 hari trial gratis!'}
                 </p>
               </div>
               <div className="pt-2">

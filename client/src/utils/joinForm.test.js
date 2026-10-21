@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { shouldAskOccupancy, getJoinableUnits } from './joinForm';
+import { shouldAskOccupancy, shouldAskUnit, getJoinableUnits } from './joinForm';
 
-describe('joinForm utilities (KOS-1.1)', () => {
+describe('joinForm utilities (KOS-1.1 & PANITIA-1.3)', () => {
   describe('shouldAskOccupancy', () => {
     it('mengembalikan true hanya untuk rt_rw', () => {
       expect(shouldAskOccupancy('rt_rw')).toBe(true);
@@ -9,11 +9,25 @@ describe('joinForm utilities (KOS-1.1)', () => {
 
     it('mengembalikan false untuk vertikal lain dan input tidak dikenal', () => {
       expect(shouldAskOccupancy('kos')).toBe(false);
+      expect(shouldAskOccupancy('panitia')).toBe(false);
       expect(shouldAskOccupancy('kelas')).toBe(false);
       expect(shouldAskOccupancy('arisan')).toBe(false);
       expect(shouldAskOccupancy('')).toBe(false);
       expect(shouldAskOccupancy(null)).toBe(false);
       expect(shouldAskOccupancy(undefined)).toBe(false);
+    });
+  });
+
+  describe('shouldAskUnit', () => {
+    it('mengembalikan false untuk panitia', () => {
+      expect(shouldAskUnit('panitia')).toBe(false);
+    });
+
+    it('mengembalikan true untuk vertikal lain yang menggunakan unit/kamar/slot', () => {
+      expect(shouldAskUnit('rt_rw')).toBe(true);
+      expect(shouldAskUnit('kos')).toBe(true);
+      expect(shouldAskUnit('arisan')).toBe(true);
+      expect(shouldAskUnit('kelas')).toBe(true);
     });
   });
 

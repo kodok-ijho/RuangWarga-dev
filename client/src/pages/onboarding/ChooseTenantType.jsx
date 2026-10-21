@@ -73,26 +73,26 @@ export const TENANT_TYPE_OPTIONS = [
     placeholderName: 'Contoh: Arisan Keluarga Besar / Arisan Alumni 2010',
   },
   {
-    type: 'kelas',
-    title: 'Kelas & Kursus',
-    icon: '📚',
-    badge: 'Iuran Siswa',
+    type: 'panitia',
+    title: 'Kepanitiaan & Acara',
+    icon: '🎪',
+    badge: 'Anggaran & Acara',
     badgeColor: 'bg-blue-50 text-blue-800 border-blue-200',
-    targetRole: 'Pengajar & Pengelola Kelas',
+    targetRole: 'Ketua & Bendahara Panitia Acara',
     labels: {
-      unit: 'Slot Siswa',
-      bill: 'SPP / Iuran',
-      member: 'Siswa / Peserta',
+      unit: 'Seksi Panitia',
+      bill: 'Iuran Panitia',
+      member: 'Anggota Panitia',
     },
     description:
-      'Pencatatan iuran SPP, bimbel kelompok kecil, kelas sanggar, dan kursus privat dengan monitoring status pembayaran yang ringkas.',
+      'Keuangan acara organisasi: anggaran, pemasukan, pengeluaran, laporan',
     features: [
-      'Pencatatan iuran berkala kelompok kecil',
-      'Daftar siswa & monitoring pembayaran',
-      'Pengingat iuran bulanan',
-      'Laporan keuangan kelas yang sederhana',
+      'Penyusunan anggaran kegiatan (RAB)',
+      'Pencatatan pemasukan sponsor & tiket',
+      'Realisasi pengeluaran per pos anggaran',
+      'Laporan keuangan acara transparan',
     ],
-    placeholderName: 'Contoh: Bimbel Bintang Juara / Sanggar Tari Kenanga',
+    placeholderName: 'Contoh: Panitia HUT RI ke-81 / Dies Natalis BEM',
   },
 ];
 
@@ -120,7 +120,7 @@ export default function ChooseTenantType({ onCancel, initialType = 'rt_rw', redi
           toast.success(`Layanan "${tenant.name}" berhasil dibuat! Trial 15 hari aktif.`);
           if (redirectOnSuccess) {
             const targetType = location.state.type || selectedType;
-            if (targetType === 'rt_rw' || targetType === 'kos') {
+            if (targetType === 'rt_rw' || targetType === 'kos' || targetType === 'panitia') {
               navigate(`/t/${tenant.id}/setup`, { replace: true });
             } else {
               navigate(`/t/${tenant.id}/dashboard`, { replace: true });
@@ -169,7 +169,7 @@ export default function ChooseTenantType({ onCancel, initialType = 'rt_rw', redi
       toast.success(`Layanan "${newTenant.name}" berhasil dibuat! Trial 15 hari aktif.`);
 
       if (redirectOnSuccess) {
-        if (selectedType === 'rt_rw' || selectedType === 'kos') {
+        if (selectedType === 'rt_rw' || selectedType === 'kos' || selectedType === 'panitia') {
           navigate(`/t/${newTenant.id}/setup`, { replace: true });
         } else {
           navigate(`/t/${newTenant.id}/dashboard`, { replace: true });

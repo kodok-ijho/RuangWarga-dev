@@ -104,4 +104,74 @@ describe('tenantTemplates & Dynamic Naming (T7.5 & T9.3)', () => {
       expect(occupancyStatusColor('booking')).toContain('bg-amber-100');
     });
   });
+
+  describe('Template Vertikal Kepanitiaan & Acara (PANITIA-1.3)', () => {
+    it('mengembalikan template panitia dengan hasUnits=false dan hasPrograms=true', () => {
+      const panitiaTemplate = getTenantTemplate('panitia');
+
+      expect(panitiaTemplate).toBeDefined();
+      expect(panitiaTemplate.type).toBe('panitia');
+      expect(panitiaTemplate.name).toBe('Kepanitiaan & Acara');
+      expect(panitiaTemplate.icon).toBe('🎪');
+      expect(panitiaTemplate.memberLabel).toBe('Anggota Panitia');
+      expect(panitiaTemplate.memberPluralLabel).toBe('Daftar Panitia');
+      expect(panitiaTemplate.adminLabel).toBe('Ketua');
+      expect(panitiaTemplate.treasurerLabel).toBe('Bendahara');
+      expect(panitiaTemplate.communityLabel).toBe('Kepanitiaan');
+      expect(panitiaTemplate.billLabel).toBe('Iuran');
+      expect(panitiaTemplate.billPluralLabel).toBe('Iuran Panitia');
+      expect(panitiaTemplate.programLabel).toBe('Acara');
+      expect(panitiaTemplate.eventsLabel).toBe('Agenda');
+      expect(panitiaTemplate.unitLabel).toBe('Seksi');
+
+      expect(panitiaTemplate.features.hasUnits).toBe(false);
+      expect(panitiaTemplate.features.hasPrograms).toBe(true);
+
+      expect(panitiaTemplate.incomeCategories).toEqual([
+        'Sponsor',
+        'Donasi',
+        'Penjualan Tiket',
+        'Dana Organisasi',
+        'Iuran Panitia',
+        'Lain-lain',
+      ]);
+      expect(panitiaTemplate.expenseCategories).toEqual([
+        'Konsumsi',
+        'Perlengkapan',
+        'Dekorasi',
+        'Publikasi & Desain',
+        'Transportasi',
+        'Sewa Tempat & Alat',
+        'Pengisi Acara',
+        'Perizinan',
+        'Lain-lain',
+      ]);
+    });
+
+    it('memastikan semua template vertikal memiliki boolean features.hasUnits', () => {
+      Object.entries(TENANT_TEMPLATES).forEach(([type, tmpl]) => {
+        expect(typeof tmpl.features.hasUnits).toBe('boolean');
+        if (type === 'panitia') {
+          expect(tmpl.features.hasUnits).toBe(false);
+        } else {
+          expect(tmpl.features.hasUnits).toBe(true);
+        }
+      });
+    });
+
+    it('menghasilkan roleLabel yang disesuaikan untuk panitia', () => {
+      expect(roleLabel('admin', 'panitia')).toBe('Ketua Panitia');
+      expect(roleLabel('bendahara', 'panitia')).toBe('Bendahara Panitia');
+      expect(roleLabel('pengurus', 'panitia')).toBe('Koordinator Seksi');
+      expect(roleLabel('anggota', 'panitia')).toBe('Anggota Panitia');
+      expect(roleLabel('warga', 'panitia')).toBe('Anggota Panitia');
+    });
+
+    it('menghasilkan occupancyStatusLabel yang disesuaikan untuk panitia', () => {
+      expect(occupancyStatusLabel('tenant', 'panitia')).toBe('Panitia Aktif');
+      expect(occupancyStatusLabel('owner_occupied', 'panitia')).toBe('Ketua Panitia');
+      expect(occupancyStatusLabel('checkout', 'panitia')).toBe('Selesai / Demisioner');
+      expect(occupancyStatusLabel('booking', 'panitia')).toBe('Calon Panitia');
+    });
+  });
 });

@@ -301,7 +301,7 @@ export default function Login() {
             </span>
           </div>
           <p className="text-xs text-slate-500 uppercase tracking-wider mt-2 font-medium">
-            Platform Komunitas &amp; Properti (RT/RW • Kos • Arisan • Kelas)
+            Platform Komunitas &amp; Properti (RT/RW • Kos • Arisan • Kepanitiaan)
           </p>
         </div>
 
@@ -520,7 +520,7 @@ export default function Login() {
         {/* Banner Registrasi Tenant Baru (Multi-tenant Onboarding T2.3) */}
         <div className="mt-5 p-5 rounded-3xl bg-white border border-slate-200/90 shadow-card text-center">
           <p className="text-xs font-bold text-slate-800">
-            Ingin mengelola perumahan, kos, arisan, atau kelas Anda sendiri?
+            Ingin mengelola perumahan, kos, arisan, atau kepanitiaan Anda sendiri?
           </p>
           <button
             type="button"

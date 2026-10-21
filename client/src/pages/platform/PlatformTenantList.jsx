@@ -39,6 +39,7 @@ const TYPE_CONFIG = {
   rt_rw: { label: 'RT/RW', icon: '🏘️' },
   kos: { label: 'Kos-kosan', icon: '🏢' },
   arisan: { label: 'Arisan', icon: '🎲' },
+  panitia: { label: 'Kepanitiaan', icon: '🎪' },
   kelas: { label: 'Kelas', icon: '📚' },
 };
 

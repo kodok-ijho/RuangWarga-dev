@@ -13,7 +13,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { getInviteDetails, requestJoinTenant } from '../../services/tenantOperationalService';
 import { TENANT_TEMPLATES } from '../../config/tenantTemplates';
-import { shouldAskOccupancy, getJoinableUnits } from '../../utils/joinForm';
+import { shouldAskOccupancy, shouldAskUnit, getJoinableUnits } from '../../utils/joinForm';
 
 const PENDING_JOIN_STORAGE_KEY = 'rw_pending_join';
 
@@ -217,9 +217,10 @@ export default function JoinTenant() {
 
     setSubmitting(true);
     try {
+      const askUnit = shouldAskUnit(tenantInfo?.tenant_type || 'rt_rw');
       await requestJoinTenant({
         code: inputCode || paramInviteCode,
-        unitId: unitId ? Number(unitId) : null,
+        unitId: askUnit && unitId ? Number(unitId) : null,
         fullName,
         phone,
         occupancyStatus: effectiveOccupancyStatus,
@@ -391,29 +392,36 @@ export default function JoinTenant() {
                 const template = TENANT_TEMPLATES[tenantType] || TENANT_TEMPLATES.rt_rw;
                 const joinableUnits = getJoinableUnits(tenantInfo?.units, tenantType);
                 const askOccupancy = shouldAskOccupancy(tenantType);
+                const askUnit = shouldAskUnit(tenantType);
+
+                if (!askUnit && !askOccupancy) {
+                  return null;
+                }
 
                 return (
-                  <div className={`grid grid-cols-1 ${askOccupancy ? 'sm:grid-cols-2' : ''} gap-3`}>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                        Pilih {template.unitLabel} <span className="text-rose-500">*</span>
-                      </label>
-                      <select
-                        value={unitId}
-                        onChange={(e) => setUnitId(e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-forest-800 shadow-xs"
-                      >
-                        {joinableUnits.length === 0 ? (
-                          <option value="">Belum ada {template.unitLabel} yang tersedia. Hubungi pengelola.</option>
-                        ) : (
-                          joinableUnits.map((u) => (
-                            <option key={u.id} value={u.id}>
-                              {u.label}
-                            </option>
-                          ))
-                        )}
-                      </select>
-                    </div>
+                  <div className={`grid grid-cols-1 ${askUnit && askOccupancy ? 'sm:grid-cols-2' : ''} gap-3`}>
+                    {askUnit && (
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Pilih {template.unitLabel} <span className="text-rose-500">*</span>
+                        </label>
+                        <select
+                          value={unitId}
+                          onChange={(e) => setUnitId(e.target.value)}
+                          className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-forest-800 shadow-xs"
+                        >
+                          {joinableUnits.length === 0 ? (
+                            <option value="">Belum ada {template.unitLabel} yang tersedia. Hubungi pengelola.</option>
+                          ) : (
+                            joinableUnits.map((u) => (
+                              <option key={u.id} value={u.id}>
+                                {u.label}
+                              </option>
+                            ))
+                          )}
+                        </select>
+                      </div>
+                    )}
 
                     {askOccupancy && (
                       <div>

@@ -312,6 +312,17 @@ export function canViewLogs(role) {
 }
 
 export function roleLabel(role, tenantType = 'rt_rw') {
+  if (tenantType === 'panitia') {
+    const panitiaMap = {
+      warga: 'Anggota Panitia',
+      anggota: 'Anggota Panitia',
+      pengurus: 'Koordinator Seksi',
+      bendahara: 'Bendahara Panitia',
+      admin: 'Ketua Panitia',
+      admin_viewer: 'Admin Viewer',
+    };
+    return panitiaMap[role] || role || '-';
+  }
   if (tenantType === 'kelas') {
     const kelasMap = {
       warga: 'Siswa / Wali Murid',
@@ -375,6 +386,17 @@ export function occupancyStatusLabel(status, tenantType = 'rt_rw') {
     };
     return kosMap[status] || OCCUPANCY_STATUS[status] || status || '-';
   }
+  if (tenantType === 'panitia') {
+    const panitiaMap = {
+      tenant: 'Panitia Aktif',
+      owner_occupied: 'Ketua Panitia',
+      owner_rented: 'Terisi',
+      owner_vacant: 'Terbuka',
+      checkout: 'Selesai / Demisioner',
+      booking: 'Calon Panitia',
+    };
+    return panitiaMap[status] || OCCUPANCY_STATUS[status] || status || '-';
+  }
   if (tenantType === 'kelas') {
     const kelasMap = {
       tenant: 'Siswa Terdaftar',
@@ -432,6 +454,14 @@ export function getOccupancyOptions(tenantType) {
     ];
   }
 
+  if (tenantType === 'panitia') {
+    return [
+      { value: 'tenant', label: occupancyStatusLabel('tenant', 'panitia') },
+      { value: 'booking', label: occupancyStatusLabel('booking', 'panitia') },
+      { value: 'checkout', label: occupancyStatusLabel('checkout', 'panitia') },
+      { value: 'owner_occupied', label: occupancyStatusLabel('owner_occupied', 'panitia') },
+    ];
+  }
   if (tenantType === 'kelas') {
     return [
       { value: 'tenant', label: occupancyStatusLabel('tenant', 'kelas') },

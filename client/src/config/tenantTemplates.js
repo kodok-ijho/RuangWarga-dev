@@ -3,6 +3,23 @@
  * Ref: specification.md §7, requirement.md FR-2, FR-7, FR-16 s/d FR-21
  */
 
+export const DEFAULT_INCOME_CATEGORIES = [
+  'Sumbangan',
+  'Sewa Fasilitas',
+  'Denda',
+  'Lain-lain',
+];
+
+export const DEFAULT_EXPENSE_CATEGORIES = [
+  'Kebersihan',
+  'Keamanan',
+  'Perawatan Fasilitas',
+  'Listrik & Air',
+  'Administrasi',
+  'Acara Warga',
+  'Lain-lain',
+];
+
 export const TENANT_TEMPLATES = {
   rt_rw: {
     type: 'rt_rw',
@@ -24,7 +41,11 @@ export const TENANT_TEMPLATES = {
     contractLabel: 'Status Huni',
     feeLabel: 'Iuran IPL',
     unitPlaceholder: 'Misal: Blok A/12',
+    incomeCategories: DEFAULT_INCOME_CATEGORIES,
+    expenseCategories: DEFAULT_EXPENSE_CATEGORIES,
     features: {
+      hasUnits: true,
+      hasPrograms: false,
       hasMultiYearMatrix: true,
       hasRoomStatus: false,
       hasArisanDraw: false,
@@ -52,7 +73,11 @@ export const TENANT_TEMPLATES = {
     contractLabel: 'Kontrak Sewa',
     feeLabel: 'Tarif Sewa',
     unitPlaceholder: 'Misal: Kamar 101',
+    incomeCategories: DEFAULT_INCOME_CATEGORIES,
+    expenseCategories: DEFAULT_EXPENSE_CATEGORIES,
     features: {
+      hasUnits: true,
+      hasPrograms: false,
       hasMultiYearMatrix: false,
       hasRoomStatus: true,
       hasArisanDraw: false,
@@ -80,10 +105,65 @@ export const TENANT_TEMPLATES = {
     contractLabel: 'Keikutsertaan',
     feeLabel: 'Kontribusi Arisan',
     unitPlaceholder: 'Misal: Nomor Undian 01',
+    incomeCategories: DEFAULT_INCOME_CATEGORIES,
+    expenseCategories: DEFAULT_EXPENSE_CATEGORIES,
     features: {
+      hasUnits: true,
+      hasPrograms: false,
       hasMultiYearMatrix: false,
       hasRoomStatus: false,
       hasArisanDraw: true,
+      hasStudentAttendance: false,
+      hasPublicListing: false,
+    },
+  },
+  panitia: {
+    type: 'panitia',
+    name: 'Kepanitiaan & Acara',
+    icon: '🎪',
+    unitLabel: 'Seksi',
+    unitPluralLabel: 'Seksi',
+    billLabel: 'Iuran',
+    billPluralLabel: 'Iuran Panitia',
+    memberLabel: 'Anggota Panitia',
+    memberPluralLabel: 'Daftar Panitia',
+    adminLabel: 'Ketua',
+    treasurerLabel: 'Bendahara',
+    communityLabel: 'Kepanitiaan',
+    emptyUnitLabel: 'Seksi Kosong',
+    occupiedUnitLabel: 'Terisi',
+    paymentActionLabel: 'Bayar Iuran Panitia',
+    headerResidentUnit: 'Seksi / Panitia',
+    contractLabel: 'Keanggotaan',
+    feeLabel: 'Iuran Panitia',
+    unitPlaceholder: 'Misal: Seksi Acara',
+    programLabel: 'Acara',
+    eventsLabel: 'Agenda',
+    incomeCategories: [
+      'Sponsor',
+      'Donasi',
+      'Penjualan Tiket',
+      'Dana Organisasi',
+      'Iuran Panitia',
+      'Lain-lain',
+    ],
+    expenseCategories: [
+      'Konsumsi',
+      'Perlengkapan',
+      'Dekorasi',
+      'Publikasi & Desain',
+      'Transportasi',
+      'Sewa Tempat & Alat',
+      'Pengisi Acara',
+      'Perizinan',
+      'Lain-lain',
+    ],
+    features: {
+      hasUnits: false,
+      hasPrograms: true,
+      hasMultiYearMatrix: false,
+      hasRoomStatus: false,
+      hasArisanDraw: false,
       hasStudentAttendance: false,
       hasPublicListing: false,
     },
@@ -108,7 +188,11 @@ export const TENANT_TEMPLATES = {
     contractLabel: 'Status Pendaftaran',
     feeLabel: 'Iuran SPP',
     unitPlaceholder: 'Misal: Slot 01 / Siswa A',
+    incomeCategories: DEFAULT_INCOME_CATEGORIES,
+    expenseCategories: DEFAULT_EXPENSE_CATEGORIES,
     features: {
+      hasUnits: true,
+      hasPrograms: false,
       hasMultiYearMatrix: false,
       hasRoomStatus: false,
       hasArisanDraw: false,
@@ -122,7 +206,7 @@ export const DEFAULT_TEMPLATE = TENANT_TEMPLATES.rt_rw;
 
 /**
  * Helper untuk mendapatkan template vertikal berdasarkan tipe tenant
- * @param {string} tenantType - 'rt_rw' | 'kos' | 'arisan' | 'kelas'
+ * @param {string} tenantType - 'rt_rw' | 'kos' | 'arisan' | 'panitia' | 'kelas'
  * @returns {object} Template konfigurasi vertikal
  */
 export function getTenantTemplate(tenantType) {

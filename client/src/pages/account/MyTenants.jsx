@@ -50,7 +50,7 @@ export default function MyTenants() {
       {/* ── Page Header ─────────────────────────────────────────────────── */}
       <PageHeader
         title="Komunitas Saya"
-        description="Kelola seluruh komunitas, properti, grup arisan, atau kelas yang Anda kelola atau ikuti."
+        description="Kelola seluruh komunitas, properti, grup arisan, atau kepanitiaan yang Anda kelola atau ikuti."
         actions={
           <div className="flex items-center gap-2">
             <Button

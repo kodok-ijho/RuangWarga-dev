@@ -6,6 +6,7 @@ const TYPE_ICONS = {
   rt_rw: '🏘️',
   kos: '🏢',
   arisan: '🎲',
+  panitia: '🎪',
   kelas: '📚',
 };
 
@@ -13,6 +14,7 @@ const TYPE_LABELS = {
   rt_rw: 'RT/RW',
   kos: 'Kos-Kosan',
   arisan: 'Arisan',
+  panitia: 'Kepanitiaan',
   kelas: 'Kelas',
 };
 

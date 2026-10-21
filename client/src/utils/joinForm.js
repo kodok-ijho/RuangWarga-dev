@@ -15,6 +15,17 @@ export function shouldAskOccupancy(tenantType) {
 }
 
 /**
+ * Menentukan apakah pilihan unit perlu ditampilkan pada form pendaftaran.
+ * Tenant bertipe 'panitia' tidak menggunakan unit/kamar/slot.
+ *
+ * @param {string} tenantType
+ * @returns {boolean}
+ */
+export function shouldAskUnit(tenantType) {
+  return tenantType !== 'panitia';
+}
+
+/**
  * Menyaring daftar unit yang dapat dipilih oleh calon pendaftar.
  * - Membuang unit non-aktif ('inactive').
  * - Untuk kos dan kelas, membuang juga unit yang sudah terisi ('occupied').
