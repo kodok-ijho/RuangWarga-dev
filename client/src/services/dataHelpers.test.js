@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getOccupancyOptions, OCCUPANCY_STATUS } from './dataHelpers';
+import { getOccupancyOptions, OCCUPANCY_STATUS, getMemberStatusBadge } from './dataHelpers';
 
 describe('dataHelpers — getOccupancyOptions (KOS-1.2)', () => {
   it('mengembalikan opsi yang tepat untuk vertikal kos', () => {
@@ -42,5 +42,36 @@ describe('dataHelpers — getOccupancyOptions (KOS-1.2)', () => {
     expect(getOccupancyOptions(undefined)).toEqual(expectedRtRw);
     expect(getOccupancyOptions(null)).toEqual(expectedRtRw);
     expect(getOccupancyOptions('unknown_type')).toEqual(expectedRtRw);
+  });
+});
+
+describe('dataHelpers — getMemberStatusBadge (KOS-1.5)', () => {
+  it('mengembalikan status Aktif untuk member approved', () => {
+    const badge = getMemberStatusBadge({ status: 'approved' });
+    expect(badge.label).toBe('Aktif');
+    expect(badge.color).toContain('emerald');
+  });
+
+  it('mengembalikan status Menunggu persetujuan untuk member pending', () => {
+    const badge = getMemberStatusBadge({ status: 'pending' });
+    expect(badge.label).toBe('Menunggu persetujuan');
+    expect(badge.color).toContain('amber');
+  });
+
+  it('mengembalikan status Ditolak untuk member rejected', () => {
+    const badge = getMemberStatusBadge({ status: 'rejected' });
+    expect(badge.label).toBe('Ditolak');
+    expect(badge.color).toContain('rose');
+  });
+
+  it('fallback ke is_active untuk mode legacy', () => {
+    expect(getMemberStatusBadge({ is_active: true }).label).toBe('Aktif');
+    expect(getMemberStatusBadge({ is_active: false }).label).toBe('Non-aktif');
+    expect(getMemberStatusBadge({ is_active: false }).color).toContain('slate');
+  });
+
+  it('fallback aman jika member null atau undefined', () => {
+    expect(getMemberStatusBadge(null).label).toBe('Non-aktif');
+    expect(getMemberStatusBadge(undefined).label).toBe('Non-aktif');
   });
 });

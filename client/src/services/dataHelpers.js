@@ -410,6 +410,57 @@ export function getOccupancyOptions(tenantType) {
   }));
 }
 
+/**
+ * Mengembalikan badge status keanggotaan (label, color, dotColor).
+ * - Mode tenant: membaca `status` ('approved' -> Aktif, 'pending' -> Menunggu persetujuan, 'rejected' -> Ditolak).
+ * - Mode legacy: fallback ke `is_active` (true -> Aktif, false -> Non-aktif).
+ */
+export function getMemberStatusBadge(member) {
+  if (!member) {
+    return {
+      label: 'Non-aktif',
+      color: 'bg-slate-100 text-slate-500 border border-slate-200',
+      dotColor: 'bg-slate-300',
+    };
+  }
+
+  if (member.status === 'approved') {
+    return {
+      label: 'Aktif',
+      color: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+      dotColor: 'bg-emerald-500',
+    };
+  }
+  if (member.status === 'pending') {
+    return {
+      label: 'Menunggu persetujuan',
+      color: 'bg-amber-50 text-amber-700 border border-amber-200',
+      dotColor: 'bg-amber-500',
+    };
+  }
+  if (member.status === 'rejected') {
+    return {
+      label: 'Ditolak',
+      color: 'bg-rose-50 text-rose-700 border border-rose-200',
+      dotColor: 'bg-rose-500',
+    };
+  }
+
+  if (member.is_active !== false) {
+    return {
+      label: 'Aktif',
+      color: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+      dotColor: 'bg-emerald-500',
+    };
+  }
+
+  return {
+    label: 'Non-aktif',
+    color: 'bg-slate-100 text-slate-500 border border-slate-200',
+    dotColor: 'bg-slate-300',
+  };
+}
+
 // ── IPL SCHEMA HELPERS ───────────────────────────────────────────
 export const DEFAULT_IPL_SCHEMAS = [
   {

@@ -432,4 +432,51 @@ describe('Residents Tenant Mode (RTRW-2.2)', () => {
     // Tidak boleh ada link Atur Jabatan sama sekali
     expect(screen.queryByRole('link', { name: /Atur Jabatan/i })).toBeNull();
   });
+
+  it('f. KOS-1.5: render Residents mode tenant dengan 1 anggota pending -> menampilkan banner, badge "Menunggu persetujuan", dan tautan approval', async () => {
+    const pendingMember = {
+      id: 'mem-calon-3',
+      full_name: 'Joko Calon',
+      email: 'joko@gmail.com',
+      phone: '08333333333',
+      unit_id: null,
+      role: 'anggota',
+      status: 'pending',
+      is_owner: false,
+      occupancy_status: 'tenant',
+    };
+
+    tenantOperationalService.fetchTenantMembers.mockResolvedValueOnce([
+      ...sampleMembers.map((m) => ({ ...m, status: 'approved' })),
+      pendingMember,
+    ]);
+    tenantOperationalService.fetchTenantUnits.mockResolvedValueOnce(sampleUnits);
+
+    mockTenantAccessState.canManageMembers = true;
+    mockTenantState.isOwner = true;
+    mockTenantState.hasPermission = vi.fn(() => true);
+
+    renderResidents();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Joko Calon').length).toBeGreaterThan(0);
+    });
+
+    // 1. Banner pendaftar menunggu persetujuan tampil
+    expect(screen.getByText(/1 pendaftar/i)).toBeTruthy();
+    expect(screen.getAllByText(/menunggu persetujuan/i).length).toBeGreaterThan(0);
+    const tinjauBannerBtn = screen.getByRole('link', { name: /^Tinjau$/i });
+    expect(tinjauBannerBtn.getAttribute('href')).toBe('/t/tenant-rtrw-1/approval');
+
+    // 2. Badge "Menunggu persetujuan" tampil
+    expect(screen.getAllByText('Menunggu persetujuan').length).toBeGreaterThan(0);
+
+    // 3. Status tinggal calon anggota pending menampilkan "Calon Warga"
+    expect(screen.getAllByText('Calon Warga').length).toBeGreaterThan(0);
+
+    // 4. Tombol aksi untuk anggota pending mengarah ke approval ("Tinjau & Setujui")
+    const approvalLinks = screen.getAllByRole('link', { name: /Tinjau & Setujui/i });
+    expect(approvalLinks.length).toBeGreaterThan(0);
+    expect(approvalLinks[0].getAttribute('href')).toBe('/t/tenant-rtrw-1/approval');
+  });
 });

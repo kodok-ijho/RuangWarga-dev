@@ -1,7 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Card, Badge, StatusBadge } from '../ui';
-import { roleLabel, roleColor, occupancyStatusLabel, occupancyStatusColor } from '../../services/dataHelpers';
+import {
+  roleLabel,
+  roleColor,
+  occupancyStatusLabel,
+  occupancyStatusColor,
+  getMemberStatusBadge,
+} from '../../services/dataHelpers';
 import { AiOutlinePhone, AiOutlineWhatsApp, AiOutlineRight } from 'react-icons/ai';
 
 /**
@@ -26,6 +32,7 @@ export function ResidentCard({
   const unitLabel = template?.unitLabel || 'Unit';
   const unitIdentifier = unit ? (unit.label || `${unit.block}/${unit.unit_number}`) : null;
   const initial = profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : '?';
+  const statusBadge = getMemberStatusBadge(profile);
 
   // Format nomor WhatsApp (buang spasi/strip, ganti 08xx jadi 628xx)
   const cleanPhone = profile?.phone ? String(profile.phone).replace(/[^0-9]/g, '') : '';
@@ -50,10 +57,8 @@ export function ResidentCard({
               {initial}
             </span>
             <span
-              className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white ${
-                profile.is_active ? 'bg-emerald-500' : 'bg-slate-300'
-              }`}
-              title={profile.is_active ? 'Aktif' : 'Non-aktif'}
+              className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white ${statusBadge.dotColor}`}
+              title={statusBadge.label}
             />
           </div>
 
@@ -79,20 +84,33 @@ export function ResidentCard({
               {profile.full_name}
             </h4>
 
-            {profile.occupancy_status && (
+            {profile.status === 'pending' ? (
+              <span className="text-[11px] font-semibold text-amber-700 block">
+                Calon {template?.memberLabel || 'Anggota'}
+              </span>
+            ) : profile.occupancy_status ? (
               <span className="text-[11px] text-slate-500 block">
                 {occupancyStatusLabel(profile.occupancy_status, activeTenant?.type)}
               </span>
-            )}
+            ) : null}
 
             {canManageRoles && activeTenantId && !profile.is_owner && (
               <div onClick={handleActionClick}>
-                <Link
-                  to={`/t/${activeTenantId}/members/${profile.id}/role`}
-                  className="text-[11px] font-semibold text-forest-800 hover:text-forest-900 underline inline-block mt-0.5"
-                >
-                  Atur Jabatan
-                </Link>
+                {profile.status === 'pending' ? (
+                  <Link
+                    to={`/t/${activeTenantId}/approval`}
+                    className="text-[11px] font-semibold text-amber-700 hover:text-amber-800 underline inline-block mt-0.5"
+                  >
+                    Tinjau & Setujui
+                  </Link>
+                ) : (
+                  <Link
+                    to={`/t/${activeTenantId}/members/${profile.id}/role`}
+                    className="text-[11px] font-semibold text-forest-800 hover:text-forest-900 underline inline-block mt-0.5"
+                  >
+                    Atur Jabatan
+                  </Link>
+                )}
               </div>
             )}
           </div>

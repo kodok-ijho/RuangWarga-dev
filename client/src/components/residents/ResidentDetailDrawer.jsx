@@ -6,6 +6,7 @@ import {
   roleColor,
   occupancyStatusLabel,
   occupancyStatusColor,
+  getMemberStatusBadge,
 } from '../../services/dataHelpers';
 import {
   AiOutlinePhone,
@@ -80,21 +81,26 @@ export function ResidentDetailDrawer({
               >
                 {roleLabelText || (profile.is_owner && activeTenantId ? 'Admin' : roleLabel(profile.role, activeTenant?.type))}
               </span>
-              <span
-                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                  profile.is_active
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-slate-100 text-slate-500 border-slate-200'
-                }`}
-              >
-                {profile.is_active ? '✓ Aktif' : '• Non-aktif'}
-              </span>
+              {(() => {
+                const statusBadge = getMemberStatusBadge(profile);
+                return (
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${statusBadge.color}`}
+                  >
+                    {statusBadge.label}
+                  </span>
+                );
+              })()}
             </div>
-            {profile.occupancy_status && (
+            {profile.status === 'pending' ? (
+              <span className="text-xs text-amber-700 font-semibold block">
+                Calon {memberLabel}
+              </span>
+            ) : profile.occupancy_status ? (
               <span className="text-xs text-slate-500 block">
                 {occupancyStatusLabel(profile.occupancy_status, activeTenant?.type)}
               </span>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -161,6 +167,35 @@ export function ResidentDetailDrawer({
             </div>
           </div>
 
+          <div className="flex justify-between py-2 border-b border-slate-100">
+            <span className="text-slate-500 flex items-center gap-1.5">
+              <span>Status:</span>
+            </span>
+            <span className="font-semibold text-slate-800">
+              {getMemberStatusBadge(profile).label}
+            </span>
+          </div>
+
+          {profile.status === 'pending' ? (
+            <div className="flex justify-between py-2 border-b border-slate-100">
+              <span className="text-slate-500 flex items-center gap-1.5">
+                <span>{template?.contractLabel || 'Status Tinggal'}:</span>
+              </span>
+              <span className="font-semibold text-amber-700">
+                Calon {memberLabel}
+              </span>
+            </div>
+          ) : profile.occupancy_status ? (
+            <div className="flex justify-between py-2 border-b border-slate-100">
+              <span className="text-slate-500 flex items-center gap-1.5">
+                <span>{template?.contractLabel || 'Status Tinggal'}:</span>
+              </span>
+              <span className="font-semibold text-slate-800">
+                {occupancyStatusLabel(profile.occupancy_status, activeTenant?.type)}
+              </span>
+            </div>
+          ) : null}
+
           {owner && (
             <div className="flex justify-between py-2 border-b border-slate-100">
               <span className="text-slate-500 flex items-center gap-1.5">
@@ -185,13 +220,23 @@ export function ResidentDetailDrawer({
           </Button>
 
           {canManageRoles && activeTenantId && !profile.is_owner && (
-            <Link
-              to={`/t/${activeTenantId}/members/${profile.id}/role`}
-              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 text-xs font-bold transition-colors shadow-xs"
-            >
-              <AiOutlineSafetyCertificate className="text-sm" />
-              <span>Atur Jabatan</span>
-            </Link>
+            profile.status === 'pending' ? (
+              <Link
+                to={`/t/${activeTenantId}/approval`}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-colors shadow-xs"
+              >
+                <AiOutlineCheck className="text-sm" />
+                <span>Tinjau & Setujui</span>
+              </Link>
+            ) : (
+              <Link
+                to={`/t/${activeTenantId}/members/${profile.id}/role`}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 text-xs font-bold transition-colors shadow-xs"
+              >
+                <AiOutlineSafetyCertificate className="text-sm" />
+                <span>Atur Jabatan</span>
+              </Link>
+            )
           )}
 
           {canManage && (

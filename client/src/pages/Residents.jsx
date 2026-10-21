@@ -40,6 +40,7 @@ import {
   occupancyStatusColor,
   OCCUPANCY_STATUS,
   getOccupancyOptions,
+  getMemberStatusBadge,
 } from '../services/dataHelpers';
 import {
   Table,
@@ -101,6 +102,10 @@ export default function Residents() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const pendingMembersCount = useMemo(() => {
+    return profiles.filter((p) => p.status === 'pending').length;
+  }, [profiles]);
 
   const fetchSeqRef = useRef(0);
   const activeTenantRef = useRef(activeTenantId);
@@ -257,8 +262,17 @@ export default function Residents() {
         const uBlock = unit?.block || unit?.metadata?.block || '';
         if (uBlock !== filterBlock) return false;
       }
-      if (filterStatus === 'active' && !p.is_active) return false;
-      if (filterStatus === 'inactive' && p.is_active) return false;
+      if (filterStatus) {
+        if (activeTenantId) {
+          const s = p.status || (p.is_active !== false ? 'approved' : 'inactive');
+          if (filterStatus === 'active' && s !== 'approved') return false;
+          if (filterStatus === 'pending' && s !== 'pending') return false;
+          if (filterStatus === 'inactive' && s !== 'rejected' && s !== 'inactive') return false;
+        } else {
+          if (filterStatus === 'active' && !p.is_active) return false;
+          if (filterStatus === 'inactive' && p.is_active) return false;
+        }
+      }
       if (filterOccupancy && p.occupancy_status !== filterOccupancy) return false;
       return true;
     });
@@ -281,8 +295,14 @@ export default function Residents() {
           : valB.localeCompare(valA, undefined, { numeric: true });
       }
       if (sortKey === 'status') {
-        valA = a.is_active ? 1 : 0;
-        valB = b.is_active ? 1 : 0;
+        if (activeTenantId) {
+          const statusWeight = { approved: 2, pending: 1, rejected: 0, inactive: 0 };
+          valA = statusWeight[a.status] ?? (a.is_active ? 2 : 0);
+          valB = statusWeight[b.status] ?? (b.is_active ? 2 : 0);
+        } else {
+          valA = a.is_active ? 1 : 0;
+          valB = b.is_active ? 1 : 0;
+        }
         return sortDirection === 'asc' ? valA - valB : valB - valA;
       }
       if (sortKey === 'role') {
@@ -606,6 +626,26 @@ export default function Residents() {
         </div>
       )}
 
+      {/* Banner pendaftar menunggu persetujuan (KOS-1.5) */}
+      {activeTenantId && tenantAccess.canManageMembers && pendingMembersCount > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800 font-bold text-sm">
+              {pendingMembersCount}
+            </span>
+            <p className="text-sm font-medium">
+              <span className="font-bold">{pendingMembersCount} pendaftar</span> menunggu persetujuan
+            </p>
+          </div>
+          <Link
+            to={`/t/${activeTenantId}/approval`}
+            className="pv-btn-primary bg-amber-600 hover:bg-amber-700 text-white text-xs px-4 py-2 self-start sm:self-auto inline-flex items-center gap-1.5 shadow-xs"
+          >
+            Tinjau
+          </Link>
+        </div>
+      )}
+
       {/* Search & filters */}
       <div data-tour="residents-filters" className="pv-card p-4 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -649,6 +689,7 @@ export default function Residents() {
           >
             <option value="">Semua Status</option>
             <option value="active">Aktif</option>
+            {activeTenantId && <option value="pending">Menunggu persetujuan</option>}
             <option value="inactive">Tidak Aktif</option>
           </select>
           <select
@@ -896,18 +937,21 @@ export default function Residents() {
                           {p.phone || '—'}
                         </TableCell>
                         <TableCell>
-                          <span
-                            className={`pv-badge ${
-                              p.is_active
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : 'bg-slate-100 text-slate-500 border border-slate-200'
-                            }`}
-                          >
-                            {p.is_active ? '✓ Aktif' : '• Non-aktif'}
-                          </span>
+                          {(() => {
+                            const badge = getMemberStatusBadge(p);
+                            return (
+                              <span className={`pv-badge ${badge.color}`}>
+                                {badge.label}
+                              </span>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
-                          {p.occupancy_status ? (
+                          {p.status === 'pending' ? (
+                            <span className="pv-badge bg-amber-50 text-amber-700 border border-amber-200">
+                              Calon {template.memberLabel}
+                            </span>
+                          ) : p.occupancy_status ? (
                             <span className={`pv-badge ${occupancyStatusColor(p.occupancy_status)}`}>
                               {occupancyStatusLabel(p.occupancy_status, activeTenant?.type)}
                             </span>
@@ -1083,11 +1127,23 @@ export default function Residents() {
             >
               {memberRoleLabel}
             </span>
-            {profile.occupancy_status && (
+            {(() => {
+              const statusBadge = getMemberStatusBadge(profile);
+              return (
+                <span className={`pv-badge ${statusBadge.color}`}>
+                  {statusBadge.label}
+                </span>
+              );
+            })()}
+            {profile.status === 'pending' ? (
+              <span className="pv-badge bg-amber-50 text-amber-700 border border-amber-200">
+                Calon {template?.memberLabel || 'Anggota'}
+              </span>
+            ) : profile.occupancy_status ? (
               <span className={`pv-badge ${occupancyStatusColor(profile.occupancy_status)}`}>
                 {occupancyStatusLabel(profile.occupancy_status, activeTenant?.type)}
               </span>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
@@ -1097,22 +1153,33 @@ export default function Residents() {
           label={template?.unitLabel || 'Unit'}
           value={unit ? (unit.label || `Blok ${unit.block} / ${unit.unit_number} (Lt. ${unit.floor || '-'}, ${unit.size}m²)`) : `Tidak ada ${template?.unitLabel?.toLowerCase() || 'unit'}`}
         />
-        <Row label="Status" value={profile.is_active ? 'Aktif' : 'Non-aktif'} />
-        {profile.occupancy_status && (
+        <Row label="Status" value={getMemberStatusBadge(profile).label} />
+        {profile.status === 'pending' ? (
+          <Row label={template?.contractLabel || 'Status Tinggal'} value={`Calon ${template?.memberLabel || 'Anggota'}`} />
+        ) : profile.occupancy_status ? (
           <Row label={template?.contractLabel || 'Status Tinggal'} value={occupancyStatusLabel(profile.occupancy_status, activeTenant?.type)} />
-        )}
+        ) : null}
         {owner && (
           <Row label={`Pemilik ${template?.unitLabel || 'Unit'}`} value={owner.full_name} />
         )}
       </div>
       <div className="mt-6 pt-4 border-t border-slate-200 flex flex-wrap gap-2">
         {canManageRoles && activeTenantId && !profile.is_owner && (
-          <Link
-            to={`/t/${activeTenantId}/members/${profile.id}/role`}
-            className="pv-btn-primary flex-1 text-xs text-center inline-flex items-center justify-center gap-1"
-          >
-            Atur Jabatan
-          </Link>
+          profile.status === 'pending' ? (
+            <Link
+              to={`/t/${activeTenantId}/approval`}
+              className="pv-btn-primary bg-amber-600 hover:bg-amber-700 text-white flex-1 text-xs text-center inline-flex items-center justify-center gap-1 shadow-xs"
+            >
+              Tinjau & Setujui
+            </Link>
+          ) : (
+            <Link
+              to={`/t/${activeTenantId}/members/${profile.id}/role`}
+              className="pv-btn-primary flex-1 text-xs text-center inline-flex items-center justify-center gap-1"
+            >
+              Atur Jabatan
+            </Link>
+          )
         )}
         {canManage && (
           <>
