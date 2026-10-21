@@ -46,8 +46,9 @@ export default function ChoosePlan() {
 
   // Hitung rekomendasi optimal secara otomatis saat estimatedUnits berubah
   const optimalResult = useMemo(() => {
+    if (isPanitia) return null;
     return calculateOptimalBlocks(estimatedUnits, tenantType);
-  }, [estimatedUnits, tenantType]);
+  }, [estimatedUnits, tenantType, isPanitia]);
 
   // Sinkronkan rekomendasi ke manual override saat tidak manual
   useEffect(() => {
@@ -58,12 +59,25 @@ export default function ChoosePlan() {
   }, [optimalResult, isManualOverride]);
 
   // Hitung tagihan final berdasarkan kombinasi aktif dan durasi
-  const activeBlocks10 = isManualOverride ? customBlocks10 : optimalResult.recommended.blocks10;
-  const activeBlocks5 = isManualOverride ? customBlocks5 : optimalResult.recommended.blocks5;
+  const activeBlocks10 = isManualOverride ? customBlocks10 : (optimalResult?.recommended?.blocks10 || 0);
+  const activeBlocks5 = isManualOverride ? customBlocks5 : (optimalResult?.recommended?.blocks5 || 0);
 
   const billSummary = useMemo(() => {
+    if (isPanitia) {
+      return {
+        totalCapacity: 0,
+        blocks10: 0,
+        blocks5: 0,
+        monthlyBasePrice: 0,
+        rawTotal: 0,
+        discountPercent: 0,
+        discountAmount: 0,
+        finalTotal: 0,
+        effectiveMonthlyPrice: 0,
+      };
+    }
     return calculateSubscriptionBill(activeBlocks10, activeBlocks5, selectedDuration, tenantType);
-  }, [activeBlocks10, activeBlocks5, selectedDuration, tenantType]);
+  }, [activeBlocks10, activeBlocks5, selectedDuration, tenantType, isPanitia]);
 
   const handleProceedToPayment = () => {
     if (isPanitia) {
@@ -121,22 +135,35 @@ export default function ChoosePlan() {
           </div>
         </div>
 
-        {isPanitia && (
-          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-3">
-            <AiOutlineInfoCircle className="text-xl text-amber-600 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <h3 className="text-sm font-bold text-amber-950">
-                Harga paket Kepanitiaan (per acara aktif) segera tersedia
-              </h3>
-              <p className="text-xs text-amber-800">
-                Paket Kepanitiaan dihitung berdasarkan jumlah acara aktif, bukan per blok unit rumah/kamar. Selama masa tunggu ini, organisasi Anda dapat menggunakan seluruh fitur dalam masa uji coba.
-              </p>
+        {isPanitia ? (
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6">
+            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-3">
+              <AiOutlineInfoCircle className="text-xl text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-amber-950">
+                  Harga paket Kepanitiaan (per acara aktif) segera tersedia
+                </h3>
+                <p className="text-xs text-amber-800">
+                  Paket Kepanitiaan dihitung berdasarkan jumlah acara aktif, bukan per blok unit rumah/kamar. Selama masa tunggu ini, organisasi Anda dapat menggunakan seluruh fitur dalam masa uji coba.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                disabled
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-extrabold text-sm shadow-xs transition-all bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300"
+              >
+                <span>Paket Segera Tersedia</span>
+                <AiOutlineArrowRight />
+              </button>
             </div>
           </div>
-        )}
-
-        {/* SECTION 1: Kalkulator Estimasi Kebutuhan */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
+        ) : (
+          <>
+            {/* SECTION 1: Kalkulator Estimasi Kebutuhan */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <span className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 text-lg">
@@ -420,19 +447,16 @@ export default function ChoosePlan() {
 
             <button
               type="button"
-              disabled={isPanitia}
               onClick={handleProceedToPayment}
-              className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-extrabold text-sm shadow-xs transition-all ${
-                isPanitia
-                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
-                  : 'bg-slate-900 hover:bg-slate-800 text-white'
-              }`}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-sm shadow-xs transition-all"
             >
-              <span>{isPanitia ? 'Paket Segera Tersedia' : 'Lanjut ke Pembayaran QRIS'}</span>
+              <span>Lanjut ke Pembayaran QRIS</span>
               <AiOutlineArrowRight />
             </button>
           </div>
         </div>
+      </>
+    )}
       </div>
     </div>
   );
