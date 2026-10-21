@@ -588,8 +588,8 @@ export async function updateTenantUnit(tenantId, unitId, { label, status, occupa
 
     let updatedStatus = oldUnit.status;
     if (status !== undefined) {
-      if (status !== 'active' && status !== 'inactive') {
-        throw new Error('Status unit hanya boleh "active" atau "inactive".');
+      if (status !== 'active' && status !== 'inactive' && status !== 'vacant') {
+        throw new Error('Status unit hanya boleh "active", "inactive", atau "vacant".');
       }
       updatedStatus = status;
     }
@@ -669,8 +669,8 @@ export async function updateTenantUnit(tenantId, unitId, { label, status, occupa
   }
 
   if (status !== undefined) {
-    if (status !== 'active' && status !== 'inactive') {
-      throw new Error('Status unit hanya boleh "active" atau "inactive".');
+    if (status !== 'active' && status !== 'inactive' && status !== 'vacant') {
+      throw new Error('Status unit hanya boleh "active", "inactive", atau "vacant".');
     }
     updatePayload.status = status;
   }
@@ -712,15 +712,16 @@ export async function updateTenantUnit(tenantId, unitId, { label, status, occupa
 }
 
 /**
- * Mengubah status unit menjadi 'active' atau 'inactive'.
+ * Mengubah status unit menjadi 'active', 'inactive', atau 'vacant'.
+ * Status 'occupied' sengaja tidak diizinkan di sini (hanya dapat diaktifkan lewat kontrak sewa).
  *
  * @param {string} tenantId
  * @param {number|string} unitId
- * @param {'active'|'inactive'} status
+ * @param {'active'|'inactive'|'vacant'} status
  */
 export async function setTenantUnitStatus(tenantId, unitId, status) {
-  if (status !== 'active' && status !== 'inactive') {
-    throw new Error('Status unit hanya boleh "active" atau "inactive".');
+  if (status !== 'active' && status !== 'inactive' && status !== 'vacant') {
+    throw new Error('Status unit hanya boleh "active", "inactive", atau "vacant".');
   }
   return await updateTenantUnit(tenantId, unitId, { status });
 }

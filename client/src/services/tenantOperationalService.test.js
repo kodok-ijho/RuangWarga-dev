@@ -504,6 +504,108 @@ describe('tenantOperationalService - Unit Tests', () => {
       ).rejects.toThrow('Tanggal selesai kontrak harus lebih besar dari tanggal mulai kontrak.');
     });
 
+    it('VERT-1.6: assignRoomContract melempar error dan TIDAK membuat billing_item bila update unit mengembalikan error', async () => {
+      const TENANT_ID = '00000000-0000-0000-0000-000000000001';
+      const UNIT_ID = 101;
+
+      const billingInsertSpy = vi.fn();
+      const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+        if (table === 'tenant_units') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: { metadata: { default_rent_price: 1500000 } },
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+            update: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  select: vi.fn().mockResolvedValue({
+                    data: null,
+                    error: { message: 'Database update constraint error' },
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'billing_items') {
+          return {
+            insert: billingInsertSpy,
+          };
+        }
+        return {};
+      });
+
+      await expect(
+        assignRoomContract(TENANT_ID, {
+          unitId: UNIT_ID,
+          contractStart: '2026-11-01',
+          contractEnd: '2027-04-30',
+          rentPrice: 1500000,
+        })
+      ).rejects.toThrow('Database update constraint error');
+
+      expect(billingInsertSpy).not.toHaveBeenCalled();
+      fromSpy.mockRestore();
+    });
+
+    it('VERT-1.6: assignRoomContract melempar error izin dan TIDAK membuat billing_item bila update unit mengembalikan 0 baris (RLS menolak)', async () => {
+      const TENANT_ID = '00000000-0000-0000-0000-000000000001';
+      const UNIT_ID = 101;
+
+      const billingInsertSpy = vi.fn();
+      const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+        if (table === 'tenant_units') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: { metadata: { default_rent_price: 1500000 } },
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+            update: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  select: vi.fn().mockResolvedValue({
+                    data: [], // 0 baris
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'billing_items') {
+          return {
+            insert: billingInsertSpy,
+          };
+        }
+        return {};
+      });
+
+      await expect(
+        assignRoomContract(TENANT_ID, {
+          unitId: UNIT_ID,
+          contractStart: '2026-11-01',
+          contractEnd: '2027-04-30',
+          rentPrice: 1500000,
+        })
+      ).rejects.toThrow('Gagal mengaktifkan kontrak: Anda tidak punya izin mengubah kamar.');
+
+      expect(billingInsertSpy).not.toHaveBeenCalled();
+      fromSpy.mockRestore();
+    });
+
     it('calculateBillingPreview khusus kos: melewati kamar vacant dan kamar tanpa kontrak aktif', () => {
       const kosRooms = [
         { id: 101, label: 'Kamar 101', status: 'vacant', metadata: { default_rent_price: 1200000 } },

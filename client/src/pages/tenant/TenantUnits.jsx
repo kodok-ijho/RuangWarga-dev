@@ -30,12 +30,66 @@ import {
   fetchTenantMembers,
 } from '../../services/tenantOperationalService';
 
+/**
+ * Menentukan status unit berikutnya saat tombol toggle ditekan (VERT-1.6)
+ * @param {object} unit - objek unit ({ status, ... })
+ * @param {string} tenantType - tipe tenant ('kos', 'kelas', 'rt_rw', dsb)
+ * @returns {string|null} status berikutnya atau null bila tidak boleh diubah
+ */
+export function getNextUnitStatus(unit, tenantType) {
+  const currentStatus = unit?.status;
+  if (currentStatus === 'occupied') {
+    return null; // jangan pernah mengubah occupied dari tombol toggle
+  }
+
+  if (currentStatus === 'inactive') {
+    return (tenantType === 'kos' || tenantType === 'kelas') ? 'vacant' : 'active';
+  }
+
+  // active atau vacant dinonaktifkan
+  return 'inactive';
+}
+
+/**
+ * Menghasilkan konfigurasi badge status unit sesuai template vertikal (VERT-1.6)
+ */
+export function getUnitStatusBadge(status, template = {}) {
+  switch (status) {
+    case 'occupied':
+      return {
+        label: template.occupiedUnitLabel || 'Terisi',
+        badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+        dotClass: 'bg-emerald-600',
+      };
+    case 'vacant':
+      return {
+        label: template.emptyUnitLabel || 'Kosong',
+        badgeClass: 'bg-amber-100 text-amber-800 border-amber-200',
+        dotClass: 'bg-amber-600',
+      };
+    case 'inactive':
+      return {
+        label: 'Nonaktif',
+        badgeClass: 'bg-slate-100 text-slate-700 border-slate-200',
+        dotClass: 'bg-slate-400',
+      };
+    case 'active':
+    default:
+      return {
+        label: 'Aktif',
+        badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+        dotClass: 'bg-emerald-600',
+      };
+  }
+}
+
 export default function TenantUnits() {
   const { tenantId: routeTenantId } = useParams();
-  const { activeTenantId, isOwner, hasPermission } = useTenant();
+  const { activeTenantId, tenantType: contextTenantType, activeTenant, isOwner, hasPermission } = useTenant();
   const tenantId = routeTenantId || activeTenantId;
 
   const template = useTenantTemplate();
+  const tenantType = contextTenantType || activeTenant?.type || template?.type || 'rt_rw';
   const unitLabel = template?.unitLabel || 'Unit';
   const toast = useToast();
 
@@ -113,8 +167,10 @@ export default function TenantUnits() {
   const filteredUnits = useMemo(() => {
     let result = units;
 
-    if (statusFilter !== 'all') {
-      result = result.filter((u) => u.status === statusFilter);
+    if (statusFilter === 'active') {
+      result = result.filter((u) => u.status !== 'inactive');
+    } else if (statusFilter === 'inactive') {
+      result = result.filter((u) => u.status === 'inactive');
     }
 
     if (searchQuery.trim()) {
@@ -203,11 +259,21 @@ export default function TenantUnits() {
 
   // Aktifkan / Nonaktifkan Unit
   const handleToggleStatus = async (unit) => {
-    const nextStatus = unit.status === 'active' ? 'inactive' : 'active';
+    if (unit.status === 'occupied') {
+      toast.warning('Checkout penyewa dulu sebelum menonaktifkan kamar.');
+      return;
+    }
+
+    const nextStatus = getNextUnitStatus(unit, tenantType);
+    if (!nextStatus) {
+      toast.warning('Checkout penyewa dulu sebelum menonaktifkan kamar.');
+      return;
+    }
+
     try {
       await setTenantUnitStatus(tenantId, unit.id, nextStatus);
       toast.success(
-        `${unitLabel} "${unit.label}" kini ${nextStatus === 'active' ? 'Aktif' : 'Nonaktif'}.`
+        `${unitLabel} "${unit.label}" kini ${nextStatus === 'inactive' ? 'Nonaktif' : 'Aktif'}.`
       );
       await loadData();
     } catch (err) {
@@ -403,7 +469,7 @@ export default function TenantUnits() {
           >
             <option value="all">Semua ({units.length})</option>
             <option value="active">
-              Aktif ({units.filter((u) => u.status === 'active').length})
+              Aktif ({units.filter((u) => u.status !== 'inactive').length})
             </option>
             <option value="inactive">
               Nonaktif ({units.filter((u) => u.status === 'inactive').length})
@@ -463,7 +529,8 @@ export default function TenantUnits() {
                   {filteredUnits.map((u) => {
                     const occ = u.metadata?.occupant;
                     const linked = membersByUnitId.get(String(u.id)) || [];
-                    const isActive = u.status === 'active';
+                    const statusBadge = getUnitStatusBadge(u.status, template);
+                    const isInactive = u.status === 'inactive';
 
                     return (
                       <tr key={u.id} className="hover:bg-slate-50/70 transition-colors">
@@ -472,18 +539,12 @@ export default function TenantUnits() {
                         </td>
                         <td className="py-3.5 px-4">
                           <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-                              isActive
-                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                : 'bg-slate-100 text-slate-700 border border-slate-200'
-                            }`}
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${statusBadge.badgeClass}`}
                           >
                             <span
-                              className={`h-1.5 w-1.5 rounded-full ${
-                                isActive ? 'bg-emerald-600' : 'bg-slate-400'
-                              }`}
+                              className={`h-1.5 w-1.5 rounded-full ${statusBadge.dotClass}`}
                             />
-                            {isActive ? 'Aktif' : 'Nonaktif'}
+                            {statusBadge.label}
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-slate-700">
@@ -538,17 +599,23 @@ export default function TenantUnits() {
                                 type="button"
                                 onClick={() => handleToggleStatus(u)}
                                 disabled={!canTransact}
-                                title={isActive ? 'Nonaktifkan unit' : 'Aktifkan unit'}
+                                title={
+                                  u.status === 'occupied'
+                                    ? 'Checkout penyewa dulu'
+                                    : isInactive
+                                    ? 'Aktifkan unit'
+                                    : 'Nonaktifkan unit'
+                                }
                                 className={`p-1.5 rounded-lg transition ${
-                                  isActive
-                                    ? 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
-                                    : 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
+                                  isInactive
+                                    ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
+                                    : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
                                 }`}
                               >
-                                {isActive ? (
-                                  <AiOutlineCloseCircle className="text-base" />
-                                ) : (
+                                {isInactive ? (
                                   <AiOutlineCheckCircle className="text-base" />
+                                ) : (
+                                  <AiOutlineCloseCircle className="text-base" />
                                 )}
                               </button>
                               <button
@@ -576,7 +643,8 @@ export default function TenantUnits() {
             {filteredUnits.map((u) => {
               const occ = u.metadata?.occupant;
               const linked = membersByUnitId.get(String(u.id)) || [];
-              const isActive = u.status === 'active';
+              const statusBadge = getUnitStatusBadge(u.status, template);
+              const isInactive = u.status === 'inactive';
 
               return (
                 <div
@@ -586,18 +654,12 @@ export default function TenantUnits() {
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-slate-900 text-sm">{u.label}</span>
                     <span
-                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-                        isActive
-                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                          : 'bg-slate-100 text-slate-700 border border-slate-200'
-                      }`}
+                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${statusBadge.badgeClass}`}
                     >
                       <span
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          isActive ? 'bg-emerald-600' : 'bg-slate-400'
-                        }`}
+                        className={`h-1.5 w-1.5 rounded-full ${statusBadge.dotClass}`}
                       />
-                      {isActive ? 'Aktif' : 'Nonaktif'}
+                      {statusBadge.label}
                     </span>
                   </div>
 
@@ -654,12 +716,12 @@ export default function TenantUnits() {
                         onClick={() => handleToggleStatus(u)}
                         disabled={!canTransact}
                         className={`px-2.5 py-1 text-xs border rounded transition flex items-center gap-1 ${
-                          isActive
-                            ? 'border-amber-300 text-amber-700 hover:bg-amber-50'
-                            : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
+                          isInactive
+                            ? 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
+                            : 'border-amber-300 text-amber-700 hover:bg-amber-50'
                         }`}
                       >
-                        {isActive ? 'Nonaktifkan' : 'Aktifkan'}
+                        {isInactive ? 'Aktifkan' : 'Nonaktifkan'}
                       </button>
                       <button
                         type="button"

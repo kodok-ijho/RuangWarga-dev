@@ -339,20 +339,26 @@ A-05,Doni,,lainnya,
     });
   });
 
-  describe('setTenantUnitStatus', () => {
-    it('menolak status selain active atau inactive', async () => {
-      await expect(setTenantUnitStatus(TENANT_ID, UNIT_ID, 'pending')).rejects.toThrow(
-        'Status unit hanya boleh "active" atau "inactive".'
-      );
-      await expect(setTenantUnitStatus(TENANT_ID, UNIT_ID, 'deleted')).rejects.toThrow(
-        'Status unit hanya boleh "active" atau "inactive".'
-      );
+  describe('setTenantUnitStatus (VERT-1.6)', () => {
+    it('menerima status vacant selain active dan inactive', async () => {
+      const demoTenantId = 'demo-tenant-rtrw';
+      const resVacant = await setTenantUnitStatus(demoTenantId, 1, 'vacant');
+      expect(resVacant.status).toBe('vacant');
+
+      const resInactive = await setTenantUnitStatus(demoTenantId, 1, 'inactive');
+      expect(resInactive.status).toBe('inactive');
     });
 
-    it('berhasil jika status adalah active atau inactive', async () => {
-      const demoTenantId = 'demo-tenant-rtrw';
-      const res = await setTenantUnitStatus(demoTenantId, 1, 'inactive');
-      expect(res.status).toBe('inactive');
+    it('menolak status occupied (hanya lewat kontrak sewa) dan status tidak valid lainnya', async () => {
+      await expect(setTenantUnitStatus(TENANT_ID, UNIT_ID, 'occupied')).rejects.toThrow(
+        'Status unit hanya boleh "active", "inactive", atau "vacant".'
+      );
+      await expect(setTenantUnitStatus(TENANT_ID, UNIT_ID, 'pending')).rejects.toThrow(
+        'Status unit hanya boleh "active", "inactive", atau "vacant".'
+      );
+      await expect(setTenantUnitStatus(TENANT_ID, UNIT_ID, 'deleted')).rejects.toThrow(
+        'Status unit hanya boleh "active", "inactive", atau "vacant".'
+      );
     });
   });
 

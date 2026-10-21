@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import TenantUnits from './TenantUnits';
+import TenantUnits, { getNextUnitStatus, getUnitStatusBadge } from './TenantUnits';
 import * as tenantOperationalService from '../../services/tenantOperationalService';
 
 // Polyfill ResizeObserver untuk jsdom jika diperlukan
@@ -318,5 +318,33 @@ describe('TenantUnits Page (RTRW-2.3)', () => {
     // Tombol hapus tidak tampil di desktop maupun mobile
     expect(screen.queryByTitle('Hapus unit')).toBeNull();
     expect(screen.queryByRole('button', { name: /Hapus/i })).toBeNull();
+  });
+
+  describe('getNextUnitStatus & getUnitStatusBadge (VERT-1.6)', () => {
+    it('menguji getNextUnitStatus untuk kombinasi kos/rt_rw × active/inactive/vacant/occupied', () => {
+      // RT/RW:
+      expect(getNextUnitStatus({ status: 'active' }, 'rt_rw')).toBe('inactive');
+      expect(getNextUnitStatus({ status: 'inactive' }, 'rt_rw')).toBe('active');
+      expect(getNextUnitStatus({ status: 'vacant' }, 'rt_rw')).toBe('inactive');
+      expect(getNextUnitStatus({ status: 'occupied' }, 'rt_rw')).toBeNull();
+
+      // Kos:
+      expect(getNextUnitStatus({ status: 'active' }, 'kos')).toBe('inactive');
+      expect(getNextUnitStatus({ status: 'vacant' }, 'kos')).toBe('inactive');
+      expect(getNextUnitStatus({ status: 'inactive' }, 'kos')).toBe('vacant');
+      expect(getNextUnitStatus({ status: 'occupied' }, 'kos')).toBeNull();
+
+      // Kelas:
+      expect(getNextUnitStatus({ status: 'inactive' }, 'kelas')).toBe('vacant');
+      expect(getNextUnitStatus({ status: 'occupied' }, 'kelas')).toBeNull();
+    });
+
+    it('getUnitStatusBadge memetakan label sesuai template vertikal', () => {
+      const kosTemplate = { emptyUnitLabel: 'Kamar Kosong', occupiedUnitLabel: 'Tersewa' };
+      expect(getUnitStatusBadge('vacant', kosTemplate).label).toBe('Kamar Kosong');
+      expect(getUnitStatusBadge('occupied', kosTemplate).label).toBe('Tersewa');
+      expect(getUnitStatusBadge('inactive', kosTemplate).label).toBe('Nonaktif');
+      expect(getUnitStatusBadge('active', kosTemplate).label).toBe('Aktif');
+    });
   });
 });

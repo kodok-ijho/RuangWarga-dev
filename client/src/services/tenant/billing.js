@@ -460,11 +460,17 @@ export async function assignRoomContract(tenantId, {
 
   // 1. Update unit status menjadi 'occupied' beserta metadata kontrak
   if (!isDemoOrMock) {
-    const { data: currentUnit } = await supabase
+    const { data: currentUnit, error: fetchErr } = await supabase
       .from('tenant_units')
       .select('metadata')
+      .eq('tenant_id', tenantId)
       .eq('id', unitId)
       .single();
+
+    if (fetchErr) {
+      console.error('[assignRoomContract] fetch unit error:', fetchErr);
+      throw new Error(fetchErr.message || 'Kamar tidak ditemukan untuk tenant ini.');
+    }
 
     const currentMeta = currentUnit?.metadata || {};
     const updatedMeta = {
@@ -476,14 +482,25 @@ export async function assignRoomContract(tenantId, {
       notes: notes || '',
     };
 
-    await supabase
+    const { data: updatedUnits, error: updateErr } = await supabase
       .from('tenant_units')
       .update({
         status: 'occupied',
         metadata: updatedMeta,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', unitId);
+      .eq('tenant_id', tenantId)
+      .eq('id', unitId)
+      .select();
+
+    if (updateErr) {
+      console.error('[assignRoomContract] update unit error:', updateErr);
+      throw new Error(updateErr.message || 'Gagal memperbarui data kamar.');
+    }
+
+    if (!updatedUnits || updatedUnits.length === 0) {
+      throw new Error('Gagal mengaktifkan kontrak: Anda tidak punya izin mengubah kamar.');
+    }
   }
 
   // 2. Buat billing_item sewa untuk periode awal kontrak
