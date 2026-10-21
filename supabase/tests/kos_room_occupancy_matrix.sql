@@ -207,7 +207,8 @@ BEGIN
   -- ==============================================================================
   RAISE NOTICE '[KASUS 5] Menguji alur checkout_kos_room lalu persetujuan ulang...';
 
-  -- Kosongkan Kamar A via RPC checkout_kos_room
+  -- Kosongkan Kamar A via RPC checkout_kos_room (butuh konteks service_role atau izin manage_members)
+  PERFORM set_config('request.jwt.claims', '{"role":"service_role"}', true);
   SELECT public.checkout_kos_room(v_tenant_kos, v_room_a_id) INTO v_checkout_res;
 
   SELECT status, metadata->>'tenant_member_id'
@@ -219,11 +220,11 @@ BEGIN
     RAISE EXCEPTION 'KASUS 5 GAGAL: status kamar setelah checkout harus vacant, didapat %', v_unit_status;
   END IF;
 
-  -- Persetujuan ulang: ubah unit_id anggota 2 ke Kamar A yang sekarang sudah vacant
-  -- Karena status sudah approved dan unit_id berubah ke Kamar A, trigger harus menembak dan membuat Kamar A occupied lagi
+  -- Persetujuan ulang: pindahkan anggota 3 (dari Kamar B inactive) ke Kamar A yang sekarang vacant.
+  -- Anggota 2 tidak dipakai: unit_id-nya masih Kamar A (checkout hanya mengosongkan penyewa tercatat), jadi tidak ada perubahan unit_id.
   UPDATE public.tenant_members
   SET unit_id = v_room_a_id
-  WHERE id = v_member_2_id;
+  WHERE id = v_member_3_id;
 
   SELECT status, (metadata->>'tenant_member_id')::uuid
   INTO v_unit_status, v_assigned_mem
@@ -234,8 +235,8 @@ BEGIN
     RAISE EXCEPTION 'KASUS 5 GAGAL: setelah relokasi/persetujuan ulang, status kamar harus occupied, didapat %', v_unit_status;
   END IF;
 
-  IF v_assigned_mem <> v_member_2_id THEN
-    RAISE EXCEPTION 'KASUS 5 GAGAL: metadata tenant_member_id harus %, didapat %', v_member_2_id, v_assigned_mem;
+  IF v_assigned_mem <> v_member_3_id THEN
+    RAISE EXCEPTION 'KASUS 5 GAGAL: metadata tenant_member_id harus %, didapat %', v_member_3_id, v_assigned_mem;
   END IF;
 
   RAISE NOTICE '>> PASSED: Kasus 5 berhasil (checkout -> vacant, lalu re-assign -> occupied kembali)!';
