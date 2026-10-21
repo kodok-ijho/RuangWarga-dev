@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getOccupancyOptions, OCCUPANCY_STATUS, getMemberStatusBadge } from './dataHelpers';
+import { getOccupancyOptions, OCCUPANCY_STATUS, getMemberStatusBadge, formatUnitName } from './dataHelpers';
 
 describe('dataHelpers — getOccupancyOptions (KOS-1.2)', () => {
   it('mengembalikan opsi yang tepat untuk vertikal kos', () => {
@@ -73,5 +73,24 @@ describe('dataHelpers — getMemberStatusBadge (KOS-1.5)', () => {
   it('fallback aman jika member null atau undefined', () => {
     expect(getMemberStatusBadge(null).label).toBe('Non-aktif');
     expect(getMemberStatusBadge(undefined).label).toBe('Non-aktif');
+  });
+});
+
+describe('dataHelpers — formatUnitName (KOS-1F.2)', () => {
+  it('tidak mengulang unitLabel bila label sudah diawali unitLabel', () => {
+    expect(formatUnitName('Kamar', 'Kamar VIP')).toBe('Kamar VIP');
+    expect(formatUnitName('Kamar', 'kamar 3')).toBe('kamar 3');
+  });
+
+  it('menggabungkan unitLabel dan label bila belum ada awalan', () => {
+    expect(formatUnitName('Kamar', '101')).toBe('Kamar 101');
+    expect(formatUnitName('Rumah', 'Blok A/12')).toBe('Rumah Blok A/12');
+  });
+
+  it('mengembalikan string kosong jika label kosong atau tidak valid', () => {
+    expect(formatUnitName('Kamar', '')).toBe('');
+    expect(formatUnitName('Kamar', '   ')).toBe('');
+    expect(formatUnitName('Kamar', null)).toBe('');
+    expect(formatUnitName('Kamar', undefined)).toBe('');
   });
 });

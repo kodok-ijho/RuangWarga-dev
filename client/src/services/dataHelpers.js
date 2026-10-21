@@ -52,6 +52,26 @@ export function formatPeriodShort(period) {
   return `${monthName} ${y}`;
 }
 
+/**
+ * Format nama unit agar tidak mengulang unitLabel bila label unit sudah diawali kata tersebut (KOS-1F.2).
+ * Contoh: ("Kamar", "Kamar VIP") -> "Kamar VIP", ("Kamar", "101") -> "Kamar 101".
+ *
+ * @param {string} unitLabel
+ * @param {string} label
+ * @returns {string}
+ */
+export function formatUnitName(unitLabel, label) {
+  if (!label || typeof label !== 'string' || !label.trim()) {
+    return '';
+  }
+  const trimmedLabel = label.trim();
+  const trimmedUnit = (unitLabel || '').trim();
+  if (trimmedUnit && trimmedLabel.toLowerCase().startsWith(trimmedUnit.toLowerCase())) {
+    return trimmedLabel;
+  }
+  return trimmedUnit ? `${trimmedUnit} ${trimmedLabel}` : trimmedLabel;
+}
+
 export function formatDate(dateStr) {
   if (!dateStr) return '-';
   const d = new Date(dateStr);

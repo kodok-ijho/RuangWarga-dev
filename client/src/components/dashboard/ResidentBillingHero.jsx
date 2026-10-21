@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, StatusBadge } from '../ui';
-import { formatRupiah } from '../../services/dataHelpers';
+import { formatRupiah, formatUnitName } from '../../services/dataHelpers';
 import { AiOutlineArrowRight, AiOutlineCreditCard, AiOutlineCheckCircle } from 'react-icons/ai';
 
 /**
@@ -37,7 +37,7 @@ export function ResidentBillingHero({
               </span>
               <span className="text-slate-300">•</span>
               <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
-                {myUnit ? `${unitLabel} ${myUnit}` : `${unitLabel} belum terhubung`}
+                {myUnit ? formatUnitName(unitLabel, myUnit) : `${unitLabel} belum terhubung`}
               </span>
               <StatusBadge status="unavailable" size="sm" />
             </div>
@@ -92,7 +92,7 @@ export function ResidentBillingHero({
             </span>
             <span className="text-slate-300">•</span>
             <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
-              {myUnit ? `${unitLabel} ${myUnit}` : `${unitLabel} belum terhubung`}
+              {myUnit ? formatUnitName(unitLabel, myUnit) : `${unitLabel} belum terhubung`}
             </span>
             <StatusBadge status={billStatus} size="sm" />
           </div>

@@ -7,6 +7,7 @@ import {
   occupancyStatusLabel,
   occupancyStatusColor,
   getMemberStatusBadge,
+  formatUnitName,
 } from '../../services/dataHelpers';
 import {
   AiOutlinePhone,
@@ -58,7 +59,7 @@ export function ResidentDetailDrawer({
       open={open}
       onClose={onClose}
       title={`Detail ${memberLabel}`}
-      description={unitIdentifier ? `${unitLabel} ${unitIdentifier}` : undefined}
+      description={unitIdentifier ? formatUnitName(unitLabel, unitIdentifier) : undefined}
       size="md"
     >
       <div className="space-y-5">

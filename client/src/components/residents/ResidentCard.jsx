@@ -7,6 +7,7 @@ import {
   occupancyStatusLabel,
   occupancyStatusColor,
   getMemberStatusBadge,
+  formatUnitName,
 } from '../../services/dataHelpers';
 import { AiOutlinePhone, AiOutlineWhatsApp, AiOutlineRight } from 'react-icons/ai';
 
@@ -66,7 +67,7 @@ export function ResidentCard({
             <div className="flex items-center gap-1.5 flex-wrap">
               {unitIdentifier && (
                 <span className="text-[11px] font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md">
-                  {unitLabel} {unitIdentifier}
+                  {formatUnitName(unitLabel, unitIdentifier)}
                 </span>
               )}
               <span
