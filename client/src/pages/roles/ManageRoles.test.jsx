@@ -127,8 +127,33 @@ describe('ManageRoles (RTRW-2.6)', () => {
 
     // Tombol tidak boleh ada
     const templateBtn = screen.queryByRole('button', {
-      name: /Gunakan Template Jabatan RT\/RW/i,
+      name: /Gunakan Template Jabatan/i,
     });
     expect(templateBtn).toBeNull();
+  });
+
+  it('tombol template tampil untuk tenant panitia dan menampilkan label Kepanitiaan (PANITIA-1.4)', async () => {
+    mockTenant = {
+      id: 'tenant-panitia-1',
+      name: 'Panitia Dies Natalis',
+      type: 'panitia',
+      is_owner: true,
+    };
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockImplementation(() => true);
+
+    renderManageRoles('tenant-panitia-1');
+
+    const templateBtn = await screen.findByRole('button', {
+      name: /Gunakan Template Jabatan Kepanitiaan/i,
+    });
+    expect(templateBtn).toBeTruthy();
+
+    fireEvent.click(templateBtn);
+
+    expect(confirmSpy).toHaveBeenCalledWith(
+      expect.stringMatching(/Terapkan template jabatan pengurus Kepanitiaan standar/i)
+    );
+    expect(tenantOperationalService.applyRoleTemplate).toHaveBeenCalledWith('tenant-panitia-1', 'panitia');
   });
 });

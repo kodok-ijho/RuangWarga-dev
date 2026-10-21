@@ -13,6 +13,9 @@
  * - canViewReports: view_reports ATAU manage_expenses
  * - canManageMembers: manage_members
  * - canManageAnnouncements: owner, platform admin, manage_announcements, ATAU manage_settings
+ * - canManagePrograms: manage_programs ATAU manage_settings
+ * - canManageBudget: canManagePrograms ATAU manage_expenses
+ * - canRecordIncome: manage_expenses ATAU manage_billing_cash
  */
 
 export const STAFF_PERMISSIONS = [
@@ -60,6 +63,9 @@ export function computeTenantAccess({
       canViewReports: false,
       canManageMembers: false,
       canManageAnnouncements: false,
+      canManagePrograms: false,
+      canManageBudget: false,
+      canRecordIncome: false,
     };
   }
 
@@ -71,6 +77,10 @@ export function computeTenantAccess({
 
   const isStaff = isPrivileged || STAFF_PERMISSIONS.some((p) => perms.includes(p));
   const canWrite = subscriptionStatus !== 'read_only';
+
+  const canManagePrograms = hasPerm('manage_programs') || hasPerm('manage_settings');
+  const canManageBudget = canManagePrograms || hasPerm('manage_expenses');
+  const canRecordIncome = hasPerm('manage_expenses') || hasPerm('manage_billing_cash');
 
   return {
     isMember: effectiveIsMember,
@@ -84,6 +94,9 @@ export function computeTenantAccess({
     canViewReports: hasPerm('view_reports') || hasPerm('manage_expenses'),
     canManageMembers: hasPerm('manage_members'),
     canManageAnnouncements: hasPerm('manage_announcements') || hasPerm('manage_settings'),
+    canManagePrograms,
+    canManageBudget,
+    canRecordIncome,
   };
 }
 

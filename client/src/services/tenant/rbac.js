@@ -20,6 +20,7 @@ export const PLATFORM_PERMISSIONS = [
   { key: 'post_listing', label: 'Kelola Iklan Komunitas', description: 'Melihat & mengelola semua iklan listing komunitas (warga tetap bisa memasang iklannya sendiri tanpa izin ini)' },
   { key: 'manage_tenant_users', label: 'Kelola User & Audit', description: 'CRUD akun/akses user tenant, ubah role, lihat audit log' },
   { key: 'manage_announcements', label: 'Kelola Pengumuman & Acara', description: 'Tulis, ubah, dan hapus pengumuman serta acara tenant' },
+  { key: 'manage_programs', label: 'Kelola Acara & Anggaran', description: 'Membuat acara, mengubah status acara, dan menyusun anggaran (RAB)' },
 ];
 
 let mockCustomRolesStore = [
@@ -380,6 +381,46 @@ export const ROLE_TEMPLATES = {
     {
       name: 'Humas',
       permissions: ['post_listing'],
+    },
+  ],
+  panitia: [
+    {
+      name: 'Ketua',
+      permissions: [
+        'manage_programs',
+        'manage_settings',
+        'manage_members',
+        'manage_announcements',
+        'view_reports',
+        'manage_expenses',
+      ],
+    },
+    {
+      name: 'Wakil Ketua',
+      permissions: ['manage_programs', 'manage_members', 'view_reports'],
+    },
+    {
+      name: 'Sekretaris',
+      permissions: [
+        'manage_programs',
+        'manage_members',
+        'manage_announcements',
+        'view_reports',
+      ],
+    },
+    {
+      name: 'Bendahara',
+      permissions: [
+        'manage_expenses',
+        'manage_billing_cash',
+        'manage_billing_transfer',
+        'generate_billing',
+        'view_reports',
+      ],
+    },
+    {
+      name: 'Koordinator Seksi',
+      permissions: ['view_reports'],
     },
   ],
 };

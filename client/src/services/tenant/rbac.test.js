@@ -221,7 +221,14 @@ describe('tenant/rbac - Unit Tests (DEBT-1F.1)', () => {
       expect(perm).toBeDefined();
       expect(perm.label).toBe('Kelola Pengumuman & Acara');
       expect(perm.description).toBe('Tulis, ubah, dan hapus pengumuman serta acara tenant');
-      expect(PLATFORM_PERMISSIONS).toHaveLength(11);
+    });
+
+    it('entri manage_programs memiliki konfigurasi izin yang tepat (PANITIA-1.4)', () => {
+      const perm = PLATFORM_PERMISSIONS.find((p) => p.key === 'manage_programs');
+      expect(perm).toBeDefined();
+      expect(perm.label).toBe('Kelola Acara & Anggaran');
+      expect(perm.description).toBe('Membuat acara, mengubah status acara, dan menyusun anggaran (RAB)');
+      expect(PLATFORM_PERMISSIONS).toHaveLength(12);
     });
 
     it('ROLE_TEMPLATES memiliki konfigurasi rt_rw dengan 6 jabatan standar', () => {
@@ -257,6 +264,68 @@ describe('tenant/rbac - Unit Tests (DEBT-1F.1)', () => {
         for (const roleDef of tpl) {
           expect(roleDef.permissions).not.toContain('manage_tenant_users');
           expect(roleDef.permissions).not.toContain('run_special_action');
+        }
+      }
+    });
+
+    it('ROLE_TEMPLATES memiliki konfigurasi panitia dengan 5 jabatan standar (PANITIA-1.4)', () => {
+      expect(ROLE_TEMPLATES.panitia).toBeDefined();
+      expect(ROLE_TEMPLATES.panitia).toHaveLength(5);
+
+      const names = ROLE_TEMPLATES.panitia.map((r) => r.name);
+      expect(names).toEqual([
+        'Ketua',
+        'Wakil Ketua',
+        'Sekretaris',
+        'Bendahara',
+        'Koordinator Seksi',
+      ]);
+
+      const ketua = ROLE_TEMPLATES.panitia.find((r) => r.name === 'Ketua');
+      expect(ketua.permissions).toEqual([
+        'manage_programs',
+        'manage_settings',
+        'manage_members',
+        'manage_announcements',
+        'view_reports',
+        'manage_expenses',
+      ]);
+
+      const wakil = ROLE_TEMPLATES.panitia.find((r) => r.name === 'Wakil Ketua');
+      expect(wakil.permissions).toEqual([
+        'manage_programs',
+        'manage_members',
+        'view_reports',
+      ]);
+
+      const sekretaris = ROLE_TEMPLATES.panitia.find((r) => r.name === 'Sekretaris');
+      expect(sekretaris.permissions).toEqual([
+        'manage_programs',
+        'manage_members',
+        'manage_announcements',
+        'view_reports',
+      ]);
+
+      const bendahara = ROLE_TEMPLATES.panitia.find((r) => r.name === 'Bendahara');
+      expect(bendahara.permissions).toEqual([
+        'manage_expenses',
+        'manage_billing_cash',
+        'manage_billing_transfer',
+        'generate_billing',
+        'view_reports',
+      ]);
+
+      const koordinator = ROLE_TEMPLATES.panitia.find((r) => r.name === 'Koordinator Seksi');
+      expect(koordinator.permissions).toEqual(['view_reports']);
+    });
+
+    it('semua izin di setiap ROLE_TEMPLATES ada di PLATFORM_PERMISSIONS', () => {
+      const validKeys = new Set(PLATFORM_PERMISSIONS.map((p) => p.key));
+      for (const [tplKey, tpl] of Object.entries(ROLE_TEMPLATES)) {
+        for (const roleDef of tpl) {
+          for (const permKey of roleDef.permissions) {
+            expect(validKeys.has(permKey), `Perm ${permKey} di template ${tplKey} harus valid`).toBe(true);
+          }
         }
       }
     });

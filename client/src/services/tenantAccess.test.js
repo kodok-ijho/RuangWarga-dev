@@ -26,6 +26,9 @@ describe('RTRW-1.1: computeTenantAccess (Pure RBAC v2 Engine)', () => {
       canViewReports: false,
       canManageMembers: false,
       canManageAnnouncements: false,
+      canManagePrograms: false,
+      canManageBudget: false,
+      canRecordIncome: false,
     });
   });
 
@@ -260,5 +263,77 @@ describe('NAV-1.1: isRegularMemberOnly & getAutoRedirectTenantId', () => {
     expect(getAutoRedirectTenantId({ userTenants: [], isPlatformAdmin: false })).toBe(null);
     expect(isRegularMemberOnly()).toBe(false);
     expect(getAutoRedirectTenantId()).toBe(null);
+  });
+
+  describe('PANITIA-1.4: Izin Acara, Anggaran, dan Pemasukan', () => {
+    it('Owner memiliki canManagePrograms, canManageBudget, dan canRecordIncome bernilai true', () => {
+      const access = computeTenantAccess({
+        hasActiveTenant: true,
+        isOwner: true,
+      });
+      expect(access.canManagePrograms).toBe(true);
+      expect(access.canManageBudget).toBe(true);
+      expect(access.canRecordIncome).toBe(true);
+    });
+
+    it('Platform Admin memiliki canManagePrograms, canManageBudget, dan canRecordIncome bernilai true', () => {
+      const access = computeTenantAccess({
+        hasActiveTenant: true,
+        isPlatformAdmin: true,
+      });
+      expect(access.canManagePrograms).toBe(true);
+      expect(access.canManageBudget).toBe(true);
+      expect(access.canRecordIncome).toBe(true);
+    });
+
+    it('Anggota biasa tanpa izin memiliki seluruh flag bernilai false', () => {
+      const access = computeTenantAccess({
+        hasActiveTenant: true,
+        isOwner: false,
+        permissions: [],
+      });
+      expect(access.canManagePrograms).toBe(false);
+      expect(access.canManageBudget).toBe(false);
+      expect(access.canRecordIncome).toBe(false);
+    });
+
+    it('Pemegang izin manage_programs memiliki canManagePrograms dan canManageBudget true, canRecordIncome false', () => {
+      const access = computeTenantAccess({
+        hasActiveTenant: true,
+        permissions: ['manage_programs'],
+      });
+      expect(access.canManagePrograms).toBe(true);
+      expect(access.canManageBudget).toBe(true);
+      expect(access.canRecordIncome).toBe(false);
+    });
+
+    it('Pemegang izin manage_settings memiliki canManagePrograms dan canManageBudget true', () => {
+      const access = computeTenantAccess({
+        hasActiveTenant: true,
+        permissions: ['manage_settings'],
+      });
+      expect(access.canManagePrograms).toBe(true);
+      expect(access.canManageBudget).toBe(true);
+    });
+
+    it('Pemegang izin manage_expenses memiliki canManageBudget dan canRecordIncome true, canManagePrograms false', () => {
+      const access = computeTenantAccess({
+        hasActiveTenant: true,
+        permissions: ['manage_expenses'],
+      });
+      expect(access.canManagePrograms).toBe(false);
+      expect(access.canManageBudget).toBe(true);
+      expect(access.canRecordIncome).toBe(true);
+    });
+
+    it('Pemegang izin manage_billing_cash memiliki canRecordIncome true, canManagePrograms dan canManageBudget false', () => {
+      const access = computeTenantAccess({
+        hasActiveTenant: true,
+        permissions: ['manage_billing_cash'],
+      });
+      expect(access.canManagePrograms).toBe(false);
+      expect(access.canManageBudget).toBe(false);
+      expect(access.canRecordIncome).toBe(true);
+    });
   });
 });

@@ -19,6 +19,7 @@ import {
   updateTenantRole,
   deleteTenantRole,
   applyRoleTemplate,
+  ROLE_TEMPLATES,
   PLATFORM_PERMISSIONS,
 } from '../../services/tenantOperationalService';
 
@@ -152,9 +153,11 @@ export default function ManageRoles() {
 
   const handleApplyTemplate = () => {
     guardAction(async () => {
+      const templateKey = activeTenant?.type || 'rt_rw';
+      const typeLabel = templateKey === 'panitia' ? 'Kepanitiaan' : 'RT/RW';
       if (
         !window.confirm(
-          'Terapkan template jabatan pengurus RT/RW standar? Jabatan yang sudah ada tidak akan diubah atau digandakan.'
+          `Terapkan template jabatan pengurus ${typeLabel} standar? Jabatan yang sudah ada tidak akan diubah atau digandakan.`
         )
       ) {
         return;
@@ -162,7 +165,7 @@ export default function ManageRoles() {
 
       setSubmitting(true);
       try {
-        const res = await applyRoleTemplate(tenantId, 'rt_rw');
+        const res = await applyRoleTemplate(tenantId, templateKey);
         toast.success(`${res.created.length} jabatan ditambahkan, ${res.skipped.length} sudah ada`);
         await loadRoles();
       } catch (err) {
@@ -202,7 +205,7 @@ export default function ManageRoles() {
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
-            {activeTenant?.type === 'rt_rw' && (
+            {Boolean(ROLE_TEMPLATES[activeTenant?.type]) && (
               <button
                 type="button"
                 onClick={handleApplyTemplate}
@@ -210,7 +213,9 @@ export default function ManageRoles() {
                 className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-50 text-slate-800 text-xs font-bold shadow-xs transition-all"
               >
                 <AiOutlineSafetyCertificate className="text-sm text-forest-800" />
-                <span>Gunakan Template Jabatan RT/RW</span>
+                <span>
+                  Gunakan Template Jabatan {activeTenant?.type === 'panitia' ? 'Kepanitiaan' : 'RT/RW'}
+                </span>
               </button>
             )}
             <button
