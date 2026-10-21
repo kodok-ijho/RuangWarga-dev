@@ -21,11 +21,14 @@ import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import {
   fetchTenantDetails,
+  fetchTenantUnits,
+  fetchTenantInviteCode,
   updateTenantProfileAndSettings,
   bulkCreateTenantUnits,
   saveInviteCodeWithRetry,
   normalizeBankAccount,
 } from '../../services/tenantOperationalService';
+import { selectNewUnitLabels } from '../../utils/unitLabels';
 import { formatRupiah } from '../../services/dataHelpers';
 
 const ARISAN_CATEGORIES = [
@@ -278,23 +281,37 @@ export default function ArisanSetupWizard({ tenantId: propTenantId, initialData 
     try {
       setSaving(true);
 
-      // 1. Simpan unit/slot arisan ke tenant_units
-      const unitPayload = slotList.map((s, index) => ({
-        label: s.label,
-        unit_identifier: s.label,
-        status: 'active',
-        metadata: {
-          slot_number: index + 1,
-          assigned_name: s.assignedName?.trim() || null,
-          type: 'arisan_slot',
-          created_by_wizard: true,
-        },
-      }));
+      // 1. Simpan unit/slot arisan ke tenant_units (hanya slot yang belum ada)
+      const existingUnits = await fetchTenantUnits(tenantId);
+      const newLabels = selectNewUnitLabels(existingUnits, slotList);
+      const newLabelSet = new Set(newLabels.map((l) => l.toLowerCase()));
 
-      await bulkCreateTenantUnits(tenantId, unitPayload);
+      const slotsToInsert = slotList
+        .filter((s) => newLabelSet.has((s.label || '').trim().toLowerCase()))
+        .map((s, index) => ({
+          label: s.label.trim(),
+          unit_identifier: s.label.trim(),
+          status: 'active',
+          metadata: {
+            slot_number: index + 1,
+            assigned_name: s.assignedName?.trim() || null,
+            type: 'arisan_slot',
+            created_by_wizard: true,
+          },
+        }));
 
-      // 2. Simpan kode undangan ke tabel privat tenant_invites dengan retry otomatis jika bentrok (SEC-3F.2)
-      const savedInviteCode = await saveInviteCodeWithRetry(tenantId, groupName);
+      const createdCount = slotsToInsert.length;
+      const skippedCount = Math.max(0, slotList.length - createdCount);
+
+      if (createdCount > 0) {
+        await bulkCreateTenantUnits(tenantId, slotsToInsert);
+      }
+
+      // 2. Simpan kode undangan: gunakan kode lama bila sudah ada
+      let savedInviteCode = await fetchTenantInviteCode(tenantId);
+      if (!savedInviteCode) {
+        savedInviteCode = await saveInviteCodeWithRetry(tenantId, groupName);
+      }
       setGeneratedInviteCode(savedInviteCode);
 
       // 3. Simpan setting arisan ke tenants.settings (hanya ditandai onboarding_completed jika kode berhasil disimpan)
@@ -318,7 +335,14 @@ export default function ArisanSetupWizard({ tenantId: propTenantId, initialData 
 
       await refreshTenant();
       setSetupFinished(true);
-      toast.success('Inisiasi grup arisan berhasil disimpan!');
+
+      if (skippedCount > 0) {
+        toast.success(
+          `Inisiasi grup arisan berhasil disimpan! ${createdCount} slot baru ditambahkan, ${skippedCount} sudah ada.`
+        );
+      } else {
+        toast.success('Inisiasi grup arisan berhasil disimpan!');
+      }
     } catch (err) {
       console.error('[ArisanSetupWizard] Gagal menyimpan setup arisan:', err);
       toast.error(err.message || 'Gagal menyimpan konfigurasi arisan.');

@@ -22,12 +22,15 @@ import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import {
   fetchTenantDetails,
+  fetchTenantUnits,
+  fetchTenantInviteCode,
   updateTenantProfileAndSettings,
   bulkCreateTenantUnits,
   saveInviteCodeWithRetry,
   normalizeBankAccount,
   pickBankAccountForForm,
 } from '../../services/tenantOperationalService';
+import { selectNewUnitLabels } from '../../utils/unitLabels';
 import { formatRupiah } from '../../services/dataHelpers';
 
 const CLASS_TYPES = [
@@ -286,24 +289,38 @@ export default function KelasSetupWizard({ tenantId: propTenantId, initialData }
     try {
       setSaving(true);
 
-      // 1. Buat slot siswa ke tabel tenant_units (generik)
-      const unitsPayload = slotList.map((slot, index) => ({
-        label: slot.label,
-        type: 'seat',
-        floor: 1,
-        capacity: 1,
-        status: 'vacant',
-        metadata: {
-          slot_index: index + 1,
-          slot_type: classType === 'privat' ? 'private_student' : 'regular_student',
-          expected_spp: Number(sppAmount),
-        },
-      }));
+      // 1. Buat slot siswa ke tabel tenant_units (hanya label yang belum ada, status: 'vacant')
+      const existingUnits = await fetchTenantUnits(tenantId);
+      const newLabels = selectNewUnitLabels(existingUnits, slotList);
+      const newLabelSet = new Set(newLabels.map((l) => l.toLowerCase()));
 
-      await bulkCreateTenantUnits(tenantId, unitsPayload);
+      const unitsPayload = slotList
+        .filter((slot) => newLabelSet.has((slot.label || '').trim().toLowerCase()))
+        .map((slot, index) => ({
+          label: slot.label.trim(),
+          type: 'seat',
+          floor: 1,
+          capacity: 1,
+          status: 'vacant',
+          metadata: {
+            slot_index: index + 1,
+            slot_type: classType === 'privat' ? 'private_student' : 'regular_student',
+            expected_spp: Number(sppAmount),
+          },
+        }));
 
-      // 2. Simpan kode undangan ke tabel privat tenant_invites dengan retry otomatis jika bentrok (SEC-3F.2)
-      const savedInviteCode = await saveInviteCodeWithRetry(tenantId, className);
+      const createdCount = unitsPayload.length;
+      const skippedCount = Math.max(0, slotList.length - createdCount);
+
+      if (createdCount > 0) {
+        await bulkCreateTenantUnits(tenantId, unitsPayload);
+      }
+
+      // 2. Simpan kode undangan: gunakan kode lama bila sudah ada
+      let savedInviteCode = await fetchTenantInviteCode(tenantId);
+      if (!savedInviteCode) {
+        savedInviteCode = await saveInviteCodeWithRetry(tenantId, className);
+      }
       setGeneratedInviteCode(savedInviteCode);
 
       // 3. Normalisasi rekening bank & simpan metadata pengaturan kelas ke tabel tenants
@@ -314,6 +331,7 @@ export default function KelasSetupWizard({ tenantId: propTenantId, initialData }
       });
 
       const settingsPayload = {
+        onboarding_completed: true,
         class_type: classType,
         subject: subject.trim(),
         instructor_name: instructorName.trim(),
@@ -337,7 +355,14 @@ export default function KelasSetupWizard({ tenantId: propTenantId, initialData }
 
       await refreshTenant();
       setSetupFinished(true);
-      toast.success('Pengaturan awal kelas berhasil disimpan!');
+
+      if (skippedCount > 0) {
+        toast.success(
+          `Pengaturan awal kelas berhasil disimpan! ${createdCount} slot baru ditambahkan, ${skippedCount} sudah ada.`
+        );
+      } else {
+        toast.success('Pengaturan awal kelas berhasil disimpan!');
+      }
     } catch (err) {
       console.error('[KelasSetupWizard] Gagal menyimpan setup kelas:', err);
       toast.error(err.message || 'Gagal menyimpan konfigurasi setup wizard.');

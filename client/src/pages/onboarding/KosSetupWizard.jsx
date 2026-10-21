@@ -19,11 +19,14 @@ import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import {
   fetchTenantDetails,
+  fetchTenantUnits,
+  fetchTenantInviteCode,
   updateTenantProfileAndSettings,
   bulkCreateTenantUnits,
   saveInviteCodeWithRetry,
   normalizeBankAccount,
 } from '../../services/tenantOperationalService';
+import { selectNewUnitLabels } from '../../utils/unitLabels';
 import { formatRupiah } from '../../services/dataHelpers';
 
 const COMMON_FACILITIES = [
@@ -37,6 +40,53 @@ const COMMON_FACILITIES = [
   'Dapur Bersama',
   'Listrik Token Mandiri',
 ];
+
+/**
+ * Logika murni penyimpanan kamar dan kode undangan kos (VERT-1.4)
+ */
+export async function saveKosSetupUnitsAndInvite({
+  tenantId,
+  roomList = [],
+  kosName = '',
+  selectedFacilities = [],
+  defaultRentPrice = 0,
+  fetchUnits = fetchTenantUnits,
+  createUnits = bulkCreateTenantUnits,
+  fetchCode = fetchTenantInviteCode,
+  saveCode = saveInviteCodeWithRetry,
+}) {
+  const existingUnits = await fetchUnits(tenantId);
+  const newLabels = selectNewUnitLabels(existingUnits, roomList);
+  const newLabelSet = new Set(newLabels.map((l) => l.toLowerCase()));
+
+  const roomsToInsert = roomList
+    .filter((r) => newLabelSet.has((r.label || '').trim().toLowerCase()))
+    .map((r, index) => ({
+      label: r.label.trim(),
+      status: 'vacant',
+      metadata: {
+        room_number: r.label.trim(),
+        order_index: index + 1,
+        facilities: r.facilities || selectedFacilities,
+        default_rent_price: Number(r.price) || defaultRentPrice,
+        initial_wizard: true,
+      },
+    }));
+
+  const createdCount = roomsToInsert.length;
+  const skippedCount = Math.max(0, roomList.length - createdCount);
+
+  if (createdCount > 0) {
+    await createUnits(tenantId, roomsToInsert);
+  }
+
+  let savedInviteCode = await fetchCode(tenantId);
+  if (!savedInviteCode) {
+    savedInviteCode = await saveCode(tenantId, kosName);
+  }
+
+  return { roomsToInsert, createdCount, skippedCount, savedInviteCode };
+}
 
 export default function KosSetupWizard({ tenantId: propTenantId, initialData }) {
   const { tenantId: routeTenantId } = useParams();
@@ -295,24 +345,14 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
 
     setSaving(true);
     try {
-      // 1. Simpan kamar ke tenant_units (status: 'vacant', metadata kos)
-      await bulkCreateTenantUnits(
+      // 1 & 2. Simpan kamar ke tenant_units (idempoten) dan kode undangan
+      const { createdCount, skippedCount, savedInviteCode } = await saveKosSetupUnitsAndInvite({
         tenantId,
-        roomList.map((r, index) => ({
-          label: r.label,
-          status: 'vacant', // status default kamar kos adalah kosong/siap sewa
-          metadata: {
-            room_number: r.label,
-            order_index: index + 1,
-            facilities: r.facilities || selectedFacilities,
-            default_rent_price: Number(r.price) || defaultRentPrice,
-            initial_wizard: true,
-          },
-        }))
-      );
-
-      // 2. Simpan kode undangan ke tabel privat tenant_invites dengan retry otomatis jika bentrok (SEC-3F.2)
-      const savedInviteCode = await saveInviteCodeWithRetry(tenantId, kosName);
+        roomList,
+        kosName,
+        selectedFacilities,
+        defaultRentPrice,
+      });
 
       // 3. Simpan settings profil tenant kos (hanya ditandai onboarding_completed jika kode berhasil disimpan)
       const settingsPayload = {
@@ -338,7 +378,14 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
       await refreshTenant();
       setGeneratedInviteCode(savedInviteCode);
       setSetupFinished(true);
-      toast.success('Pengaturan awal Kos-kosan berhasil disimpan!');
+
+      if (skippedCount > 0) {
+        toast.success(
+          `Pengaturan awal Kos-kosan berhasil disimpan! ${createdCount} kamar baru ditambahkan, ${skippedCount} sudah ada.`
+        );
+      } else {
+        toast.success('Pengaturan awal Kos-kosan berhasil disimpan!');
+      }
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('[KosSetupWizard] Save failed:', err);
