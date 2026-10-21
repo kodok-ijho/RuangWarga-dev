@@ -31,13 +31,34 @@ vi.mock('../../hooks/useTenant', () => ({
 }));
 
 vi.mock('../../hooks/useTenantTemplate', () => ({
-  useTenantTemplate: () => ({
-    name: 'Kompleks RT/RW',
-    unitLabel: 'Rumah',
-    billLabel: 'IPL',
-    memberLabel: 'Warga',
-    icon: '🏡',
-  }),
+  useTenantTemplate: () => {
+    if (mockTenantState.activeTenant?.type === 'panitia') {
+      return {
+        name: 'Kepanitiaan & Acara',
+        unitLabel: 'Unit',
+        billLabel: 'Tagihan',
+        memberLabel: 'Anggota Panitia',
+        eventsLabel: 'Agenda',
+        icon: '🎪',
+        features: {
+          hasUnits: false,
+          hasPrograms: true,
+        },
+      };
+    }
+    return {
+      name: 'Kompleks RT/RW',
+      unitLabel: 'Rumah',
+      billLabel: 'IPL',
+      memberLabel: 'Warga',
+      eventsLabel: 'Acara',
+      icon: '🏡',
+      features: {
+        hasUnits: true,
+        hasPrograms: false,
+      },
+    };
+  },
 }));
 
 vi.mock('../../hooks/useSubscriptionGate', () => ({
@@ -252,5 +273,62 @@ describe('TenantShell Navigation (RTRW-1.2)', () => {
       </MemoryRouter>
     );
     expect(html).not.toContain('Jabatan &amp; Hak Akses');
+  });
+
+  describe('PANITIA-1.8: Navigasi Acara dan Pemasukan', () => {
+    it('TenantShell panitia menampilkan Acara dan Pemasukan, tanpa Unit dan tanpa tagihan', () => {
+      mockTenantState.activeTenant = {
+        id: 't-panitia-1',
+        name: 'Panitia PenSi 2026',
+        type: 'panitia',
+        settings: {},
+      };
+      mockTenantState.activeTenantId = 't-panitia-1';
+      mockTenantAccess.canViewReports = true;
+
+      const html = renderToString(
+        <MemoryRouter initialEntries={['/t/t-panitia-1/dashboard']}>
+          <TenantShell />
+        </MemoryRouter>
+      );
+
+      // Link kedua menjadi Acara (/programs)
+      expect(html).toContain('href="/t/t-panitia-1/programs"');
+      expect(html).toContain('Acara');
+
+      // Pemasukan tampil di sebelah Pengeluaran
+      expect(html).toContain('href="/t/t-panitia-1/incomes"');
+      expect(html).toContain('Pemasukan');
+      expect(html).toContain('href="/t/t-panitia-1/expenses"');
+
+      // Unit dan tagihan disembunyikan
+      expect(html).not.toContain('href="/t/t-panitia-1/units"');
+      expect(html).not.toContain('href="/t/t-panitia-1/payment-matrix"');
+    });
+
+    it('TenantShell RT/RW tetap seperti sekarang ditambah Pemasukan', () => {
+      mockTenantState.activeTenant = {
+        id: 't-rtrw-1',
+        name: 'Palm Village RT 05',
+        type: 'rt_rw',
+        settings: {},
+      };
+      mockTenantState.activeTenantId = 't-rtrw-1';
+      mockTenantAccess.canViewReports = true;
+
+      const html = renderToString(
+        <MemoryRouter initialEntries={['/t/t-rtrw-1/dashboard']}>
+          <TenantShell />
+        </MemoryRouter>
+      );
+
+      // Menampilkan tagihan/payment-matrix dan unit
+      expect(html).toContain('href="/t/t-rtrw-1/payment-matrix"');
+      expect(html).toContain('href="/t/t-rtrw-1/units"');
+
+      // Ditambah Pemasukan
+      expect(html).toContain('href="/t/t-rtrw-1/incomes"');
+      expect(html).toContain('Pemasukan');
+    });
   });
 });

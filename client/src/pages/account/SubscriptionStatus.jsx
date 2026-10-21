@@ -14,6 +14,7 @@ import {
 import { supabase } from '../../services/supabaseClient';
 import { useTenant } from '../../hooks/useTenant';
 import { useTenantTemplate } from '../../hooks/useTenantTemplate';
+import { fetchPrograms, countActivePrograms } from '../../services/tenantOperationalService';
 
 export function resolveSubscriptionExpiryDate(subData) {
   if (!subData) return '-';
@@ -42,6 +43,7 @@ export default function SubscriptionStatus() {
   const [blocksData, setBlocksData] = useState([]);
   const [paymentsHistory, setPaymentsHistory] = useState([]);
   const [usedUnitsCount, setUsedUnitsCount] = useState(0);
+  const [activeProgramsCount, setActiveProgramsCount] = useState(0);
 
   const fetchSubscriptionDetails = async () => {
     setLoading(true);
@@ -60,6 +62,14 @@ export default function SubscriptionStatus() {
         { block_count: 1, block_size: 5, price_per_block: 8750 },
       ]);
       setUsedUnitsCount(18);
+      if (currentTenant?.type === 'panitia') {
+        try {
+          const progs = await fetchPrograms(currentTenant.id);
+          setActiveProgramsCount(countActivePrograms(progs));
+        } catch (_e) {
+          setActiveProgramsCount(1);
+        }
+      }
       setPaymentsHistory([
         {
           id: 'pay-demo-881',
@@ -122,13 +132,22 @@ export default function SubscriptionStatus() {
       }));
       setBlocksData(parsedBlocks);
 
-      // 2. Ambil total unit terpakai di tenant_units
-      const { count: unitCount } = await supabase
-        .from('tenant_units')
-        .select('*', { count: 'exact', head: true })
-        .eq('tenant_id', currentTenant.id);
+      // 2. Ambil total unit terpakai di tenant_units (atau acara aktif jika panitia)
+      if (currentTenant?.type === 'panitia') {
+        try {
+          const progs = await fetchPrograms(currentTenant.id);
+          setActiveProgramsCount(countActivePrograms(progs));
+        } catch (_e) {
+          setActiveProgramsCount(0);
+        }
+      } else {
+        const { count: unitCount } = await supabase
+          .from('tenant_units')
+          .select('*', { count: 'exact', head: true })
+          .eq('tenant_id', currentTenant.id);
 
-      setUsedUnitsCount(unitCount || 0);
+        setUsedUnitsCount(unitCount || 0);
+      }
 
       // 3. Ambil riwayat pembayaran
       const { data: payList } = await supabase
@@ -288,57 +307,90 @@ export default function SubscriptionStatus() {
                 </div>
               </div>
 
-              {/* Kartu Kapasitas Unit Terpakai vs Dibeli */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                    <AiOutlinePieChart className="text-slate-700" />
-                    <span>Kapasitas {template.unitLabel}</span>
-                  </span>
-                  <span className="text-xs font-bold text-slate-900">
-                    {usedUnitsCount} / {totalPurchasedCapacity} Terpakai
-                  </span>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="space-y-1.5">
-                  <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden border border-slate-200">
-                    <div
-                      className={`h-full transition-all duration-500 ${
-                        usagePercent >= 90
-                          ? 'bg-rose-500'
-                          : usagePercent >= 75
-                          ? 'bg-amber-500'
-                          : 'bg-slate-900'
-                      }`}
-                      style={{ width: `${usagePercent}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[11px] text-slate-500">
-                    <span>{usagePercent}% Utilisasi</span>
-                    <span>Sisa Kuota: {Math.max(0, totalPurchasedCapacity - usedUnitsCount)} {template.unitLabel}</span>
-                  </div>
-                </div>
-
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
-                  <div>
-                    <span className="text-slate-500 block text-[10px]">Rincian Blok:</span>
-                    <span className="text-slate-800 font-semibold">
-                      {blocksData.length > 0
-                        ? blocksData.map((b) => `${b.block_count}x Blok ${b.block_size}`).join(' + ')
-                        : '1x Blok 10 (Trial Default)'}
+              {/* Kartu Kapasitas: Acara Aktif untuk Panitia, Unit untuk lainnya */}
+              {currentTenant?.type === 'panitia' ? (
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <AiOutlinePieChart className="text-slate-700" />
+                      <span>Pemakaian Acara</span>
+                    </span>
+                    <span className="text-xs font-bold text-slate-900">
+                      {activeProgramsCount} acara aktif
                     </span>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/account/choose-plan?tenantId=${currentTenant?.id}`)}
-                    className="text-slate-700 hover:text-slate-900 font-semibold underline text-xs"
-                  >
-                    Tambah Kuota
-                  </button>
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                    <span className="text-slate-800 font-semibold text-xs block">
+                      Paket Per Acara Aktif
+                    </span>
+                    <p className="text-[11px] text-slate-500">
+                      Kapasitas dihitung berdasarkan jumlah acara yang berstatus Perencanaan atau Berjalan.
+                    </p>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/account/choose-plan?tenantId=${currentTenant?.id}`)}
+                      className="text-slate-700 hover:text-slate-900 font-semibold underline text-xs"
+                    >
+                      Informasi Paket
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <AiOutlinePieChart className="text-slate-700" />
+                      <span>Kapasitas {template.unitLabel}</span>
+                    </span>
+                    <span className="text-xs font-bold text-slate-900">
+                      {usedUnitsCount} / {totalPurchasedCapacity} Terpakai
+                    </span>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="space-y-1.5">
+                    <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden border border-slate-200">
+                      <div
+                        className={`h-full transition-all duration-500 ${
+                          usagePercent >= 90
+                            ? 'bg-rose-500'
+                            : usagePercent >= 75
+                            ? 'bg-amber-500'
+                            : 'bg-slate-900'
+                        }`}
+                        style={{ width: `${usagePercent}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[11px] text-slate-500">
+                      <span>{usagePercent}% Utilisasi</span>
+                      <span>Sisa Kuota: {Math.max(0, totalPurchasedCapacity - usedUnitsCount)} {template.unitLabel}</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Rincian Blok:</span>
+                      <span className="text-slate-800 font-semibold">
+                        {blocksData.length > 0
+                          ? blocksData.map((b) => `${b.block_count}x Blok ${b.block_size}`).join(' + ')
+                          : '1x Blok 10 (Trial Default)'}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/account/choose-plan?tenantId=${currentTenant?.id}`)}
+                      className="text-slate-700 hover:text-slate-900 font-semibold underline text-xs"
+                    >
+                      Tambah Kuota
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* TABEL RIWAYAT TRANSAKSI SUBSCRIPTION */}

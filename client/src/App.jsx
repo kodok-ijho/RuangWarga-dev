@@ -54,6 +54,9 @@ const ChoosePlan = lazy(() => import('./pages/account/ChoosePlan'));
 const SubscriptionStatus = lazy(() => import('./pages/account/SubscriptionStatus'));
 const SubscriptionCheckout = lazy(() => import('./pages/account/SubscriptionCheckout'));
 const TenantDashboard = lazy(() => import('./pages/tenant/TenantDashboard'));
+const TenantIncomes = lazy(() => import('./pages/tenant/TenantIncomes'));
+const Programs = lazy(() => import('./pages/tenant/Programs'));
+const ProgramDetail = lazy(() => import('./pages/tenant/ProgramDetail'));
 const TenantUnits = lazy(() => import('./pages/tenant/TenantUnits'));
 const TenantSettings = lazy(() => import('./pages/tenant/TenantSettings'));
 const TenantAnnouncements = lazy(() => import('./pages/tenant/TenantAnnouncements'));
@@ -309,6 +312,36 @@ export default function App() {
                       <Suspense fallback={<PageLoader />}>
                         <TenantAccessGuard require="canVerifyPayments">
                           <PaymentVerification />
+                        </TenantAccessGuard>
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="incomes"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <TenantAccessGuard require="canViewReports">
+                          <TenantIncomes />
+                        </TenantAccessGuard>
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="programs"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <TenantAccessGuard require="isMember">
+                          <Programs />
+                        </TenantAccessGuard>
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="programs/:programId"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <TenantAccessGuard require="isMember">
+                          <ProgramDetail />
                         </TenantAccessGuard>
                       </Suspense>
                     }

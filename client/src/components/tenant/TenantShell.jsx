@@ -80,24 +80,38 @@ export default function TenantShell() {
   const tenantBase = `/t/${tenantId}`;
 
   // Menu navigasi kontekstual per tenant type
+  const features = template?.features || {};
+  const hasPrograms = Boolean(features.hasPrograms);
   const isArisan = activeTenant?.type === 'arisan';
   const isKos = activeTenant?.type === 'kos';
+  const hasUnits = features.hasUnits !== false;
 
-  const canManageUnits = Boolean(isOwner || (hasPermission && hasPermission('manage_settings')));
+  const canManageUnits = Boolean((isOwner || (hasPermission && hasPermission('manage_settings'))) && hasUnits);
+
+  const secondLink = hasPrograms
+    ? {
+        to: `${tenantBase}/programs`,
+        label: 'Acara',
+        icon: AiOutlineCalendar,
+      }
+    : {
+        to: isArisan ? `${tenantBase}/arisan/rounds` : `${tenantBase}/payment-matrix`,
+        label: isArisan ? 'Putaran Arisan' : template.billLabel || 'Tagihan',
+        icon: isArisan ? AiOutlineCalendar : AiOutlineTable,
+      };
 
   const desktopNavLinks = [
     { to: `${tenantBase}/dashboard`, label: 'Ringkasan', icon: AiOutlineHome },
-    {
-      to: isArisan ? `${tenantBase}/arisan/rounds` : `${tenantBase}/payment-matrix`,
-      label: isArisan ? 'Putaran Arisan' : template.billLabel || 'Tagihan',
-      icon: isArisan ? AiOutlineCalendar : AiOutlineTable,
-    },
+    secondLink,
     ...(canManageUnits
       ? [{ to: `${tenantBase}/units`, label: template.unitLabel || 'Unit', icon: AiOutlineHome }]
       : []),
     { to: `${tenantBase}/residents`, label: template.memberLabel || 'Anggota', icon: AiOutlineTeam },
     { to: `${tenantBase}/announcements`, label: 'Pengumuman', icon: AiOutlineNotification },
-    { to: `${tenantBase}/events`, label: 'Acara', icon: AiOutlineCalendar },
+    { to: `${tenantBase}/events`, label: template.eventsLabel || 'Acara', icon: AiOutlineCalendar },
+    ...(canViewReports
+      ? [{ to: `${tenantBase}/incomes`, label: 'Pemasukan', icon: AiOutlineWallet }]
+      : []),
     ...(canViewReports
       ? [{ to: `${tenantBase}/expenses`, label: 'Pengeluaran', icon: AiOutlineWallet }]
       : []),
@@ -107,6 +121,22 @@ export default function TenantShell() {
   ];
 
   // Mobile Bottom Nav: 4 Destinasi Utama Sesuai Spesifikasi (Spec §9, TASK-044)
+  const mobileSecondTab = hasPrograms
+    ? {
+        to: `${tenantBase}/programs`,
+        label: 'Acara',
+        icon: AiOutlineCalendar,
+        isActive: location.pathname.includes('/programs'),
+      }
+    : {
+        to: isArisan ? `${tenantBase}/arisan/rounds` : `${tenantBase}/payment-matrix`,
+        label: isArisan ? 'Putaran' : template.billLabel || 'Tagihan',
+        icon: isArisan ? AiOutlineCalendar : AiOutlineTable,
+        isActive:
+          location.pathname.includes('/payment-matrix') ||
+          location.pathname.includes('/arisan'),
+      };
+
   const mobileNavTabs = [
     {
       to: `${tenantBase}/dashboard`,
@@ -114,14 +144,7 @@ export default function TenantShell() {
       icon: AiOutlineHome,
       isActive: location.pathname.endsWith('/dashboard') || location.pathname === tenantBase,
     },
-    {
-      to: isArisan ? `${tenantBase}/arisan/rounds` : `${tenantBase}/payment-matrix`,
-      label: isArisan ? 'Putaran' : template.billLabel || 'Tagihan',
-      icon: isArisan ? AiOutlineCalendar : AiOutlineTable,
-      isActive:
-        location.pathname.includes('/payment-matrix') ||
-        location.pathname.includes('/arisan'),
-    },
+    mobileSecondTab,
     {
       to: `${tenantBase}/residents`,
       label: template.memberLabel || 'Anggota',

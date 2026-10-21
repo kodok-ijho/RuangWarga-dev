@@ -31,6 +31,7 @@ export default function ChoosePlan() {
   const targetTenantId = searchParams.get('tenantId') || activeTenantId;
   const currentTenant = userTenants.find((t) => t.id === targetTenantId) || activeTenant;
   const tenantType = currentTenant?.type || 'rt_rw';
+  const isPanitia = tenantType === 'panitia';
 
   // State input estimasi kapasitas
   const [estimatedUnits, setEstimatedUnits] = useState(15);
@@ -65,6 +66,11 @@ export default function ChoosePlan() {
   }, [activeBlocks10, activeBlocks5, selectedDuration, tenantType]);
 
   const handleProceedToPayment = () => {
+    if (isPanitia) {
+      toast.info('Harga paket Kepanitiaan (per acara aktif) segera tersedia.');
+      return;
+    }
+
     if (billSummary.totalCapacity < 5) {
       toast.error('Pilih minimal 1 blok kapasitas (minimal 5 unit).');
       return;
@@ -114,6 +120,20 @@ export default function ChoosePlan() {
             </p>
           </div>
         </div>
+
+        {isPanitia && (
+          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-3">
+            <AiOutlineInfoCircle className="text-xl text-amber-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-amber-950">
+                Harga paket Kepanitiaan (per acara aktif) segera tersedia
+              </h3>
+              <p className="text-xs text-amber-800">
+                Paket Kepanitiaan dihitung berdasarkan jumlah acara aktif, bukan per blok unit rumah/kamar. Selama masa tunggu ini, organisasi Anda dapat menggunakan seluruh fitur dalam masa uji coba.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* SECTION 1: Kalkulator Estimasi Kebutuhan */}
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
@@ -400,10 +420,15 @@ export default function ChoosePlan() {
 
             <button
               type="button"
+              disabled={isPanitia}
               onClick={handleProceedToPayment}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-sm shadow-xs transition-all"
+              className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-extrabold text-sm shadow-xs transition-all ${
+                isPanitia
+                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
+                  : 'bg-slate-900 hover:bg-slate-800 text-white'
+              }`}
             >
-              <span>Lanjut ke Pembayaran QRIS</span>
+              <span>{isPanitia ? 'Paket Segera Tersedia' : 'Lanjut ke Pembayaran QRIS'}</span>
               <AiOutlineArrowRight />
             </button>
           </div>

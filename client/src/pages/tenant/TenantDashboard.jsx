@@ -25,6 +25,7 @@ import { Button, StatusBadge } from '../../components/ui';
 // Persona Dashboards & Skeletons
 import { CitizenDashboard } from '../../components/dashboard/CitizenDashboard';
 import { StaffDashboard } from '../../components/dashboard/StaffDashboard';
+import { PanitiaDashboard } from '../../components/dashboard/PanitiaDashboard';
 import { DashboardSkeleton } from '../../components/dashboard/DashboardSkeleton';
 
 export default function TenantDashboard() {
@@ -417,6 +418,14 @@ export default function TenantDashboard() {
               Coba Lagi
             </Button>
           </div>
+        ) : template?.features?.hasPrograms ? (
+          <PanitiaDashboard
+            tenantId={tenantId}
+            activeTenant={activeTenant}
+            template={template}
+            dashData={dashData}
+            periodLabel={periodLabel}
+          />
         ) : isStaff ? (
           <StaffDashboard
             tenantId={tenantId}
