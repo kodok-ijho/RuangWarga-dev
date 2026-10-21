@@ -1,6 +1,6 @@
 # PANITIA-1 — Kepanitiaan: acara, anggaran, pemasukan, pengeluaran, laporan
 
-Status: ⏳ **Menunggu persetujuan user.** PANITIA-1.2 adalah migration: jenis tenant baru, tabel baru, kolom baru di `expenses` / `non_ipl_incomes`, dan RLS.
+Status: ✅ **Disetujui user 2026-10-21**, termasuk migration PANITIA-1.2 (jenis tenant baru, tabel baru, kolom baru di `expenses` / `non_ipl_incomes`, dan RLS).
 
 Dasar:
 - `PANITIA-requirement.md` (keputusan user 2026-10-21);

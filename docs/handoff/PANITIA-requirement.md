@@ -1,6 +1,6 @@
 # Requirement: Vertikal Kepanitiaan & Acara
 
-Status: draf, menunggu persetujuan user. Keputusan dasar sudah diambil user 2026-10-21 (lihat di bawah).
+Status: ✅ disetujui user 2026-10-21.
 
 Vertikal ini **menggantikan Kelas** (SPP) di pilihan pendaftaran tenant. Contoh pengguna: panitia PenSi (Pentas Seni), School Expo, OSIS/BEM, karang taruna, panitia 17-an, komunitas, dan kegiatan rumah ibadah.
 
