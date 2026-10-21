@@ -2,7 +2,7 @@
 
 Dasar: uji user di ruangwarga-dev 2026-10-21, login sebagai penyewa "Toro" (Kos Melati Harmoni) yang sudah disetujui. Masuk langsung ke dashboard penyewa sudah benar (NAV-1). Yang perlu dirapikan ada di tampilan.
 
-Frontend, kecuali **KOS-1F.6a** (trigger database). KOS-1F.6a **perlu persetujuan user**: jangan dikerjakan sebelum perintah untuk KOS-1F menyebut bahwa 1F.6a disetujui.
+Status: ✅ **Disetujui user 2026-10-21**, termasuk KOS-1F.6a (trigger database). Selain 1F.6a, semuanya frontend.
 
 ## Temuan
 1. **Banner trial tampil untuk penyewa.** `components/TrialCountdownBanner.jsx` menampilkan "Masa percobaan gratis Anda sedang berjalan … Pilih paket kapasitas unit" ke semua anggota. Hanya tombolnya yang dibatasi `isTenantAdmin`. Bagi penyewa, pesan ini membingungkan.
