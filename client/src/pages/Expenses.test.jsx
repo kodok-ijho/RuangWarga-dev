@@ -596,4 +596,37 @@ describe('TASK-080 Expenses Implementation (Sub-Gate 8.2-B)', () => {
     expect(drawerSource).toContain('focusableSelectors');
     expect(drawerSource).toContain('previouslyFocusedElementRef.current.focus()');
   });
+
+  // T. PANITIA-1.6 Program link in expenses
+  it('T. PANITIA-1.6 — createTenantExpense receives programId and budgetItemId', async () => {
+    let capturedPayload = null;
+    vi.spyOn(supabase, 'from').mockImplementation((table) => {
+      if (table === 'expenses') {
+        return {
+          insert: vi.fn().mockImplementation((payload) => {
+            capturedPayload = payload;
+            return {
+              select: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({ data: { id: 'exp-new', ...payload }, error: null }),
+              }),
+            };
+          }),
+        };
+      }
+      return {};
+    });
+
+    await createTenantExpense(mockTenantId, {
+      date: '2026-10-21',
+      category: 'Perlengkapan',
+      amount: 500000,
+      description: 'Sound system panggung',
+      programId: 'prog-uuid-1',
+      budgetItemId: 'budget-uuid-2',
+    });
+
+    expect(capturedPayload).toBeDefined();
+    expect(capturedPayload.program_id).toBe('prog-uuid-1');
+    expect(capturedPayload.budget_item_id).toBe('budget-uuid-2');
+  });
 });

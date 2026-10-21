@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   AiOutlinePlus,
   AiOutlineEdit,
@@ -25,6 +25,13 @@ import {
   updateExpense,
   deleteExpense,
 } from '../services/dataService';
+import {
+  createTenantExpense,
+  updateTenantExpense,
+  deleteTenantExpense,
+  fetchPrograms,
+  fetchBudgetItems,
+} from '../services/tenantOperationalService';
 import {
   formatRupiah,
   formatDate,
@@ -61,6 +68,10 @@ function getGoogleDriveThumbnail(url) {
 
 export default function Expenses() {
   const params = useParams();
+  const [searchParams] = useSearchParams();
+  const queryProgramId = searchParams.get('program') || '';
+  const queryNew = searchParams.get('new');
+
   const { role, profile, session, isReadOnly: authReadOnly, isAuthenticated } = useAuth();
   const { activeTenant } = useTenant();
   const activeTenantId = params.tenantId || activeTenant?.id || null;
@@ -74,6 +85,7 @@ export default function Expenses() {
   // assigned event user while the asynchronous access response is pending.
   const [eventAccess, setEventAccess] = useState(null);
   const [eventOptions, setEventOptions] = useState([]);
+  const [tenantPrograms, setTenantPrograms] = useState([]);
   const isStaff = hasMinRole(role, 'pengurus');
   const canEditGeneral = isBendaharaOrAbove(role);
   const manageableEventIds = useMemo(() => new Set(
@@ -97,10 +109,19 @@ export default function Expenses() {
   const [receiptImageError, setReceiptImageError] = useState(false);
   const [selectedExpenseForDrawer, setSelectedExpenseForDrawer] = useState(null);
 
-  // Signed URL state for private receipt storage
-  const [signedReceiptUrl, setSignedReceiptUrl] = useState(null);
-  const [isLoadingSignedReceipt, setIsLoadingSignedReceipt] = useState(false);
-  const [signedReceiptError, setSignedReceiptError] = useState(null);
+  const expenseCategories = useMemo(() => {
+    if (activeTenantId && Array.isArray(template?.expenseCategories) && template.expenseCategories.length > 0) {
+      return template.expenseCategories;
+    }
+    return EXPENSE_CATEGORIES;
+  }, [activeTenantId, template?.expenseCategories]);
+
+  // Handle URL query ?program=<id>&new=1
+  useEffect(() => {
+    if (queryNew === '1' && canWrite) {
+      setModalForm('add');
+    }
+  }, [queryNew, canWrite]);
 
   const loadExpenses = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -119,6 +140,19 @@ export default function Expenses() {
       const data = await fetchExpenses(token, { tenantId: activeTenantId });
       if (requestIdRef.current !== currentRequestId) return;
       setExpenses(Array.isArray(data) ? data : []);
+
+      if (activeTenantId) {
+        try {
+          const progs = await fetchPrograms(activeTenantId);
+          if (requestIdRef.current === currentRequestId) {
+            setTenantPrograms(Array.isArray(progs) ? progs : []);
+          }
+        } catch {
+          if (requestIdRef.current === currentRequestId) {
+            setTenantPrograms([]);
+          }
+        }
+      }
 
       if (!activeTenantId) {
         try {
@@ -267,10 +301,29 @@ export default function Expenses() {
     try {
       setIsLoading(true);
       if (modalForm === 'add') {
-        await createExpense(token, { ...data, file, tenantId: activeTenantId, recordedBy: profile?.id });
+        if (activeTenantId) {
+          await createTenantExpense(activeTenantId, {
+            ...data,
+            file,
+            recordedBy: profile?.id,
+            programId: data.programId ?? data.program_id ?? null,
+            budgetItemId: data.budgetItemId ?? data.budget_item_id ?? null,
+          });
+        } else {
+          await createExpense(token, { ...data, file, tenantId: activeTenantId, recordedBy: profile?.id });
+        }
         toast.success(`Pengeluaran "${data.category}" berhasil dicatat.`);
       } else {
-        await updateExpense(token, modalForm.id, { ...data, file, tenantId: activeTenantId });
+        if (activeTenantId) {
+          await updateTenantExpense(activeTenantId, modalForm.id, {
+            ...data,
+            file,
+            programId: data.programId ?? data.program_id ?? null,
+            budgetItemId: data.budgetItemId ?? data.budget_item_id ?? null,
+          });
+        } else {
+          await updateExpense(token, modalForm.id, { ...data, file, tenantId: activeTenantId });
+        }
         toast.success('Pengeluaran berhasil diperbarui.');
       }
       setModalForm(null);
@@ -290,7 +343,11 @@ export default function Expenses() {
     if (!confirm(`Hapus pengeluaran "${String(exp.description || '').substring(0, 40)}..."?`)) return;
     try {
       setIsLoading(true);
-      await deleteExpense(token, exp.id, { tenantId: activeTenantId });
+      if (activeTenantId) {
+        await deleteTenantExpense(activeTenantId, exp.id);
+      } else {
+        await deleteExpense(token, exp.id, { tenantId: activeTenantId });
+      }
       toast.success('Pengeluaran berhasil dihapus.');
       loadExpenses();
     } catch (err) {
@@ -347,7 +404,7 @@ export default function Expenses() {
             className="pv-input"
           >
             <option value="">Semua Kategori</option>
-            {EXPENSE_CATEGORIES.map((c) => (
+            {expenseCategories.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
@@ -450,9 +507,14 @@ export default function Expenses() {
               emptyMessage="Belum ada pengeluaran tercatat."
               renderItem={(exp) => {
                 const canEditThis = canEdit && canWrite && (activeTenantId ? true : ((exp.scope || 'general') === 'event' ? manageableEventIds.has(exp.event_id) : canEditGeneral));
+                const pId = exp.program_id || exp.programId;
+                const progName = activeTenantId && pId ? (programMap.get(pId) || exp.program?.name) : null;
                 return (
                   <ExpenseCard
-                    expense={exp}
+                    expense={{
+                      ...exp,
+                      program_name: progName,
+                    }}
                     canEdit={canEditThis}
                     onViewReceipt={(item) => {
                       setReceiptImageError(false);
@@ -499,9 +561,17 @@ export default function Expenses() {
                         <td className="px-5 py-3.5 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-slate-900">{exp.category}</span>
-                            <span className="pv-badge bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-semibold">
-                              {exp.scope === 'event' ? '🎪 Event' : '🏡 Kas Umum'}
-                            </span>
+                            {activeTenantId ? (
+                              Boolean(exp.program_id || exp.programId) && (
+                                <span className="pv-badge bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-semibold">
+                                  🎪 {programMap.get(exp.program_id || exp.programId) || exp.program?.name || 'Acara'}
+                                </span>
+                              )
+                            ) : (
+                              <span className="pv-badge bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-semibold">
+                                {exp.scope === 'event' ? '🎪 Event' : '🏡 Kas Umum'}
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="px-5 py-3.5 max-w-xs text-xs text-slate-600 truncate">
@@ -609,6 +679,10 @@ export default function Expenses() {
           manageableEventIds={manageableEventIds}
           canEditGeneral={activeTenantId ? true : canEditGeneral}
           hideScopeSelector={Boolean(activeTenantId)}
+          categories={expenseCategories}
+          tenantId={activeTenantId}
+          tenantPrograms={tenantPrograms}
+          initialProgramId={queryProgramId}
           isSaving={isLoading}
           onSave={handleSave}
           onClose={() => setModalForm(null)}
@@ -727,6 +801,10 @@ function ExpenseFormModal({
   manageableEventIds = new Set(),
   canEditGeneral = false,
   hideScopeSelector = false,
+  categories = EXPENSE_CATEGORIES,
+  tenantId = null,
+  tenantPrograms = [],
+  initialProgramId = '',
   isSaving,
   onSave,
   onClose,
@@ -734,15 +812,46 @@ function ExpenseFormModal({
   const [selectedFile, setSelectedFile] = useState(null);
   const isEdit = !!expense;
   const [form, setForm] = useState({
-    date: expense?.date || new Date().toISOString().split('T')[0],
-    category: expense?.category || EXPENSE_CATEGORIES[0],
+    date: expense?.date || expense?.expense_date || new Date().toISOString().split('T')[0],
+    category: expense?.category || categories[0] || EXPENSE_CATEGORIES[0],
     amount: expense?.amount || '',
     description: expense?.description || '',
     scope: expense?.scope || initialScope,
     event_id: expense?.event_id || '',
+    program_id: expense?.program_id || expense?.programId || initialProgramId || '',
+    budget_item_id: expense?.budget_item_id || expense?.budgetItemId || '',
     receipt_file: expense?.receipt_file || '',
   });
   const [fileName, setFileName] = useState(expense?.receipt_file || '');
+
+  const [budgetItems, setBudgetItems] = useState([]);
+  const [loadingBudgetItems, setLoadingBudgetItems] = useState(false);
+
+  useEffect(() => {
+    let isCancelled = false;
+    if (!tenantId || !form.program_id) {
+      setBudgetItems([]);
+      return;
+    }
+    setLoadingBudgetItems(true);
+    fetchBudgetItems(tenantId, form.program_id)
+      .then((items) => {
+        if (!isCancelled) {
+          const expenseItems = (items || []).filter((b) => b.kind === 'expense');
+          setBudgetItems(expenseItems);
+        }
+      })
+      .catch(() => {
+        if (!isCancelled) setBudgetItems([]);
+      })
+      .finally(() => {
+        if (!isCancelled) setLoadingBudgetItems(false);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [tenantId, form.program_id]);
 
   const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
   const MAX_SIZE = 5 * 1024 * 1024; // 5 MB canonical storage limit
@@ -817,6 +926,8 @@ function ExpenseFormModal({
       ...form,
       scope: payloadScope,
       event_id: payloadEventId,
+      programId: form.program_id || null,
+      budgetItemId: form.budget_item_id || null,
       amount: numAmount,
       description: form.description.trim(),
     }, selectedFile);
@@ -843,7 +954,7 @@ function ExpenseFormModal({
               onChange={(e) => setForm({ ...form, category: e.target.value })}
               className="pv-input text-xs"
             >
-              {EXPENSE_CATEGORIES.map((c) => (
+              {categories.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
@@ -878,6 +989,49 @@ function ExpenseFormModal({
             </div>
           )}
         </div>
+
+        {/* Tautan Acara & Pos Anggaran (mode tenant) */}
+        {tenantId && tenantPrograms.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Acara <span className="text-slate-400 font-normal">(opsional)</span>
+              </label>
+              <select
+                value={form.program_id}
+                onChange={(e) => {
+                  const newPid = e.target.value;
+                  setForm((prev) => ({ ...prev, program_id: newPid, budget_item_id: '' }));
+                }}
+                className="pv-input text-xs bg-white"
+              >
+                <option value="">Bukan Acara (Operasional Umum)</option>
+                {tenantPrograms.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Pos Anggaran (RAB) <span className="text-slate-400 font-normal">(opsional)</span>
+              </label>
+              <select
+                value={form.budget_item_id}
+                onChange={(e) => setForm((prev) => ({ ...prev, budget_item_id: e.target.value }))}
+                disabled={!form.program_id || loadingBudgetItems}
+                className="pv-input text-xs bg-white disabled:opacity-50"
+              >
+                <option value="">Di luar pos anggaran</option>
+                {budgetItems.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.section ? `[${b.section}] ` : ''}{b.item}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1">
