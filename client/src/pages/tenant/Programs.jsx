@@ -524,7 +524,7 @@ export default function Programs() {
               >
                 <option value="planning">Perencanaan</option>
                 <option value="running">Berjalan</option>
-                <option value="completed">Selesai</option>
+                <option value="done">Selesai</option>
                 <option value="archived">Arsip</option>
               </select>
             </div>

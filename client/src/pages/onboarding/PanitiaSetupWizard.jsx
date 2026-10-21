@@ -74,9 +74,10 @@ export default function PanitiaSetupWizard({ tenantId: propTenantId, initialData
   const [contactPhone, setContactPhone] = useState(initialData?.contact_phone || '');
 
   // Step 2: Rekening Penerima (Opsional)
-  const [bankName, setBankName] = useState('BCA');
-  const [accountNumber, setAccountNumber] = useState('');
-  const [accountHolder, setAccountHolder] = useState('');
+  const initialBank = pickBankAccountForForm(initialData?.settings);
+  const [bankName, setBankName] = useState(initialBank?.bank_name || 'BCA');
+  const [accountNumber, setAccountNumber] = useState(initialBank?.account_number || '');
+  const [accountHolder, setAccountHolder] = useState(initialBank?.account_holder || '');
 
   // Sinkronisasi active tenant context
   useEffect(() => {

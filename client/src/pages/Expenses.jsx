@@ -73,7 +73,7 @@ export default function Expenses() {
   const queryNew = searchParams.get('new');
 
   const { role, profile, session, isReadOnly: authReadOnly, isAuthenticated } = useAuth();
-  const { activeTenant } = useTenant();
+  const { activeTenant, activeMember } = useTenant();
   const activeTenantId = params.tenantId || activeTenant?.id || null;
   const { canTransact, isReadOnly: subReadOnly } = useSubscriptionGate();
   const template = useTenantTemplate(activeTenant?.type || 'rt_rw');
@@ -318,7 +318,7 @@ export default function Expenses() {
           await createTenantExpense(activeTenantId, {
             ...data,
             file,
-            recordedBy: profile?.id,
+            recordedBy: activeMember?.id || null,
             programId: data.programId ?? data.program_id ?? null,
             budgetItemId: data.budgetItemId ?? data.budget_item_id ?? null,
           });

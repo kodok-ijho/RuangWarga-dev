@@ -34,7 +34,7 @@ export const PAYMENT_METHOD_LABELS = {
 export default function TenantIncomes() {
   const params = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { activeTenant } = useTenant();
+  const { activeTenant, activeMember } = useTenant();
   const tenantId = params.tenantId || activeTenant?.id || null;
 
   const tenantAccess = useTenantAccess();
@@ -145,7 +145,7 @@ export default function TenantIncomes() {
     try {
       setIsLoading(true);
       if (modalForm === 'add') {
-        await createTenantIncome(tenantId, formData);
+        await createTenantIncome(tenantId, { ...formData, memberId: activeMember?.id || null });
         toast.success(`Pemasukan "${formData.category}" berhasil dicatat.`);
       } else {
         await updateTenantIncome(tenantId, modalForm.id, formData);
@@ -172,7 +172,7 @@ export default function TenantIncomes() {
     }
     try {
       setIsLoading(true);
-      await deleteTenantIncome(tenantId, inc.id);
+      await deleteTenantIncome(tenantId, inc.id, { memberId: activeMember?.id || null });
       toast.success('Pemasukan berhasil dihapus.');
       await loadData();
     } catch (err) {

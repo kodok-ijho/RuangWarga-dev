@@ -179,7 +179,7 @@ export async function createTenantIncome(
   const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
   if (isDemoOrMock) {
     const newInc = {
-      id: `inc-${Date.now()}`,
+      id: `inc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       tenant_id: tenantId,
       income_date: finalDate,
       date: finalDate,

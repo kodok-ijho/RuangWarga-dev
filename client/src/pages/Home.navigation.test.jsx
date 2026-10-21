@@ -109,7 +109,7 @@ describe('NAV-1.1: Home Navigation & Auto-Redirect', () => {
     expect(screen.getByText('Kompleks RT 01')).toBeTruthy();
     expect(screen.queryByText('Daftarkan Tenant Baru')).toBeNull();
     expect(
-      screen.getByText(/Punya kos, arisan, atau kelas sendiri\? Buka layanan sendiri/i)
+      screen.getByText(/Punya kos, arisan, atau kepanitiaan sendiri\? Buka layanan sendiri/i)
     ).toBeTruthy();
   });
 
@@ -147,7 +147,7 @@ describe('NAV-1.1: Home Navigation & Auto-Redirect', () => {
     expect(screen.getByText('Layanan & Tenant Anda')).toBeTruthy();
     expect(screen.getByText('Daftarkan Tenant Baru')).toBeTruthy();
     expect(
-      screen.queryByText(/Punya kos, arisan, atau kelas sendiri\? Buka layanan sendiri/i)
+      screen.queryByText(/Punya kos, arisan, atau kepanitiaan sendiri\? Buka layanan sendiri/i)
     ).toBeNull();
     expect(sessionStorage.getItem('rw_auto_tenant_redirect_done')).toBeNull();
   });

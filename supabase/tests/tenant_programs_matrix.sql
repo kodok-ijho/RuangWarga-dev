@@ -321,8 +321,8 @@ BEGIN
   PERFORM set_config('request.jwt.claim.role', 'authenticated', true);
   EXECUTE 'SET LOCAL ROLE authenticated';
 
-  INSERT INTO public.expenses (tenant_id, category, amount, description, program_id, budget_item_id, recorded_by)
-  VALUES (v_tenant_t, 'Konsumsi', 2000000, 'Beli snack panitia', v_program_p, v_budget_konsumsi_id, v_member_b)
+  INSERT INTO public.expenses (tenant_id, category, amount, description, expense_date, program_id, budget_item_id, recorded_by)
+  VALUES (v_tenant_t, 'Konsumsi', 2000000, 'Beli snack panitia', CURRENT_DATE, v_program_p, v_budget_konsumsi_id, v_member_b)
   RETURNING id INTO v_expense_c5_id;
 
   INSERT INTO public.non_ipl_incomes (tenant_id, income_date, amount, category, source_name, description, program_id, budget_item_id, recorded_by)
@@ -343,8 +343,8 @@ BEGIN
 
   v_caught := false;
   BEGIN
-    INSERT INTO public.expenses (tenant_id, category, amount, description, program_id)
-    VALUES (v_tenant_t, 'Konsumsi', 100000, 'Cross tenant expense', v_program_p2);
+    INSERT INTO public.expenses (tenant_id, category, amount, description, expense_date, program_id)
+    VALUES (v_tenant_t, 'Konsumsi', 100000, 'Cross tenant expense', CURRENT_DATE, v_program_p2);
   EXCEPTION WHEN foreign_key_violation THEN
     v_caught := true;
   END;
@@ -363,8 +363,8 @@ BEGIN
 
   v_caught := false;
   BEGIN
-    INSERT INTO public.expenses (tenant_id, category, amount, description, program_id, budget_item_id)
-    VALUES (v_tenant_t, 'Konsumsi', 100000, 'Mismatch program budget', v_program_p, v_budget_item_q_id);
+    INSERT INTO public.expenses (tenant_id, category, amount, description, expense_date, program_id, budget_item_id)
+    VALUES (v_tenant_t, 'Konsumsi', 100000, 'Mismatch program budget', CURRENT_DATE, v_program_p, v_budget_item_q_id);
   EXCEPTION WHEN foreign_key_violation THEN
     v_caught := true;
   END;

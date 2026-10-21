@@ -1212,7 +1212,7 @@ export default function ProgramDetail() {
               >
                 <option value="planning">Perencanaan</option>
                 <option value="running">Berjalan</option>
-                <option value="completed">Selesai</option>
+                <option value="done">Selesai</option>
                 <option value="archived">Arsip</option>
               </select>
             </div>
@@ -1250,7 +1250,7 @@ export default function ProgramDetail() {
             Pilih status kegiatan acara saat ini:
           </p>
           <div className="space-y-2">
-            {['planning', 'running', 'completed', 'archived'].map((st) => (
+            {['planning', 'running', 'done', 'archived'].map((st) => (
               <label
                 key={st}
                 className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${

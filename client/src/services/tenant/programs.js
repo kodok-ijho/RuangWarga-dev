@@ -291,7 +291,7 @@ export async function fetchPrograms(tenantId, { status } = {}) {
 
   let query = supabase
     .from('tenant_programs')
-    .select('*, lead_member:tenant_members(id, name)')
+    .select('*, lead_member:tenant_members(id, full_name)')
     .eq('tenant_id', tenantId)
     .order('starts_on', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false });
@@ -332,7 +332,7 @@ export async function fetchProgram(tenantId, programId) {
 
   const { data, error } = await supabase
     .from('tenant_programs')
-    .select('*, lead_member:tenant_members(id, name)')
+    .select('*, lead_member:tenant_members(id, full_name)')
     .eq('tenant_id', tenantId)
     .eq('id', programId)
     .single();
@@ -375,7 +375,7 @@ export async function createProgram(
   const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
   if (isDemoOrMock) {
     const newProg = {
-      id: `prog-${Date.now()}`,
+      id: `prog-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       tenant_id: tenantId,
       name: trimmedName,
       description: description ? String(description).trim() : '',
@@ -409,7 +409,7 @@ export async function createProgram(
   const { data, error } = await supabase
     .from('tenant_programs')
     .insert(payload)
-    .select('*, lead_member:tenant_members(id, name)')
+    .select('*, lead_member:tenant_members(id, full_name)')
     .single();
 
   if (error) {
@@ -495,7 +495,7 @@ export async function updateProgram(tenantId, programId, fields = {}) {
     .update(updatePayload)
     .eq('tenant_id', tenantId)
     .eq('id', programId)
-    .select('*, lead_member:tenant_members(id, name)')
+    .select('*, lead_member:tenant_members(id, full_name)')
     .single();
 
   if (error) {
@@ -641,7 +641,7 @@ export async function createBudgetItem(
   if (isDemoOrMock) {
     const calculatedAmount = Math.round(numQty * numPrice * 100) / 100;
     const newItem = {
-      id: `budget-${Date.now()}`,
+      id: `budget-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       tenant_id: tenantId,
       program_id: programId,
       kind: validKind,
