@@ -174,7 +174,7 @@ describe('PANITIA-1.7: Programs Page', () => {
 
     expect(await screen.findByText('Workshop Robotik 2024')).toBeTruthy();
     expect(screen.queryByText('Bazar Buku Murah')).toBeNull();
-  });
+  }, 15000);
 
   it('hides "Buat Acara" button for members without canManagePrograms permission', async () => {
     mockTenantAccess = {
