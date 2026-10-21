@@ -138,4 +138,33 @@ describe('KosSetupWizard - saveKosSetupUnitsAndInvite (VERT-1.4)', () => {
     expect(result.createdCount).toBe(2);
     expect(result.skippedCount).toBe(1);
   });
+
+  it('KOS-1.3: harga per baris kamar terbawa ke default_rent_price pada metadata kamar', async () => {
+    mockFetchUnits.mockResolvedValue([]);
+    mockFetchCode.mockResolvedValue('CODE-123');
+
+    const roomList = [
+      { label: 'Kamar A1', price: 1200000 },
+      { label: 'Kamar A2', price: 1500000 },
+      { label: 'Kamar VIP', price: 2000000 },
+    ];
+
+    const result = await saveKosSetupUnitsAndInvite({
+      tenantId: TENANT_ID,
+      roomList,
+      kosName: KOS_NAME,
+      defaultRentPrice: 1000000,
+      fetchUnits: mockFetchUnits,
+      createUnits: mockCreateUnits,
+      fetchCode: mockFetchCode,
+      saveCode: mockSaveCode,
+    });
+
+    const createdArg = mockCreateUnits.mock.calls[0][1];
+    expect(createdArg).toHaveLength(3);
+    expect(createdArg[0].metadata.default_rent_price).toBe(1200000);
+    expect(createdArg[1].metadata.default_rent_price).toBe(1500000);
+    expect(createdArg[2].metadata.default_rent_price).toBe(2000000);
+    expect(result.createdCount).toBe(3);
+  });
 });

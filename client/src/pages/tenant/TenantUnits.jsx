@@ -19,6 +19,8 @@ import { useTenant } from '../../hooks/useTenant';
 import { useTenantTemplate } from '../../hooks/useTenantTemplate';
 import { useToast } from '../../hooks/useToast';
 import { useSubscriptionGate } from '../../hooks/useSubscriptionGate';
+import { formatRupiah } from '../../services/dataHelpers';
+import { KOS_FACILITIES } from '../../config/kosFacilities';
 import {
   fetchTenantUnits,
   createTenantUnit,
@@ -111,6 +113,8 @@ export default function TenantUnits() {
   const [formOccupantPhone, setFormOccupantPhone] = useState('');
   const [formOccupancyStatus, setFormOccupancyStatus] = useState('owner_occupied');
   const [formOccupantNote, setFormOccupantNote] = useState('');
+  const [formRentPrice, setFormRentPrice] = useState('');
+  const [formFacilities, setFormFacilities] = useState([]);
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -199,6 +203,8 @@ export default function TenantUnits() {
     setFormOccupantPhone('');
     setFormOccupancyStatus('owner_occupied');
     setFormOccupantNote('');
+    setFormRentPrice('');
+    setFormFacilities([]);
     setFormError('');
   };
 
@@ -211,6 +217,14 @@ export default function TenantUnits() {
     setFormOccupantPhone(occ.phone || '');
     setFormOccupancyStatus(occ.occupancy_status || 'owner_occupied');
     setFormOccupantNote(occ.note || '');
+    setFormRentPrice(
+      unit.metadata?.default_rent_price !== undefined && unit.metadata?.default_rent_price !== null
+        ? String(unit.metadata.default_rent_price)
+        : ''
+    );
+    setFormFacilities(
+      Array.isArray(unit.metadata?.facilities) ? [...unit.metadata.facilities] : []
+    );
     setFormError('');
   };
 
@@ -220,6 +234,12 @@ export default function TenantUnits() {
     const cleanLabel = formLabel.trim();
     if (!cleanLabel) {
       setFormError(`Label ${unitLabel.toLowerCase()} wajib diisi.`);
+      return;
+    }
+
+    const rentPriceNum = formRentPrice !== '' ? Number(formRentPrice) : undefined;
+    if (rentPriceNum !== undefined && (isNaN(rentPriceNum) || rentPriceNum < 0)) {
+      setFormError('Harga sewa harus berupa angka yang lebih besar atau sama dengan 0.');
       return;
     }
 
@@ -233,17 +253,26 @@ export default function TenantUnits() {
       note: formOccupantNote.trim() || undefined,
     };
 
+    const newUnitStatus = (tenantType === 'kos' || tenantType === 'kelas') ? 'vacant' : 'active';
+    const rentPricePayload = tenantType === 'kos' ? rentPriceNum : undefined;
+    const facilitiesPayload = tenantType === 'kos' ? formFacilities : undefined;
+
     try {
       if (modalUnit.mode === 'add') {
         await createTenantUnit(tenantId, {
           label: cleanLabel,
           occupant: occupantPayload,
+          status: newUnitStatus,
+          rentPrice: rentPricePayload,
+          facilities: facilitiesPayload,
         });
         toast.success(`${unitLabel} "${cleanLabel}" berhasil ditambahkan.`);
       } else {
         await updateTenantUnit(tenantId, modalUnit.unit.id, {
           label: cleanLabel,
           occupant: occupantPayload,
+          rentPrice: rentPricePayload,
+          facilities: facilitiesPayload,
         });
         toast.success(`${unitLabel} "${cleanLabel}" berhasil diperbarui.`);
       }
@@ -520,6 +549,7 @@ export default function TenantUnits() {
                   <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
                     <th className="py-3 px-4">{unitLabel}</th>
                     <th className="py-3 px-4">Status</th>
+                    {tenantType === 'kos' && <th className="py-3 px-4">Harga & Fasilitas</th>}
                     <th className="py-3 px-4">Penghuni</th>
                     <th className="py-3 px-4">Anggota Tertaut</th>
                     {canManage && <th className="py-3 px-4 text-right">Aksi</th>}
@@ -547,6 +577,20 @@ export default function TenantUnits() {
                             {statusBadge.label}
                           </span>
                         </td>
+                        {tenantType === 'kos' && (
+                          <td className="py-3.5 px-4 text-slate-700">
+                            <div className="font-semibold text-slate-900">
+                              {u.metadata?.default_rent_price !== undefined && u.metadata?.default_rent_price !== null
+                                ? `${formatRupiah(u.metadata.default_rent_price)} / bln`
+                                : '—'}
+                            </div>
+                            <div className="text-[11px] text-slate-500">
+                              {Array.isArray(u.metadata?.facilities) && u.metadata.facilities.length > 0
+                                ? `${u.metadata.facilities.length} fasilitas`
+                                : '0 fasilitas'}
+                            </div>
+                          </td>
+                        )}
                         <td className="py-3.5 px-4 text-slate-700">
                           {occ && occ.name ? (
                             <div className="space-y-0.5">
@@ -663,6 +707,31 @@ export default function TenantUnits() {
                     </span>
                   </div>
 
+                  {tenantType === 'kos' && (
+                    <div className="flex items-center justify-between text-xs text-slate-700 bg-slate-50/70 p-2.5 rounded-lg border border-slate-100">
+                      <div>
+                        <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                          Harga Sewa:
+                        </div>
+                        <div className="font-bold text-slate-900">
+                          {u.metadata?.default_rent_price !== undefined && u.metadata?.default_rent_price !== null
+                            ? `${formatRupiah(u.metadata.default_rent_price)} / bln`
+                            : '—'}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                          Fasilitas:
+                        </div>
+                        <div className="text-slate-600 font-medium">
+                          {Array.isArray(u.metadata?.facilities) && u.metadata.facilities.length > 0
+                            ? `${u.metadata.facilities.length} fasilitas`
+                            : '0 fasilitas'}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="text-xs space-y-1 bg-slate-50/70 p-2.5 rounded-lg border border-slate-100">
                     <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                       Penghuni:
@@ -770,6 +839,64 @@ export default function TenantUnits() {
                 className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition"
               />
             </div>
+
+            {tenantType === 'kos' && (
+              <div className="pt-2 border-t border-slate-200 space-y-3">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">
+                  Harga & Fasilitas Kamar
+                </h4>
+
+                <div>
+                  <label htmlFor="rentPriceInput" className="block text-xs font-bold text-slate-700 mb-1">
+                    Harga sewa per bulan (Rp)
+                  </label>
+                  <input
+                    id="rentPriceInput"
+                    type="number"
+                    min="0"
+                    value={formRentPrice}
+                    onChange={(e) => setFormRentPrice(e.target.value)}
+                    placeholder="Misal: 1500000"
+                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Fasilitas Kamar
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {KOS_FACILITIES.map((fac) => {
+                      const checked = formFacilities.includes(fac);
+                      return (
+                        <label
+                          key={fac}
+                          className={`flex items-center gap-2 p-2 rounded-lg border text-xs cursor-pointer transition ${
+                            checked
+                              ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-semibold'
+                              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormFacilities([...formFacilities, fac]);
+                              } else {
+                                setFormFacilities(formFacilities.filter((f) => f !== fac));
+                              }
+                            }}
+                            className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                          />
+                          <span>{fac}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="pt-2 border-t border-slate-200">
               <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">

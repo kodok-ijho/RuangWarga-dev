@@ -28,18 +28,9 @@ import {
 } from '../../services/tenantOperationalService';
 import { selectNewUnitLabels } from '../../utils/unitLabels';
 import { formatRupiah } from '../../services/dataHelpers';
+import { KOS_FACILITIES } from '../../config/kosFacilities';
 
-const COMMON_FACILITIES = [
-  'AC',
-  'Kamar Mandi Dalam',
-  'Kasur & Bantal',
-  'Lemari Pakaian',
-  'Meja Belajar',
-  'WiFi Internet',
-  'Water Heater',
-  'Dapur Bersama',
-  'Listrik Token Mandiri',
-];
+const COMMON_FACILITIES = KOS_FACILITIES;
 
 /**
  * Logika murni penyimpanan kamar dan kode undangan kos (VERT-1.4)
@@ -728,28 +719,53 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs text-slate-500 px-1">
                 <span>Daftar Kamar ({roomList.length} unit terdaftar)</span>
-                <span>Status Awal</span>
+                <span>Tarif Sewa (Rp)</span>
               </div>
+              <p className="text-[11px] text-slate-500 italic px-1">
+                Fasilitas per kamar bisa diubah di halaman Kamar.
+              </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-72 overflow-y-auto pr-1">
                 {roomList.map((r) => (
                   <div
                     key={r.id}
-                    className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between gap-2 shadow-xs"
+                    className="p-3 rounded-xl bg-white border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs"
                   >
-                    <div>
-                      <strong className="text-xs text-slate-900 block">{r.label}</strong>
+                    <div className="min-w-0 flex-1">
+                      <strong className="text-xs text-slate-900 block truncate">{r.label}</strong>
                       <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 inline-block mt-0.5 font-semibold">
                         Siap Huni (Vacant)
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveRoom(r.id)}
-                      title="Hapus kamar"
-                      className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs transition-colors"
-                    >
-                      <AiOutlineDelete />
-                    </button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-slate-500 font-medium">Rp</span>
+                        <input
+                          type="number"
+                          min="0"
+                          aria-label={`Harga ${r.label}`}
+                          value={r.price !== undefined ? r.price : defaultRentPrice}
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? '' : Number(e.target.value);
+                            setRoomList((prev) =>
+                              prev.map((item) =>
+                                item.id === r.id ? { ...item, price: val } : item
+                              )
+                            );
+                          }}
+                          placeholder={String(defaultRentPrice)}
+                          className="w-24 sm:w-28 px-2 py-1 text-xs border border-slate-300 rounded-lg text-right font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveRoom(r.id)}
+                        title="Hapus kamar"
+                        aria-label={`Hapus ${r.label}`}
+                        className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs transition-colors"
+                      >
+                        <AiOutlineDelete />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

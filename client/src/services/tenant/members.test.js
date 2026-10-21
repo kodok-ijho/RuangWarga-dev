@@ -197,6 +197,55 @@ A-05,Doni,,lainnya,
         createTenantUnit(demoTenantId, { label: 'blok demo-99' })
       ).rejects.toThrow('Unit dengan label "blok demo-99" sudah ada.');
     });
+
+    it('KOS-1.3: menyimpan rentPrice dan facilities di metadata dengan status vacant', async () => {
+      let insertedPayload = null;
+      fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+        if (table === 'tenant_units') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({
+                data: [],
+                error: null,
+              }),
+            }),
+            insert: vi.fn().mockImplementation((payload) => {
+              insertedPayload = payload;
+              return {
+                select: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: { id: 3, ...payload },
+                    error: null,
+                  }),
+                }),
+              };
+            }),
+          };
+        }
+        return {};
+      });
+
+      const res = await createTenantUnit(TENANT_ID, {
+        label: 'Kamar 101',
+        status: 'vacant',
+        rentPrice: 1500000,
+        facilities: ['  AC  ', 'WiFi', 'AC', '   ', 'Kamar Mandi'],
+      });
+
+      expect(insertedPayload.status).toBe('vacant');
+      expect(insertedPayload.metadata.default_rent_price).toBe(1500000);
+      expect(insertedPayload.metadata.facilities).toEqual(['AC', 'WiFi', 'Kamar Mandi']);
+      expect(res.id).toBe(3);
+    });
+
+    it('KOS-1.3: melempar error jika rentPrice negatif', async () => {
+      await expect(
+        createTenantUnit(TENANT_ID, {
+          label: 'Kamar 102',
+          rentPrice: -50000,
+        })
+      ).rejects.toThrow('Harga sewa harus berupa angka yang lebih besar atau sama dengan 0.');
+    });
   });
 
   describe('updateTenantUnit', () => {
@@ -336,6 +385,69 @@ A-05,Doni,,lainnya,
       });
       expect(updated).toBeDefined();
       expect(updated.metadata.occupant.name).toBe('Warga Demo Terupdate');
+    });
+
+    it('KOS-1.3: menyimpan harga dan fasilitas di metadata tanpa menghapus contract_start / tenant_member_id', async () => {
+      let capturedPayload = null;
+      fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+        if (table === 'tenant_units') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: {
+                      id: UNIT_ID,
+                      tenant_id: TENANT_ID,
+                      label: 'Kamar 105',
+                      status: 'occupied',
+                      metadata: {
+                        contract_start: '2026-01-01',
+                        tenant_member_id: 'member-abc-123',
+                        occupant: { name: 'Penyewa Ada' },
+                      },
+                    },
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+            update: vi.fn().mockImplementation((payload) => {
+              capturedPayload = payload;
+              return {
+                eq: vi.fn().mockReturnValue({
+                  eq: vi.fn().mockReturnValue({
+                    select: vi.fn().mockReturnValue({
+                      single: vi.fn().mockResolvedValue({
+                        data: { id: UNIT_ID, ...payload },
+                        error: null,
+                      }),
+                    }),
+                  }),
+                }),
+              };
+            }),
+          };
+        }
+        return {};
+      });
+
+      await updateTenantUnit(TENANT_ID, UNIT_ID, {
+        rentPrice: 1750000,
+        facilities: ['AC', 'WiFi', 'Kasur'],
+      });
+
+      expect(capturedPayload.metadata.default_rent_price).toBe(1750000);
+      expect(capturedPayload.metadata.facilities).toEqual(['AC', 'WiFi', 'Kasur']);
+      expect(capturedPayload.metadata.contract_start).toBe('2026-01-01');
+      expect(capturedPayload.metadata.tenant_member_id).toBe('member-abc-123');
+      expect(capturedPayload.metadata.occupant.name).toBe('Penyewa Ada');
+    });
+
+    it('KOS-1.3: menolak update unit dengan harga negatif', async () => {
+      await expect(
+        updateTenantUnit(TENANT_ID, UNIT_ID, { rentPrice: -1000 })
+      ).rejects.toThrow('Harga sewa harus berupa angka yang lebih besar atau sama dengan 0.');
     });
   });
 

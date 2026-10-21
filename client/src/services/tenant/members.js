@@ -410,6 +410,33 @@ export function normalizeOccupant(occupant) {
   return result;
 }
 
+export function validateRentPrice(rentPrice) {
+  if (rentPrice === undefined || rentPrice === null || rentPrice === '') return undefined;
+  const num = Number(rentPrice);
+  if (isNaN(num) || num < 0) {
+    throw new Error('Harga sewa harus berupa angka yang lebih besar atau sama dengan 0.');
+  }
+  return num;
+}
+
+export function validateFacilities(facilities) {
+  if (facilities === undefined || facilities === null) return undefined;
+  if (!Array.isArray(facilities)) {
+    throw new Error('Fasilitas harus berupa array.');
+  }
+  const cleanList = [];
+  const seen = new Set();
+  for (const item of facilities) {
+    if (typeof item !== 'string') continue;
+    const trimmed = item.trim();
+    if (trimmed && !seen.has(trimmed)) {
+      seen.add(trimmed);
+      cleanList.push(trimmed);
+    }
+  }
+  return cleanList;
+}
+
 /**
  * Parsing konten CSV unit menjadi baris terstruktur untuk importTenantUnitsCSV.
  * Menerima variasi header case-insensitive: label, nama_penghuni, hp, status_tinggal, catatan.
@@ -474,12 +501,31 @@ export function parseUnitsCsv(text) {
  * @param {string} tenantId
  * @param {Object} payload - { label: string, occupant?: Object }
  */
-export async function createTenantUnit(tenantId, { label, occupant } = {}) {
+export async function createTenantUnit(
+  tenantId,
+  { label, occupant, status, rentPrice, facilities } = {}
+) {
   if (!tenantId) throw new Error('Tenant ID wajib disertakan.');
 
   const trimmedLabel = typeof label === 'string' ? label.trim() : '';
   if (!trimmedLabel) {
     throw new Error('Label unit wajib diisi.');
+  }
+
+  const validStatus = status === 'vacant' ? 'vacant' : (status === 'inactive' ? 'inactive' : 'active');
+  const validatedPrice = validateRentPrice(rentPrice);
+  const validatedFacilities = validateFacilities(facilities);
+
+  const normOcc = normalizeOccupant(occupant);
+  const initialMetadata = {};
+  if (Object.keys(normOcc).length > 0) {
+    initialMetadata.occupant = normOcc;
+  }
+  if (validatedPrice !== undefined) {
+    initialMetadata.default_rent_price = validatedPrice;
+  }
+  if (validatedFacilities !== undefined) {
+    initialMetadata.facilities = validatedFacilities;
   }
 
   const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
@@ -493,13 +539,12 @@ export async function createTenantUnit(tenantId, { label, occupant } = {}) {
       throw new Error(`Unit dengan label "${trimmedLabel}" sudah ada.`);
     }
 
-    const normOcc = normalizeOccupant(occupant);
     const newUnit = {
       id: Date.now(),
       tenant_id: tenantId,
       label: trimmedLabel,
-      status: 'active',
-      metadata: Object.keys(normOcc).length > 0 ? { occupant: normOcc } : {},
+      status: validStatus,
+      metadata: initialMetadata,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -526,12 +571,11 @@ export async function createTenantUnit(tenantId, { label, occupant } = {}) {
     throw new Error(`Unit dengan label "${trimmedLabel}" sudah ada.`);
   }
 
-  const normOcc = normalizeOccupant(occupant);
   const payload = {
     tenant_id: tenantId,
     label: trimmedLabel,
-    status: 'active',
-    metadata: Object.keys(normOcc).length > 0 ? { occupant: normOcc } : {},
+    status: validStatus,
+    metadata: initialMetadata,
   };
 
   const { data, error } = await supabase
@@ -557,10 +601,17 @@ export async function createTenantUnit(tenantId, { label, occupant } = {}) {
  * @param {number|string} unitId
  * @param {Object} fields - { label?: string, status?: string, occupant?: Object }
  */
-export async function updateTenantUnit(tenantId, unitId, { label, status, occupant } = {}) {
+export async function updateTenantUnit(
+  tenantId,
+  unitId,
+  { label, status, occupant, rentPrice, facilities } = {}
+) {
   if (!tenantId || !unitId) {
     throw new Error('Tenant ID dan Unit ID wajib disertakan.');
   }
+
+  const validatedPrice = validateRentPrice(rentPrice);
+  const validatedFacilities = validateFacilities(facilities);
 
   const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
 
@@ -594,20 +645,23 @@ export async function updateTenantUnit(tenantId, unitId, { label, status, occupa
       updatedStatus = status;
     }
 
-    let updatedMetadata = oldUnit.metadata || {};
+    let updatedMetadata = { ...(oldUnit.metadata || {}) };
     if (occupant !== undefined) {
       const oldOccupant =
-        oldUnit.metadata && typeof oldUnit.metadata.occupant === 'object' && oldUnit.metadata.occupant !== null
-          ? oldUnit.metadata.occupant
+        updatedMetadata && typeof updatedMetadata.occupant === 'object' && updatedMetadata.occupant !== null
+          ? updatedMetadata.occupant
           : {};
       const cleanOccupant = normalizeOccupant(occupant);
-      updatedMetadata = {
-        ...updatedMetadata,
-        occupant: {
-          ...oldOccupant,
-          ...cleanOccupant,
-        },
+      updatedMetadata.occupant = {
+        ...oldOccupant,
+        ...cleanOccupant,
       };
+    }
+    if (validatedPrice !== undefined) {
+      updatedMetadata.default_rent_price = validatedPrice;
+    }
+    if (validatedFacilities !== undefined) {
+      updatedMetadata.facilities = validatedFacilities;
     }
 
     const updatedUnit = {
@@ -675,23 +729,38 @@ export async function updateTenantUnit(tenantId, unitId, { label, status, occupa
     updatePayload.status = status;
   }
 
+  const oldMetadata =
+    oldUnit.metadata && typeof oldUnit.metadata === 'object' && oldUnit.metadata !== null
+      ? oldUnit.metadata
+      : {};
+  let updatedMetadata = { ...oldMetadata };
+  let hasMetadataChange = false;
+
   if (occupant !== undefined) {
-    const oldMetadata =
-      oldUnit.metadata && typeof oldUnit.metadata === 'object' && oldUnit.metadata !== null
-        ? oldUnit.metadata
-        : {};
     const oldOccupant =
       oldMetadata.occupant && typeof oldMetadata.occupant === 'object' && oldMetadata.occupant !== null
         ? oldMetadata.occupant
         : {};
     const cleanOccupant = normalizeOccupant(occupant);
-    updatePayload.metadata = {
-      ...oldMetadata,
-      occupant: {
-        ...oldOccupant,
-        ...cleanOccupant,
-      },
+    updatedMetadata.occupant = {
+      ...oldOccupant,
+      ...cleanOccupant,
     };
+    hasMetadataChange = true;
+  }
+
+  if (validatedPrice !== undefined) {
+    updatedMetadata.default_rent_price = validatedPrice;
+    hasMetadataChange = true;
+  }
+
+  if (validatedFacilities !== undefined) {
+    updatedMetadata.facilities = validatedFacilities;
+    hasMetadataChange = true;
+  }
+
+  if (hasMetadataChange) {
+    updatePayload.metadata = updatedMetadata;
   }
 
   const { data, error } = await supabase
