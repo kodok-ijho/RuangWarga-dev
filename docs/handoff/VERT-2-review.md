@@ -36,7 +36,7 @@ Ketiganya ditulis tanpa dijalankan (tidak ada akses database dari HP).
   - alur owner: terbitkan iuran → setoran tunai (`cash`/`completed`, sama dengan VERT-1.2) → tagihan `paid` → putaran `ready_to_draw`;
   - A2: `drawn_by` dan `last_cycle_reset_by` = member owner walaupun klien mengirim ID palsu;
   - `has_won` tetap setelah slot pemenang diganti.
-- Hasil dry-run: _menunggu user_.
+- Hasil dry-run: **lulus** ("Success" di SQL Editor, dijalankan user 2026-10-21). Penerapan: artifact "Terapkan VERT-2".
 
 ## Langkah berikut
 1. User menjalankan dry-run. Bila lulus, migration diterapkan ke dev (artifact "Terapkan VERT-2"), lalu ketiga test SQL dijalankan setelah VERT-2F.
