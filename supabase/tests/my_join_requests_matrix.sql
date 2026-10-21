@@ -29,7 +29,7 @@ DECLARE
   v_tenant_z       UUID;
 
   -- Unit ID
-  v_unit_x_id      UUID := gen_random_uuid();
+  v_unit_x_id      BIGINT;
 
   -- Base role
   v_role_x_id      UUID;
@@ -100,8 +100,9 @@ BEGIN
   RETURNING id INTO v_tenant_z;
 
   -- 2.3 Unit di Tenant X
-  INSERT INTO public.tenant_units (id, tenant_id, label, status)
-  VALUES (v_unit_x_id, v_tenant_x, 'Kamar 101', 'vacant');
+  INSERT INTO public.tenant_units (tenant_id, label, status)
+  VALUES (v_tenant_x, 'Kamar 101', 'vacant')
+  RETURNING id INTO v_unit_x_id;
 
   -- 2.4 Ambil base role tiap tenant
   SELECT id INTO v_role_x_id FROM public.tenant_roles WHERE tenant_id = v_tenant_x AND is_base_role = true LIMIT 1;
