@@ -108,13 +108,23 @@ export function calculateBillingPreview({
     }
 
     if (isKelas) {
-      const sppPrice = Number(u.metadata?.expected_spp || settings.spp_amount || 200000);
       const member = unitMemberMap.get(u.id) || null;
+      if (!member) {
+        skipped.push({
+          unit_id: u.id,
+          label: u.label,
+          unit_label: u.label,
+          reason: 'no_student',
+        });
+        return;
+      }
+
+      const sppPrice = Number(u.metadata?.expected_spp || settings.spp_amount || 200000);
 
       preview.push({
         tenant_id: tenantId,
         unit_id: u.id,
-        member_id: member?.id || null,
+        member_id: member.id,
         period,
         amount: sppPrice,
         late_fee: 0,
@@ -127,11 +137,11 @@ export function calculateBillingPreview({
           subject: settings.subject || '',
           instructor_name: settings.instructor_name || '',
           unit_label: u.label,
-          member_name: member?.full_name || 'Slot Siswa',
+          member_name: member.full_name || 'Slot Siswa',
           auto_generated: true,
         },
         unit_info: u.label,
-        resident_name: member?.full_name || 'Slot Siswa',
+        resident_name: member.full_name || 'Slot Siswa',
       });
       return;
     }

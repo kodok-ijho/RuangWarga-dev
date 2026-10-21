@@ -704,6 +704,10 @@ describe('tenantOperationalService - Unit Tests', () => {
         { id: 'seat-3', label: 'Siswa #03', status: 'inactive' }, // tidak boleh ditagih
       ];
 
+      const memberMap = new Map();
+      memberMap.set('seat-1', { id: 'mem-1', full_name: 'Siswa Satu' });
+      memberMap.set('seat-2', { id: 'mem-2', full_name: 'Siswa Dua' });
+
       const mockSettings = {
         class_type: 'reguler',
         subject: 'Matematika',
@@ -718,12 +722,13 @@ describe('tenantOperationalService - Unit Tests', () => {
         period: '2026-10',
         units: mockUnits,
         settings: mockSettings,
+        unitMemberMap: memberMap,
         existingUnitIds: new Set(),
       });
 
       expect(previewResult).toBeDefined();
       expect(previewResult.dueDate).toBe('2026-10-10');
-      expect(previewResult.preview).toHaveLength(2); // hanya 2 unit aktif
+      expect(previewResult.preview).toHaveLength(2); // hanya 2 unit aktif bersiswa
 
       // Slot 1 menggunakan expected_spp dari metadata
       expect(previewResult.preview[0].amount).toBe(250000);
@@ -736,6 +741,77 @@ describe('tenantOperationalService - Unit Tests', () => {
 
       // Grand total = 250.000 + 200.000 = 450.000
       expect(previewResult.grandTotalAmount).toBe(450000);
+    });
+
+    it('VERT-1.5: tenant kelas dengan 3 slot, hanya 1 yang punya anggota → 1 tagihan, 2 skipped no_student', () => {
+      const mockUnits = [
+        { id: 1, label: 'Slot 1', status: 'active', metadata: { expected_spp: 250000 } },
+        { id: 2, label: 'Slot 2', status: 'active', metadata: {} },
+        { id: 3, label: 'Slot 3', status: 'vacant', metadata: {} },
+      ];
+      const memberMap = new Map();
+      memberMap.set(1, { id: 'mem-1', full_name: 'Budi Santoso' });
+
+      const mockSettings = {
+        class_type: 'reguler',
+        subject: 'Fisika',
+        instructor_name: 'Pak Ahmad',
+        spp_amount: 200000,
+        due_day: 10,
+      };
+
+      const result = calculateBillingPreview({
+        tenantId: 'tenant-kelas-456',
+        tenantType: 'kelas',
+        period: '2026-10',
+        units: mockUnits,
+        settings: mockSettings,
+        unitMemberMap: memberMap,
+        existingUnitIds: new Set(),
+      });
+
+      expect(result.preview).toHaveLength(1);
+      expect(result.preview[0].unit_id).toBe(1);
+      expect(result.preview[0].amount).toBe(250000);
+      expect(result.preview[0].member_id).toBe('mem-1');
+
+      expect(result.skipped).toHaveLength(2);
+      expect(result.skipped).toEqual([
+        expect.objectContaining({ unit_id: 2, reason: 'no_student' }),
+        expect.objectContaining({ unit_id: 3, reason: 'no_student' }),
+      ]);
+    });
+
+    it('VERT-1.5: tenant kos dan rt_rw tidak berubah perilakunya dengan keberadaan/ketiadaan siswa', () => {
+      // RT/RW tetap menagih unit aktif meskipun tidak ada di memberMap (tagihan rumah)
+      const rtrwUnits = [
+        { id: 10, label: 'Rumah A1', status: 'active' },
+      ];
+      const rtrwRes = calculateBillingPreview({
+        tenantId: 'tenant-rtrw-1',
+        tenantType: 'rt_rw',
+        period: '2026-10',
+        units: rtrwUnits,
+        settings: { ipl_components: [{ name: 'IPL', amount: 100000 }], due_day: 10 },
+        unitMemberMap: new Map(), // kosong
+      });
+      expect(rtrwRes.preview).toHaveLength(1);
+      expect(rtrwRes.skipped).toHaveLength(0);
+
+      // Kos tetap memfilter berdasarkan kontrak & vacant
+      const kosRooms = [
+        { id: 20, label: 'Kamar 1', status: 'vacant' },
+      ];
+      const kosRes = calculateBillingPreview({
+        tenantId: 'tenant-kos-1',
+        tenantType: 'kos',
+        period: '2026-10',
+        units: kosRooms,
+        settings: { billing_due_day: 5 },
+        unitMemberMap: new Map(),
+      });
+      expect(kosRes.preview).toHaveLength(0);
+      expect(kosRes.skipped[0].reason).toBe('room_vacant');
     });
 
     it('generateKelasSppBilling memanggil pembuatan tagihan berkala SPP dengan validasi yang benar', async () => {

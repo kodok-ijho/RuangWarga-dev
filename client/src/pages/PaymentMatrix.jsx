@@ -298,7 +298,7 @@ export default function PaymentMatrix() {
   const [isAutoGenerating, setIsAutoGenerating] = useState(false);
 
   const handleAutoGenerateBills = async () => {
-    const currentPeriod = new Date().toISOString().slice(0, 7);
+    const currentPeriod = getCurrentPeriodJakarta();
     const confirmMsg = `Buat tagihan sewa bulanan otomatis untuk periode ${currentPeriod}?\n\nHanya kamar berstatus terisi ('occupied') dengan masa kontrak aktif yang akan dibuatkan tagihannya. Tagihan yang sudah ada akan dilewati.`;
     if (!window.confirm(confirmMsg)) return;
 
@@ -319,7 +319,7 @@ export default function PaymentMatrix() {
   };
 
   const handleAutoGenerateKelasBills = async () => {
-    const currentPeriod = new Date().toISOString().slice(0, 7);
+    const currentPeriod = getCurrentPeriodJakarta();
     const confirmMsg = `Buat tagihan ${template.billLabel} bulanan otomatis untuk periode ${currentPeriod}?\n\nTagihan akan dibuatkan untuk seluruh slot siswa aktif. Tagihan yang sudah ada akan dilewati.`;
     if (!window.confirm(confirmMsg)) return;
 
@@ -697,7 +697,7 @@ export default function PaymentMatrix() {
     return myBills.filter((b) => b.status === 'unpaid' || b.status === 'rejected');
   }, [myBills]);
 
-  const currentPeriodStr = useMemo(() => new Date().toISOString().slice(0, 7), []);
+  const currentPeriodStr = useMemo(() => getCurrentPeriodJakarta(), []);
 
   const myCurrentBill = useMemo(() => {
     return myBills.find((b) => b.period === currentPeriodStr) || myBills[myBills.length - 1] || null;
