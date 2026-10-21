@@ -1,6 +1,6 @@
--- Test Suite: Arisan Auto Enroll Matrix (Task VERT-2.2)
+-- Test Suite: Arisan Auto Enroll Matrix (Task VERT-2.2 / VERT-2F.1)
 -- Date: 2026-10-21
--- Ref: docs/handoff/VERT-2.md § VERT-2.2
+-- Ref: docs/handoff/VERT-2.md § VERT-2.2 & docs/handoff/VERT-2F.md § VERT-2F.1
 --
 -- File ini memvalidasi pendaftaran otomatis peserta arisan via trigger sync_arisan_participant:
 -- 1. Kasus 1: Anggota pending dengan slot disetujui ('approved') -> 1 baris peserta dengan unit_slot_id = slot.
@@ -26,6 +26,7 @@ DECLARE
   v_slot_1          BIGINT;
   v_slot_2          BIGINT;
   v_unit_rtrw       BIGINT;
+  v_slot            BIGINT;
 
   v_tm_1_id         UUID := gen_random_uuid();
   v_tm_2_id         UUID := gen_random_uuid();
@@ -36,8 +37,15 @@ DECLARE
   v_participant     RECORD;
 BEGIN
   RAISE NOTICE '============================================================';
-  RAISE NOTICE 'MEMULAI TEST SUITE: ARISAN AUTO ENROLL MATRIX (VERT-2.2)';
+  RAISE NOTICE 'MEMULAI TEST SUITE: ARISAN AUTO ENROLL MATRIX (VERT-2.2 / VERT-2F.1)';
   RAISE NOTICE '============================================================';
+
+  -- 0. Setup Auth Users (FK constraint ke auth.users)
+  INSERT INTO auth.users (id, email, aud, role) VALUES
+    (v_owner_arisan, 'owner_arisan_auto@test.invalid', 'authenticated', 'authenticated'),
+    (v_member_1,     'member_1_auto@test.invalid',     'authenticated', 'authenticated'),
+    (v_member_2,     'member_2_auto@test.invalid',     'authenticated', 'authenticated'),
+    (v_member_rtrw,  'member_rtrw_auto@test.invalid',  'authenticated', 'authenticated');
 
   -- Setup Tenant Arisan
   INSERT INTO public.tenants (name, type, owner_id)
@@ -93,12 +101,12 @@ BEGIN
     RAISE EXCEPTION 'TEST 1 GAGAL: Anggota disetujui harus memiliki tepat 1 baris di arisan_participants (ditemukan %)', v_count;
   END IF;
 
-  SELECT unit_slot_id INTO v_participant.unit_slot_id
+  SELECT unit_slot_id INTO v_slot
   FROM public.arisan_participants
   WHERE tenant_id = v_tenant_arisan AND member_id = v_tm_1_id;
 
-  IF v_participant.unit_slot_id != v_slot_1 THEN
-    RAISE EXCEPTION 'TEST 1 GAGAL: unit_slot_id (%) tidak sesuai dengan slot_1 (%)', v_participant.unit_slot_id, v_slot_1;
+  IF v_slot != v_slot_1 THEN
+    RAISE EXCEPTION 'TEST 1 GAGAL: unit_slot_id (%) tidak sesuai dengan slot_1 (%)', v_slot, v_slot_1;
   END IF;
 
   -- ==============================================================================
@@ -134,12 +142,12 @@ BEGIN
     RAISE EXCEPTION 'TEST 3 GAGAL: Jumlah baris setelah ganti slot harus tetap 1 (ditemukan % baris)', v_count;
   END IF;
 
-  SELECT unit_slot_id INTO v_participant.unit_slot_id
+  SELECT unit_slot_id INTO v_slot
   FROM public.arisan_participants
   WHERE tenant_id = v_tenant_arisan AND member_id = v_tm_1_id;
 
-  IF v_participant.unit_slot_id != v_slot_2 THEN
-    RAISE EXCEPTION 'TEST 3 GAGAL: unit_slot_id (%) tidak terbarui ke slot_2 (%)', v_participant.unit_slot_id, v_slot_2;
+  IF v_slot != v_slot_2 THEN
+    RAISE EXCEPTION 'TEST 3 GAGAL: unit_slot_id (%) tidak terbarui ke slot_2 (%)', v_slot, v_slot_2;
   END IF;
 
   -- ==============================================================================
