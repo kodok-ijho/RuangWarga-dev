@@ -1,6 +1,6 @@
--- Test Suite: Arisan Operator Matrix (Task VERT-2.3)
+-- Test Suite: Arisan Operator Matrix (Task VERT-2.3 / VERT-2F.2)
 -- Date: 2026-10-21
--- Ref: docs/handoff/VERT-2.md § VERT-2.3
+-- Ref: docs/handoff/VERT-2.md § VERT-2.3 & docs/handoff/VERT-2F.md § VERT-2F.2
 --
 -- File ini memvalidasi penetapan identitas operator pengocokan arisan dan siklus baru:
 -- 1. draw_arisan_winner menetapkan drawn_by dari auth.uid() (tenant_members.id),
@@ -14,7 +14,7 @@ DO $$
 DECLARE
   -- Identitas Pengguna Auth
   v_owner_user_id       UUID := gen_random_uuid();
-  v_owner_member_id     UUID := gen_random_uuid();
+  v_owner_member_id     UUID;
   v_peserta_user_id     UUID := gen_random_uuid();
   v_peserta_member_id   UUID := gen_random_uuid();
 
@@ -33,17 +33,26 @@ DECLARE
   v_reset_by            UUID;
 BEGIN
   RAISE NOTICE '============================================================';
-  RAISE NOTICE 'MEMULAI TEST SUITE: ARISAN OPERATOR MATRIX (VERT-2.3)';
+  RAISE NOTICE 'MEMULAI TEST SUITE: ARISAN OPERATOR MATRIX (VERT-2.3 / VERT-2F.2)';
   RAISE NOTICE '============================================================';
+
+  -- 0. Set konteks service_role untuk bypass trigger check_arisan_round_readiness saat setup fixture
+  PERFORM set_config('request.jwt.claims', '{"role":"service_role"}', true);
+
+  -- 0.1 Setup Auth Users (FK constraint ke auth.users)
+  INSERT INTO auth.users (id, email, aud, role) VALUES
+    (v_owner_user_id,   'owner_arisan_op@test.invalid',   'authenticated', 'authenticated'),
+    (v_peserta_user_id, 'peserta_arisan_op@test.invalid', 'authenticated', 'authenticated');
 
   -- 1. Setup Tenant Arisan dengan owner
   INSERT INTO public.tenants (name, type, owner_id, settings)
   VALUES ('Arisan Operator Test', 'arisan', v_owner_user_id, '{"current_cycle": 1}'::jsonb)
   RETURNING id INTO v_tenant_id;
 
-  -- 2. Daftarkan owner sebagai tenant_members (is_owner = true)
-  INSERT INTO public.tenant_members (id, tenant_id, user_id, full_name, status, is_owner)
-  VALUES (v_owner_member_id, v_tenant_id, v_owner_user_id, 'Owner Arisan', 'approved', true);
+  -- 2. Dapatkan ID owner tenant_members yang dibuat otomatis oleh trigger tenant
+  SELECT id INTO v_owner_member_id
+  FROM public.tenant_members
+  WHERE tenant_id = v_tenant_id AND user_id = v_owner_user_id;
 
   -- 3. Setup Slot dan Peserta
   INSERT INTO public.tenant_units (tenant_id, label, status)
@@ -62,13 +71,12 @@ BEGIN
   INSERT INTO public.arisan_rounds (id, tenant_id, round_number, period, total_pool_amount, status)
   VALUES (v_round_id, v_tenant_id, 1, '2026-10', 250000, 'ready_to_draw');
 
-  -- 5. Setup Tagihan Lunas (paid) yang ditautkan ke putaran
-  INSERT INTO public.billing_items (tenant_id, unit_id, member_id, title, amount, status, period, metadata)
+  -- 5. Setup Tagihan Lunas (paid) yang ditautkan ke putaran (tanpa kolom title)
+  INSERT INTO public.billing_items (tenant_id, unit_id, member_id, amount, status, period, metadata)
   VALUES (
     v_tenant_id,
     v_slot_id,
     v_peserta_member_id,
-    'Iuran Putaran 1',
     250000,
     'paid',
     '2026-10',
