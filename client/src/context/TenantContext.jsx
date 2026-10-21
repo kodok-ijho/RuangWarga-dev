@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabaseClient';
+import { fetchMyJoinRequests } from '../services/tenantOperationalService';
 
 export const TenantContext = createContext(null);
 
@@ -110,6 +111,7 @@ export function TenantProvider({ children }) {
   const { user, profile, isAuthenticated, loading: authLoading } = useAuth();
 
   const [userTenants, setUserTenants] = useState([]);
+  const [joinRequests, setJoinRequests] = useState([]);
   const [activeTenantId, setActiveTenantIdState] = useState(() => {
     return localStorage.getItem(ACTIVE_TENANT_KEY) || null;
   });
@@ -131,6 +133,7 @@ export function TenantProvider({ children }) {
   const fetchTenantData = useCallback(async () => {
     if (!isAuthenticated) {
       setUserTenants([]);
+      setJoinRequests([]);
       setIsPlatformAdmin(false);
       setLoading(false);
       return;
@@ -310,6 +313,14 @@ export function TenantProvider({ children }) {
         setActiveTenantIdState(null);
         localStorage.removeItem(ACTIVE_TENANT_KEY);
       }
+
+      // Ambil permohonan keanggotaan user (pending/rejected) (KOS-1.4b)
+      try {
+        const requests = await fetchMyJoinRequests();
+        setJoinRequests(requests || []);
+      } catch (_reqErr) {
+        setJoinRequests([]);
+      }
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('[TenantContext] Failed to load tenant context:', err);
@@ -419,6 +430,7 @@ export function TenantProvider({ children }) {
     subscriptionStatus,
     userRole,
     userTenants,
+    joinRequests,
     isTenantAdmin,
     isPlatformAdmin,
     isOwner,

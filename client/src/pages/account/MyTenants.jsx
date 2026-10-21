@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   AiOutlinePlus,
   AiOutlineCheckCircle,
@@ -33,6 +33,7 @@ export default function MyTenants() {
   const { user, profile } = useAuth();
   const {
     userTenants,
+    joinRequests = [],
     activeTenantId,
     switchTenant,
     loading,
@@ -80,21 +81,112 @@ export default function MyTenants() {
         </div>
       )}
 
+      {/* ── Kartu Permohonan Bergabung (KOS-1.4b) ───────────────────────── */}
+      {!loading && joinRequests && joinRequests.length > 0 && (
+        <div className="space-y-3 mb-6">
+          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+            <span>Permohonan Bergabung</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">
+              {joinRequests.length}
+            </span>
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {joinRequests.map((req) => {
+              const reqTemplate = getTenantTemplate(req.tenant_type);
+              const isPending = req.status === 'pending';
+              const formattedDate = req.requested_at
+                ? new Date(req.requested_at).toLocaleDateString('id-ID', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })
+                : '—';
+
+              return (
+                <div
+                  key={req.member_id}
+                  className="rw-card p-4 sm:p-5 flex flex-col justify-between space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-2xl p-2 bg-slate-100 rounded-xl border border-slate-200 shrink-0">
+                        {reqTemplate.icon}
+                      </span>
+                      <div className="min-w-0">
+                        <h4 className="text-base font-bold text-slate-900 truncate">
+                          {req.tenant_name}
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {req.unit_label
+                            ? `${reqTemplate.unitLabel} ${req.unit_label}`
+                            : reqTemplate.name}
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-[10px] font-bold px-2.5 py-1 rounded-full border shrink-0 ${
+                        isPending
+                          ? 'bg-amber-50 text-amber-800 border-amber-200'
+                          : 'bg-rose-50 text-rose-800 border-rose-200'
+                      }`}
+                    >
+                      {isPending ? 'Menunggu Persetujuan' : 'Ditolak'}
+                    </span>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <span className="text-slate-500">
+                      Diajukan: {formattedDate}
+                    </span>
+                    <span
+                      className={`font-semibold ${
+                        isPending ? 'text-amber-700' : 'text-rose-700'
+                      }`}
+                    >
+                      {isPending
+                        ? 'Menunggu persetujuan pengelola'
+                        : 'Ditolak, hubungi pengelola'}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ── Empty State ─────────────────────────────────────────────────── */}
       {!loading && userTenants.length === 0 && (
         <Card className="p-8 text-center max-w-md mx-auto">
           <EmptyState
-            title="Belum Ada Komunitas Terdaftar"
-            description="Anda belum memiliki atau tergabung ke dalam komunitas manapun. Buat komunitas pertama Anda sekarang untuk memulai!"
-            icon={<div className="text-3xl">🏘️</div>}
+            title={
+              joinRequests && joinRequests.length > 0
+                ? 'Pendaftaran Anda sedang diperiksa'
+                : 'Belum Ada Komunitas Terdaftar'
+            }
+            description={
+              joinRequests && joinRequests.length > 0
+                ? 'Permohonan bergabung Anda ke komunitas telah terkirim dan sedang menunggu verifikasi serta persetujuan dari pengelola.'
+                : 'Anda belum memiliki atau tergabung ke dalam komunitas manapun. Buat komunitas pertama Anda sekarang untuk memulai!'
+            }
+            icon={<div className="text-3xl">{joinRequests && joinRequests.length > 0 ? '⏳' : '🏘️'}</div>}
             action={
-              <Button
-                variant="neutral"
-                icon={AiOutlinePlus}
-                onClick={() => navigate('/account/add-tenant')}
-              >
-                Buat Komunitas Pertama (Trial Gratis)
-              </Button>
+              joinRequests && joinRequests.length > 0 ? (
+                <Link
+                  to="/account/add-tenant"
+                  className="text-xs text-slate-600 hover:text-slate-900 underline font-medium inline-block transition"
+                >
+                  Ingin mengelola komunitas sendiri? Daftarkan tenant
+                </Link>
+              ) : (
+                <Button
+                  variant="neutral"
+                  icon={AiOutlinePlus}
+                  onClick={() => navigate('/account/add-tenant')}
+                >
+                  Buat Komunitas Pertama (Trial Gratis)
+                </Button>
+              )
             }
           />
         </Card>

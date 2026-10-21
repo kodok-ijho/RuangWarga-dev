@@ -1135,3 +1135,30 @@ export async function removeTenantMember(tenantId, memberId) {
 
   return { success: true, id: memberId };
 }
+
+/**
+ * Mengambil permohonan keanggotaan pending/rejected milik user login via RPC get_my_join_requests() (KOS-1.4b).
+ * Di mode demo atau bila terjadi error (misal RPC belum terpasang di database),
+ * mengembalikan array kosong [] dengan mencatat error.
+ *
+ * @returns {Promise<Array<{ member_id: string, tenant_id: string, tenant_name: string, tenant_type: string, unit_label: string, status: string, requested_at: string }>>}
+ */
+export async function fetchMyJoinRequests() {
+  if (IS_DEMO) {
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('get_my_join_requests');
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.warn('[tenantOperationalService] fetchMyJoinRequests error:', error.message || error);
+      return [];
+    }
+    return data || [];
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('[tenantOperationalService] fetchMyJoinRequests exception:', err.message || err);
+    return [];
+  }
+}

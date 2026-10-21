@@ -268,7 +268,7 @@ export default function JoinTenant() {
             onClick={() => navigate('/')}
             className="w-full py-3.5 px-4 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 text-xs font-bold transition-all shadow-xs"
           >
-            Kembali ke Halaman Utama
+            Lihat Status Pendaftaran
           </button>
         </div>
       </div>

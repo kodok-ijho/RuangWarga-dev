@@ -354,6 +354,7 @@ function AuthenticatedWorkspaceHub() {
   const { user, profile, signOut, isSuperAdmin } = useAuth();
   const {
     userTenants,
+    joinRequests = [],
     activeTenantId,
     switchTenant,
     isPlatformAdmin,
@@ -555,27 +556,115 @@ function AuthenticatedWorkspaceHub() {
             </div>
           )}
 
+          {/* Kartu Permohonan Bergabung (KOS-1.4b) */}
+          {!loading && joinRequests && joinRequests.length > 0 && (
+            <div className="mb-8 space-y-3">
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <span>Permohonan Bergabung</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">
+                  {joinRequests.length}
+                </span>
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {joinRequests.map((req) => {
+                  const reqTemplate = getTenantTemplate(req.tenant_type);
+                  const isPending = req.status === 'pending';
+                  const formattedDate = req.requested_at
+                    ? new Date(req.requested_at).toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })
+                    : '—';
+
+                  return (
+                    <div
+                      key={req.member_id}
+                      className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex flex-col justify-between space-y-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl p-2 bg-slate-100 text-slate-800 rounded-xl border border-slate-200 shrink-0">
+                            {reqTemplate.icon}
+                          </span>
+                          <div>
+                            <h4 className="font-bold text-slate-900 text-sm leading-snug">
+                              {req.tenant_name}
+                            </h4>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {req.unit_label
+                                ? `${reqTemplate.unitLabel} ${req.unit_label}`
+                                : reqTemplate.name}
+                            </p>
+                          </div>
+                        </div>
+                        <span
+                          className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+                            isPending
+                              ? 'bg-amber-50 text-amber-800 border-amber-200'
+                              : 'bg-rose-50 text-rose-800 border-rose-200'
+                          }`}
+                        >
+                          {isPending ? 'Menunggu Persetujuan' : 'Ditolak'}
+                        </span>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <span className="text-slate-500">
+                          Diajukan: {formattedDate}
+                        </span>
+                        <span
+                          className={`font-semibold ${
+                            isPending ? 'text-amber-700' : 'text-rose-700'
+                          }`}
+                        >
+                          {isPending
+                            ? 'Menunggu persetujuan pengelola'
+                            : 'Ditolak, hubungi pengelola'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Empty State (User belum punya tenant) */}
           {!loading && (!userTenants || userTenants.length === 0) && (
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-8 sm:p-12 text-center max-w-lg mx-auto space-y-4 shadow-xs">
               <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-3xl mx-auto shadow-xs">
-                🏘️
+                {joinRequests && joinRequests.length > 0 ? '⏳' : '🏘️'}
               </div>
               <div className="space-y-1">
-                <h3 className="text-lg font-bold text-slate-900 font-display">Belum Ada Tenant Terdaftar</h3>
+                <h3 className="text-lg font-bold text-slate-900 font-display">
+                  {joinRequests && joinRequests.length > 0
+                    ? 'Pendaftaran Anda sedang diperiksa'
+                    : 'Belum Ada Tenant Terdaftar'}
+                </h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Anda belum memiliki atau terdaftar di komunitas manapun. Daftarkan tenant pertama Anda sekarang
-                  untuk mulai mengelola RT/RW, Kos, Arisan, atau Kelas Anda dengan 15 hari trial gratis!
+                  {joinRequests && joinRequests.length > 0
+                    ? 'Permohonan bergabung Anda ke komunitas telah terkirim dan sedang menunggu verifikasi serta persetujuan dari pengelola.'
+                    : 'Anda belum memiliki atau terdaftar di komunitas manapun. Daftarkan tenant pertama Anda sekarang untuk mulai mengelola RT/RW, Kos, Arisan, atau Kelas Anda dengan 15 hari trial gratis!'}
                 </p>
               </div>
               <div className="pt-2">
-                <Link
-                  to="/onboarding/choose-type"
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition"
-                >
-                  <AiOutlinePlus className="text-sm font-bold" />
-                  <span>Daftarkan Tenant Pertama (Trial Gratis)</span>
-                </Link>
+                {joinRequests && joinRequests.length > 0 ? (
+                  <Link
+                    to="/onboarding/choose-type"
+                    className="text-xs text-slate-600 hover:text-slate-900 underline font-medium inline-block transition"
+                  >
+                    Ingin mengelola komunitas sendiri? Daftarkan tenant
+                  </Link>
+                ) : (
+                  <Link
+                    to="/onboarding/choose-type"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition"
+                  >
+                    <AiOutlinePlus className="text-sm font-bold" />
+                    <span>Daftarkan Tenant Pertama (Trial Gratis)</span>
+                  </Link>
+                )}
               </div>
             </div>
           )}

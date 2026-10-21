@@ -237,4 +237,52 @@ describe('NAV-1.1: Home Navigation & Auto-Redirect', () => {
 
     expect(screen.getByText('DASHBOARD TENANT')).toBeTruthy();
   });
+
+  it('f. KOS-1.4b: user tanpa tenant tapi memiliki joinRequests pending → tampil kartu permohonan, teks menunggu, dan tidak tampil tombol utama Daftarkan Tenant Pertama', () => {
+    useAuth.mockReturnValue({
+      user: { id: 'u3', email: 'calon@example.com' },
+      profile: { id: 'u3', full_name: 'Calon Penghuni' },
+      isAuthenticated: true,
+      signOut: vi.fn(),
+      isSuperAdmin: false,
+    });
+
+    useTenant.mockReturnValue({
+      userTenants: [],
+      joinRequests: [
+        {
+          member_id: 'req-1',
+          tenant_id: 't-kos-1',
+          tenant_name: 'Kos Melati Harmoni',
+          tenant_type: 'kos',
+          unit_label: '101',
+          status: 'pending',
+          requested_at: '2026-10-21T08:00:00Z',
+        },
+      ],
+      activeTenantId: null,
+      switchTenant: vi.fn(),
+      isPlatformAdmin: false,
+      loading: false,
+      refreshTenant: vi.fn(),
+    });
+
+    renderHomeWithRoutes();
+
+    // Pastikan tidak redirect
+    expect(screen.queryByText('DASHBOARD TENANT')).toBeNull();
+
+    // Kartu permohonan bergabung tampil
+    expect(screen.getByText('Permohonan Bergabung')).toBeTruthy();
+    expect(screen.getByText('Kos Melati Harmoni')).toBeTruthy();
+    expect(screen.getByText('Kamar 101')).toBeTruthy();
+    expect(screen.getByText('Menunggu persetujuan pengelola')).toBeTruthy();
+
+    // Empty state berubah sesuai KOS-1.4b
+    expect(screen.getByText('Pendaftaran Anda sedang diperiksa')).toBeTruthy();
+    expect(screen.queryByText(/Daftarkan Tenant Pertama \(Trial Gratis\)/i)).toBeNull();
+    expect(
+      screen.getByText('Ingin mengelola komunitas sendiri? Daftarkan tenant')
+    ).toBeTruthy();
+  });
 });
