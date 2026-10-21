@@ -4,7 +4,9 @@ import * as tenantOperationalService from './tenantOperationalService';
 const EXPECTED_EXPORTS = [
   "INVITE_CODE_ALPHABET",
   "PLATFORM_PERMISSIONS",
+  "PROGRAM_STATUS_LABELS",
   "ROLE_TEMPLATES",
+  "VALID_PAYMENT_METHODS",
   "applyRoleTemplate",
   "approveTenantMember",
   "assignMemberRole",
@@ -13,17 +15,24 @@ const EXPECTED_EXPORTS = [
   "bulkCreateTenantUnits",
   "calculateBillingPreview",
   "checkoutKosRoom",
+  "countActivePrograms",
   "countOccupiedUnits",
   "createArisanRound",
+  "createBudgetItem",
+  "createProgram",
   "createTenantAnnouncement",
   "createTenantBillingItem",
   "createTenantEvent",
   "createTenantExpense",
+  "createTenantIncome",
   "createTenantRole",
   "createTenantUnit",
+  "deleteBudgetItem",
+  "deleteProgram",
   "deleteTenantAnnouncement",
   "deleteTenantEvent",
   "deleteTenantExpense",
+  "deleteTenantIncome",
   "deleteTenantRole",
   "deleteTenantUnit",
   "drawArisanWinner",
@@ -33,9 +42,13 @@ const EXPECTED_EXPORTS = [
   "fetchArisanRoundBills",
   "fetchArisanRounds",
   "fetchBillingAutoRuns",
+  "fetchBudgetItems",
   "fetchMyJoinRequests",
   "fetchPendingTenantMembers",
   "fetchPlatformPermissions",
+  "fetchProgram",
+  "fetchProgramTransactions",
+  "fetchPrograms",
   "fetchTenantAnnouncements",
   "fetchTenantBillMatrix",
   "fetchTenantBillingItems",
@@ -43,6 +56,7 @@ const EXPECTED_EXPORTS = [
   "fetchTenantDetails",
   "fetchTenantEvents",
   "fetchTenantExpenses",
+  "fetchTenantIncomes",
   "fetchTenantInviteCode",
   "fetchTenantMembers",
   "fetchTenantMonthlyFinance",
@@ -70,6 +84,8 @@ const EXPECTED_EXPORTS = [
   "rejectTenantPayment",
   "removeTenantMember",
   "requestJoinTenant",
+  "resetDemoIncomesStore",
+  "resetDemoProgramsStore",
   "resolveCitizenObligationAndUnit",
   "saveInviteCodeWithRetry",
   "saveTenantBankAccount",
@@ -77,9 +93,13 @@ const EXPECTED_EXPORTS = [
   "setTenantUnitStatus",
   "startNewArisanCycle",
   "submitTenantPayment",
+  "summarizeProgram",
+  "updateBudgetItem",
+  "updateProgram",
   "updateTenantAnnouncement",
   "updateTenantEvent",
   "updateTenantExpense",
+  "updateTenantIncome",
   "updateTenantMember",
   "updateTenantPayment",
   "updateTenantProfileAndSettings",
@@ -92,9 +112,9 @@ const EXPECTED_EXPORTS = [
 ];
 
 describe('tenantOperationalService Exports Guard (DEBT-1.4)', () => {
-  it('harus mengekspor 87 fungsi/konstanta yang sama persis', () => {
+  it('harus mengekspor 107 fungsi/konstanta yang sama persis', () => {
     const exportsList = Object.keys(tenantOperationalService).sort();
     expect(exportsList).toEqual(EXPECTED_EXPORTS);
-    expect(exportsList.length).toBe(87);
+    expect(exportsList.length).toBe(107);
   });
 });

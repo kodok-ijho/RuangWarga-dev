@@ -35,18 +35,37 @@ export async function fetchTenantExpenses(tenantId, filters = {}) {
   const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
   if (isDemoOrMock) {
     const mock = await import('../mockData');
-    return mock.mockExpenses || [];
+    let list = (mock.mockExpenses || []).map((exp) => ({
+      ...exp,
+      amount: Number(exp.amount || 0),
+      date: exp.date || exp.expense_date || '',
+      expense_date: exp.expense_date || exp.date || '',
+      program_id: exp.program_id ?? exp.programId ?? null,
+      programId: exp.program_id ?? exp.programId ?? null,
+      budget_item_id: exp.budget_item_id ?? exp.budgetItemId ?? null,
+      budgetItemId: exp.budget_item_id ?? exp.budgetItemId ?? null,
+    }));
+    if (filters.category) {
+      list = list.filter((e) => e.category === filters.category);
+    }
+    if (filters.programId) {
+      list = list.filter((e) => e.program_id === filters.programId || e.programId === filters.programId);
+    }
+    return list;
   }
 
   let query = supabase
     .from('expenses')
-    .select('id, tenant_id, category, amount, description, receipt_url, recorded_by, metadata, expense_date, is_date_proxy, created_at, updated_at')
+    .select('id, tenant_id, category, amount, description, receipt_url, recorded_by, metadata, expense_date, is_date_proxy, program_id, budget_item_id, created_at, updated_at')
     .eq('tenant_id', tenantId)
     .order('expense_date', { ascending: false })
     .order('created_at', { ascending: false });
 
   if (filters.category) {
     query = query.eq('category', filters.category);
+  }
+  if (filters.programId) {
+    query = query.eq('program_id', filters.programId);
   }
 
   const { data, error } = await query;
@@ -67,6 +86,10 @@ export async function fetchTenantExpenses(tenantId, filters = {}) {
       receipt_file_url: exp.receipt_url || '',
       file_url: exp.receipt_url || '',
       receipt_file: receiptFile,
+      program_id: exp.program_id || null,
+      programId: exp.program_id || null,
+      budget_item_id: exp.budget_item_id || null,
+      budgetItemId: exp.budget_item_id || null,
     };
   });
 }
@@ -74,9 +97,12 @@ export async function fetchTenantExpenses(tenantId, filters = {}) {
 /**
  * Mencatat pengeluaran baru untuk tenant
  * @param {string} tenantId - UUID tenant
- * @param {object} param1 - { date, category, amount, description, file, recordedBy }
+ * @param {object} param1 - { date, category, amount, description, file, recordedBy, programId, budgetItemId }
  */
-export async function createTenantExpense(tenantId, { date, category, amount, description, file, recordedBy } = {}) {
+export async function createTenantExpense(
+  tenantId,
+  { date, category, amount, description, file, recordedBy, programId = null, budgetItemId = null } = {}
+) {
   if (!tenantId) throw new Error('Tenant ID wajib disertakan.');
 
   const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
@@ -88,6 +114,10 @@ export async function createTenantExpense(tenantId, { date, category, amount, de
       amount,
       description,
       receipt_file: file ? (file.name || file) : null,
+      program_id: programId || null,
+      programId: programId || null,
+      budget_item_id: budgetItemId || null,
+      budgetItemId: budgetItemId || null,
     });
   }
 
@@ -123,6 +153,8 @@ export async function createTenantExpense(tenantId, { date, category, amount, de
     receipt_url: receiptPath,
     recorded_by: recordedBy || null,
     expense_date: expenseDate,
+    program_id: programId || null,
+    budget_item_id: budgetItemId || null,
     metadata: {
       date: expenseDate,
       file_name: file ? (file.name || (typeof file === 'string' ? file : null)) : null,
@@ -141,28 +173,45 @@ export async function createTenantExpense(tenantId, { date, category, amount, de
     throw error;
   }
 
-  return data;
+  return {
+    ...data,
+    programId: data.program_id,
+    budgetItemId: data.budget_item_id,
+  };
 }
 
 /**
  * Memperbarui pengeluaran tenant
  * @param {string} tenantId - UUID tenant
  * @param {string} expenseId - UUID expense
- * @param {object} param2 - { date, category, amount, description, file }
+ * @param {object} param2 - { date, category, amount, description, file, programId, budgetItemId }
  */
-export async function updateTenantExpense(tenantId, expenseId, { date, category, amount, description, file } = {}) {
+export async function updateTenantExpense(
+  tenantId,
+  expenseId,
+  { date, category, amount, description, file, programId, budgetItemId } = {}
+) {
   if (!tenantId || !expenseId) throw new Error('tenantId dan expenseId wajib disertakan.');
 
   const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
   if (isDemoOrMock) {
     const mock = await import('../mockData');
-    return mock.updateExpense(expenseId, {
+    const updateData = {
       date,
       category,
       amount,
       description,
       receipt_file: file ? (file.name || file) : null,
-    });
+    };
+    if (programId !== undefined) {
+      updateData.program_id = programId || null;
+      updateData.programId = programId || null;
+    }
+    if (budgetItemId !== undefined) {
+      updateData.budget_item_id = budgetItemId || null;
+      updateData.budgetItemId = budgetItemId || null;
+    }
+    return mock.updateExpense(expenseId, updateData);
   }
 
   const updateFields = {
@@ -181,6 +230,13 @@ export async function updateTenantExpense(tenantId, expenseId, { date, category,
   if (date) {
     updateFields.expense_date = date;
     updateFields.metadata = { date };
+  }
+
+  if (programId !== undefined) {
+    updateFields.program_id = programId || null;
+  }
+  if (budgetItemId !== undefined) {
+    updateFields.budget_item_id = budgetItemId || null;
   }
 
   if (file && typeof file === 'object' && (file.size || file.name)) {
@@ -216,7 +272,11 @@ export async function updateTenantExpense(tenantId, expenseId, { date, category,
     throw error;
   }
 
-  return data;
+  return {
+    ...data,
+    programId: data.program_id,
+    budgetItemId: data.budget_item_id,
+  };
 }
 
 /**

@@ -874,6 +874,10 @@ export function addExpense(data) {
     description: data.description,
     receipt_file: data.receipt_file || null,
     recorded_by: data.recorded_by || 'Staff',
+    program_id: data.program_id ?? data.programId ?? null,
+    programId: data.program_id ?? data.programId ?? null,
+    budget_item_id: data.budget_item_id ?? data.budgetItemId ?? null,
+    budgetItemId: data.budget_item_id ?? data.budgetItemId ?? null,
     created_at: new Date().toISOString(),
   };
   mockExpenses.push(expense);
