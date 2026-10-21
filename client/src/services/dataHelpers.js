@@ -53,6 +53,32 @@ export function formatPeriodShort(period) {
 }
 
 /**
+ * Resolusi nama tampilan jabatan mengikuti konteks vertikal dan role (KOS-1F.4).
+ * - owner -> template.adminLabel
+ * - role dasar -> template.memberLabel
+ * - selain itu roleName, atau "Anggota" bila kosong.
+ *
+ * @param {Object} params
+ * @param {boolean} [params.isOwner]
+ * @param {boolean} [params.isBaseRole]
+ * @param {string} [params.roleName]
+ * @param {Object} [params.template]
+ * @returns {string}
+ */
+export function displayRoleName({ isOwner, isBaseRole, roleName, template } = {}) {
+  if (isOwner) {
+    return template?.adminLabel || 'Admin';
+  }
+  if (isBaseRole) {
+    return template?.memberLabel || 'Anggota';
+  }
+  if (roleName && typeof roleName === 'string' && roleName.trim()) {
+    return roleName.trim();
+  }
+  return 'Anggota';
+}
+
+/**
  * Format nama unit agar tidak mengulang unitLabel bila label unit sudah diawali kata tersebut (KOS-1F.2).
  * Contoh: ("Kamar", "Kamar VIP") -> "Kamar VIP", ("Kamar", "101") -> "Kamar 101".
  *

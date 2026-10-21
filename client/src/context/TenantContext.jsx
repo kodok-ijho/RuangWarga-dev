@@ -188,6 +188,9 @@ export function TenantProvider({ children }) {
       const { data: memberRows, error: memberErr } = await supabase
         .from('tenant_members')
         .select(`
+          id,
+          full_name,
+          unit_id,
           tenant_id,
           status,
           tenant_role_id,
@@ -265,6 +268,14 @@ export function TenantProvider({ children }) {
             ? 'admin'
             : (m.tenant_roles?.is_owner_role ? 'admin' : (m.tenant_roles?.is_base_role ? 'anggota' : (m.tenant_roles?.name?.toLowerCase() || 'anggota')));
 
+          const isBaseRole = Boolean(m.tenant_roles?.is_base_role);
+          const memberInfo = {
+            id: m.id,
+            full_name: m.full_name,
+            unit_id: m.unit_id,
+            is_base_role: isBaseRole,
+          };
+
           tenantMap.set(m.tenant_id, {
             ...m.tenants,
             role: legacyRoleAlias,
@@ -272,6 +283,8 @@ export function TenantProvider({ children }) {
             is_owner: isOwner,
             role_name: roleName,
             permissions: perms,
+            active_member: memberInfo,
+            is_base_role: isBaseRole,
           });
         }
       });
@@ -359,6 +372,13 @@ export function TenantProvider({ children }) {
       : (activeTenant?.role ? activeTenant.role.charAt(0).toUpperCase() + activeTenant.role.slice(1) : 'Anggota')
   );
 
+  const activeMember = useMemo(() => {
+    if (!activeTenant) return null;
+    return activeTenant.active_member || null;
+  }, [activeTenant]);
+
+  const isBaseRole = Boolean(activeTenant?.is_base_role);
+
   const permissions = useMemo(() => {
     if (isPlatformAdmin || isOwner) {
       return ALL_PLATFORM_PERMISSIONS;
@@ -435,6 +455,8 @@ export function TenantProvider({ children }) {
     isPlatformAdmin,
     isOwner,
     activeRoleName,
+    activeMember,
+    isBaseRole,
     permissions,
     hasPermission,
     loading: loading || authLoading,

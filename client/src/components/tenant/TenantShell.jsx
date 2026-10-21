@@ -30,7 +30,7 @@ import { Drawer } from '../ui/Drawer';
 import Dropdown, { DropdownItem } from '../ui/Dropdown';
 import { Badge } from '../ui/Badge';
 import { isSafeLogoUrl } from '../../utils/brand';
-import { roleLabel } from '../../services/dataHelpers';
+import { roleLabel, displayRoleName } from '../../services/dataHelpers';
 
 export default function TenantShell() {
   const { tenantId: routeTenantId } = useParams();
@@ -44,6 +44,8 @@ export default function TenantShell() {
     subscriptionStatus,
     isPlatformAdmin,
     isOwner,
+    isBaseRole,
+    activeRoleName,
     userRole,
     hasPermission,
   } = useTenant();
@@ -180,7 +182,7 @@ export default function TenantShell() {
                   )}
                 </div>
                 <p className="text-[10px] text-slate-500 font-medium truncate">
-                  {template.name} &bull; {roleLabel(role, activeTenant?.type)}
+                  {template.name} &bull; {displayRoleName({ isOwner, isBaseRole, roleName: activeRoleName, template })}
                 </p>
               </div>
             </div>
@@ -240,7 +242,7 @@ export default function TenantShell() {
                     <p className="text-[11px] text-slate-500 truncate">{user?.email}</p>
                     <div className="mt-1 flex items-center gap-1">
                       <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 font-semibold capitalize">
-                        {roleLabel(role, activeTenant?.type)}
+                        {displayRoleName({ isOwner, isBaseRole, roleName: activeRoleName, template })}
                       </span>
                     </div>
                   </div>

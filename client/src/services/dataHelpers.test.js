@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { getOccupancyOptions, OCCUPANCY_STATUS, getMemberStatusBadge, formatUnitName } from './dataHelpers';
+import {
+  getOccupancyOptions,
+  OCCUPANCY_STATUS,
+  getMemberStatusBadge,
+  formatUnitName,
+  displayRoleName,
+} from './dataHelpers';
 
 describe('dataHelpers — getOccupancyOptions (KOS-1.2)', () => {
   it('mengembalikan opsi yang tepat untuk vertikal kos', () => {
@@ -92,5 +98,29 @@ describe('dataHelpers — formatUnitName (KOS-1F.2)', () => {
     expect(formatUnitName('Kamar', '   ')).toBe('');
     expect(formatUnitName('Kamar', null)).toBe('');
     expect(formatUnitName('Kamar', undefined)).toBe('');
+  });
+});
+
+describe('dataHelpers — displayRoleName (KOS-1F.4)', () => {
+  const kosTemplate = { adminLabel: 'Pemilik Kos', memberLabel: 'Penyewa' };
+  const rtRwTemplate = { adminLabel: 'Ketua RT/RW / Pengurus', memberLabel: 'Warga' };
+
+  it('owner mengembalikan template.adminLabel', () => {
+    expect(displayRoleName({ isOwner: true, template: kosTemplate })).toBe('Pemilik Kos');
+    expect(displayRoleName({ isOwner: true, template: rtRwTemplate })).toBe('Ketua RT/RW / Pengurus');
+  });
+
+  it('role dasar mengembalikan template.memberLabel', () => {
+    expect(displayRoleName({ isBaseRole: true, template: kosTemplate })).toBe('Penyewa');
+    expect(displayRoleName({ isBaseRole: true, template: rtRwTemplate })).toBe('Warga');
+  });
+
+  it('role kustom mengembalikan roleName kustom', () => {
+    expect(displayRoleName({ roleName: 'Bendahara', template: kosTemplate })).toBe('Bendahara');
+  });
+
+  it('fallback aman bila roleName kosong dan bukan owner/base', () => {
+    expect(displayRoleName({ roleName: '', template: kosTemplate })).toBe('Anggota');
+    expect(displayRoleName({ roleName: null })).toBe('Anggota');
   });
 });

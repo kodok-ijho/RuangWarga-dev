@@ -12,7 +12,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../hooks/useTenant';
 import { useTenantTemplate } from '../../hooks/useTenantTemplate';
 import { useSubscriptionGate } from '../../hooks/useSubscriptionGate';
-import { MONTHS_LONG } from '../../services/dataHelpers';
+import { MONTHS_LONG, displayRoleName } from '../../services/dataHelpers';
 import {
   fetchTenantDashboardData,
   fetchTenantAnnouncements,
@@ -40,6 +40,8 @@ export default function TenantDashboard() {
     isTenantAdmin,
     isOwner,
     activeRoleName,
+    activeMember,
+    isBaseRole,
     hasPermission,
   } = useTenant();
 
@@ -77,10 +79,14 @@ export default function TenantDashboard() {
     hasPermission('manage_billing_cash') ||
     hasPermission('manage_billing_transfer');
 
-  // Greeting kontekstual waktu
+  // Greeting kontekstual waktu (KOS-1F.4: sapaan nama depan dari activeMember, lalu profile, lalu email)
   const greeting = useMemo(() => {
     const hour = currentDate.getHours();
-    const name = profile?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || '';
+    const name =
+      activeMember?.full_name?.split(' ')[0] ||
+      profile?.full_name?.split(' ')[0] ||
+      user?.email?.split('@')[0] ||
+      '';
     const salutation =
       hour >= 4 && hour < 12
         ? 'Selamat pagi'
@@ -90,7 +96,7 @@ export default function TenantDashboard() {
         ? 'Selamat sore'
         : 'Selamat malam';
     return name ? `${salutation}, ${name}` : 'Selamat datang kembali';
-  }, [currentDate, profile, user]);
+  }, [currentDate, activeMember, profile, user]);
 
   const loadDashboard = useCallback(async () => {
     if (!tenantId) return;
@@ -157,7 +163,12 @@ export default function TenantDashboard() {
               <p className="text-xs text-slate-500">
                 {greeting} ·{' '}
                 <span className="font-medium text-slate-700 capitalize">
-                  {activeRoleName || userRole || 'Anggota'}
+                  {displayRoleName({
+                    isOwner,
+                    isBaseRole,
+                    roleName: activeRoleName,
+                    template,
+                  })}
                 </span>
               </p>
             </div>

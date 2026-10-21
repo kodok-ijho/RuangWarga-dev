@@ -20,7 +20,7 @@ vi.mock('../../hooks/useAuth', () => ({
 }));
 
 vi.mock('../../hooks/useTenant', () => ({
-  useTenant: () => ({
+  useTenant: vi.fn(() => ({
     activeTenant: { id: 't-test-1', name: 'Kompleks RT 01', type: 'rt_rw', settings: { onboarding_completed: true } },
     activeTenantId: 't-test-1',
     switchTenant: vi.fn(),
@@ -30,7 +30,7 @@ vi.mock('../../hooks/useTenant', () => ({
     isOwner: true,
     activeRoleName: 'Ketua RT',
     hasPermission: () => true,
-  }),
+  })),
 }));
 
 vi.mock('../../hooks/useTenantTemplate', () => ({
@@ -202,5 +202,33 @@ describe('RTRW-3.2: Kartu Acara Mendatang di TenantDashboard', () => {
       (el) => el.closest('a')?.getAttribute('href') === '/t/t-test-1/events'
     );
     expect(linkLihatSemua).toBeTruthy();
+  });
+});
+
+describe('KOS-1F.4: Sapaan dan Role Name di TenantDashboard', () => {
+  it('menyapa dengan nama depan dari activeMember.full_name', async () => {
+    const { useTenant } = await import('../../hooks/useTenant');
+    useTenant.mockReturnValueOnce({
+      activeTenant: { id: 't-test-1', name: 'Kos Melati Harmoni', type: 'kos', settings: { onboarding_completed: true } },
+      activeTenantId: 't-test-1',
+      switchTenant: vi.fn(),
+      subscriptionStatus: 'active',
+      userRole: 'anggota',
+      isTenantAdmin: false,
+      isOwner: false,
+      activeMember: { id: 'm1', full_name: 'Toro Sudiro' },
+      isBaseRole: true,
+      activeRoleName: 'Warga/Anggota',
+      hasPermission: () => false,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/t/t-test-1']}>
+        <TenantDashboard />
+      </MemoryRouter>
+    );
+
+    // Sapaan memuat nama depan 'Toro'
+    expect(screen.getByText(/Toro/)).toBeTruthy();
   });
 });
