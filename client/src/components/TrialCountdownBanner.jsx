@@ -78,7 +78,9 @@ export default function TrialCountdownBanner({ tenantId }) {
               <span className="text-xs text-rose-700 font-semibold">Masa Percobaan Berakhir</span>
             </div>
             <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-              Layanan ini berada dalam mode baca-saja. Semua data tersimpan aman, namun pencatatan transaksi baru dibatasi hingga langganan diaktifkan.
+              {isTenantAdmin
+                ? 'Layanan ini berada dalam mode baca-saja. Semua data tersimpan aman, namun pencatatan transaksi baru dibatasi hingga langganan diaktifkan.'
+                : 'Layanan sedang dalam mode baca-saja. Pembayaran baru untuk sementara belum bisa dicatat. Hubungi pengelola.'}
             </p>
           </div>
         </div>
@@ -97,7 +99,11 @@ export default function TrialCountdownBanner({ tenantId }) {
     );
   }
 
-  // Kasus Trial Berjalan
+  // Kasus Trial Berjalan (KOS-1F.1: hanya untuk pengelola / isTenantAdmin)
+  if (!isTenantAdmin) {
+    return null;
+  }
+
   return (
     <div className="rounded-2xl p-5 bg-white border border-amber-200 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-5">
       <div className="flex items-start gap-3.5">
