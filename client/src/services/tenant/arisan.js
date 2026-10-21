@@ -4,6 +4,7 @@
  */
 
 import { supabase, IS_DEMO } from './shared';
+import { submitTenantPayment } from './payments';
 
 // ── VERTIKAL ARISAN HELPERS (T8.2 - T8.7) ──────────────────────────
 
@@ -287,7 +288,7 @@ export async function fetchArisanRoundBills(tenantId, roundId, period) {
 }
 
 /**
- * Mencatat pembayaran manual (tunai/transfer) untuk iuran putaran arisan
+ * Mencatat pembayaran manual (tunai) untuk iuran putaran arisan
  */
 export async function payArisanBillManual(tenantId, billId) {
   if (!tenantId || !billId) throw new Error('Tenant ID dan Bill ID wajib diisi.');
@@ -296,44 +297,14 @@ export async function payArisanBillManual(tenantId, billId) {
     return { success: true, bill_id: billId, status: 'paid' };
   }
 
-  // 1. Update status billing_item menjadi paid
-  const { data: updatedBill, error: billErr } = await supabase
-    .from('billing_items')
-    .update({
-      status: 'paid',
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', billId)
-    .eq('tenant_id', tenantId)
-    .select()
-    .single();
+  const payment = await submitTenantPayment(tenantId, {
+    billId,
+    method: 'cash',
+    isStaff: true,
+    note: 'Setoran arisan dicatat pengurus',
+  });
 
-  if (billErr) {
-    console.error('[tenantOperationalService] payArisanBillManual update error:', billErr);
-    throw new Error(billErr.message || 'Gagal memperbarui status tagihan arisan.');
-  }
-
-  // 2. Buat record transaksi di tabel payments
-  const { error: payErr } = await supabase.from('payments').insert([
-    {
-      tenant_id: tenantId,
-      billing_item_id: billId,
-      amount: updatedBill.amount,
-      method: 'manual_transfer',
-      status: 'verified',
-      verified_at: new Date().toISOString(),
-      metadata: {
-        note: 'Pembayaran manual iuran arisan dikonfirmasi admin',
-        round_id: updatedBill.metadata?.round_id || null,
-      },
-    },
-  ]);
-
-  if (payErr) {
-    console.warn('[tenantOperationalService] payArisanBillManual payment log warning:', payErr);
-  }
-
-  return { success: true, bill: updatedBill };
+  return { success: true, payment };
 }
 
 /**

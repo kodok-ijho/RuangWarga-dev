@@ -237,7 +237,7 @@ export default function ArisanRounds() {
     setMarkingPaidId(billId);
     try {
       await payArisanBillManual(tenantId, billId);
-      toast.success('Iuran peserta berhasil ditandai lunas!');
+      toast.success('Setoran dicatat tunai dan ditandai lunas.');
       if (selectedRoundForBills) {
         await handleOpenRoundBills(selectedRoundForBills);
       }
