@@ -1,6 +1,6 @@
 # VERT-2 Review (Claude, 2026-10-21)
 
-Hasil: **migration diterima, test SQL perlu perbaikan (VERT-2F).** Penerapan ke dev menunggu dry-run di SQL Editor dan persetujuan user.
+Hasil: **diterima dan terpasang di dev.** Migration diterima sejak review pertama; test SQL diperbaiki lewat VERT-2F.
 
 ## Migration — diterima
 - **2.1** `202610210001_drop_checkout_kos_room_int.sql`: drop overload `integer`, lalu `REVOKE`/`GRANT` ulang versi `bigint`. Sesuai rencana. Komentar menyebut `PGRST204`; kode yang benar `PGRST203` (hanya komentar).
@@ -38,6 +38,21 @@ Ketiganya ditulis tanpa dijalankan (tidak ada akses database dari HP).
   - `has_won` tetap setelah slot pemenang diganti.
 - Hasil dry-run: **lulus** ("Success" di SQL Editor, dijalankan user 2026-10-21). Penerapan: artifact "Terapkan VERT-2".
 
-## Langkah berikut
-1. User menjalankan dry-run. Bila lulus, migration diterapkan ke dev (artifact "Terapkan VERT-2"), lalu ketiga test SQL dijalankan setelah VERT-2F.
-2. agy mengerjakan `VERT-2F.md`. Migration tidak diubah.
+## Penerapan dan verifikasi akhir (2026-10-21)
+- Diterapkan user lewat artifact "Terapkan VERT-2" di SQL Editor. Riwayat migration dev: `20261021023117 drop_checkout_kos_room_int`, `20261021023118 arisan_auto_enroll`, `20261021023119 arisan_operator_from_auth`.
+- Dicek Claude lewat query baca:
+  - `checkout_kos_room` tinggal 1 (bigint);
+  - trigger `trg_sync_arisan_participant` ada;
+  - `draw_arisan_winner` dan `start_new_arisan_cycle` memakai `v_operator`.
+- VERT-2F (agy, `29035ed`, `78cbd4f`) sesuai `VERT-2F.md`. Ketiga test SQL dijalankan Claude di dev lewat konektor. Isinya sama dengan file; hanya komentar dan `RAISE NOTICE` dibuang, dan di akhir ditambah `RAISE EXCEPTION 'LULUS (rollback)'` supaya data uji pasti batal. Hasil:
+  - `checkout_kos_room_overload`: lulus;
+  - `arisan_auto_enroll_matrix`: lulus (6 kasus);
+  - `arisan_operator_matrix`: lulus.
+  Setelahnya tidak ada sisa data uji (0 user `@test.invalid`, tenant tetap 1).
+- Advisor keamanan: tidak ada temuan baru. `sync_arisan_participant` tidak bisa dipanggil lewat API. Temuan lain sudah ada sebelum VERT-2.
+
+## Belum diuji
+- Uji manual di aplikasi (ruangwarga-dev) setelah branch digabung ke `main`:
+  - Kocok dan Tandai Lunas Arisan;
+  - Checkout Kamar Kos;
+  - wizard dijalankan ulang.
