@@ -39,6 +39,7 @@ import {
   occupancyStatusLabel,
   occupancyStatusColor,
   OCCUPANCY_STATUS,
+  getOccupancyOptions,
 } from '../services/dataHelpers';
 import {
   Table,
@@ -660,8 +661,8 @@ export default function Residents() {
             aria-label={`Filter ${template.contractLabel || 'status tinggal'}`}
           >
             <option value="">Semua {template.contractLabel || 'Status Tinggal'}</option>
-            {Object.entries(OCCUPANCY_STATUS).map(([key, label]) => (
-              <option key={key} value={key}>
+            {getOccupancyOptions(activeTenant?.type).map(({ value, label }) => (
+              <option key={value} value={value}>
                 {label}
               </option>
             ))}
@@ -1257,17 +1258,10 @@ function ProfileFormModal({
             onChange={(e) => setForm({ ...form, occupancy_status: e.target.value })}
             className="pv-input font-medium"
           >
-            <option value="">Pilih Status Tinggal</option>
-            {isTenantMode ? (
-              <>
-                <option value="owner_occupied">Pemilik</option>
-                <option value="tenant">Penyewa / Kontrak</option>
-              </>
-            ) : (
-              Object.entries(OCCUPANCY_STATUS).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
-              ))
-            )}
+            <option value="">Pilih {template?.contractLabel || 'Status Tinggal'}</option>
+            {getOccupancyOptions(activeTenant?.type).map(({ value, label }) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
           </select>
         </Field>
 

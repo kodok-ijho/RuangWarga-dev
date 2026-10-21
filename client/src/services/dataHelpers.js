@@ -370,6 +370,46 @@ export function occupancyStatusColor(status) {
   return map[status] || 'bg-gray-100 text-gray-500';
 }
 
+/**
+ * Menghasilkan daftar pilihan status tinggal / status penghuni yang sesuai dengan jenis tenant.
+ *
+ * @param {string} tenantType - 'kos' | 'kelas' | 'arisan' | 'rt_rw'
+ * @returns {Array<{ value: string, label: string }>}
+ */
+export function getOccupancyOptions(tenantType) {
+  if (tenantType === 'kos') {
+    return [
+      { value: 'tenant', label: occupancyStatusLabel('tenant', 'kos') },
+      { value: 'booking', label: occupancyStatusLabel('booking', 'kos') },
+      { value: 'checkout', label: occupancyStatusLabel('checkout', 'kos') },
+      { value: 'owner_occupied', label: occupancyStatusLabel('owner_occupied', 'kos') },
+    ];
+  }
+
+  if (tenantType === 'kelas') {
+    return [
+      { value: 'tenant', label: occupancyStatusLabel('tenant', 'kelas') },
+      { value: 'booking', label: occupancyStatusLabel('booking', 'kelas') },
+      { value: 'checkout', label: occupancyStatusLabel('checkout', 'kelas') },
+      { value: 'owner_occupied', label: occupancyStatusLabel('owner_occupied', 'kelas') },
+    ];
+  }
+
+  if (tenantType === 'arisan') {
+    return [
+      { value: 'tenant', label: occupancyStatusLabel('tenant', 'arisan') },
+      { value: 'booking', label: occupancyStatusLabel('booking', 'arisan') },
+      { value: 'checkout', label: occupancyStatusLabel('checkout', 'arisan') },
+      { value: 'owner_occupied', label: occupancyStatusLabel('owner_occupied', 'arisan') },
+    ];
+  }
+
+  return Object.entries(OCCUPANCY_STATUS).map(([value, label]) => ({
+    value,
+    label,
+  }));
+}
+
 // ── IPL SCHEMA HELPERS ───────────────────────────────────────────
 export const DEFAULT_IPL_SCHEMAS = [
   {
