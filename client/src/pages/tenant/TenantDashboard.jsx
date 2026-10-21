@@ -421,6 +421,7 @@ export default function TenantDashboard() {
             periodLabel={periodLabel}
             isReadOnly={isReadOnly}
             userProfile={profile}
+            activeTenant={activeTenant}
           />
         )}
       </div>

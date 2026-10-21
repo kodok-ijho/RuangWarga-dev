@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   AiOutlineCreditCard,
@@ -11,6 +11,8 @@ import {
 import { ResidentBillingHero } from './ResidentBillingHero';
 import { StatusBadge } from '../ui';
 import { formatRupiah } from '../../services/dataHelpers';
+import { TenantContext } from '../../context/TenantContext';
+import { isLegacyQrisEnabled } from '../../services/tenantOperationalService';
 
 export function CitizenDashboard({
   tenantId,
@@ -19,8 +21,11 @@ export function CitizenDashboard({
   periodLabel,
   isReadOnly = false,
   userProfile,
+  activeTenant: propActiveTenant,
 }) {
   const navigate = useNavigate();
+  const tenantCtx = useContext(TenantContext);
+  const activeTenant = propActiveTenant || tenantCtx?.activeTenant;
 
   // Resolve obligation and unit strictly from real individual data
   const myObligation = dashData?.myObligation || null;
@@ -70,7 +75,7 @@ export function CitizenDashboard({
                 Bayar {template?.billLabel || 'Tagihan'}
               </span>
               <span className="block text-[10px] text-slate-500 truncate">
-                Rincian &amp; QRIS
+                {isLegacyQrisEnabled(activeTenant) ? 'Rincian & QRIS' : 'Rincian & cara bayar'}
               </span>
             </div>
           </Link>

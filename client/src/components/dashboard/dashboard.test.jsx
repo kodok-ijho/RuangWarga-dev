@@ -236,6 +236,47 @@ describe('Dashboard Architecture & Components (Phase 5)', () => {
       expect(html).toContain('Bayar Iuran / SPP Sekarang');
       expect(html).toContain('Daftar Siswa');
     });
+
+    it('KOS-1F.3: menampilkan "Rincian & QRIS" bila isLegacyQrisEnabled bernilai true', () => {
+      const template = TENANT_TEMPLATES.kos;
+      const rawHtml = renderToString(
+        <MemoryRouter>
+          <CitizenDashboard
+            tenantId="t-kos-qris"
+            template={template}
+            activeTenant={{ settings: { legacy_qris_enabled: true } }}
+            dashData={{
+              myObligation: null,
+              myUnit: 'Kamar 1',
+              recentPayments: [],
+            }}
+          />
+        </MemoryRouter>
+      );
+      const html = cleanHtml(rawHtml);
+      expect(html).toContain('Rincian &amp; QRIS');
+    });
+
+    it('KOS-1F.3: menampilkan "Rincian & cara bayar" bila isLegacyQrisEnabled bernilai false', () => {
+      const template = TENANT_TEMPLATES.kos;
+      const rawHtml = renderToString(
+        <MemoryRouter>
+          <CitizenDashboard
+            tenantId="t-kos-non-qris"
+            template={template}
+            activeTenant={{ settings: { legacy_qris_enabled: false } }}
+            dashData={{
+              myObligation: null,
+              myUnit: 'Kamar 1',
+              recentPayments: [],
+            }}
+          />
+        </MemoryRouter>
+      );
+      const html = cleanHtml(rawHtml);
+      expect(html).toContain('Rincian &amp; cara bayar');
+      expect(html).not.toContain('Rincian &amp; QRIS');
+    });
   });
 
   describe('StaffDashboard (Persona: Admin / Bendahara / Pengurus)', () => {
