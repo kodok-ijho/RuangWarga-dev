@@ -347,4 +347,48 @@ describe('TenantUnits Page (RTRW-2.3)', () => {
       expect(getUnitStatusBadge('active', kosTemplate).label).toBe('Aktif');
     });
   });
+
+  describe('KOS-1F.6b: Badge Belum Ada Kontrak pada Kamar Terisi', () => {
+    it('menampilkan badge "Belum ada kontrak" untuk kamar occupied tanpa metadata.contract_start, dan tidak menampilkan bila contract_start ada', async () => {
+      mockTenantContext = {
+        activeTenant: { id: 'tenant-kos-1', name: 'Kos Melati', type: 'kos' },
+        activeTenantId: 'tenant-kos-1',
+        isOwner: true,
+        hasPermission: () => true,
+      };
+
+      vi.spyOn(tenantOperationalService, 'fetchTenantUnits').mockResolvedValue([
+        {
+          id: 101,
+          tenant_id: 'tenant-kos-1',
+          label: 'Kamar 101',
+          status: 'occupied',
+          metadata: {
+            occupant: { name: 'Penyewa A' },
+          },
+        },
+        {
+          id: 102,
+          tenant_id: 'tenant-kos-1',
+          label: 'Kamar 102',
+          status: 'occupied',
+          metadata: {
+            occupant: { name: 'Penyewa B' },
+            contract_start: '2026-10-01',
+          },
+        },
+      ]);
+      vi.spyOn(tenantOperationalService, 'fetchTenantMembers').mockResolvedValue([]);
+
+      renderTenantUnits();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Kamar 101').length).toBeGreaterThan(0);
+      });
+
+      // Badge 'Belum ada kontrak' muncul untuk Kamar 101 (desktop + mobile = 2 elemen)
+      const badgeList = screen.getAllByText('Belum ada kontrak');
+      expect(badgeList.length).toBe(2);
+    });
+  });
 });

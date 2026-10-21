@@ -41,6 +41,7 @@ export default function TenantMemberApproval() {
   const [selectedRoleId, setSelectedRoleId] = useState('');
   const [selectedUnitId, setSelectedUnitId] = useState('');
   const [selectedOccupancy, setSelectedOccupancy] = useState('owner_occupied');
+  const [approvalSuccess, setApprovalSuccess] = useState(null);
 
   // Sinkronkan activeTenantId
   useEffect(() => {
@@ -93,6 +94,8 @@ export default function TenantMemberApproval() {
 
     setProcessingId(selectedMember.id);
     try {
+      const selectedUnitObj = unitsList.find((u) => String(u.id) === String(selectedUnitId));
+
       await approveTenantMember(selectedMember.id, {
         role: selectedRole,
         tenantRoleId: selectedRoleId || null,
@@ -100,7 +103,16 @@ export default function TenantMemberApproval() {
         occupancyStatus: selectedOccupancy,
       });
 
-      toast.success(`${selectedMember.full_name} berhasil disetujui bergabung!`);
+      const isKos = activeTenant?.type === 'kos';
+      if (isKos && selectedUnitObj) {
+        setApprovalSuccess({
+          message: `${selectedMember.full_name} disetujui. ${selectedUnitObj.label} kini tercatat terisi. Atur kontrak sewa agar tagihan bulanan terbit.`,
+          contractLink: `/t/${tenantId}/payment-matrix`,
+        });
+      } else {
+        toast.success(`${selectedMember.full_name} berhasil disetujui bergabung!`);
+      }
+
       setSelectedMember(null);
       await loadData();
     } catch (err) {
@@ -355,6 +367,36 @@ export default function TenantMemberApproval() {
                   <AiOutlineCheck />
                   <span>Setujui Sekarang</span>
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Sukses Khusus Kos (KOS-1F.6b) */}
+        {approvalSuccess && (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl space-y-4 text-center border border-slate-200">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center text-2xl mx-auto">
+                <AiOutlineCheckCircle />
+              </div>
+              <h3 className="text-base font-bold text-slate-900">Persetujuan Berhasil</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                {approvalSuccess.message}
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setApprovalSuccess(null)}
+                  className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                >
+                  Tutup
+                </button>
+                <Link
+                  to={approvalSuccess.contractLink}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 text-xs font-bold transition shadow-xs text-center inline-flex items-center justify-center"
+                >
+                  Atur Kontrak
+                </Link>
               </div>
             </div>
           </div>

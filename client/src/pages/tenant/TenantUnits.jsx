@@ -568,14 +568,21 @@ export default function TenantUnits() {
                           {u.label}
                         </td>
                         <td className="py-3.5 px-4">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${statusBadge.badgeClass}`}
-                          >
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span
-                              className={`h-1.5 w-1.5 rounded-full ${statusBadge.dotClass}`}
-                            />
-                            {statusBadge.label}
-                          </span>
+                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${statusBadge.badgeClass}`}
+                            >
+                              <span
+                                className={`h-1.5 w-1.5 rounded-full ${statusBadge.dotClass}`}
+                              />
+                              {statusBadge.label}
+                            </span>
+                            {tenantType === 'kos' && u.status === 'occupied' && !u.metadata?.contract_start && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                Belum ada kontrak
+                              </span>
+                            )}
+                          </div>
                         </td>
                         {tenantType === 'kos' && (
                           <td className="py-3.5 px-4 text-slate-700">
@@ -697,14 +704,21 @@ export default function TenantUnits() {
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-slate-900 text-sm">{u.label}</span>
-                    <span
-                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${statusBadge.badgeClass}`}
-                    >
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
                       <span
-                        className={`h-1.5 w-1.5 rounded-full ${statusBadge.dotClass}`}
-                      />
-                      {statusBadge.label}
-                    </span>
+                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${statusBadge.badgeClass}`}
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${statusBadge.dotClass}`}
+                        />
+                        {statusBadge.label}
+                      </span>
+                      {tenantType === 'kos' && u.status === 'occupied' && !u.metadata?.contract_start && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                          Belum ada kontrak
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {tenantType === 'kos' && (
