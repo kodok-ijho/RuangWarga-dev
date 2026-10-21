@@ -11,6 +11,7 @@ import { fetchTenantExpenses } from './finance';
 export const PROGRAM_STATUS_LABELS = {
   planning: 'Perencanaan',
   running: 'Berjalan',
+  completed: 'Selesai',
   done: 'Selesai',
   archived: 'Arsip',
 };
