@@ -12,6 +12,8 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { getInviteDetails, requestJoinTenant } from '../../services/tenantOperationalService';
+import { TENANT_TEMPLATES } from '../../config/tenantTemplates';
+import { shouldAskOccupancy, getJoinableUnits } from '../../utils/joinForm';
 
 const PENDING_JOIN_STORAGE_KEY = 'rw_pending_join';
 
@@ -109,9 +111,10 @@ export default function JoinTenant() {
       const res = await getInviteDetails(codeToLookup.trim());
       if (res && res.found) {
         setTenantInfo(res);
+        const joinable = getJoinableUnits(res.units, res.tenant_type || 'rt_rw');
         let selectedUnitId = '';
-        if (res.units && res.units.length > 0) {
-          selectedUnitId = String(res.units[0].id);
+        if (joinable.length > 0) {
+          selectedUnitId = String(joinable[0].id);
         }
 
         // Pulihkan draft jika user sudah login dan kode cocok
@@ -123,8 +126,7 @@ export default function JoinTenant() {
             if (draft.phone) setPhone(draft.phone);
             if (draft.occupancyStatus) setOccupancyStatus(draft.occupancyStatus);
 
-            const units = res.units || [];
-            if (draft.unitId && units.some((u) => String(u.id) === String(draft.unitId))) {
+            if (draft.unitId && joinable.some((u) => String(u.id) === String(draft.unitId))) {
               selectedUnitId = String(draft.unitId);
             }
 
@@ -158,8 +160,8 @@ export default function JoinTenant() {
     if (draft.phone) setPhone(draft.phone);
     if (draft.occupancyStatus) setOccupancyStatus(draft.occupancyStatus);
 
-    const units = tenantInfo.units || [];
-    if (draft.unitId && units.some((u) => String(u.id) === String(draft.unitId))) {
+    const joinable = getJoinableUnits(tenantInfo.units, tenantInfo.tenant_type || 'rt_rw');
+    if (draft.unitId && joinable.some((u) => String(u.id) === String(draft.unitId))) {
       setUnitId(String(draft.unitId));
     }
 
@@ -185,6 +187,10 @@ export default function JoinTenant() {
       return;
     }
 
+    const effectiveOccupancyStatus = shouldAskOccupancy(tenantInfo.tenant_type || 'rt_rw')
+      ? occupancyStatus
+      : 'tenant';
+
     if (!isAuthenticated) {
       // Simpan draft form di sessionStorage lalu arahkan ke login
       try {
@@ -196,7 +202,7 @@ export default function JoinTenant() {
             unitId,
             fullName,
             phone,
-            occupancyStatus,
+            occupancyStatus: effectiveOccupancyStatus,
           })
         );
       } catch {
@@ -216,7 +222,7 @@ export default function JoinTenant() {
         unitId: unitId ? Number(unitId) : null,
         fullName,
         phone,
-        occupancyStatus,
+        occupancyStatus: effectiveOccupancyStatus,
       });
 
       setSubmittedSuccess(true);
@@ -380,43 +386,54 @@ export default function JoinTenant() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Pilih Nomor Unit / Slot <span className="text-rose-500">*</span>
-                  </label>
-                  <select
-                    value={unitId}
-                    onChange={(e) => setUnitId(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-forest-800 shadow-xs"
-                  >
-                    {(tenantInfo.units || []).length === 0 ? (
-                      <option value="">Tidak ada unit tersedia</option>
-                    ) : (
-                      tenantInfo.units.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.label}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
+              {(() => {
+                const tenantType = tenantInfo?.tenant_type || 'rt_rw';
+                const template = TENANT_TEMPLATES[tenantType] || TENANT_TEMPLATES.rt_rw;
+                const joinableUnits = getJoinableUnits(tenantInfo?.units, tenantType);
+                const askOccupancy = shouldAskOccupancy(tenantType);
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Status Tinggal
-                  </label>
-                  <select
-                    value={occupancyStatus}
-                    onChange={(e) => setOccupancyStatus(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-forest-800 shadow-xs"
-                  >
-                    <option value="owner_occupied">Pemilik (Dihuni Sendiri)</option>
-                    <option value="tenant">Penyewa / Kontrak</option>
-                    <option value="owner_vacant">Pemilik (Unit Kosong)</option>
-                  </select>
-                </div>
-              </div>
+                return (
+                  <div className={`grid grid-cols-1 ${askOccupancy ? 'sm:grid-cols-2' : ''} gap-3`}>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                        Pilih {template.unitLabel} <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={unitId}
+                        onChange={(e) => setUnitId(e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-forest-800 shadow-xs"
+                      >
+                        {joinableUnits.length === 0 ? (
+                          <option value="">Belum ada {template.unitLabel} yang tersedia. Hubungi pengelola.</option>
+                        ) : (
+                          joinableUnits.map((u) => (
+                            <option key={u.id} value={u.id}>
+                              {u.label}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    </div>
+
+                    {askOccupancy && (
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Status Tinggal
+                        </label>
+                        <select
+                          value={occupancyStatus}
+                          onChange={(e) => setOccupancyStatus(e.target.value)}
+                          className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-forest-800 shadow-xs"
+                        >
+                          <option value="owner_occupied">Pemilik (Dihuni Sendiri)</option>
+                          <option value="tenant">Penyewa / Kontrak</option>
+                          <option value="owner_vacant">Pemilik (Unit Kosong)</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Status Login Warning jika belum auth */}
               {!isAuthenticated && (

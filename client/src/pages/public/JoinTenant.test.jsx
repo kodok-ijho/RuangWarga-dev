@@ -236,4 +236,42 @@ describe('JoinTenant flow (JOIN-1F)', () => {
     expect(screen.getByDisplayValue('0877777777')).toBeTruthy();
     expect(screen.queryByDisplayValue('Profil Baru Setelah Sync')).toBeNull();
   });
+
+  it('KOS-1.1: tenant kos memakai label Pilih Kamar, menyembunyikan status tinggal, dan menyaring occupied', async () => {
+    vi.spyOn(tenantOperationalService, 'getInviteDetails').mockResolvedValueOnce({
+      found: true,
+      tenant_id: 'tenant-kos-1',
+      tenant_name: 'Kos Melati Harmoni',
+      tenant_type: 'kos',
+      units: [
+        { id: 101, label: 'Kamar 101', status: 'vacant' },
+        { id: 102, label: 'Kamar 102', status: 'occupied' },
+        { id: 103, label: 'Kamar 103', status: 'inactive' },
+        { id: 104, label: 'Kamar 104', status: 'active' },
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/join/KOS-101']}>
+        <Routes>
+          <Route path="/join/:inviteCode" element={<JoinTenant />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Pilih Kamar/i)).toBeTruthy();
+    });
+
+    // Kamar 101 (vacant) dan 104 (active) tampil
+    expect(screen.getByText('Kamar 101')).toBeTruthy();
+    expect(screen.getByText('Kamar 104')).toBeTruthy();
+    // Kamar 102 (occupied) dan 103 (inactive) tidak tampil
+    expect(screen.queryByText('Kamar 102')).toBeNull();
+    expect(screen.queryByText('Kamar 103')).toBeNull();
+
+    // Pilihan status tinggal tidak boleh ada untuk kos
+    expect(screen.queryByText('Status Tinggal')).toBeNull();
+    expect(screen.queryByText('Pemilik (Dihuni Sendiri)')).toBeNull();
+  });
 });
