@@ -106,8 +106,21 @@ export default function Expenses() {
   const [filterMonth, setFilterMonth] = useState('');
   const [modalForm, setModalForm] = useState(null); // null | 'add' | expense obj
   const [viewReceipt, setViewReceipt] = useState(null); // expense obj
+  const [signedReceiptUrl, setSignedReceiptUrl] = useState(null);
+  const [signedReceiptError, setSignedReceiptError] = useState(null);
+  const [isLoadingSignedReceipt, setIsLoadingSignedReceipt] = useState(false);
   const [receiptImageError, setReceiptImageError] = useState(false);
   const [selectedExpenseForDrawer, setSelectedExpenseForDrawer] = useState(null);
+
+  const programMap = useMemo(() => {
+    const map = new Map();
+    (tenantPrograms || []).forEach((p) => {
+      if (p && p.id) {
+        map.set(p.id, p.name);
+      }
+    });
+    return map;
+  }, [tenantPrograms]);
 
   const expenseCategories = useMemo(() => {
     if (activeTenantId && Array.isArray(template?.expenseCategories) && template.expenseCategories.length > 0) {
