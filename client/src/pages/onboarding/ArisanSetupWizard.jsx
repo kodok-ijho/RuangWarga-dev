@@ -286,8 +286,9 @@ export default function ArisanSetupWizard({ tenantId: propTenantId, initialData 
       const newLabels = selectNewUnitLabels(existingUnits, slotList);
       const newLabelSet = new Set(newLabels.map((l) => l.toLowerCase()));
 
+      // delete() bernilai true sekali per label, jadi label yang diketik ganda hanya disisipkan sekali
       const slotsToInsert = slotList
-        .filter((s) => newLabelSet.has((s.label || '').trim().toLowerCase()))
+        .filter((s) => newLabelSet.delete((s.label || '').trim().toLowerCase()))
         .map((s, index) => ({
           label: s.label.trim(),
           unit_identifier: s.label.trim(),

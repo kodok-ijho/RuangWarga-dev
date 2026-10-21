@@ -294,8 +294,9 @@ export default function KelasSetupWizard({ tenantId: propTenantId, initialData }
       const newLabels = selectNewUnitLabels(existingUnits, slotList);
       const newLabelSet = new Set(newLabels.map((l) => l.toLowerCase()));
 
+      // delete() bernilai true sekali per label, jadi label yang diketik ganda hanya disisipkan sekali
       const unitsPayload = slotList
-        .filter((slot) => newLabelSet.has((slot.label || '').trim().toLowerCase()))
+        .filter((slot) => newLabelSet.delete((slot.label || '').trim().toLowerCase()))
         .map((slot, index) => ({
           label: slot.label.trim(),
           type: 'seat',

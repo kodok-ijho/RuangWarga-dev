@@ -59,8 +59,9 @@ export async function saveKosSetupUnitsAndInvite({
   const newLabels = selectNewUnitLabels(existingUnits, roomList);
   const newLabelSet = new Set(newLabels.map((l) => l.toLowerCase()));
 
+  // delete() bernilai true sekali per label, jadi label yang diketik ganda hanya disisipkan sekali
   const roomsToInsert = roomList
-    .filter((r) => newLabelSet.has((r.label || '').trim().toLowerCase()))
+    .filter((r) => newLabelSet.delete((r.label || '').trim().toLowerCase()))
     .map((r, index) => ({
       label: r.label.trim(),
       status: 'vacant',

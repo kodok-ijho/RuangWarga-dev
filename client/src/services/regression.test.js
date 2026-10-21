@@ -489,12 +489,13 @@ describe('Regression: Vertikal Kelas — Alur Lengkap (T11.1)', () => {
       tenantType: 'kelas',
     });
 
-    // Kelas path: vacant TIDAK di-skip (hanya inactive yang difilter)
+    // Kelas path (VERT-1.5): slot tanpa siswa di-skip dengan reason 'no_student'
     // calculateBillingPreview menggunakan spp_amount dari settings
-    expect(result.preview.length).toBe(3); // semua non-inactive masuk
+    expect(result.preview.length).toBe(2);
     expect(result.preview[0].amount).toBe(350000);
     expect(result.preview[0].resident_name).toBe('Ahmad');
-    expect(result.skipped.length).toBe(0); // tidak ada yang di-skip
+    expect(result.skipped).toHaveLength(1);
+    expect(result.skipped[0]).toMatchObject({ unit_id: 3, reason: 'no_student' });
   });
 
   it('4. Generate tagihan SPP berkala (dry run)', async () => {

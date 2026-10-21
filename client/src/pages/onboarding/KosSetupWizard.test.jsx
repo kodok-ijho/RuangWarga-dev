@@ -116,4 +116,26 @@ describe('KosSetupWizard - saveKosSetupUnitsAndInvite (VERT-1.4)', () => {
     expect(result.createdCount).toBe(0);
     expect(result.skippedCount).toBe(2);
   });
+
+  it('label yang diketik ganda di wizard hanya disisipkan sekali', async () => {
+    mockFetchUnits.mockResolvedValue([]);
+    mockFetchCode.mockResolvedValue('CODE-123');
+
+    const roomList = [{ label: 'Kamar 103' }, { label: 'kamar 103 ' }, { label: 'Kamar 104' }];
+
+    const result = await saveKosSetupUnitsAndInvite({
+      tenantId: TENANT_ID,
+      roomList,
+      kosName: KOS_NAME,
+      fetchUnits: mockFetchUnits,
+      createUnits: mockCreateUnits,
+      fetchCode: mockFetchCode,
+      saveCode: mockSaveCode,
+    });
+
+    const createdArg = mockCreateUnits.mock.calls[0][1];
+    expect(createdArg.map((r) => r.label)).toEqual(['Kamar 103', 'Kamar 104']);
+    expect(result.createdCount).toBe(2);
+    expect(result.skippedCount).toBe(1);
+  });
 });
