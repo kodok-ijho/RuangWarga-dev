@@ -111,7 +111,7 @@ describe('TASK-080 Expenses Implementation (Sub-Gate 8.2-B)', () => {
     });
 
     useSubscriptionGate.mockReturnValue({
-      canWrite: true,
+      canTransact: true,
       isReadOnly: false,
     });
 
@@ -354,7 +354,7 @@ describe('TASK-080 Expenses Implementation (Sub-Gate 8.2-B)', () => {
   // J. Read-only subscription
   it('J. Read-only subscription — create, edit, and delete are blocked when subReadOnly=true', () => {
     useSubscriptionGate.mockReturnValue({
-      canWrite: false,
+      canTransact: false,
       isReadOnly: true,
     });
 
@@ -370,9 +370,30 @@ describe('TASK-080 Expenses Implementation (Sub-Gate 8.2-B)', () => {
     expect(html).toContain('Mode Read-Only Aktif');
     // Primary "Catat Pengeluaran" button must not be rendered
     expect(html).not.toContain('Catat Pengeluaran Pertama');
+    expect(html).not.toContain('Catat Pengeluaran');
     // Table action buttons must not be rendered
     expect(html).not.toContain('title="Edit"');
     expect(html).not.toContain('title="Hapus"');
+  });
+
+  // J2. Active subscription with manage_expenses permission can record expenses
+  it('J2. Active subscription — user with manage_expenses on active subscription can record expenses', () => {
+    useSubscriptionGate.mockReturnValue({
+      canTransact: true,
+      isReadOnly: false,
+    });
+
+    const rawHtml = renderToString(
+      <MemoryRouter initialEntries={[`/t/${mockTenantId}/expenses`]}>
+        <Routes>
+          <Route path="/t/:tenantId/expenses" element={<Expenses />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    const html = cleanHtml(rawHtml);
+
+    expect(html).not.toContain('Mode Read-Only Aktif');
+    expect(html).toContain('Catat Pengeluaran');
   });
 
   // K. Drawer progressive disclosure

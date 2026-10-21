@@ -64,7 +64,7 @@ export default function Expenses() {
   const { role, profile, session, isReadOnly: authReadOnly, isAuthenticated } = useAuth();
   const { activeTenant } = useTenant();
   const activeTenantId = params.tenantId || activeTenant?.id || null;
-  const { canWrite: subCanWrite, isReadOnly: subReadOnly } = useSubscriptionGate(activeTenantId);
+  const { canTransact, isReadOnly: subReadOnly } = useSubscriptionGate();
   const template = useTenantTemplate(activeTenant?.type || 'rt_rw');
   const tenantAccess = useTenantAccess();
 
@@ -83,8 +83,8 @@ export default function Expenses() {
     ? tenantAccess.canManageExpenses
     : (canEditGeneral || manageableEventIds.size > 0);
   const canWrite = activeTenantId
-    ? (tenantAccess.canManageExpenses && tenantAccess.canWrite && !authReadOnly && subCanWrite)
-    : ((canModifyData(role) || manageableEventIds.size > 0) && !authReadOnly && subCanWrite);
+    ? (tenantAccess.canManageExpenses && tenantAccess.canWrite && !authReadOnly && canTransact)
+    : ((canModifyData(role) || manageableEventIds.size > 0) && !authReadOnly && canTransact);
 
   const requestIdRef = useRef(0);
   const [expenses, setExpenses] = useState([]);

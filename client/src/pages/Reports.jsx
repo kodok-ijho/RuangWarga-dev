@@ -671,6 +671,39 @@ export default function Reports() {
       handleExportNonIplCSV();
       return;
     }
+    if (activeTenantId) {
+      if (!runningChain || runningChain.length === 0) {
+        toast?.info ? toast.info('Tidak ada data arus kas untuk diekspor.') : null;
+        return;
+      }
+      const header = ['Bulan', 'Pemasukan', 'Pengeluaran', 'Selisih', 'Saldo'];
+      const rows = runningChain.map((item) => {
+        const income = Number(item.totalIncome || 0);
+        const expense = Number(item.totalExpense || 0);
+        const diff = income - expense;
+        const balance = Number(item.closingBalance || 0);
+        return [
+          formatPeriodLabel(item.period),
+          income,
+          expense,
+          diff,
+          balance,
+        ];
+      });
+      const csv = Papa.unparse({
+        fields: header,
+        data: rows,
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `laporan_arus_kas_${period}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast?.success ? toast.success('Laporan CSV arus kas berhasil di-export.') : null;
+      return;
+    }
     if (!report) return;
     const isYearly = reportType === 'yearly';
     const header = isYearly 

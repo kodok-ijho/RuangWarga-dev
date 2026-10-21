@@ -1,9 +1,18 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import fs from 'fs';
 import path from 'path';
+
+// Mock papaparse
+vi.mock('papaparse', () => ({
+  default: {
+    unparse: vi.fn().mockReturnValue('mock,csv,data'),
+  },
+}));
 
 // Mock auth hook
 vi.mock('../hooks/useAuth', () => ({
@@ -20,6 +29,13 @@ vi.mock('../hooks/useTenantTemplate', () => ({
   useTenantTemplate: vi.fn().mockReturnValue({
     billLabel: 'IPL',
     unitLabel: 'Rumah',
+  }),
+}));
+
+// Mock tenant access
+vi.mock('../hooks/useTenantAccess', () => ({
+  useTenantAccess: vi.fn().mockReturnValue({
+    canViewReports: true,
   }),
 }));
 
@@ -42,11 +58,14 @@ vi.mock('../services/dataService', () => ({
 
 import { useAuth } from '../hooks/useAuth';
 import { useTenant } from '../context/TenantContext';
+import { useTenantAccess } from '../hooks/useTenantAccess';
+import { useToast } from '../hooks/useToast';
 import {
   fetchRunningBalance,
   fetchMonthlyFinance,
   fetchNonIplIncomes,
 } from '../services/dataService';
+import Papa from 'papaparse';
 import Reports from './Reports';
 
 function cleanHtml(html) {
@@ -68,6 +87,17 @@ describe('Reports UI Integration & Fallback Elimination (Sub-Gate 8.1-C6)', () =
       activeTenantId: mockTenantId,
       activeTenant: { id: mockTenantId, name: 'Komunitas C6 Test', type: 'rt_rw' },
       userTenants: [{ id: mockTenantId }],
+    });
+
+    useTenantAccess.mockReturnValue({
+      canViewReports: true,
+    });
+
+    useToast.mockReturnValue({
+      error: vi.fn(),
+      success: vi.fn(),
+      info: vi.fn(),
+      warning: vi.fn(),
     });
   });
 
@@ -177,6 +207,59 @@ describe('Reports UI Integration & Fallback Elimination (Sub-Gate 8.1-C6)', () =
       expect(reportsSource).toContain('requestIdRef.current !== currentRequestId');
       expect(reportsSource).toContain('const currentRequestId = ++requestIdRef.current');
       expect(reportsSource).toContain('const requestedTenantId = activeTenantId');
+    });
+  });
+
+  describe('G. Tenant Cashflow CSV Export', () => {
+    it('exports monthly cashflow summary via Papa.unparse in tenant mode without calling report.details', async () => {
+      if (!global.URL.createObjectURL) {
+        global.URL.createObjectURL = vi.fn().mockReturnValue('blob:test');
+      }
+      if (!global.URL.revokeObjectURL) {
+        global.URL.revokeObjectURL = vi.fn();
+      }
+      const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+      const currentYear = new Date().getFullYear();
+      const currentMonth = new Date().getMonth() + 1;
+      const currentPeriod = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+
+      fetchMonthlyFinance.mockResolvedValue({
+        report: { billCount: 0, totalBilled: 0, totalCollected: 0 },
+        expenses: [],
+        cashPayments: [],
+      });
+      fetchRunningBalance.mockResolvedValue({
+        chain: [{
+          period: currentPeriod,
+          year: currentYear,
+          month: currentMonth,
+          openingBalance: 1000000,
+          totalIncome: 500000,
+          totalExpense: 200000,
+          closingBalance: 1300000,
+        }],
+      });
+
+      render(
+        <MemoryRouter initialEntries={[`/t/${mockTenantId}/reports`]}>
+          <Routes>
+            <Route path="/t/:tenantId/reports" element={<Reports />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      const exportBtn = await screen.findByRole('button', { name: /CSV/i });
+      fireEvent.click(exportBtn);
+
+      expect(Papa.unparse).toHaveBeenCalledWith(expect.objectContaining({
+        fields: ['Bulan', 'Pemasukan', 'Pengeluaran', 'Selisih', 'Saldo'],
+        data: expect.arrayContaining([
+          [expect.any(String), 500000, 200000, 300000, 1300000],
+        ]),
+      }));
+
+      clickSpy.mockRestore();
     });
   });
 });
