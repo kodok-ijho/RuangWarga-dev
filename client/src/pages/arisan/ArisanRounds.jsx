@@ -18,6 +18,7 @@ import {
 import { useTenant } from '../../hooks/useTenant';
 import { useToast } from '../../hooks/useToast';
 import { useSubscriptionGate } from '../../hooks/useSubscriptionGate';
+import { getArisanAccess } from '../../utils/arisanAccess';
 import {
   fetchArisanRounds,
   createArisanRound,
@@ -57,8 +58,9 @@ export default function ArisanRounds() {
   const { tenantId: routeTenantId } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
-  const { activeTenant, activeTenantId, isTenantAdmin } = useTenant();
+  const { activeTenant, activeTenantId, hasPermission } = useTenant();
   const { isReadOnly, bannerText } = useSubscriptionGate();
+  const { canManageRounds, canGenerateBills, canRecordPayment } = getArisanAccess(hasPermission);
 
   const tenantId = routeTenantId || activeTenantId;
 
@@ -256,7 +258,7 @@ export default function ArisanRounds() {
       toast.warning(bannerText || 'Fitur dinonaktifkan dalam status langganan read-only.');
       return;
     }
-    if (!isTenantAdmin) {
+    if (!canManageRounds) {
       toast.error('Hanya Admin Arisan yang berwenang memulai siklus baru.');
       return;
     }
@@ -320,7 +322,7 @@ export default function ArisanRounds() {
               <AiOutlineReload className={loading ? 'animate-spin' : ''} />
             </button>
 
-            {isTenantAdmin && (
+            {canManageRounds && (
               <>
                 <button
                   type="button"
@@ -364,7 +366,7 @@ export default function ArisanRounds() {
               </div>
             </div>
 
-            {isTenantAdmin && (
+            {canManageRounds && (
               <button
                 type="button"
                 disabled={isReadOnly}
@@ -486,7 +488,7 @@ export default function ArisanRounds() {
                   : `Tidak ada putaran dengan status "${filterStatus}".`}
               </p>
             </div>
-            {isTenantAdmin && (
+            {canManageRounds && (
               <button
                 type="button"
                 disabled={isReadOnly}
@@ -606,7 +608,7 @@ export default function ArisanRounds() {
                         <span>Iuran Peserta</span>
                       </button>
 
-                      {isTenantAdmin && round.status === 'collecting' && (
+                      {canGenerateBills && round.status === 'collecting' && (
                         <button
                           type="button"
                           disabled={generatingBills || isReadOnly}
@@ -620,7 +622,7 @@ export default function ArisanRounds() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {isReadyToDraw && isTenantAdmin && (
+                      {isReadyToDraw && canManageRounds && (
                         <button
                           type="button"
                           disabled={isReadOnly}
@@ -632,7 +634,7 @@ export default function ArisanRounds() {
                         </button>
                       )}
 
-                      {isReadyToDraw && !isTenantAdmin && (
+                      {isReadyToDraw && !canManageRounds && (
                         <button
                           type="button"
                           onClick={() => navigate(`/t/${tenantId}/arisan/draw?roundId=${round.id}`)}
@@ -780,7 +782,7 @@ export default function ArisanRounds() {
                 <p className="text-slate-600">
                   Tagihan iuran untuk putaran ini belum diterbitkan kepada peserta.
                 </p>
-                {isTenantAdmin && (
+                {canGenerateBills && (
                   <button
                     type="button"
                     disabled={generatingBills || isReadOnly}
@@ -831,7 +833,7 @@ export default function ArisanRounds() {
                           {isPaid ? 'Lunas' : 'Belum Bayar'}
                         </span>
 
-                        {!isPaid && isTenantAdmin && (
+                        {!isPaid && canRecordPayment && (
                           <button
                             type="button"
                             disabled={markingPaidId === bill.id || isReadOnly}

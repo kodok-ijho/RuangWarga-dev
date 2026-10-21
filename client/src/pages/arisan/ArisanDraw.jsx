@@ -20,6 +20,7 @@ import {
 import { useTenant } from '../../hooks/useTenant';
 import { useToast } from '../../hooks/useToast';
 import { useSubscriptionGate } from '../../hooks/useSubscriptionGate';
+import { getArisanAccess } from '../../utils/arisanAccess';
 import {
   fetchArisanRounds,
   fetchArisanParticipants,
@@ -36,8 +37,9 @@ export default function ArisanDraw() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const toast = useToast();
-  const { activeTenant, activeTenantId, isTenantAdmin, isBendahara } = useTenant();
+  const { activeTenant, activeTenantId, hasPermission } = useTenant();
   const { isReadOnly, bannerText } = useSubscriptionGate();
+  const { canManageRounds } = getArisanAccess(hasPermission);
 
   const tenantId = routeTenantId || activeTenantId;
   const initialRoundId = searchParams.get('roundId');
@@ -63,7 +65,7 @@ export default function ArisanDraw() {
   const shuffleIntervalRef = useRef(null);
 
   // Periksa hak pengurus/operator
-  const canDraw = isTenantAdmin || isBendahara;
+  const canDraw = canManageRounds;
 
   // Load Data rounds, participants, candidates
   const loadData = async () => {
@@ -247,7 +249,7 @@ export default function ArisanDraw() {
       toast.warning(bannerText || 'Fitur dinonaktifkan dalam status langganan read-only.');
       return;
     }
-    if (!isTenantAdmin) {
+    if (!canManageRounds) {
       toast.error('Hanya Admin Arisan yang berwenang memulai siklus baru.');
       return;
     }
@@ -325,7 +327,7 @@ export default function ArisanDraw() {
               <AiOutlineReload className={loading ? 'animate-spin' : ''} />
             </button>
 
-            {isTenantAdmin && (
+            {canManageRounds && (
               <button
                 type="button"
                 disabled={isReadOnly}
@@ -523,7 +525,7 @@ export default function ArisanDraw() {
                               <p className="text-[11px] text-purple-700 leading-relaxed">
                                 Siklus putaran telah lengkap. Mulai siklus baru untuk mengocok kembali seluruh peserta dari awal.
                               </p>
-                              {isTenantAdmin && (
+                              {canManageRounds && (
                                 <button
                                   type="button"
                                   disabled={isReadOnly}
@@ -654,7 +656,7 @@ export default function ArisanDraw() {
                               Seluruh peserta dalam siklus ini telah mendapatkan giliran menang!
                             </p>
                           </div>
-                          {isTenantAdmin && (
+                          {canManageRounds && (
                             <button
                               type="button"
                               disabled={isReadOnly}
@@ -971,7 +973,7 @@ export default function ArisanDraw() {
               {winnerCelebration.is_cycle_completed ? (
                 <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 space-y-2 shadow-xs">
                   <p>🎉 <strong>Siklus Putaran Penuh Selesai!</strong> Seluruh peserta telah menerima giliran menang. Pengurus dapat memulai siklus baru.</p>
-                  {isTenantAdmin && (
+                  {canManageRounds && (
                     <button
                       type="button"
                       disabled={isReadOnly}

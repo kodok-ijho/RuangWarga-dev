@@ -421,7 +421,9 @@ export default function App() {
                     path="arisan/rounds"
                     element={
                       <Suspense fallback={<PageLoader />}>
-                        <ArisanRounds />
+                        <TenantAccessGuard require="isMember">
+                          <ArisanRounds />
+                        </TenantAccessGuard>
                       </Suspense>
                     }
                   />
@@ -429,7 +431,9 @@ export default function App() {
                     path="arisan/draw"
                     element={
                       <Suspense fallback={<PageLoader />}>
-                        <ArisanDraw />
+                        <TenantAccessGuard require="isMember">
+                          <ArisanDraw />
+                        </TenantAccessGuard>
                       </Suspense>
                     }
                   />
