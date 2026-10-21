@@ -1,6 +1,6 @@
 # KOS-1 — Alur penyewa dan data kamar Kos
 
-Status: ⏸️ **MENUNGGU PERSETUJUAN USER.** KOS-1.4a menyentuh database (RPC baru). Jangan dikerjakan sebelum user memberi perintah.
+Status: ✅ **Disetujui user 2026-10-21**, termasuk KOS-1.4a (RPC baca-saja baru di database).
 
 Dasar: uji user di ruangwarga-dev 2026-10-21 (tenant "Kos Melati Harmoni"), `AUDIT-VERTIKAL.md` K6, dan catatan `VERT-1-review.md` (`createTenantUnit` selalu `active`).
 
