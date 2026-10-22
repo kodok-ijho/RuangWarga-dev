@@ -1,6 +1,6 @@
 # PANITIA-1F — Perbaikan susulan Kepanitiaan
 
-Status: ⏳ **Menunggu persetujuan user.** Semuanya frontend; tidak ada migration.
+Status: ✅ **Disetujui user 2026-10-21**, selesai dan direview (`PANITIA-1F-review.md`). Semuanya frontend; tidak ada migration.
 
 Dasar: `PANITIA-1-review.md`. Bug berat sudah diperbaiki Claude. Batch ini berisi temuan menengah dan ringan dari review.
 

@@ -515,7 +515,7 @@ export async function createListingPayment(listingId, { isFeatured = false, dura
   const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
 
   if (!isSupabaseConfigured() || isDemo || String(listingId).startsWith('listing-') || String(listingId).startsWith('mock-')) {
-    const paymentId = `pay-lst-${Date.now()}`;
+    const paymentId = `pay-lst-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const gatewayRef = `DOKU-LST-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     const listings = await getInMemoryListings();
     const targetListing = listings.find((l) => String(l.id) === String(listingId));

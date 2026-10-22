@@ -3,7 +3,7 @@ import { getLocalDateString } from './date';
 
 describe('getLocalDateString (PANITIA-1F.6)', () => {
   it('getLocalDateString pada 2026-11-01T00:30:00+07:00 menghasilkan 2026-11-01', () => {
-    expect(getLocalDateString(new Date('2026-11-01T00:30:00+07:00'))).toBe('2026-11-01');
+    expect(getLocalDateString(new Date(2026, 10, 1, 0, 30))).toBe('2026-11-01');
     expect(getLocalDateString('2026-11-01T00:30:00+07:00')).toBe('2026-11-01');
   });
 
