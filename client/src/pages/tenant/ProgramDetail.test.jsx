@@ -197,15 +197,15 @@ describe('PANITIA-1.7: ProgramDetail Page', () => {
     // Planned Expense: 1.000.000
     // Actual Expense: 1.200.000
     // Balance: 15.000.000 - 1.200.000 = 13.800.000
-    expect(screen.getByText('Rencana Pemasukan')).toBeTruthy();
+    expect(screen.getAllByText('Rencana Pemasukan').length).toBeGreaterThan(0);
     expect(screen.getByText('Realisasi Pemasukan')).toBeTruthy();
-    expect(screen.getByText('Rencana Pengeluaran')).toBeTruthy();
+    expect(screen.getAllByText('Rencana Pengeluaran').length).toBeGreaterThan(0);
     expect(screen.getByText('Realisasi Pengeluaran')).toBeTruthy();
     expect(screen.getByText('Saldo Realisasi')).toBeTruthy();
 
     // Check section table: Konsumsi actual (1.200.000) exceeds planned (1.000.000)
-    expect(screen.getByText('Konsumsi')).toBeTruthy();
-    expect(screen.getByText('Sponsorship')).toBeTruthy();
+    expect(screen.getAllByText('Konsumsi').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Sponsorship').length).toBeGreaterThan(0);
   });
 
   it('hides management and budget edit buttons for regular member', async () => {
@@ -251,5 +251,43 @@ describe('PANITIA-1.7: ProgramDetail Page', () => {
 
     expect(Papa.unparse).toHaveBeenCalled();
     expect(mockToast.success).toHaveBeenCalledWith('Laporan CSV acara berhasil diunduh.');
+  });
+
+  it('PANITIA-1F.2: menyertakan ketiga bagian di DOM saat tab aktif Ringkasan serta memiliki judul cetak', async () => {
+    renderProgramDetail();
+
+    await screen.findByText('Pentas Seni Tahunan 2026');
+
+    // Judul cetak ada dan berisi nama program & tanggal cetak
+    const printHeader = screen.getByTestId('program-print-header');
+    expect(printHeader).toBeTruthy();
+    expect(printHeader.className).toContain('hidden');
+    expect(printHeader.className).toContain('print:block');
+    expect(printHeader.textContent).toContain('Pentas Seni Tahunan 2026');
+    expect(printHeader.textContent).toContain('Tanggal Cetak:');
+
+    // Ketiga tab section ada di DOM
+    const summarySection = screen.getByTestId('tab-section-summary');
+    const budgetSection = screen.getByTestId('tab-section-budget');
+    const transSection = screen.getByTestId('tab-section-transactions');
+
+    expect(summarySection).toBeTruthy();
+    expect(budgetSection).toBeTruthy();
+    expect(transSection).toBeTruthy();
+
+    // Tab aktif (summary) terlihat normal
+    expect(summarySection.className).toContain('block');
+
+    // Tab tidak aktif memiliki class hidden dan print:block
+    expect(budgetSection.className).toContain('hidden');
+    expect(budgetSection.className).toContain('print:block');
+    expect(transSection.className).toContain('hidden');
+    expect(transSection.className).toContain('print:block');
+
+    // Tombol aksi di tabel pos anggaran memiliki print:hidden
+    const editBudgetBtns = screen.getAllByTitle('Ubah');
+    expect(editBudgetBtns.length).toBeGreaterThan(0);
+    const actionCell = editBudgetBtns[0].closest('td');
+    expect(actionCell?.className).toContain('print:hidden');
   });
 });

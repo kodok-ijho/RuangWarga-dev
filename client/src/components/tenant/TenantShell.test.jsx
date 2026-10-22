@@ -330,5 +330,27 @@ describe('TenantShell Navigation (RTRW-1.2)', () => {
       expect(html).toContain('href="/t/t-rtrw-1/incomes"');
       expect(html).toContain('Pemasukan');
     });
+
+    it('PANITIA-1F.2: menyembunyikan header, banner langganan, dan bottom nav ponsel saat dicetak (print:hidden)', () => {
+      mockTenantState.activeTenant = {
+        id: 't-panitia-1',
+        name: 'Panitia Lomba',
+        type: 'panitia',
+      };
+      mockTenantState.activeTenantId = 't-panitia-1';
+
+      const html = renderToString(
+        <MemoryRouter initialEntries={['/t/t-panitia-1/dashboard']}>
+          <TenantShell />
+        </MemoryRouter>
+      );
+
+      // Header sticky memiliki print:hidden
+      expect(html).toMatch(/<header[^>]*print:hidden/);
+      // Banner wrapper memiliki print:hidden
+      expect(html).toContain('class="print:hidden"');
+      // Nav ponsel memiliki print:hidden
+      expect(html).toMatch(/<nav[^>]*print:hidden[^>]*aria-label="Navigasi Komunitas Ponsel"/);
+    });
   });
 });

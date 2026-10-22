@@ -162,7 +162,7 @@ export default function TenantShell() {
       }}
     >
       {/* ── Tenant Workspace Header (TASK-041, TASK-042) ────────────────── */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40 backdrop-blur-md">
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-40 backdrop-blur-md print:hidden">
         <div className="max-w-6xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-3">
           {/* Kiri: Tenant Identity & Account Switcher */}
           <div className="flex items-center gap-3 min-w-0">
@@ -345,7 +345,9 @@ export default function TenantShell() {
       </header>
 
       {/* ── Trial / Subscription Warning Banner ─────────────────────────── */}
-      <TrialCountdownBanner />
+      <div className="print:hidden">
+        <TrialCountdownBanner />
+      </div>
 
       {/* ── Main Workspace Content ───────────────────────────────────────── */}
       <main className="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-20 md:pb-8">
@@ -354,7 +356,7 @@ export default function TenantShell() {
 
       {/* ── Mobile Fixed Bottom Nav (<= 4 Destinations, TASK-044) ───────── */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-rw-popover px-2"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-rw-popover px-2 print:hidden"
         style={{ paddingBottom: 'max(0.35rem, env(safe-area-inset-bottom))' }}
         aria-label="Navigasi Komunitas Ponsel"
       >

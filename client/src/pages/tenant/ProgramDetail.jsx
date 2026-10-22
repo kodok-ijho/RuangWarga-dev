@@ -557,6 +557,14 @@ export default function ProgramDetail() {
         </div>
       </div>
 
+      {/* Judul Cetak (Hanya Tampil Saat Dicetak) */}
+      <div data-testid="program-print-header" className="hidden print:block border-b border-slate-300 pb-4 mb-4">
+        <div className="text-2xl font-bold text-slate-900">Laporan Acara: {program.name}</div>
+        <p className="text-xs text-slate-600 mt-1">
+          Tanggal Cetak: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+        </p>
+      </div>
+
       {/* Header Info Card */}
       <div className="pv-card border border-slate-200 dark:border-slate-800">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
@@ -648,9 +656,11 @@ export default function ProgramDetail() {
       </div>
 
       {/* TAB 1: RINGKASAN */}
-      {activeTab === 'summary' && (
-        <div className="space-y-6">
-          {/* 5 Financial Metric Cards */}
+      <div
+        data-testid="tab-section-summary"
+        className={`space-y-6 ${activeTab === 'summary' ? 'block' : 'hidden print:block'}`}
+      >
+        {/* 5 Financial Metric Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="pv-card p-4 border border-slate-200 dark:border-slate-800">
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">
@@ -807,29 +817,30 @@ export default function ProgramDetail() {
             </div>
           </div>
         </div>
-      )}
 
       {/* TAB 2: ANGGARAN (RAB) */}
-      {activeTab === 'budget' && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Rencana Anggaran Biaya (RAB)</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Daftar rincian pos pemasukan dan pengeluaran yang dialokasikan untuk kegiatan ini.
-              </p>
-            </div>
-            {canManageBudget && (
-              <button
-                type="button"
-                onClick={() => handleOpenAddBudgetItem('expense')}
-                className="pv-button-primary flex items-center gap-1.5 text-xs sm:text-sm"
-              >
-                <AiOutlinePlus className="w-4 h-4" />
-                <span>Tambah Pos Anggaran</span>
-              </button>
-            )}
+      <div
+        data-testid="tab-section-budget"
+        className={`space-y-6 ${activeTab === 'budget' ? 'block' : 'hidden print:block'}`}
+      >
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Rencana Anggaran Biaya (RAB)</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Daftar rincian pos pemasukan dan pengeluaran yang dialokasikan untuk kegiatan ini.
+            </p>
           </div>
+          {canManageBudget && (
+            <button
+              type="button"
+              onClick={() => handleOpenAddBudgetItem('expense')}
+              className="pv-button-primary flex items-center gap-1.5 text-xs sm:text-sm print:hidden"
+            >
+              <AiOutlinePlus className="w-4 h-4" />
+              <span>Tambah Pos Anggaran</span>
+            </button>
+          )}
+        </div>
 
           {/* Kelompok Pemasukan */}
           <div className="pv-card border border-slate-200 dark:border-slate-800 overflow-hidden">
@@ -864,7 +875,7 @@ export default function ProgramDetail() {
                             <th className="py-2 px-4 text-right">Harga Satuan</th>
                             <th className="py-2 px-4 text-right">Total Rencana</th>
                             <th className="py-2 px-4 text-right">Realisasi</th>
-                            {canManageBudget && <th className="py-2 px-4 text-center">Aksi</th>}
+                            {canManageBudget && <th className="py-2 px-4 text-center print:hidden">Aksi</th>}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -883,7 +894,7 @@ export default function ProgramDetail() {
                                 <td className="py-2.5 px-4 text-right font-semibold">{formatRupiah(tot)}</td>
                                 <td className="py-2.5 px-4 text-right font-medium text-emerald-600">{formatRupiah(act)}</td>
                                 {canManageBudget && (
-                                  <td className="py-2.5 px-4 text-center">
+                                  <td className="py-2.5 px-4 text-center print:hidden">
                                     <div className="flex items-center justify-center gap-1">
                                       <button
                                         type="button"
@@ -949,7 +960,7 @@ export default function ProgramDetail() {
                             <th className="py-2 px-4 text-right">Harga Satuan</th>
                             <th className="py-2 px-4 text-right">Total Rencana</th>
                             <th className="py-2 px-4 text-right">Realisasi</th>
-                            {canManageBudget && <th className="py-2 px-4 text-center">Aksi</th>}
+                            {canManageBudget && <th className="py-2 px-4 text-center print:hidden">Aksi</th>}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -971,7 +982,7 @@ export default function ProgramDetail() {
                                   {formatRupiah(act)}
                                 </td>
                                 {canManageBudget && (
-                                  <td className="py-2.5 px-4 text-center">
+                                  <td className="py-2.5 px-4 text-center print:hidden">
                                     <div className="flex items-center justify-center gap-1">
                                       <button
                                         type="button"
@@ -1004,19 +1015,20 @@ export default function ProgramDetail() {
             )}
           </div>
         </div>
-      )}
 
       {/* TAB 3: TRANSAKSI */}
-      {activeTab === 'transactions' && (
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Daftar Transaksi Acara</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Pemasukan dan pengeluaran yang terhubung dengan kegiatan ini.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
+      <div
+        data-testid="tab-section-transactions"
+        className={`space-y-4 ${activeTab === 'transactions' ? 'block' : 'hidden print:block'}`}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Daftar Transaksi Acara</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Pemasukan dan pengeluaran yang terhubung dengan kegiatan ini.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 print:hidden">
               {canRecordIncome && (
                 <button
                   type="button"
@@ -1104,7 +1116,6 @@ export default function ProgramDetail() {
             </div>
           </div>
         </div>
-      )}
 
       {/* Modal Edit Acara */}
       <Modal
