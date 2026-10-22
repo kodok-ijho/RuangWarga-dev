@@ -233,4 +233,16 @@ describe('PANITIA-1.7: Programs Page', () => {
     expect(consoleErrorSpy).toHaveBeenCalled();
     consoleErrorSpy.mockRestore();
   });
+
+  it('PANITIA-1F.6: Programs dengan ?new=1 membuka form dan membersihkan parameter new', async () => {
+    tenantOperationalService.fetchProgramsOverview.mockResolvedValue([]);
+    tenantOperationalService.fetchTenantMembers.mockResolvedValue([]);
+
+    renderPrograms('/t/tenant-panitia-1/programs?new=1');
+
+    await waitFor(() => {
+      expect(screen.getByText('Buat Acara Baru')).toBeTruthy();
+      expect(screen.getByLabelText(/nama acara/i)).toBeTruthy();
+    });
+  });
 });

@@ -206,4 +206,41 @@ describe('PANITIA-1.6: TenantIncomes Page', () => {
     const programSelect = await screen.findByRole('combobox', { name: /Tautkan ke Acara/i });
     expect(programSelect.value).toBe('prog-1');
   });
+
+  it('5. PANITIA-1F.6: tombol simpan Pemasukan nonaktif selama menyimpan', async () => {
+    let resolveCreate;
+    const createPromise = new Promise((resolve) => {
+      resolveCreate = resolve;
+    });
+    tenantOperationalService.createTenantIncome.mockReturnValue(createPromise);
+
+    renderTenantIncomes();
+
+    const addBtn = await screen.findByRole('button', { name: /Catat Pemasukan/i });
+    fireEvent.click(addBtn);
+
+    expect(await screen.findByText('Catat Pemasukan Kas')).toBeTruthy();
+
+    const sourceInput = screen.getByPlaceholderText(/Contoh: Sponsor Bank Mandiri/i);
+    fireEvent.change(sourceInput, { target: { value: 'Donatur Alumni' } });
+
+    const amountInput = screen.getByPlaceholderText(/Contoh: 15000000/i);
+    fireEvent.change(amountInput, { target: { value: '2500000' } });
+
+    const submitBtn = screen.getByRole('button', { name: /Simpan Pemasukan/i });
+    expect(submitBtn.disabled).toBe(false);
+
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(submitBtn.disabled).toBe(true);
+      expect(screen.getByRole('button', { name: /Menyimpan\.\.\./i })).toBeTruthy();
+    });
+
+    resolveCreate({ id: 'inc-resolved' });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Catat Pemasukan Kas')).toBeNull();
+    });
+  });
 });

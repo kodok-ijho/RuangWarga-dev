@@ -83,7 +83,7 @@ export function PanitiaDashboard({
           {canManagePrograms && (
             <button
               type="button"
-              onClick={() => navigate(`/t/${tid}/programs`)}
+              onClick={() => navigate(`/t/${tid}/programs?new=1`)}
               className="pv-button-primary flex items-center gap-1.5 text-xs"
             >
               <AiOutlinePlus className="w-3.5 h-3.5" />
@@ -176,7 +176,7 @@ export function PanitiaDashboard({
                 <div className="pt-2">
                   <button
                     type="button"
-                    onClick={() => navigate(`/t/${tid}/programs`)}
+                    onClick={() => navigate(`/t/${tid}/programs?new=1`)}
                     className="pv-button-primary inline-flex items-center gap-1.5 text-xs"
                   >
                     <AiOutlinePlus className="w-3.5 h-3.5" />

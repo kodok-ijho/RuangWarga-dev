@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AiOutlinePlus,
   AiOutlineCalendar,
@@ -36,6 +36,7 @@ export default function Programs() {
   const { activeTenant } = useTenant();
   const tenantId = routeTenantId || activeTenant?.id;
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const tenantAccess = useTenantAccess();
   const { canTransact } = useSubscriptionGate();
@@ -92,6 +93,18 @@ export default function Programs() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    const qNew = searchParams.get('new');
+    if (qNew === '1' && canManage) {
+      setIsModalOpen(true);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('new');
+        return next;
+      }, { replace: true });
+    }
+  }, [searchParams, canManage, setSearchParams]);
 
   // Tab grouping
   const { activePrograms, completedPrograms, archivedPrograms } = useMemo(() => {

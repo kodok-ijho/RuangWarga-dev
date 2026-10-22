@@ -5,6 +5,7 @@
  */
 
 import { supabase, IS_DEMO } from './shared';
+import { getLocalDateString } from '../../utils/date';
 
 export const VALID_PAYMENT_METHODS = ['cash', 'bank_transfer', 'qris', 'other'];
 
@@ -174,7 +175,7 @@ export async function createTenantIncome(
     paymentMethod,
   });
 
-  const finalDate = incomeDate || date || new Date().toISOString().substring(0, 10);
+  const finalDate = incomeDate || date || getLocalDateString();
 
   const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
   if (isDemoOrMock) {

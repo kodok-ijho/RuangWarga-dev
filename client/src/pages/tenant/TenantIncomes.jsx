@@ -23,6 +23,7 @@ import {
   fetchBudgetItems,
 } from '../../services/tenantOperationalService';
 import { formatRupiah, formatDate } from '../../services/dataHelpers';
+import { getLocalDateString } from '../../utils/date';
 
 export const PAYMENT_METHOD_LABELS = {
   cash: 'Tunai',
@@ -54,7 +55,8 @@ export default function TenantIncomes() {
   const [filterCategory, setFilterCategory] = useState('');
 
   const [modalForm, setModalForm] = useState(null); // null | 'add' | income obj
-  const [initialProgramForForm, setInitialProgramForForm] = useState(searchParams.get('program') || '');
+  const [initialProgramForForm, setInitialProgramForForm] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const categories = useMemo(() => {
     if (Array.isArray(template?.incomeCategories) && template.incomeCategories.length > 0) {
@@ -92,13 +94,18 @@ export default function TenantIncomes() {
   useEffect(() => {
     const qProgram = searchParams.get('program');
     const qNew = searchParams.get('new');
-    if (qProgram) {
-      setInitialProgramForForm(qProgram);
-    }
     if (qNew === '1' && canWrite) {
+      if (qProgram) {
+        setInitialProgramForForm(qProgram);
+      }
       setModalForm('add');
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('new');
+        return next;
+      }, { replace: true });
     }
-  }, [searchParams, canWrite]);
+  }, [searchParams, canWrite, setSearchParams]);
 
   const programMap = useMemo(() => {
     const map = new Map();
@@ -143,7 +150,7 @@ export default function TenantIncomes() {
       return;
     }
     try {
-      setIsLoading(true);
+      setIsSaving(true);
       if (modalForm === 'add') {
         await createTenantIncome(tenantId, { ...formData, memberId: activeMember?.id || null });
         toast.success(`Pemasukan "${formData.category}" berhasil dicatat.`);
@@ -152,12 +159,13 @@ export default function TenantIncomes() {
         toast.success('Pemasukan berhasil diperbarui.');
       }
       setModalForm(null);
+      setInitialProgramForForm('');
       await loadData();
     } catch (err) {
       console.error('[TenantIncomes] save error:', err);
       toast.error(err.message || 'Gagal menyimpan pemasukan.');
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -211,7 +219,10 @@ export default function TenantIncomes() {
         {canWrite && (
           <button
             type="button"
-            onClick={() => setModalForm('add')}
+            onClick={() => {
+              setInitialProgramForForm('');
+              setModalForm('add');
+            }}
             className="pv-btn-primary text-xs shadow-xs"
           >
             <AiOutlinePlus /> Catat Pemasukan
@@ -331,7 +342,10 @@ export default function TenantIncomes() {
             ) : canWrite ? (
               <button
                 type="button"
-                onClick={() => setModalForm('add')}
+                onClick={() => {
+                  setInitialProgramForForm('');
+                  setModalForm('add');
+                }}
                 className="pv-btn-primary text-xs shadow-xs"
               >
                 <AiOutlinePlus /> Catat Pemasukan Pertama
@@ -351,7 +365,7 @@ export default function TenantIncomes() {
                 const progName = pId ? programMap.get(pId) : null;
                 const d = inc.date || inc.incomeDate || inc.income_date;
                 return (
-                  <div className="pv-card p-4 space-y-2.5">
+                  <div key={inc.id} className="pv-card p-4 space-y-2.5">
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -489,8 +503,12 @@ export default function TenantIncomes() {
           categories={categories}
           programs={programs}
           initialProgramId={initialProgramForForm}
+          isSaving={isSaving}
           onSave={handleSave}
-          onClose={() => setModalForm(null)}
+          onClose={() => {
+            setModalForm(null);
+            setInitialProgramForForm('');
+          }}
         />
       )}
     </div>
@@ -503,13 +521,14 @@ function IncomeFormModal({
   categories = [],
   programs = [],
   initialProgramId = '',
+  isSaving = false,
   onSave,
   onClose,
 }) {
   const isEdit = Boolean(income);
 
   const [form, setForm] = useState({
-    date: income?.date || income?.incomeDate || income?.income_date || new Date().toISOString().split('T')[0],
+    date: income?.date || income?.incomeDate || income?.income_date || getLocalDateString(),
     category: income?.category || categories[0] || 'Iuran',
     sourceName: income?.sourceName || income?.source_name || '',
     amount: income?.amount || '',
@@ -745,16 +764,18 @@ function IncomeFormModal({
         <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
           <button
             type="button"
+            disabled={isSaving}
             onClick={onClose}
-            className="pv-btn-ghost text-xs"
+            className="pv-btn-ghost text-xs disabled:opacity-50"
           >
             Batal
           </button>
           <button
             type="submit"
-            className="pv-btn-primary text-xs"
+            disabled={isSaving}
+            className="pv-btn-primary text-xs disabled:opacity-50"
           >
-            Simpan Pemasukan
+            {isSaving ? 'Menyimpan...' : 'Simpan Pemasukan'}
           </button>
         </div>
       </form>

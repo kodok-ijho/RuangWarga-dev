@@ -41,6 +41,7 @@ import {
 } from '../services/dataHelpers';
 import { compressImage } from '../utils/imageCompressor';
 import { createReceiptSignedUrl, isValidExpenseReceiptPath } from '../utils/storagePolicy';
+import { getLocalDateString } from '../utils/date';
 import { supabase } from '../services/supabaseClient';
 
 const EXPENSE_CATEGORIES = [
@@ -68,9 +69,10 @@ function getGoogleDriveThumbnail(url) {
 
 export default function Expenses() {
   const params = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryProgramId = searchParams.get('program') || '';
   const queryNew = searchParams.get('new');
+  const [initialProgramForForm, setInitialProgramForForm] = useState('');
 
   const { role, profile, session, isReadOnly: authReadOnly, isAuthenticated } = useAuth();
   const { activeTenant, activeMember } = useTenant();
@@ -129,12 +131,20 @@ export default function Expenses() {
     return EXPENSE_CATEGORIES;
   }, [activeTenantId, template?.expenseCategories]);
 
-  // Handle URL query ?program=<id>&new=1
+  // Handle URL query ?program=<id>&new=1 (mode tenant)
   useEffect(() => {
-    if (queryNew === '1' && canWrite) {
+    if (activeTenantId && queryNew === '1' && canWrite) {
+      if (queryProgramId) {
+        setInitialProgramForForm(queryProgramId);
+      }
       setModalForm('add');
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('new');
+        return next;
+      }, { replace: true });
     }
-  }, [queryNew, canWrite]);
+  }, [activeTenantId, queryNew, queryProgramId, canWrite, setSearchParams]);
 
   const loadExpenses = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -402,7 +412,13 @@ export default function Expenses() {
           </p>
         </div>
         {canEdit && canWrite && (
-          <button onClick={() => setModalForm('add')} className="pv-btn-primary text-xs shadow-xs">
+          <button
+            onClick={() => {
+              setInitialProgramForForm('');
+              setModalForm('add');
+            }}
+            className="pv-btn-primary text-xs shadow-xs"
+          >
             <AiOutlinePlus /> Catat Pengeluaran
           </button>
         )}
@@ -502,7 +518,10 @@ export default function Expenses() {
             ) : canEdit && canWrite ? (
               <button
                 type="button"
-                onClick={() => setModalForm('add')}
+                onClick={() => {
+                  setInitialProgramForForm('');
+                  setModalForm('add');
+                }}
                 className="pv-btn-primary text-xs shadow-xs"
               >
                 <AiOutlinePlus /> Catat Pengeluaran Pertama
@@ -695,10 +714,13 @@ export default function Expenses() {
           categories={expenseCategories}
           tenantId={activeTenantId}
           tenantPrograms={tenantPrograms}
-          initialProgramId={queryProgramId}
+          initialProgramId={initialProgramForForm}
           isSaving={isLoading}
           onSave={handleSave}
-          onClose={() => setModalForm(null)}
+          onClose={() => {
+            setModalForm(null);
+            setInitialProgramForForm('');
+          }}
         />
       )}
 
@@ -825,7 +847,7 @@ function ExpenseFormModal({
   const [selectedFile, setSelectedFile] = useState(null);
   const isEdit = !!expense;
   const [form, setForm] = useState({
-    date: expense?.date || expense?.expense_date || new Date().toISOString().split('T')[0],
+    date: expense?.date || expense?.expense_date || (tenantId ? getLocalDateString() : new Date().toISOString().split('T')[0]),
     category: expense?.category || categories[0] || EXPENSE_CATEGORIES[0],
     amount: expense?.amount || '',
     description: expense?.description || '',

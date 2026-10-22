@@ -75,6 +75,7 @@ export default function ProgramDetail() {
   // Modal Status Quick Change
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('planning');
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   // Modal Delete Program Confirmation
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -273,6 +274,7 @@ export default function ProgramDetail() {
   };
 
   const handleUpdateStatus = async () => {
+    setIsUpdatingStatus(true);
     try {
       const updated = await updateProgram(tenantId, programId, { status: selectedStatus });
       setProgram(updated);
@@ -281,6 +283,8 @@ export default function ProgramDetail() {
       await loadData();
     } catch (err) {
       toast.error(err.message || 'Gagal mengubah status acara.');
+    } finally {
+      setIsUpdatingStatus(false);
     }
   };
 
@@ -1252,7 +1256,7 @@ export default function ProgramDetail() {
       {/* Modal Quick Change Status */}
       <Modal
         open={isStatusModalOpen}
-        onClose={() => setIsStatusModalOpen(false)}
+        onClose={() => !isUpdatingStatus && setIsStatusModalOpen(false)}
         title="Ubah Status Acara"
         size="sm"
       >
@@ -1279,6 +1283,7 @@ export default function ProgramDetail() {
                   value={st}
                   checked={selectedStatus === st}
                   onChange={() => setSelectedStatus(st)}
+                  disabled={isUpdatingStatus}
                   className="text-forest-600 focus:ring-forest-500"
                 />
               </label>
@@ -1287,17 +1292,19 @@ export default function ProgramDetail() {
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
+              disabled={isUpdatingStatus}
               onClick={() => setIsStatusModalOpen(false)}
-              className="pv-button-secondary"
+              className="pv-button-secondary disabled:opacity-50"
             >
               Batal
             </button>
             <button
               type="button"
+              disabled={isUpdatingStatus}
               onClick={handleUpdateStatus}
-              className="pv-button-primary"
+              className="pv-button-primary disabled:opacity-50"
             >
-              Simpan
+              {isUpdatingStatus ? 'Menyimpan...' : 'Simpan'}
             </button>
           </div>
         </div>

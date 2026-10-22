@@ -298,4 +298,41 @@ describe('PANITIA-1.7: ProgramDetail Page', () => {
     const actionCell = editBudgetBtns[0].closest('td');
     expect(actionCell?.className).toContain('print:hidden');
   });
+
+  it('PANITIA-1F.6: tombol simpan status di ProgramDetail nonaktif selama proses', async () => {
+    let resolveUpdate;
+    const updatePromise = new Promise((resolve) => {
+      resolveUpdate = resolve;
+    });
+    tenantOperationalService.updateProgram.mockReturnValue(updatePromise);
+
+    renderProgramDetail();
+
+    await screen.findByText('Pentas Seni Tahunan 2026');
+
+    const statusBtn = screen.getByRole('button', { name: /Ubah Status/i });
+    fireEvent.click(statusBtn);
+
+    expect(await screen.findByText('Ubah Status Acara')).toBeTruthy();
+
+    const saveBtn = screen.getByRole('button', { name: /^Simpan$/i });
+    expect(saveBtn.disabled).toBe(false);
+
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(saveBtn.disabled).toBe(true);
+      expect(screen.getByRole('button', { name: /Menyimpan\.\.\./i })).toBeTruthy();
+    });
+
+    resolveUpdate({
+      id: 'prog-1',
+      name: 'Pentas Seni Tahunan 2026',
+      status: 'planning',
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Ubah Status Acara')).toBeNull();
+    });
+  });
 });
