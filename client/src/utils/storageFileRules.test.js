@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { describe, it, expect } from 'vitest';
 import {
   MAX_FILE_BYTES,
   MAX_DOCUMENT_BYTES,
