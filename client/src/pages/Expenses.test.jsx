@@ -629,4 +629,15 @@ describe('TASK-080 Expenses Implementation (Sub-Gate 8.2-B)', () => {
     expect(capturedPayload.program_id).toBe('prog-uuid-1');
     expect(capturedPayload.budget_item_id).toBe('budget-uuid-2');
   });
+
+  // U. PANITIA-ARISAN-1F F.5 Expenses improvements
+  it('U. F.5 — Expenses memuat program secara mandiri dan handleDelete menampilkan err.message', () => {
+    const expensesSource = fs.readFileSync(
+      path.resolve(__dirname, 'Expenses.jsx'),
+      'utf8'
+    );
+    expect(expensesSource).toContain("toast.error(err.message || 'Gagal menghapus pengeluaran.');");
+    expect(expensesSource).toContain('if (!programsLoaded) return;');
+    expect(expensesSource).toContain('const loadPrograms = useCallback');
+  });
 });

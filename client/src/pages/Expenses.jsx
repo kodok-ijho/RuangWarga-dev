@@ -89,6 +89,7 @@ export default function Expenses() {
   const [eventAccess, setEventAccess] = useState(null);
   const [eventOptions, setEventOptions] = useState([]);
   const [tenantPrograms, setTenantPrograms] = useState([]);
+  const [programsLoaded, setProgramsLoaded] = useState(false);
   const isStaff = hasMinRole(role, 'pengurus');
   const canEditGeneral = isBendaharaOrAbove(role);
   const manageableEventIds = useMemo(() => new Set(
@@ -132,9 +133,32 @@ export default function Expenses() {
     return EXPENSE_CATEGORIES;
   }, [activeTenantId, template?.expenseCategories]);
 
+  // Load daftar acara secara mandiri tanpa menunggu fetchExpenses (F.5)
+  const loadPrograms = useCallback(async () => {
+    if (!activeTenantId) {
+      setTenantPrograms([]);
+      setProgramsLoaded(true);
+      return;
+    }
+    try {
+      const progs = await fetchPrograms(activeTenantId);
+      setTenantPrograms(Array.isArray(progs) ? progs : []);
+    } catch {
+      setTenantPrograms([]);
+    } finally {
+      setProgramsLoaded(true);
+    }
+  }, [activeTenantId]);
+
+  useEffect(() => {
+    loadPrograms();
+  }, [loadPrograms]);
+
   // Handle URL query ?program=<id>&new=1 (mode tenant)
   useEffect(() => {
     if (activeTenantId && queryNew === '1' && canWrite) {
+      if (!programsLoaded) return;
+
       if (queryProgramId) {
         const targetProg = tenantPrograms.find((p) => String(p.id) === String(queryProgramId));
         if (targetProg) {
@@ -158,7 +182,7 @@ export default function Expenses() {
         return next;
       }, { replace: true });
     }
-  }, [activeTenantId, queryNew, queryProgramId, canWrite, tenantPrograms, activeTenant?.type, setSearchParams, toast]);
+  }, [activeTenantId, queryNew, queryProgramId, canWrite, tenantPrograms, programsLoaded, activeTenant?.type, setSearchParams, toast]);
 
   const loadExpenses = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -177,19 +201,6 @@ export default function Expenses() {
       const data = await fetchExpenses(token, { tenantId: activeTenantId });
       if (requestIdRef.current !== currentRequestId) return;
       setExpenses(Array.isArray(data) ? data : []);
-
-      if (activeTenantId) {
-        try {
-          const progs = await fetchPrograms(activeTenantId);
-          if (requestIdRef.current === currentRequestId) {
-            setTenantPrograms(Array.isArray(progs) ? progs : []);
-          }
-        } catch {
-          if (requestIdRef.current === currentRequestId) {
-            setTenantPrograms([]);
-          }
-        }
-      }
 
       if (!activeTenantId) {
         try {
@@ -388,7 +399,7 @@ export default function Expenses() {
       toast.success('Pengeluaran berhasil dihapus.');
       loadExpenses();
     } catch (err) {
-      toast.error('Gagal menghapus pengeluaran.');
+      toast.error(err.message || 'Gagal menghapus pengeluaran.');
     } finally {
       setIsLoading(false);
     }

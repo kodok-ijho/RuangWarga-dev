@@ -564,4 +564,58 @@ describe('PANITIA-1.5: Program & Budget (RAB) Services', () => {
       spyDues.mockRestore();
     });
   });
+
+  describe('PANITIA-ARISAN-1F F.5: masa aktif acara', () => {
+    it('tenantType null atau undefined menghasilkan access state unlimited', () => {
+      const prog = { is_free_trial: false, access_until: null };
+      expect(getProgramAccessState(prog, { tenantType: null })).toEqual({
+        state: 'unlimited',
+        until: null,
+        writable: true,
+      });
+      expect(getProgramAccessState(prog, { tenantType: undefined })).toEqual({
+        state: 'unlimited',
+        until: null,
+        writable: true,
+      });
+    });
+
+    it('label masa aktif WIB untuk 2026-02-01T18:30:00Z = "2 Feb 2026"', () => {
+      const activeLabel = formatProgramAccessLabel({
+        state: 'active',
+        until: '2026-02-01T18:30:00Z',
+      });
+      expect(activeLabel).toBe('Aktif sampai 2 Feb 2026');
+
+      const trialLabel = formatProgramAccessLabel({
+        state: 'free_trial',
+        until: '2026-02-01T18:30:00Z',
+      });
+      expect(trialLabel).toBe('Gratis sampai 2 Feb 2026');
+
+      const expiredLabel = formatProgramAccessLabel({
+        state: 'expired',
+        until: '2026-02-01T18:30:00Z',
+      });
+      expect(expiredLabel).toBe('Masa aktif habis 2 Feb 2026');
+    });
+
+    it('jatah gratis demo hanya sekali per tenant dan tidak kembali setelah acara dihapus', async () => {
+      resetDemoProgramsStore([], []);
+      const demoTenantId = 'demo-tenant-panitia-sekali';
+
+      // Acara 1: dapat jatah gratis
+      const p1 = await createProgram(demoTenantId, { name: 'Acara Gratis Pertama' });
+      expect(p1.is_free_trial).toBe(true);
+      expect(p1.access_until).toBeTruthy();
+
+      // Hapus acara 1
+      await deleteProgram(demoTenantId, p1.id);
+
+      // Acara 2: tidak dapat jatah gratis lagi
+      const p2 = await createProgram(demoTenantId, { name: 'Acara Kedua Tanpa Gratis' });
+      expect(p2.is_free_trial).toBe(false);
+      expect(p2.access_until).toBeNull();
+    });
+  });
 });

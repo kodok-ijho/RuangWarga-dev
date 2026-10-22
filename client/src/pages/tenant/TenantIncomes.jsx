@@ -48,6 +48,7 @@ export default function TenantIncomes() {
 
   const [incomes, setIncomes] = useState([]);
   const [programs, setPrograms] = useState([]);
+  const [programsLoaded, setProgramsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
@@ -77,11 +78,13 @@ export default function TenantIncomes() {
       ]);
       setIncomes(Array.isArray(incomeData) ? incomeData : []);
       setPrograms(Array.isArray(programData) ? programData : []);
+      setProgramsLoaded(true);
     } catch (err) {
       console.error('[TenantIncomes] load error:', err);
       const msg = err.message || 'Gagal memuat data pemasukan.';
       setLoadError(msg);
       toast.error(msg);
+      setProgramsLoaded(true);
     } finally {
       setIsLoading(false);
     }
@@ -96,6 +99,8 @@ export default function TenantIncomes() {
     const qProgram = searchParams.get('program');
     const qNew = searchParams.get('new');
     if (qNew === '1' && canWrite) {
+      if (!programsLoaded) return;
+
       if (qProgram) {
         const targetProg = programs.find((p) => String(p.id) === String(qProgram));
         if (targetProg) {
@@ -119,7 +124,7 @@ export default function TenantIncomes() {
         return next;
       }, { replace: true });
     }
-  }, [searchParams, canWrite, programs, activeTenant?.type, setSearchParams, toast]);
+  }, [searchParams, canWrite, programs, programsLoaded, activeTenant?.type, setSearchParams, toast]);
 
   const programMap = useMemo(() => {
     const map = new Map();
