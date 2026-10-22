@@ -14,7 +14,20 @@ import {
 import { supabase } from '../../services/supabaseClient';
 import { useTenant } from '../../hooks/useTenant';
 import { useTenantTemplate } from '../../hooks/useTenantTemplate';
-import { fetchPrograms, countActivePrograms } from '../../services/tenantOperationalService';
+import {
+  fetchPrograms,
+  countActivePrograms,
+  getProgramAccessState,
+  formatProgramAccessLabel,
+} from '../../services/tenantOperationalService';
+
+const ACCESS_STATE_BADGE_CLASSES = {
+  active: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
+  free_trial: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800',
+  inactive: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+  expired: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800',
+  unlimited: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
+};
 
 export function resolveSubscriptionExpiryDate(subData) {
   if (!subData) return '-';
@@ -44,6 +57,7 @@ export default function SubscriptionStatus() {
   const [paymentsHistory, setPaymentsHistory] = useState([]);
   const [usedUnitsCount, setUsedUnitsCount] = useState(0);
   const [activeProgramsCount, setActiveProgramsCount] = useState(0);
+  const [panitiaPrograms, setPanitiaPrograms] = useState([]);
 
   const fetchSubscriptionDetails = async () => {
     setLoading(true);
@@ -65,8 +79,10 @@ export default function SubscriptionStatus() {
       if (currentTenant?.type === 'panitia') {
         try {
           const progs = await fetchPrograms(currentTenant.id);
+          setPanitiaPrograms(progs || []);
           setActiveProgramsCount(countActivePrograms(progs));
         } catch (_e) {
+          setPanitiaPrograms([]);
           setActiveProgramsCount('–');
         }
       }
@@ -136,8 +152,10 @@ export default function SubscriptionStatus() {
       if (currentTenant?.type === 'panitia') {
         try {
           const progs = await fetchPrograms(currentTenant.id);
+          setPanitiaPrograms(progs || []);
           setActiveProgramsCount(countActivePrograms(progs));
         } catch (_e) {
+          setPanitiaPrograms([]);
           setActiveProgramsCount('–');
         }
       } else {
@@ -272,7 +290,11 @@ export default function SubscriptionStatus() {
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                     Status Langganan
                   </span>
-                  {(() => {
+                  {currentTenant?.type === 'panitia' ? (
+                    <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase bg-emerald-50 text-emerald-700 border-emerald-200">
+                      Aktif
+                    </span>
+                  ) : (() => {
                     const badgeMap = {
                       active: { label: 'Aktif', style: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
                       trial: { label: 'Masa Uji Coba', style: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -290,52 +312,80 @@ export default function SubscriptionStatus() {
 
                 <div className="space-y-2">
                   <h3 className="text-2xl font-extrabold text-slate-900 font-display">
-                    {subData?.status === 'trial' ? 'Masa Percobaan Aktif' : 'Paket Berlangganan Aktif'}
+                    {currentTenant?.type === 'panitia'
+                      ? 'Organisasi aktif (tanpa batas waktu)'
+                      : subData?.status === 'trial'
+                      ? 'Masa Percobaan Aktif'
+                      : 'Paket Berlangganan Aktif'}
                   </h3>
                   <p className="text-xs text-slate-600 leading-relaxed">
-                    {subData?.status === 'trial'
+                    {currentTenant?.type === 'panitia'
+                      ? 'Organisasi Anda aktif tanpa masa kedaluwarsa. Masa aktif dikelola mandiri per acara.'
+                      : subData?.status === 'trial'
                       ? 'Anda sedang menikmati fitur penuh platform dengan kuota trial gratis.'
                       : 'Komunitas Anda memiliki akses penuh ke fitur operasional RuangWarga.'}
                   </p>
                 </div>
 
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <span className="text-slate-500">Masa Aktif Berakhir:</span>
+                  <span className="text-slate-500">Masa Aktif:</span>
                   <strong className="text-slate-900 font-mono">
-                    {resolveSubscriptionExpiryDate(subData)}
+                    {currentTenant?.type === 'panitia'
+                      ? 'Tanpa batas waktu'
+                      : resolveSubscriptionExpiryDate(subData)}
                   </strong>
                 </div>
               </div>
 
-              {/* Kartu Kapasitas: Acara Aktif untuk Panitia, Unit untuk lainnya */}
+              {/* Kartu Kapasitas: Daftar Acara untuk Panitia, Unit untuk lainnya */}
               {currentTenant?.type === 'panitia' ? (
                 <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                       <AiOutlinePieChart className="text-slate-700" />
-                      <span>Pemakaian Acara</span>
+                      <span>Daftar Acara &amp; Masa Aktif</span>
                     </span>
-                    <span className="text-xs font-bold text-slate-900">
-                      {typeof activeProgramsCount === 'number' ? `${activeProgramsCount} acara aktif` : '–'}
-                    </span>
-                  </div>
-
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-                    <span className="text-slate-800 font-semibold text-xs block">
-                      Paket Per Acara Aktif
-                    </span>
-                    <p className="text-[11px] text-slate-500">
-                      Kapasitas dihitung berdasarkan jumlah acara yang berstatus Perencanaan atau Berjalan.
-                    </p>
-                  </div>
-
-                  <div className="flex justify-end">
                     <button
                       type="button"
                       onClick={() => navigate(`/account/choose-plan?tenantId=${currentTenant?.id}`)}
                       className="text-slate-700 hover:text-slate-900 font-semibold underline text-xs"
                     >
-                      Informasi Paket
+                      Informasi Tarif
+                    </button>
+                  </div>
+
+                  <div className="divide-y divide-slate-100 max-h-56 overflow-y-auto pr-1">
+                    {panitiaPrograms.length === 0 ? (
+                      <p className="text-xs text-slate-500 py-3 text-center">Belum ada acara yang dibuat.</p>
+                    ) : (
+                      panitiaPrograms.map((p) => {
+                        const accessState = getProgramAccessState(p, { tenantType: 'panitia' });
+                        const badgeClass = ACCESS_STATE_BADGE_CLASSES[accessState.state] || ACCESS_STATE_BADGE_CLASSES.inactive;
+                        return (
+                          <div key={p.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                            <span className="font-semibold text-slate-800 truncate" title={p.name}>
+                              {p.name}
+                            </span>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border shrink-0 ${badgeClass}`}>
+                              {formatProgramAccessLabel(accessState)}
+                            </span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+                    <span className="text-[11px] text-slate-500">
+                      Rp25.000 / 12 bulan per acara
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/t/${currentTenant?.id}/programs`)}
+                      className="inline-flex items-center gap-1 text-slate-700 hover:text-slate-900 font-semibold text-xs"
+                    >
+                      <span>Buka Acara</span>
+                      <AiOutlineArrowRight />
                     </button>
                   </div>
                 </div>

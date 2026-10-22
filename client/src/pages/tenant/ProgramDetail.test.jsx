@@ -626,7 +626,7 @@ describe('PANITIA-1.7: ProgramDetail Page', () => {
       const { unmount } = renderProgramDetail();
       await screen.findByText('Pentas Seni Tahunan 2026');
 
-      expect(screen.getByText('Belum aktif')).toBeTruthy();
+      expect(screen.getAllByText('Belum aktif').length).toBeGreaterThanOrEqual(1);
 
       // Transaksi tab
       const txTabBtn = screen.getByRole('button', { name: /Daftar Transaksi/i });
@@ -657,7 +657,7 @@ describe('PANITIA-1.7: ProgramDetail Page', () => {
       renderProgramDetail();
       await screen.findByText('Pentas Seni Tahunan 2026');
 
-      expect(screen.getByText(/Gratis sampai/i)).toBeTruthy();
+      expect(screen.getAllByText(/Gratis sampai/i).length).toBeGreaterThanOrEqual(1);
 
       const txTabBtn2 = screen.getByRole('button', { name: /Daftar Transaksi/i });
       fireEvent.click(txTabBtn2);
@@ -666,6 +666,27 @@ describe('PANITIA-1.7: ProgramDetail Page', () => {
       const expenseBtn2 = screen.getByRole('button', { name: /Catat Pengeluaran/i });
       expect(incomeBtn2.disabled).toBe(false);
       expect(expenseBtn2.disabled).toBe(false);
+    });
+
+    it('HARGA.4: panel masa aktif acara tampil untuk pengelola dengan tombol aktifkan/perpanjang', async () => {
+      tenantOperationalService.fetchProgram.mockResolvedValueOnce({
+        ...mockProgram,
+        is_free_trial: true,
+        access_until: '2099-03-01T00:00:00Z',
+      });
+
+      renderProgramDetail();
+      await screen.findByText('Pentas Seni Tahunan 2026');
+
+      const panel = screen.getByTestId('program-access-panel');
+      expect(panel).toBeTruthy();
+      expect(panel.textContent).toContain('Rp25.000 / 12 bulan');
+      expect(panel.textContent).toContain('Gratis sampai');
+      expect(panel.textContent).toContain('Setelah itu aktifkan Rp25.000 / 12 bulan');
+
+      const btn = screen.getByRole('button', { name: /Aktifkan \/ Perpanjang/i });
+      expect(btn.disabled).toBe(true);
+      expect(panel.textContent).toContain('Pembayaran QRIS segera tersedia');
     });
   });
 });

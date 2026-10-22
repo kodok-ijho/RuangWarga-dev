@@ -81,12 +81,12 @@ describe('PANITIA-1.8: SubscriptionStatus for Panitia', () => {
     cleanup();
   });
 
-  it('displays "{n} acara aktif" for panitia tenant type', async () => {
-    // 2 active programs (planning & running), 1 completed program
+  it('HARGA.4: displays "Organisasi aktif (tanpa batas waktu)" and list of programs with access badges', async () => {
+    // Programs with access status
     tenantOperationalService.fetchPrograms.mockResolvedValue([
-      { id: 'p1', name: 'Acara 1', status: 'planning' },
-      { id: 'p2', name: 'Acara 2', status: 'running' },
-      { id: 'p3', name: 'Acara 3', status: 'completed' },
+      { id: 'p1', name: 'Acara 1', status: 'planning', is_free_trial: true, access_until: '2099-01-01T00:00:00Z' },
+      { id: 'p2', name: 'Acara 2', status: 'running', is_free_trial: false, access_until: null },
+      { id: 'p3', name: 'Acara 3', status: 'completed', is_free_trial: false, access_until: '2020-01-01T00:00:00Z' },
     ]);
 
     render(
@@ -97,12 +97,19 @@ describe('PANITIA-1.8: SubscriptionStatus for Panitia', () => {
       </MemoryRouter>
     );
 
-    // Expect 2 active programs to be displayed
-    expect(await screen.findByText('2 acara aktif')).toBeTruthy();
-    expect(screen.getByText('Pemakaian Acara')).toBeTruthy();
+    // Expect kartu status langganan menampilkan "Organisasi aktif (tanpa batas waktu)"
+    expect(await screen.findByText('Organisasi aktif (tanpa batas waktu)')).toBeTruthy();
+
+    // Expect daftar acara dengan badge masa aktif (menggantikan hitungan "acara aktif")
+    expect(screen.getByText('Daftar Acara & Masa Aktif')).toBeTruthy();
+    expect(screen.getByText('Acara 1')).toBeTruthy();
+    expect(screen.getByText('Acara 2')).toBeTruthy();
+    expect(screen.getByText('Acara 3')).toBeTruthy();
+    expect(screen.getByText('Belum aktif')).toBeTruthy(); // untuk Acara 2
+    expect(screen.queryByText(/2 acara aktif/i)).toBeNull();
   });
 
-  it('PANITIA-1F.4: displays "–" when active programs count calculation fails', async () => {
+  it('HARGA.4: displays empty text when programs fetch fails or is empty', async () => {
     tenantOperationalService.fetchPrograms.mockRejectedValue(new Error('Database error'));
 
     render(
@@ -113,6 +120,6 @@ describe('PANITIA-1.8: SubscriptionStatus for Panitia', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText('–')).toBeTruthy();
+    expect(await screen.findByText('Belum ada acara yang dibuat.')).toBeTruthy();
   });
 });

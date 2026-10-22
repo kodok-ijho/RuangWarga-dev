@@ -99,4 +99,59 @@ describe('TrialCountdownBanner Component (KOS-1F.1)', () => {
     ).toBeTruthy();
     expect(screen.queryByText('Aktifkan Langganan Sekarang')).toBeNull();
   });
+
+  it('HARGA.4: TrialCountdownBanner tidak dirender untuk panitia dengan trial_ends_at lampau', () => {
+    const pastDate = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+    useTenant.mockReturnValue({
+      activeTenant: {
+        id: 't-panitia-1',
+        name: 'Panitia Dies Natalis 2026',
+        type: 'panitia',
+        subscription: {
+          status: 'trial',
+          trial_ends_at: pastDate,
+        },
+      },
+      activeTenantId: 't-panitia-1',
+      userTenants: [],
+      isTenantAdmin: true,
+    });
+
+    const { container } = render(
+      <MemoryRouter>
+        <TrialCountdownBanner />
+      </MemoryRouter>
+    );
+
+    expect(container.firstChild).toBeNull();
+    expect(screen.queryByText(/Mode Read-Only/i)).toBeNull();
+    expect(screen.queryByText(/Masa Percobaan Berakhir/i)).toBeNull();
+  });
+
+  it('HARGA.4: RT/RW tetap seperti sebelumnya (tampil read-only jika trial lampau)', () => {
+    const pastDate = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+    useTenant.mockReturnValue({
+      activeTenant: {
+        id: 't-rtrw-1',
+        name: 'Palm Village RT 05',
+        type: 'rt_rw',
+        subscription: {
+          status: 'read_only',
+          trial_ends_at: pastDate,
+        },
+      },
+      activeTenantId: 't-rtrw-1',
+      userTenants: [],
+      isTenantAdmin: true,
+    });
+
+    render(
+      <MemoryRouter>
+        <TrialCountdownBanner />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText(/Mode Read-Only/i)).toBeTruthy();
+    expect(screen.getByText(/Aktifkan Langganan Sekarang/i)).toBeTruthy();
+  });
 });

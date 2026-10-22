@@ -137,25 +137,70 @@ export default function ChoosePlan() {
 
         {isPanitia ? (
           <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6">
-            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-3">
-              <AiOutlineInfoCircle className="text-xl text-amber-600 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <h3 className="text-sm font-bold text-amber-950">
-                  Harga paket Kepanitiaan (per acara aktif) segera tersedia
-                </h3>
-                <p className="text-xs text-amber-800">
-                  Paket Kepanitiaan dihitung berdasarkan jumlah acara aktif, bukan per blok unit rumah/kamar. Selama masa tunggu ini, organisasi Anda dapat menggunakan seluruh fitur dalam masa uji coba.
+            <div className="space-y-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                <AiOutlineThunderbolt /> Model Penetapan Harga Berbasis Acara
+              </span>
+              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 font-display">
+                Tanpa Langganan Bulanan Organisasi
+              </h2>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Platform RuangWarga untuk Kepanitiaan menggunakan model aktivasi mandiri per acara. Organisasi Anda aktif tanpa batas waktu dan tanpa perlu membeli blok kapasitas unit/warga.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+                  <span className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs">1</span>
+                  <span>Acara Pertama Gratis 1 Bulan</span>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Setiap organisasi kepanitiaan baru mendapatkan acara pertama gratis 1 bulan untuk mencoba seluruh modul (RAB, Iuran, Transaksi, LPJ, dan Dokumen).
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+                  <span className="w-6 h-6 rounded-lg bg-forest-100 text-forest-700 flex items-center justify-center text-xs">2</span>
+                  <span>Rp25.000 Per Acara / 12 Bulan</span>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Tarif tetap hemat Rp25.000 per acara untuk masa aktif 12 bulan. Berlaku untuk acara baru maupun perpanjangan acara.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+                  <span className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center text-xs">3</span>
+                  <span>Acara Lewat Masa Menjadi Baca-Saja</span>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Setelah 12 bulan (atau setelah masa gratis berakhir), acara yang belum diperpanjang menjadi baca-saja. Semua data tersimpan aman dan laporan/LPJ tetap dapat diunduh.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+                  <span className="w-6 h-6 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-xs">4</span>
+                  <span>Pembayaran Per Acara dari Detail Acara</span>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Pembayaran aktivasi atau perpanjangan dilakukan langsung per acara dari halaman detail acara masing-masing tanpa kalkulator blok.
                 </p>
               </div>
             </div>
 
-            <div className="flex justify-end pt-2">
+            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-xs text-slate-500">
+                Kelola atau aktifkan acara langsung dari daftar kegiatan organisasi Anda.
+              </p>
               <button
                 type="button"
-                disabled
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-extrabold text-sm shadow-xs transition-all bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300"
+                onClick={() => navigate(`/t/${currentTenant?.id || activeTenantId}/programs`)}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs bg-forest-600 hover:bg-forest-700 text-white shadow-xs transition-colors"
               >
-                <span>Paket Segera Tersedia</span>
+                <span>Buka Daftar Acara</span>
                 <AiOutlineArrowRight />
               </button>
             </div>

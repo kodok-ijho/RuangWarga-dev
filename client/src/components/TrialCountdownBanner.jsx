@@ -31,7 +31,7 @@ export default function TrialCountdownBanner({ tenantId }) {
   });
 
   useEffect(() => {
-    if (!trialEndsAtStr) return;
+    if (!trialEndsAtStr || currentTenant?.type === 'panitia') return;
 
     const targetDate = new Date(trialEndsAtStr).getTime();
 
@@ -55,10 +55,10 @@ export default function TrialCountdownBanner({ tenantId }) {
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, [trialEndsAtStr]);
+  }, [trialEndsAtStr, currentTenant?.type]);
 
-  // Hanya tampil untuk status trial atau read_only
-  if (status === 'active') {
+  // HARGA.4: Tidak tampil untuk tenant panitia, atau untuk status active
+  if (currentTenant?.type === 'panitia' || status === 'active') {
     return null;
   }
 

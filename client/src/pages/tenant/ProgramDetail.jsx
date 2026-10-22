@@ -965,6 +965,59 @@ export default function ProgramDetail() {
         </div>
       )}
 
+      {/* Panel Masa Aktif Acara (HARGA.4) */}
+      {(activeTenant?.type === 'panitia' || programAccess.state !== 'unlimited') && canManagePrograms && (
+        <div
+          data-testid="program-access-panel"
+          className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden"
+        >
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Masa Aktif Acara
+              </span>
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${
+                  ACCESS_STATE_BADGE_CLASSES[programAccess.state] || ACCESS_STATE_BADGE_CLASSES.inactive
+                }`}
+              >
+                {formatProgramAccessLabel(programAccess)}
+              </span>
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              {programAccess.state === 'free_trial' ? (
+                `Gratis sampai ${programAccess.until ? formatDate(programAccess.until) : '-'}. Setelah itu aktifkan Rp25.000 / 12 bulan.`
+              ) : programAccess.state === 'active' ? (
+                `Aktif sampai ${programAccess.until ? formatDate(programAccess.until) : '-'}. Tarif perpanjangan Rp25.000 / 12 bulan.`
+              ) : programAccess.state === 'expired' ? (
+                `Masa aktif habis sejak ${programAccess.until ? formatDate(programAccess.until) : '-'}. Aktifkan kembali Rp25.000 / 12 bulan.`
+              ) : (
+                `Belum aktif. Tarif aktivasi Rp25.000 / 12 bulan.`
+              )}
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 shrink-0">
+            <span className="text-xs font-mono font-semibold text-slate-700 dark:text-slate-300">
+              Rp25.000 / 12 bulan
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled
+                title="Pembayaran QRIS segera tersedia"
+                className="pv-button-secondary text-xs px-3 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Aktifkan / Perpanjang
+              </button>
+              <span className="text-[11px] text-slate-500 italic">
+                Pembayaran QRIS segera tersedia
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tab Navigation */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 space-x-2 print:hidden">
         <button

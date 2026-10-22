@@ -44,7 +44,7 @@ describe('PANITIA-1F.1: ChoosePlan Page for Panitia', () => {
     cleanup();
   });
 
-  it('bila tenant panitia, hanya menampilkan pemberitahuan dan tombol nonaktif tanpa kalkulator atau harga RT/RW', () => {
+  it('HARGA.4: ChoosePlan panitia menampilkan "Rp25.000" dan "gratis 1 bulan" tanpa kalkulator', () => {
     mockActiveTenant = {
       id: 't-panitia-1',
       name: 'Panitia Wisuda 2026',
@@ -59,22 +59,16 @@ describe('PANITIA-1F.1: ChoosePlan Page for Panitia', () => {
       </MemoryRouter>
     );
 
-    // Kartu pemberitahuan tampil
-    expect(
-      screen.getByText('Harga paket Kepanitiaan (per acara aktif) segera tersedia')
-    ).toBeTruthy();
+    // Menampilkan model penetapan harga Rp25.000 dan gratis 1 bulan
+    expect(screen.getAllByText(/Rp25\.000/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/gratis 1 bulan/i).length).toBeGreaterThan(0);
 
-    // Tombol nonaktif Paket Segera Tersedia tampil
-    const disabledBtn = screen.getByRole('button', { name: /Paket Segera Tersedia/i });
-    expect(disabledBtn).toBeTruthy();
-    expect(disabledBtn.disabled).toBe(true);
-
-    // Kalkulator tidak tampil
+    // Kalkulator blok tidak tampil
     expect(screen.queryByText(/Masukkan Perkiraan Jumlah/i)).toBeNull();
+    expect(screen.queryByText(/Rekomendasi Terbaik/i)).toBeNull();
 
-    // Angka harga (Rp ...) tidak tampil sama sekali di halaman
-    expect(screen.queryByText(/Rp\s/i)).toBeNull();
-    expect(screen.queryByText(/Lanjut ke Pembayaran QRIS/i)).toBeNull();
+    // Tombol navigasi ke daftar acara tampil
+    expect(screen.getByRole('button', { name: /Buka Daftar Acara/i })).toBeTruthy();
   });
 
   it('bila tenant RT/RW, tetap menampilkan kalkulator estimasi kebutuhan dan harga', () => {
