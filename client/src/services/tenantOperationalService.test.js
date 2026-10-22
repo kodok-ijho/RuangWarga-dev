@@ -740,9 +740,10 @@ describe('tenantOperationalService - Unit Tests', () => {
     it('fetchArisanRoundBills mengambil daftar tagihan iuran peserta putaran', async () => {
       const bills = await fetchArisanRoundBills('demo-arisan-tenant', 'demo-round-1');
       expect(Array.isArray(bills)).toBe(true);
-      expect(bills.length).toBe(2);
+      expect(bills.length).toBe(3);
       expect(bills[0].status).toBe('paid');
       expect(bills[1].status).toBe('unpaid');
+      expect(bills[2].status).toBe('pending_verification');
 
       const emptyRes = await fetchArisanRoundBills('');
       expect(emptyRes).toEqual([]);
