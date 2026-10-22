@@ -349,7 +349,7 @@ export async function fetchMyArisanBills(tenantId, memberId) {
   if (!tenantId || !memberId) return [];
 
   if (IS_DEMO || String(tenantId).startsWith('demo-')) {
-    return [
+    const demoBills = [
       {
         id: 'demo-my-arisan-bill-1',
         tenant_id: tenantId,
@@ -389,6 +389,20 @@ export async function fetchMyArisanBills(tenantId, memberId) {
         payments: { id: 'demo-pay-arisan-1', status: 'approved', method: 'transfer' },
       },
     ];
+
+    const statusPriority = {
+      unpaid: 1,
+      pending_verification: 2,
+      paid: 3,
+      cancelled: 4,
+    };
+
+    return demoBills.sort((a, b) => {
+      const pA = statusPriority[a.status] || 99;
+      const pB = statusPriority[b.status] || 99;
+      if (pA !== pB) return pA - pB;
+      return String(a.due_date || a.created_at || '').localeCompare(String(b.due_date || b.created_at || ''));
+    });
   }
 
   const { data, error } = await supabase
@@ -457,7 +471,7 @@ export async function fetchMyArisanBills(tenantId, memberId) {
     const pA = statusPriority[a.status] || 99;
     const pB = statusPriority[b.status] || 99;
     if (pA !== pB) return pA - pB;
-    return String(b.due_date || b.created_at || '').localeCompare(String(a.due_date || a.created_at || ''));
+    return String(a.due_date || a.created_at || '').localeCompare(String(b.due_date || b.created_at || ''));
   });
 }
 

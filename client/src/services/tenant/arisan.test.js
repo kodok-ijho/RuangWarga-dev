@@ -236,13 +236,17 @@ describe('tenant/arisan - Unit Tests (VERT-1)', () => {
   });
 
   describe('ARISAN-1.2: fetchMyArisanBills', () => {
-    it('mengembalikan tagihan arisan demo dengan urutan unpaid terlebih dahulu', async () => {
+    it('mengembalikan tagihan arisan demo dengan urutan unpaid jatuh tempo terdekat di atas, lunas di bawah', async () => {
       const bills = await fetchMyArisanBills('demo-arisan', 'demo-member-1');
 
       expect(bills.length).toBeGreaterThanOrEqual(2);
       expect(bills[0].status).toBe('unpaid');
       expect(bills[0].round_label).toBeDefined();
-      expect(bills[1].status).toBe('paid');
+      expect(bills[bills.length - 1].status).toBe('paid');
+      const unpaidBills = bills.filter((b) => b.status === 'unpaid');
+      for (let i = 1; i < unpaidBills.length; i++) {
+        expect(unpaidBills[i - 1].due_date <= unpaidBills[i].due_date).toBe(true);
+      }
     });
 
     it('mengambil dari Supabase dan mengurutkan unpaid > pending_verification > paid', async () => {

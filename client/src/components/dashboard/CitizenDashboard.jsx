@@ -44,14 +44,24 @@ export function CitizenDashboard({
   // State tagihan arisan untuk peserta
   const [arisanBills, setArisanBills] = useState([]);
   const [selectedBillToPay, setSelectedBillToPay] = useState(null);
+  const [loadingArisanBills, setLoadingArisanBills] = useState(true);
+  const [arisanBillsError, setArisanBillsError] = useState(null);
 
   const loadArisanBills = useCallback(async () => {
-    if (!isArisan || !tenantId || !activeMember?.id) return;
+    if (!isArisan || !tenantId || !activeMember?.id) {
+      setLoadingArisanBills(false);
+      return;
+    }
     try {
+      setLoadingArisanBills(true);
+      setArisanBillsError(null);
       const bills = await fetchMyArisanBills(tenantId, activeMember.id);
       setArisanBills(bills || []);
     } catch (err) {
       console.error('[CitizenDashboard] Gagal memuat tagihan arisan:', err);
+      setArisanBillsError(err.message || 'Gagal memuat setoran');
+    } finally {
+      setLoadingArisanBills(false);
     }
   }, [isArisan, tenantId, activeMember?.id]);
 
@@ -104,7 +114,22 @@ export function CitizenDashboard({
               </Link>
             </div>
 
-            {targetArisanBill ? (
+            {loadingArisanBills ? (
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
+                Memuat data setoran arisan...
+              </div>
+            ) : arisanBillsError ? (
+              <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-between gap-3 text-xs text-rose-800">
+                <span>Gagal memuat setoran</span>
+                <button
+                  type="button"
+                  onClick={loadArisanBills}
+                  className="px-3 py-1 bg-white hover:bg-rose-50 border border-rose-300 rounded-lg font-semibold text-rose-900 transition-colors shadow-xs"
+                >
+                  Coba lagi
+                </button>
+              </div>
+            ) : targetArisanBill ? (
               <div className="p-4 rounded-xl bg-purple-50/50 border border-purple-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -156,7 +181,7 @@ export function CitizenDashboard({
                 <div>
                   <p className="text-xs font-bold text-emerald-950">Semua Setoran Lunas</p>
                   <p className="text-[11px] text-emerald-800">
-                    Tidak ada tagihan setoran yang tertunda. Anda berhak mengikuti pengocokan putaran!
+                    Semua setoran Anda sudah lunas.
                   </p>
                 </div>
               </div>

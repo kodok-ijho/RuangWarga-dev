@@ -18,6 +18,7 @@ import {
   AiOutlineWhatsApp,
 } from 'react-icons/ai';
 import { useTenant } from '../../hooks/useTenant';
+import { useTenantAccess } from '../../hooks/useTenantAccess';
 import { useToast } from '../../hooks/useToast';
 import { useSubscriptionGate } from '../../hooks/useSubscriptionGate';
 import { getArisanAccess } from '../../utils/arisanAccess';
@@ -69,7 +70,7 @@ export default function ArisanRounds() {
   const { activeTenant, activeTenantId, hasPermission } = useTenant();
   const { isReadOnly, bannerText } = useSubscriptionGate();
   const { canManageRounds, canGenerateBills, canRecordPayment } = getArisanAccess(hasPermission);
-  const canVerifyPayments = Boolean(hasPermission('manage_billing_transfer'));
+  const { canVerifyPayments } = useTenantAccess();
 
   const tenantId = routeTenantId || activeTenantId;
 
@@ -216,7 +217,7 @@ export default function ArisanRounds() {
   };
 
   // Salin pengingat semua peserta yang belum bayar ke clipboard
-  const handleCopyAllUnpaidReminders = () => {
+  const handleCopyAllUnpaidReminders = async () => {
     const unpaid = roundBills.filter((b) => b.status === 'unpaid');
     if (!unpaid.length) {
       toast.info('Semua peserta sudah lunas atau dalam verifikasi.');
@@ -230,11 +231,15 @@ export default function ArisanRounds() {
     const roundLabel = selectedRoundForBills?.period || `Putaran ${selectedRoundForBills?.round_number}`;
     const text = `Pengingat Setoran Arisan — ${roundLabel}\n\nBerikut daftar peserta yang belum lunas:\n${lines.join('\n')}\n\nMohon segera menyelesaikan setoran arisan. Peserta yang belum lunas tidak ikut kocok putaran ini.\nTerima kasih.`;
 
-    if (navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(text);
+    try {
+      if (!navigator?.clipboard?.writeText) {
+        throw new Error('Clipboard tidak didukung pada browser ini.');
+      }
+      await navigator.clipboard.writeText(text);
       toast.success('Daftar pengingat berhasil disalin ke clipboard.');
-    } else {
-      toast.info('Clipboard tidak didukung pada browser ini.');
+    } catch (err) {
+      console.error('[ArisanRounds] Gagal menyalin ke clipboard:', err);
+      toast.error(err.message || 'Gagal menyalin daftar pengingat ke clipboard.');
     }
   };
 
@@ -870,10 +875,13 @@ export default function ArisanRounds() {
                   const memberName = memberObj.full_name || `Peserta #${index + 1}`;
                   const memberPhone = memberObj.phone || '';
                   const slotLabel = bill.tenant_units?.label;
+                  const isCancelled = bill.status === 'cancelled';
                   const isPaid = bill.status === 'paid';
                   const isPending =
-                    bill.status === 'pending_verification' || bill.latestPayment?.status === 'pending';
-                  const isUnpaid = !isPaid && !isPending;
+                    !isCancelled &&
+                    !isPaid &&
+                    (bill.status === 'pending_verification' || bill.latestPayment?.status === 'pending');
+                  const isUnpaid = !isCancelled && !isPaid && !isPending && bill.status === 'unpaid';
 
                   // Bangun pesan WA untuk yang belum bayar
                   const bankAccount = getTenantBankAccount(activeTenant?.settings);
@@ -909,6 +917,12 @@ export default function ArisanRounds() {
 
                       <div className="flex items-center gap-2">
                         {/* Badge Status */}
+                        {isCancelled && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-rose-50 text-rose-700 border-rose-200">
+                            Dibatalkan
+                          </span>
+                        )}
+
                         {isPaid && (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-50 text-emerald-800 border-emerald-200">
                             Lunas
@@ -937,17 +951,19 @@ export default function ArisanRounds() {
                               Belum bayar
                             </span>
 
-                            {/* Tombol Ingatkan via WA hanya untuk yang belum bayar */}
-                            <a
-                              href={waLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 font-semibold rounded-lg text-[10px] inline-flex items-center gap-1 transition-colors"
-                              title="Kirim pengingat WhatsApp ke peserta"
-                            >
-                              <AiOutlineWhatsApp className="text-xs" />
-                              <span>Ingatkan via WA</span>
-                            </a>
+                            {/* Tombol Ingatkan via WA hanya untuk yang belum bayar DAN punya nomor HP */}
+                            {memberPhone ? (
+                              <a
+                                href={waLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 font-semibold rounded-lg text-[10px] inline-flex items-center gap-1 transition-colors"
+                                title="Kirim pengingat WhatsApp ke peserta"
+                              >
+                                <AiOutlineWhatsApp className="text-xs" />
+                                <span>Ingatkan via WA</span>
+                              </a>
+                            ) : null}
 
                             {canRecordPayment && (
                               <button
