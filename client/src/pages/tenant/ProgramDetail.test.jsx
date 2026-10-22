@@ -79,6 +79,10 @@ vi.mock('../../services/tenantOperationalService', async () => {
     cancelProgramDues: vi.fn(),
     recordProgramDuesCash: vi.fn(),
     getTenantBankAccount: vi.fn(),
+    fetchProgramDocuments: vi.fn(),
+    uploadProgramDocument: vi.fn(),
+    deleteProgramDocument: vi.fn(),
+    getProgramDocumentUrl: vi.fn(),
   };
 });
 
@@ -190,6 +194,33 @@ describe('PANITIA-1.7: ProgramDetail Page', () => {
     tenantOperationalService.fetchTenantMembers.mockResolvedValue([
       { id: 'm-1', name: 'Ahmad Faiz', status: 'approved' },
     ]);
+    tenantOperationalService.fetchProgramDocuments.mockResolvedValue([
+      {
+        id: 'doc-1',
+        program_id: 'prog-1',
+        doc_type: 'proposal',
+        title: 'Proposal Pentas Seni',
+        file_path: 'tenants/tenant-panitia-1/programs/prog-1/documents/doc-1.pdf',
+        file_name: 'Proposal_Pentas_Seni.pdf',
+        mime_type: 'application/pdf',
+        file_size: 1048576,
+        created_at: '2026-03-01T10:00:00Z',
+      },
+      {
+        id: 'doc-2',
+        program_id: 'prog-1',
+        doc_type: 'rab',
+        title: 'RAB Final',
+        file_path: 'tenants/tenant-panitia-1/programs/prog-1/documents/doc-2.xlsx',
+        file_name: 'RAB_Final.xlsx',
+        mime_type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        file_size: 512000,
+        created_at: '2026-03-02T10:00:00Z',
+      },
+    ]);
+    tenantOperationalService.uploadProgramDocument.mockResolvedValue({ id: 'doc-new' });
+    tenantOperationalService.deleteProgramDocument.mockResolvedValue(true);
+    tenantOperationalService.getProgramDocumentUrl.mockResolvedValue('https://signed-url.example/doc-1.pdf');
   });
 
   afterEach(() => {
@@ -490,6 +521,94 @@ describe('PANITIA-1.7: ProgramDetail Page', () => {
       expect(href).toContain('https://wa.me/6281234567890?text=');
       expect(href).toContain(encodeURIComponent('Pentas Seni Tahunan 2026'));
       expect(href).toContain(encodeURIComponent('50.000'));
+    });
+  });
+
+  describe('PANITIA-3.4: Tab Dokumen', () => {
+    it('daftar dokumen tampil dikelompokkan per tipe', async () => {
+      renderProgramDetail();
+      await screen.findByText('Pentas Seni Tahunan 2026');
+
+      const docTabBtn = screen.getByRole('button', { name: /^Dokumen/i });
+      fireEvent.click(docTabBtn);
+
+      expect(await screen.findByText('Proposal Pentas Seni')).toBeTruthy();
+      expect(screen.getByText('Proposal_Pentas_Seni.pdf')).toBeTruthy();
+      expect(screen.getByText('RAB Final')).toBeTruthy();
+      expect(screen.getByText('RAB_Final.xlsx')).toBeTruthy();
+      expect(screen.getByText('1 MB')).toBeTruthy();
+    });
+
+    it('form unggah memanggil uploadProgramDocument dengan tipe dan judul', async () => {
+      renderProgramDetail();
+      await screen.findByText('Pentas Seni Tahunan 2026');
+
+      const docTabBtn = screen.getByRole('button', { name: /^Dokumen/i });
+      fireEvent.click(docTabBtn);
+
+      const unggahBtn = await screen.findByRole('button', { name: /Unggah Dokumen/i });
+      fireEvent.click(unggahBtn);
+
+      expect(await screen.findByText('Unggah Dokumen Acara')).toBeTruthy();
+
+      const titleInput = screen.getByLabelText(/Judul Dokumen/i);
+      fireEvent.change(titleInput, { target: { value: 'Rundown Acara Hari H' } });
+
+      const fileInput = screen.getByTestId('doc-file-input');
+      const testFile = new File(['dummy content'], 'rundown.pdf', { type: 'application/pdf' });
+      fireEvent.change(fileInput, { target: { files: [testFile] } });
+
+      const submitButtons = screen.getAllByRole('button', { name: /^Unggah Dokumen$/i });
+      const submitBtn =
+        submitButtons.find((b) => b.getAttribute('type') === 'submit') ||
+        submitButtons[submitButtons.length - 1];
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(tenantOperationalService.uploadProgramDocument).toHaveBeenCalledWith(
+          'tenant-panitia-1',
+          'prog-1',
+          expect.objectContaining({
+            title: 'Rundown Acara Hari H',
+            file: testFile,
+          })
+        );
+      });
+    });
+
+    it('tombol unggah dan hapus tersembunyi untuk anggota biasa', async () => {
+      mockTenantAccess = {
+        canManagePrograms: false,
+        canManageBudget: false,
+        canRecordIncome: false,
+        canManageExpenses: false,
+        canViewReports: true,
+        canGenerateBilling: false,
+        canRecordCash: false,
+        canVerifyPayments: false,
+      };
+
+      renderProgramDetail();
+      await screen.findByText('Pentas Seni Tahunan 2026');
+
+      const docTabBtn = screen.getByRole('button', { name: /^Dokumen/i });
+      fireEvent.click(docTabBtn);
+
+      expect(await screen.findByText('Proposal Pentas Seni')).toBeTruthy();
+      expect(screen.queryByRole('button', { name: /Unggah Dokumen/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /Hapus/i })).toBeNull();
+
+      // Reset
+      mockTenantAccess = {
+        canManagePrograms: true,
+        canManageBudget: true,
+        canRecordIncome: true,
+        canManageExpenses: true,
+        canViewReports: true,
+        canGenerateBilling: true,
+        canRecordCash: true,
+        canVerifyPayments: true,
+      };
     });
   });
 });

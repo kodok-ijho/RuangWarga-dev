@@ -37,11 +37,24 @@ import {
   updateProgramDuesAmount,
   cancelProgramDues,
   recordProgramDuesCash,
+  fetchProgramDocuments,
+  uploadProgramDocument,
+  deleteProgramDocument,
+  getProgramDocumentUrl,
+  PROGRAM_DOC_TYPES,
 } from '../../services/tenantOperationalService';
 import { buildProgramDuesReminderMessage, buildWaLink } from '../../utils/waReminder';
 import { formatRupiah, formatDate } from '../../services/dataHelpers';
 import { STATUS_BADGE_CLASSES } from './Programs';
 import MemberBillPayModal from '../../components/payments/MemberBillPayModal';
+
+function formatFileSize(bytes) {
+  if (!bytes || bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
 
 export default function ProgramDetail() {
   const { tenantId: routeTenantId, programId } = useParams();
@@ -60,14 +73,27 @@ export default function ProgramDetail() {
   const canGenerateBilling = Boolean(tenantAccess.canGenerateBilling && canTransact);
   const canRecordCash = Boolean(tenantAccess.canRecordCash && canTransact);
   const canVerifyPayments = Boolean(tenantAccess.canVerifyPayments && canTransact);
+  const canManageDocs = Boolean(
+    (tenantAccess.canManagePrograms || tenantAccess.canManageExpenses) && canTransact
+  );
 
   const [program, setProgram] = useState(null);
   const [budgetItems, setBudgetItems] = useState([]);
   const [transactions, setTransactions] = useState({ incomes: [], expenses: [], dues: [] });
   const [members, setMembers] = useState([]);
-  const [activeTab, setActiveTab] = useState('summary'); // 'summary' | 'budget' | 'transactions' | 'dues'
+  const [documents, setDocuments] = useState([]);
+  const [activeTab, setActiveTab] = useState('summary'); // 'summary' | 'budget' | 'transactions' | 'dues' | 'documents'
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
+
+  // Modal Dokumen Acara (PANITIA-3.4)
+  const [isUploadDocModalOpen, setIsUploadDocModalOpen] = useState(false);
+  const [isSubmittingDoc, setIsSubmittingDoc] = useState(false);
+  const [docFormData, setDocFormData] = useState({
+    docType: 'proposal',
+    title: '',
+    file: null,
+  });
 
   // Modal Program Form (Edit)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -132,11 +158,12 @@ export default function ProgramDetail() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const [progData, itemsData, transData, membersData] = await Promise.all([
+      const [progData, itemsData, transData, membersData, docsData] = await Promise.all([
         fetchProgram(tenantId, programId),
         fetchBudgetItems(tenantId, programId).catch(() => []),
         fetchProgramTransactions(tenantId, programId).catch(() => ({ incomes: [], expenses: [], dues: [] })),
         fetchTenantMembers(tenantId).catch(() => []),
+        fetchProgramDocuments(tenantId, programId).catch(() => []),
       ]);
 
       if (!progData) {
@@ -147,6 +174,7 @@ export default function ProgramDetail() {
       setBudgetItems(itemsData || []);
       setTransactions(transData || { incomes: [], expenses: [], dues: [] });
       setMembers(membersData || []);
+      setDocuments(docsData || []);
     } catch (err) {
       setLoadError(err.message || 'Gagal memuat detail acara.');
     } finally {
@@ -172,6 +200,20 @@ export default function ProgramDetail() {
   const duesList = useMemo(() => {
     return transactions.dues || [];
   }, [transactions]);
+
+  // Pengelompokan Dokumen per Tipe (PANITIA-3.4)
+  const docsByType = useMemo(() => {
+    const groups = {};
+    Object.keys(PROGRAM_DOC_TYPES).forEach((key) => {
+      groups[key] = [];
+    });
+    (documents || []).forEach((doc) => {
+      const type = doc.doc_type || 'lainnya';
+      if (!groups[type]) groups[type] = [];
+      groups[type].push(doc);
+    });
+    return groups;
+  }, [documents]);
 
   // Rekening Bank Penerima dari Pengaturan Tenant
   const tenantBankAccount = useMemo(() => {
@@ -563,6 +605,59 @@ export default function ProgramDetail() {
     }
   };
 
+  // --- Handlers Dokumen Acara (PANITIA-3.4) ---
+  const handleOpenDocument = async (doc) => {
+    try {
+      const url = await getProgramDocumentUrl(doc.file_path);
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } else {
+        toast.error('Gagal membuka dokumen.');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Gagal membuka dokumen.');
+    }
+  };
+
+  const handleUploadDocument = async (e) => {
+    e.preventDefault();
+    if (!docFormData.file) {
+      toast.error('Pilih file dokumen yang akan diunggah.');
+      return;
+    }
+    if (!docFormData.title.trim()) {
+      toast.error('Judul dokumen wajib diisi.');
+      return;
+    }
+    setIsSubmittingDoc(true);
+    try {
+      await uploadProgramDocument(tenantId, programId, {
+        docType: docFormData.docType,
+        title: docFormData.title,
+        file: docFormData.file,
+      });
+      toast.success('Dokumen berhasil diunggah.');
+      setIsUploadDocModalOpen(false);
+      setDocFormData({ docType: 'proposal', title: '', file: null });
+      await loadData();
+    } catch (err) {
+      toast.error(err.message || 'Gagal mengunggah dokumen.');
+    } finally {
+      setIsSubmittingDoc(false);
+    }
+  };
+
+  const handleDeleteDocument = async (doc) => {
+    if (!window.confirm(`Hapus dokumen "${doc.title}"?`)) return;
+    try {
+      await deleteProgramDocument(tenantId, doc.id);
+      toast.success('Dokumen berhasil dihapus.');
+      await loadData();
+    } catch (err) {
+      toast.error(err.message || 'Gagal menghapus dokumen.');
+    }
+  };
+
   // --- Handlers Ekspor & Cetak ---
   const handleExportCSV = () => {
     if (!program) return;
@@ -893,6 +988,20 @@ export default function ProgramDetail() {
           <span>Iuran</span>
           <span className="px-1.5 py-0.5 rounded-full text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
             {duesList.length}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('documents')}
+          className={`py-3 px-4 font-medium text-sm border-b-2 transition-colors flex items-center gap-1.5 ${
+            activeTab === 'documents'
+              ? 'border-forest-600 text-forest-700 dark:text-forest-400 dark:border-forest-400'
+              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'
+          }`}
+        >
+          <span>Dokumen</span>
+          <span className="px-1.5 py-0.5 rounded-full text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+            {documents.length}
           </span>
         </button>
       </div>
@@ -1617,6 +1726,108 @@ export default function ProgramDetail() {
         </div>
       </div>
 
+      {/* TAB 5: DOKUMEN (PANITIA-3.4) */}
+      <div
+        data-testid="tab-section-documents"
+        className={'space-y-6 ' + (activeTab === 'documents' ? 'block' : 'hidden print:block')}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Dokumen Acara</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Proposal, RAB, rundown, denah, surat, dan dokumen pendukung lainnya.
+            </p>
+          </div>
+          {canManageDocs && (
+            <div className="flex items-center gap-2 print:hidden">
+              <button
+                type="button"
+                onClick={() => setIsUploadDocModalOpen(true)}
+                className="pv-button-primary text-xs sm:text-sm flex items-center gap-1.5"
+              >
+                <AiOutlinePlus className="w-4 h-4" />
+                <span>Unggah Dokumen</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {documents.length === 0 ? (
+          <div className="pv-card border border-slate-200 dark:border-slate-800 p-8 text-center text-slate-400">
+            <p className="text-sm">Belum ada dokumen yang diunggah untuk acara ini.</p>
+            {canManageDocs && (
+              <p className="text-xs text-slate-500 mt-1">
+                Klik tombol &quot;Unggah Dokumen&quot; untuk menambahkan proposal, RAB, atau berkas lainnya.
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {Object.entries(PROGRAM_DOC_TYPES).map(([typeKey, typeLabel]) => {
+              const docs = docsByType[typeKey] || [];
+              if (docs.length === 0) return null;
+
+              return (
+                <div key={typeKey} className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                      {typeLabel}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                      {docs.length}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {docs.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="pv-card border border-slate-200 dark:border-slate-800 p-4 flex flex-col justify-between hover:shadow-sm transition-shadow"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-sm font-semibold text-slate-900 dark:text-white truncate" title={doc.title}>
+                              {doc.title}
+                            </h4>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5" title={doc.file_name}>
+                              {doc.file_name}
+                            </p>
+                            <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500 mt-2">
+                              <span>{formatFileSize(doc.file_size)}</span>
+                              <span>•</span>
+                              <span>{formatDate(doc.created_at)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDocument(doc)}
+                            className="px-3 py-1.5 text-xs font-medium rounded bg-forest-50 text-forest-700 hover:bg-forest-100 dark:bg-forest-950/40 dark:text-forest-300 transition-colors"
+                          >
+                            Buka
+                          </button>
+                          {canManageDocs && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDocument(doc)}
+                              className="px-3 py-1.5 text-xs font-medium rounded text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                            >
+                              Hapus
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Modal Terbitkan Iuran (PANITIA-2.3) */}
       <Modal
         open={isCreateDuesModalOpen}
@@ -2230,6 +2441,94 @@ export default function ProgramDetail() {
           onPaid={loadData}
         />
       )}
+
+      {/* Modal Unggah Dokumen Acara (PANITIA-3.4) */}
+      <Modal
+        open={isUploadDocModalOpen}
+        onClose={() => !isSubmittingDoc && setIsUploadDocModalOpen(false)}
+        title="Unggah Dokumen Acara"
+        size="md"
+      >
+        <form onSubmit={handleUploadDocument} className="space-y-4">
+          <div>
+            <label htmlFor="doc-type" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Tipe Dokumen <span className="text-rose-500">*</span>
+            </label>
+            <select
+              id="doc-type"
+              value={docFormData.docType}
+              onChange={(e) => {
+                const docType = e.target.value;
+                setDocFormData((prev) => ({ ...prev, docType }));
+              }}
+              className="pv-select w-full"
+            >
+              {Object.entries(PROGRAM_DOC_TYPES).map(([k, label]) => (
+                <option key={k} value={k}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="doc-title" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Judul Dokumen <span className="text-rose-500">*</span>
+            </label>
+            <input
+              id="doc-title"
+              type="text"
+              required
+              maxLength={150}
+              placeholder="Contoh: Proposal Malam Keakraban"
+              value={docFormData.title}
+              onChange={(e) => {
+                const title = e.target.value;
+                setDocFormData((prev) => ({ ...prev, title }));
+              }}
+              className="pv-input w-full"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="doc-file" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Pilih Berkas (Maks 10 MB) <span className="text-rose-500">*</span>
+            </label>
+            <input
+              id="doc-file"
+              data-testid="doc-file-input"
+              type="file"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.webp"
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                setDocFormData((prev) => ({ ...prev, file }));
+              }}
+              className="pv-input w-full text-xs"
+            />
+            <p className="text-[11px] text-slate-400 mt-1">
+              Format didukung: PDF, Word (.docx), Excel (.xlsx), PowerPoint (.pptx), JPG, PNG, WebP.
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <button
+              type="button"
+              disabled={isSubmittingDoc}
+              onClick={() => setIsUploadDocModalOpen(false)}
+              className="pv-button-secondary text-xs sm:text-sm"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmittingDoc}
+              className="pv-button-primary text-xs sm:text-sm"
+            >
+              {isSubmittingDoc ? 'Mengunggah...' : 'Unggah Dokumen'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
