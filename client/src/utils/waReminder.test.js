@@ -397,7 +397,7 @@ describe('ARISAN-1.2: buildArisanDrawShareText', () => {
       appUrl: 'https://ruangwarga.id/t/arisan-mawar/arisan',
     });
 
-    expect(text).toContain('HASIL PENGUKURAN & KOCOKAN ARISAN');
+    expect(text).toContain('HASIL KOCOKAN ARISAN');
     expect(text).toContain('Arisan Mawar — Putaran 3 - Oktober 2026');
     expect(text).toContain('*Ibu Endang* (Slot #05)');
     expect(text).toContain('Total Hadiah: *Rp1.500.000*');
