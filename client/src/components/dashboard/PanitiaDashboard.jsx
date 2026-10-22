@@ -11,9 +11,7 @@ import {
 import { useTenantAccess } from '../../hooks/useTenantAccess';
 import { useSubscriptionGate } from '../../hooks/useSubscriptionGate';
 import {
-  fetchPrograms,
-  fetchBudgetItems,
-  fetchProgramTransactions,
+  fetchProgramsOverview,
   summarizeProgram,
   PROGRAM_STATUS_LABELS,
 } from '../../services/tenantOperationalService';
@@ -45,27 +43,13 @@ export function PanitiaDashboard({
     setIsLoading(true);
     setLoadError(null);
     try {
-      const allPrograms = await fetchPrograms(tid);
-      setPrograms(allPrograms || []);
-
-      const activeList = (allPrograms || []).filter(
-        (p) => p && (p.status === 'planning' || p.status === 'running')
-      );
+      const overviewData = await fetchProgramsOverview(tid);
+      setPrograms(overviewData || []);
 
       const sumMap = {};
-      await Promise.all(
-        activeList.map(async (p) => {
-          try {
-            const [budgetItems, trans] = await Promise.all([
-              fetchBudgetItems(tid, p.id).catch(() => []),
-              fetchProgramTransactions(tid, p.id).catch(() => ({ incomes: [], expenses: [] })),
-            ]);
-            sumMap[p.id] = summarizeProgram(budgetItems, trans.incomes, trans.expenses);
-          } catch (_err) {
-            sumMap[p.id] = summarizeProgram([], [], []);
-          }
-        })
-      );
+      for (const p of overviewData || []) {
+        sumMap[p.id] = p.summary || summarizeProgram([], [], []);
+      }
       setSummaries(sumMap);
     } catch (err) {
       console.error('Gagal memuat acara:', err);

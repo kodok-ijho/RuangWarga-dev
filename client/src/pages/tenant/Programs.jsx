@@ -15,10 +15,8 @@ import { useToast } from '../../hooks/useToast';
 import Modal from '../../components/Modal';
 import { EmptyState, SkeletonCard } from '../../components/ui';
 import {
-  fetchPrograms,
+  fetchProgramsOverview,
   createProgram,
-  fetchBudgetItems,
-  fetchProgramTransactions,
   summarizeProgram,
   fetchTenantMembers,
   PROGRAM_STATUS_LABELS,
@@ -70,30 +68,17 @@ export default function Programs() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const [programsData, membersData] = await Promise.all([
-        fetchPrograms(tenantId),
+      const [overviewData, membersData] = await Promise.all([
+        fetchProgramsOverview(tenantId),
         fetchTenantMembers(tenantId).catch(() => []),
       ]);
 
-      setPrograms(programsData || []);
+      setPrograms(overviewData || []);
       setMembers(membersData || []);
 
-      // Ambil ringkasan keuangan untuk tiap acara
       const sumMap = {};
-      if (Array.isArray(programsData) && programsData.length > 0) {
-        await Promise.all(
-          programsData.map(async (p) => {
-            try {
-              const [budgetItems, trans] = await Promise.all([
-                fetchBudgetItems(tenantId, p.id).catch(() => []),
-                fetchProgramTransactions(tenantId, p.id).catch(() => ({ incomes: [], expenses: [] })),
-              ]);
-              sumMap[p.id] = summarizeProgram(budgetItems, trans.incomes, trans.expenses);
-            } catch (_err) {
-              sumMap[p.id] = summarizeProgram([], [], []);
-            }
-          })
-        );
+      for (const p of overviewData || []) {
+        sumMap[p.id] = p.summary || summarizeProgram([], [], []);
       }
       setSummaries(sumMap);
     } catch (err) {

@@ -315,6 +315,186 @@ export async function fetchPrograms(tenantId, { status } = {}) {
 }
 
 /**
+ * Mengambil seluruh acara beserta ringkasan keuangannya dalam 4 query (PANITIA-1F.5)
+ * @param {string} tenantId - UUID tenant
+ * @returns {Promise<Array<{ ...program, summary: object }>>}
+ */
+export async function fetchProgramsOverview(tenantId) {
+  if (!tenantId) return [];
+
+  const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
+  if (isDemoOrMock) {
+    const [progs, allIncomes, allExpenses] = await Promise.all([
+      fetchPrograms(tenantId),
+      fetchTenantIncomes(tenantId),
+      fetchTenantExpenses(tenantId),
+    ]);
+
+    const allBudgetItems = demoBudgetItemsStore
+      .filter((b) => b.tenant_id === tenantId)
+      .map((row) => ({
+        ...row,
+        unitLabel: row.unit_label,
+        unitPrice: Number(row.unit_price || 0),
+        sortOrder: Number(row.sort_order || 0),
+        amount: Number(row.amount || (Number(row.quantity || 1) * Number(row.unit_price || 0))),
+      }));
+
+    const budgetByProg = new Map();
+    for (const b of allBudgetItems) {
+      const pid = String(b.program_id || b.programId);
+      if (!budgetByProg.has(pid)) budgetByProg.set(pid, []);
+      budgetByProg.get(pid).push(b);
+    }
+
+    const incomeByProg = new Map();
+    for (const inc of allIncomes) {
+      const pid = inc.program_id || inc.programId;
+      if (pid) {
+        const sPid = String(pid);
+        if (!incomeByProg.has(sPid)) incomeByProg.set(sPid, []);
+        incomeByProg.get(sPid).push(inc);
+      }
+    }
+
+    const expenseByProg = new Map();
+    for (const exp of allExpenses) {
+      const pid = exp.program_id || exp.programId;
+      if (pid) {
+        const sPid = String(pid);
+        if (!expenseByProg.has(sPid)) expenseByProg.set(sPid, []);
+        expenseByProg.get(sPid).push(exp);
+      }
+    }
+
+    return (progs || []).map((prog) => {
+      const sId = String(prog.id);
+      const pBudget = budgetByProg.get(sId) || [];
+      const pIncomes = incomeByProg.get(sId) || [];
+      const pExpenses = expenseByProg.get(sId) || [];
+      const summary = summarizeProgram(pBudget, pIncomes, pExpenses);
+      return {
+        ...prog,
+        summary,
+      };
+    });
+  }
+
+  // 4 Query paralel ke Supabase
+  const [
+    { data: programsData, error: progError },
+    { data: budgetData, error: budgetError },
+    { data: incomesData, error: incomeError },
+    { data: expensesData, error: expenseError },
+  ] = await Promise.all([
+    supabase
+      .from('tenant_programs')
+      .select('*, lead_member:tenant_members(id, full_name)')
+      .eq('tenant_id', tenantId)
+      .order('starts_on', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('program_budget_items')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('non_ipl_incomes')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .not('program_id', 'is', null)
+      .is('deleted_at', null)
+      .order('income_date', { ascending: false }),
+    supabase
+      .from('expenses')
+      .select('id, tenant_id, category, amount, description, receipt_url, recorded_by, metadata, expense_date, is_date_proxy, program_id, budget_item_id, created_at, updated_at')
+      .eq('tenant_id', tenantId)
+      .not('program_id', 'is', null)
+      .order('expense_date', { ascending: false }),
+  ]);
+
+  if (progError) {
+    console.error('[programs] fetchProgramsOverview programs error:', progError);
+    throw progError;
+  }
+  if (budgetError) {
+    console.error('[programs] fetchProgramsOverview budget error:', budgetError);
+    throw budgetError;
+  }
+  if (incomeError) {
+    console.error('[programs] fetchProgramsOverview incomes error:', incomeError);
+    throw incomeError;
+  }
+  if (expenseError) {
+    console.error('[programs] fetchProgramsOverview expenses error:', expenseError);
+    throw expenseError;
+  }
+
+  const budgetByProg = new Map();
+  for (const row of budgetData || []) {
+    const pid = String(row.program_id);
+    if (!budgetByProg.has(pid)) budgetByProg.set(pid, []);
+    budgetByProg.get(pid).push({
+      ...row,
+      unitLabel: row.unit_label,
+      unitPrice: Number(row.unit_price || 0),
+      sortOrder: Number(row.sort_order || 0),
+      amount: Number(row.amount || (Number(row.quantity || 1) * Number(row.unit_price || 0))),
+    });
+  }
+
+  const incomeByProg = new Map();
+  for (const row of incomesData || []) {
+    const pid = String(row.program_id);
+    if (!incomeByProg.has(pid)) incomeByProg.set(pid, []);
+    incomeByProg.get(pid).push({
+      ...row,
+      amount: Number(row.amount || 0),
+      date: row.income_date,
+      incomeDate: row.income_date,
+      sourceName: row.source_name,
+      paymentMethod: row.payment_method,
+      referenceNumber: row.reference_number,
+      programId: row.program_id,
+      budgetItemId: row.budget_item_id,
+    });
+  }
+
+  const expenseByProg = new Map();
+  for (const row of expensesData || []) {
+    const pid = String(row.program_id);
+    if (!expenseByProg.has(pid)) expenseByProg.set(pid, []);
+    expenseByProg.get(pid).push({
+      ...row,
+      amount: Number(row.amount || 0),
+      date: row.expense_date,
+      expenseDate: row.expense_date,
+      programId: row.program_id,
+      budgetItemId: row.budget_item_id,
+    });
+  }
+
+  return (programsData || []).map((row) => {
+    const prog = {
+      ...row,
+      startsOn: row.starts_on,
+      endsOn: row.ends_on,
+      leadMemberId: row.lead_member_id,
+    };
+    const sId = String(prog.id);
+    const pBudget = budgetByProg.get(sId) || [];
+    const pIncomes = incomeByProg.get(sId) || [];
+    const pExpenses = expenseByProg.get(sId) || [];
+    const summary = summarizeProgram(pBudget, pIncomes, pExpenses);
+    return {
+      ...prog,
+      summary,
+    };
+  });
+}
+
+/**
  * Mengambil satu acara berdasarkan ID
  * @param {string} tenantId - UUID tenant
  * @param {string} programId - UUID program

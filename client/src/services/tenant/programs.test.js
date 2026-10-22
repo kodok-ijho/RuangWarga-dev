@@ -4,6 +4,7 @@ import {
   countActivePrograms,
   summarizeProgram,
   fetchPrograms,
+  fetchProgramsOverview,
   fetchProgram,
   createProgram,
   updateProgram,
@@ -289,6 +290,81 @@ describe('PANITIA-1.5: Program & Budget (RAB) Services', () => {
       ).rejects.toThrow(
         'Acara yang sudah punya transaksi tidak bisa dihapus. Ubah statusnya menjadi Arsip.'
       );
+    });
+  });
+
+  describe('fetchProgramsOverview (PANITIA-1F.5)', () => {
+    it('mode demo dengan 2 acara menghasilkan ringkasan yang sama dengan memanggil summarizeProgram per acara', async () => {
+      const demoTenantId = 'demo-tenant-overview-test';
+
+      // 1. Buat 2 acara di mode demo
+      const prog1 = await createProgram(demoTenantId, {
+        name: 'Acara Konser Amal',
+        status: 'running',
+      });
+      const prog2 = await createProgram(demoTenantId, {
+        name: 'Acara Donor Darah',
+        status: 'planning',
+      });
+
+      // 2. Buat pos RAB
+      const b1 = await createBudgetItem(demoTenantId, prog1.id, {
+        kind: 'expense',
+        section: 'Panggung',
+        item: 'Sewa Panggung',
+        quantity: 1,
+        unitPrice: 3000000,
+      });
+      const b2 = await createBudgetItem(demoTenantId, prog2.id, {
+        kind: 'income',
+        section: 'Donatur',
+        item: 'Sumbangan PT ABC',
+        quantity: 1,
+        unitPrice: 5000000,
+      });
+
+      // 3. Catat transaksi
+      await createTenantIncome(demoTenantId, {
+        amount: 5000000,
+        category: 'Sumbangan',
+        programId: prog2.id,
+        budgetItemId: b2.id,
+        sourceName: 'PT ABC',
+      });
+      await createTenantExpense(demoTenantId, {
+        amount: 3200000,
+        programId: prog1.id,
+        budgetItemId: b1.id,
+        category: 'acara',
+        description: 'Pembayaran panggung',
+      });
+
+      // 4. Hitung ringkasan secara terpisah per acara
+      const [trans1, budgetItems1] = await Promise.all([
+        fetchProgramTransactions(demoTenantId, prog1.id),
+        fetchBudgetItems(demoTenantId, prog1.id),
+      ]);
+      const expectedSummary1 = summarizeProgram(budgetItems1, trans1.incomes, trans1.expenses);
+
+      const [trans2, budgetItems2] = await Promise.all([
+        fetchProgramTransactions(demoTenantId, prog2.id),
+        fetchBudgetItems(demoTenantId, prog2.id),
+      ]);
+      const expectedSummary2 = summarizeProgram(budgetItems2, trans2.incomes, trans2.expenses);
+
+      // 5. Panggil fetchProgramsOverview
+      const overview = await fetchProgramsOverview(demoTenantId);
+
+      expect(overview).toHaveLength(2);
+
+      const p1Overview = overview.find((p) => p.id === prog1.id);
+      const p2Overview = overview.find((p) => p.id === prog2.id);
+
+      expect(p1Overview).toBeDefined();
+      expect(p2Overview).toBeDefined();
+
+      expect(p1Overview.summary).toEqual(expectedSummary1);
+      expect(p2Overview.summary).toEqual(expectedSummary2);
     });
   });
 });

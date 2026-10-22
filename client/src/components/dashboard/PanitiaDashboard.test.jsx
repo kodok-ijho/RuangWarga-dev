@@ -30,6 +30,7 @@ vi.mock('../../services/tenantOperationalService', async () => {
   return {
     ...actual,
     fetchPrograms: vi.fn(),
+    fetchProgramsOverview: vi.fn(),
     fetchBudgetItems: vi.fn(),
     fetchProgramTransactions: vi.fn(),
   };
@@ -56,7 +57,7 @@ describe('PANITIA-1.8: PanitiaDashboard Component', () => {
   });
 
   it('renders active programs list with financial progress when programs exist', async () => {
-    tenantOperationalService.fetchPrograms.mockResolvedValue([
+    const mockList = [
       {
         id: 'p-1',
         name: 'Pentas Seni 2026',
@@ -64,7 +65,9 @@ describe('PANITIA-1.8: PanitiaDashboard Component', () => {
         starts_on: '2026-11-20',
         ends_on: '2026-11-21',
       },
-    ]);
+    ];
+    tenantOperationalService.fetchPrograms.mockResolvedValue(mockList);
+    tenantOperationalService.fetchProgramsOverview.mockResolvedValue(mockList);
 
     render(
       <MemoryRouter>
@@ -83,6 +86,7 @@ describe('PANITIA-1.8: PanitiaDashboard Component', () => {
 
   it('renders "Buat Acara Pertama" empty state for managers when no programs exist', async () => {
     tenantOperationalService.fetchPrograms.mockResolvedValue([]);
+    tenantOperationalService.fetchProgramsOverview.mockResolvedValue([]);
     mockTenantAccess.canManagePrograms = true;
 
     render(
@@ -101,6 +105,7 @@ describe('PANITIA-1.8: PanitiaDashboard Component', () => {
 
   it('renders "Belum ada acara" empty state for regular members when no programs exist', async () => {
     tenantOperationalService.fetchPrograms.mockResolvedValue([]);
+    tenantOperationalService.fetchProgramsOverview.mockResolvedValue([]);
     mockTenantAccess.canManagePrograms = false;
 
     render(
@@ -120,6 +125,7 @@ describe('PANITIA-1.8: PanitiaDashboard Component', () => {
   it('PANITIA-1F.4: displays error state with "Coba lagi" button when fetchPrograms fails', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     tenantOperationalService.fetchPrograms.mockRejectedValue(new Error('Database timeout'));
+    tenantOperationalService.fetchProgramsOverview.mockRejectedValue(new Error('Database timeout'));
 
     render(
       <MemoryRouter>

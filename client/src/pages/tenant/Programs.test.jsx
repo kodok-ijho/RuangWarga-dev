@@ -55,6 +55,7 @@ vi.mock('../../services/tenantOperationalService', async () => {
   return {
     ...actual,
     fetchPrograms: vi.fn(),
+    fetchProgramsOverview: vi.fn(),
     createProgram: vi.fn(),
     fetchBudgetItems: vi.fn(),
     fetchProgramTransactions: vi.fn(),
@@ -140,6 +141,7 @@ describe('PANITIA-1.7: Programs Page', () => {
     };
 
     tenantOperationalService.fetchPrograms.mockResolvedValue(mockProgramsList);
+    tenantOperationalService.fetchProgramsOverview.mockResolvedValue(mockProgramsList);
     tenantOperationalService.fetchBudgetItems.mockResolvedValue([]);
     tenantOperationalService.fetchProgramTransactions.mockResolvedValue({ incomes: [], expenses: [] });
     tenantOperationalService.fetchTenantMembers.mockResolvedValue([
@@ -221,6 +223,7 @@ describe('PANITIA-1.7: Programs Page', () => {
   it('PANITIA-1F.4: displays error state with "Coba lagi" button when fetchPrograms fails', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     tenantOperationalService.fetchPrograms.mockRejectedValue(new Error('Koneksi terputus'));
+    tenantOperationalService.fetchProgramsOverview.mockRejectedValue(new Error('Koneksi terputus'));
 
     renderPrograms();
 

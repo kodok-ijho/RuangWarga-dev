@@ -49,6 +49,7 @@ const EXPECTED_EXPORTS = [
   "fetchProgram",
   "fetchProgramTransactions",
   "fetchPrograms",
+  "fetchProgramsOverview",
   "fetchTenantAnnouncements",
   "fetchTenantBillMatrix",
   "fetchTenantBillingItems",
@@ -112,9 +113,9 @@ const EXPECTED_EXPORTS = [
 ];
 
 describe('tenantOperationalService Exports Guard (DEBT-1.4)', () => {
-  it('harus mengekspor 107 fungsi/konstanta yang sama persis', () => {
+  it('harus mengekspor 108 fungsi/konstanta yang sama persis', () => {
     const exportsList = Object.keys(tenantOperationalService).sort();
     expect(exportsList).toEqual(EXPECTED_EXPORTS);
-    expect(exportsList.length).toBe(107);
+    expect(exportsList.length).toBe(108);
   });
 });
