@@ -103,6 +103,9 @@ export default function TenantShell() {
   const desktopNavLinks = [
     { to: `${tenantBase}/dashboard`, label: 'Ringkasan', icon: AiOutlineHome },
     secondLink,
+    ...(isArisan
+      ? [{ to: `${tenantBase}/arisan/my`, label: 'Setoran Saya', icon: AiOutlineWallet }]
+      : []),
     ...(canManageUnits
       ? [{ to: `${tenantBase}/units`, label: template.unitLabel || 'Unit', icon: AiOutlineHome }]
       : []),

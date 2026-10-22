@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   AiOutlineCreditCard,
@@ -10,9 +10,13 @@ import {
 } from 'react-icons/ai';
 import { ResidentBillingHero } from './ResidentBillingHero';
 import { StatusBadge } from '../ui';
-import { formatRupiah } from '../../services/dataHelpers';
+import { formatRupiah, formatDate } from '../../services/dataHelpers';
 import { TenantContext } from '../../context/TenantContext';
-import { isLegacyQrisEnabled } from '../../services/tenantOperationalService';
+import {
+  isLegacyQrisEnabled,
+  fetchMyArisanBills,
+} from '../../services/tenantOperationalService';
+import MemberBillPayModal from '../payments/MemberBillPayModal';
 
 export function CitizenDashboard({
   tenantId,
@@ -26,30 +30,148 @@ export function CitizenDashboard({
   const navigate = useNavigate();
   const tenantCtx = useContext(TenantContext);
   const activeTenant = propActiveTenant || tenantCtx?.activeTenant;
+  const activeMember = tenantCtx?.activeMember;
+
+  const isArisan = activeTenant?.type === 'arisan';
 
   // Resolve obligation and unit strictly from real individual data
   const myObligation = dashData?.myObligation || null;
   const myUnit = dashData?.myUnit || null;
 
   // Recent activity: derive from recent payments
-  // Catatan: getAnnouncementsByTenant disembunyikan sampai RTRW-3
   const recentPayments = dashData?.recentPayments || [];
+
+  // State tagihan arisan untuk peserta
+  const [arisanBills, setArisanBills] = useState([]);
+  const [selectedBillToPay, setSelectedBillToPay] = useState(null);
+
+  const loadArisanBills = useCallback(async () => {
+    if (!isArisan || !tenantId || !activeMember?.id) return;
+    try {
+      const bills = await fetchMyArisanBills(tenantId, activeMember.id);
+      setArisanBills(bills || []);
+    } catch (err) {
+      console.error('[CitizenDashboard] Gagal memuat tagihan arisan:', err);
+    }
+  }, [isArisan, tenantId, activeMember?.id]);
+
+  useEffect(() => {
+    loadArisanBills();
+  }, [loadArisanBills]);
+
+  // Setoran arisan terdekat yang belum lunas
+  const nearestUnpaidBill = useMemo(() => {
+    if (!isArisan) return null;
+    return arisanBills.find((b) => b.status === 'unpaid') || null;
+  }, [isArisan, arisanBills]);
+
+  const nearestPendingBill = useMemo(() => {
+    if (!isArisan || nearestUnpaidBill) return null;
+    return arisanBills.find((b) => b.status === 'pending_verification') || null;
+  }, [isArisan, nearestUnpaidBill, arisanBills]);
+
+  const targetArisanBill = nearestUnpaidBill || nearestPendingBill;
 
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* ── 1. CURRENT OBLIGATION (Level 1 - Priority Hub) ──────────────────── */}
       <section aria-labelledby="obligation-heading">
         <h2 id="obligation-heading" className="sr-only">
-          Kewajiban Tagihan Saat Ini
+          {isArisan ? 'Kewajiban Setoran Arisan' : 'Kewajiban Tagihan Saat Ini'}
         </h2>
-        <ResidentBillingHero
-          myBill={myObligation}
-          myUnit={myUnit}
-          periodLabel={periodLabel}
-          template={template}
-          isReadOnly={isReadOnly}
-          onPayClick={() => navigate(`/t/${tenantId}/payment-matrix`)}
-        />
+        {isArisan ? (
+          <div className="p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/90 shadow-rw-card space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2.5 bg-purple-100 text-purple-700 rounded-xl text-lg select-none">
+                  🎲
+                </span>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                    Setoran Arisan
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Iuran putaran berkala anggota arisan
+                  </p>
+                </div>
+              </div>
+              <Link
+                to={`/t/${tenantId}/arisan/my`}
+                className="text-xs font-semibold text-purple-700 hover:text-purple-800 transition inline-flex items-center gap-1"
+              >
+                <span>Lihat Semua Setoran</span>
+                <AiOutlineArrowRight className="text-[10px]" />
+              </Link>
+            </div>
+
+            {targetArisanBill ? (
+              <div className="p-4 rounded-xl bg-purple-50/50 border border-purple-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-900 truncate">
+                      {targetArisanBill.round_label || (targetArisanBill.round_number ? `Putaran #${targetArisanBill.round_number}` : targetArisanBill.period) || 'Putaran Arisan'}
+                    </span>
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                        targetArisanBill.status === 'unpaid'
+                          ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                          : 'bg-amber-100 text-amber-800 border border-amber-200'
+                      }`}
+                    >
+                      {targetArisanBill.status === 'unpaid' ? 'Belum Bayar' : 'Menunggu Verifikasi'}
+                    </span>
+                  </div>
+                  <div className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                    {formatRupiah(targetArisanBill.amount || 0)}
+                  </div>
+                  {targetArisanBill.due_date && (
+                    <p className="text-[11px] text-slate-500">
+                      Jatuh Tempo: {formatDate(targetArisanBill.due_date)}
+                    </p>
+                  )}
+                </div>
+
+                <div className="shrink-0">
+                  {targetArisanBill.status === 'unpaid' ? (
+                    <button
+                      type="button"
+                      disabled={isReadOnly}
+                      onClick={() => setSelectedBillToPay(targetArisanBill)}
+                      className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      <AiOutlineCreditCard className="text-sm" />
+                      <span>Bayar Sekarang</span>
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-amber-700 font-semibold px-3 py-1.5 bg-amber-50 rounded-xl border border-amber-200">
+                      <AiOutlineClockCircle />
+                      <span>Menunggu verifikasi pengurus</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-100 flex items-center gap-3">
+                <AiOutlineCheckCircle className="text-emerald-600 text-xl shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-emerald-950">Semua Setoran Lunas</p>
+                  <p className="text-[11px] text-emerald-800">
+                    Tidak ada tagihan setoran yang tertunda. Anda berhak mengikuti pengocokan putaran!
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <ResidentBillingHero
+            myBill={myObligation}
+            myUnit={myUnit}
+            periodLabel={periodLabel}
+            template={template}
+            isReadOnly={isReadOnly}
+            onPayClick={() => navigate(`/t/${tenantId}/payment-matrix`)}
+          />
+        )}
       </section>
 
       {/* ── 2. QUICK ACTIONS (Level 2 - Max 4 Actions on Mobile) ───────────── */}
@@ -62,9 +184,9 @@ export function CitizenDashboard({
         </h2>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
-          {/* Action 1: Bayar Tagihan */}
+          {/* Action 1: Bayar Tagihan / Setoran Saya */}
           <Link
-            to={`/t/${tenantId}/payment-matrix`}
+            to={isArisan ? `/t/${tenantId}/arisan/my` : `/t/${tenantId}/payment-matrix`}
             className="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 p-3.5 rounded-xl border border-slate-200/90 bg-white hover:bg-slate-50 hover:border-slate-300 transition group min-h-[48px]"
           >
             <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center text-base shrink-0 group-hover:bg-slate-900 group-hover:text-white transition-colors">
@@ -72,17 +194,21 @@ export function CitizenDashboard({
             </div>
             <div className="min-w-0">
               <span className="block text-xs font-bold text-slate-900 truncate">
-                Bayar {template?.billLabel || 'Tagihan'}
+                {isArisan ? 'Setoran Saya' : `Bayar ${template?.billLabel || 'Tagihan'}`}
               </span>
               <span className="block text-[10px] text-slate-500 truncate">
-                {isLegacyQrisEnabled(activeTenant) ? 'Rincian & QRIS' : 'Rincian & cara bayar'}
+                {isArisan
+                  ? 'Bayar & riwayat setoran'
+                  : isLegacyQrisEnabled(activeTenant)
+                  ? 'Rincian & QRIS'
+                  : 'Rincian & cara bayar'}
               </span>
             </div>
           </Link>
 
-          {/* Action 2: Riwayat Pembayaran */}
+          {/* Action 2: Riwayat Pembayaran / Setoran */}
           <Link
-            to={`/t/${tenantId}/payment-matrix`}
+            to={isArisan ? `/t/${tenantId}/arisan/my` : `/t/${tenantId}/payment-matrix`}
             className="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 p-3.5 rounded-xl border border-slate-200/90 bg-white hover:bg-slate-50 hover:border-slate-300 transition group min-h-[48px]"
           >
             <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center text-base shrink-0 group-hover:bg-slate-900 group-hover:text-white transition-colors">
@@ -90,15 +216,13 @@ export function CitizenDashboard({
             </div>
             <div className="min-w-0">
               <span className="block text-xs font-bold text-slate-900 truncate">
-                Riwayat Bayar
+                {isArisan ? 'Riwayat Setoran' : 'Riwayat Bayar'}
               </span>
               <span className="block text-[10px] text-slate-500 truncate">
-                Kuitansi digital
+                {isArisan ? 'Status iuran putaran' : 'Kuitansi digital'}
               </span>
             </div>
           </Link>
-
-          {/* Action 3: Pengumuman — Disembunyikan sampai RTRW-3 */}
 
           {/* Action 4: Direktori Anggota/Warga */}
           <Link
@@ -132,7 +256,7 @@ export function CitizenDashboard({
               Aktivitas Terbaru
             </h2>
             <Link
-              to={`/t/${tenantId}/payment-matrix`}
+              to={isArisan ? `/t/${tenantId}/arisan/my` : `/t/${tenantId}/payment-matrix`}
               className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition inline-flex items-center gap-1"
             >
               <span>Semua Riwayat</span>
@@ -173,9 +297,18 @@ export function CitizenDashboard({
             )}
           </div>
         </section>
-
-        {/* Kolom Kanan: Community Information (Pengumuman) — Disembunyikan sampai RTRW-3 */}
       </div>
+
+      {/* Modal Pembayaran Setoran Arisan */}
+      {selectedBillToPay && (
+        <MemberBillPayModal
+          tenantId={tenantId}
+          bill={selectedBillToPay}
+          title={`Bayar Setoran: ${selectedBillToPay.round_label || selectedBillToPay.period || 'Putaran Arisan'}`}
+          onClose={() => setSelectedBillToPay(null)}
+          onPaid={loadArisanBills}
+        />
+      )}
     </div>
   );
 }

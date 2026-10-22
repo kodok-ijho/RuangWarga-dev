@@ -381,5 +381,43 @@ describe('TenantShell Navigation (RTRW-1.2)', () => {
       );
       expect(htmlNoVerify).not.toContain('href="/t/t-panitia-1/payment-verification"');
     });
+
+    it('ARISAN-1.5: link "Setoran Saya" tampil untuk tenant arisan dan tidak untuk RT/RW', () => {
+      // 1. Tenant Arisan
+      mockTenantState.activeTenant = {
+        id: 't-arisan-1',
+        name: 'Arisan Dahlia',
+        type: 'arisan',
+        settings: {},
+      };
+      mockTenantState.activeTenantId = 't-arisan-1';
+
+      const arisanHtml = renderToString(
+        <MemoryRouter initialEntries={['/t/t-arisan-1/dashboard']}>
+          <TenantShell />
+        </MemoryRouter>
+      );
+
+      expect(arisanHtml).toContain('href="/t/t-arisan-1/arisan/my"');
+      expect(arisanHtml).toContain('Setoran Saya');
+
+      // 2. Tenant RT/RW
+      mockTenantState.activeTenant = {
+        id: 't-rtrw-1',
+        name: 'Palm Village RT 05',
+        type: 'rt_rw',
+        settings: {},
+      };
+      mockTenantState.activeTenantId = 't-rtrw-1';
+
+      const rtrwHtml = renderToString(
+        <MemoryRouter initialEntries={['/t/t-rtrw-1/dashboard']}>
+          <TenantShell />
+        </MemoryRouter>
+      );
+
+      expect(rtrwHtml).not.toContain('href="/t/t-rtrw-1/arisan/my"');
+      expect(rtrwHtml).not.toContain('Setoran Saya');
+    });
   });
 });

@@ -68,6 +68,7 @@ const PlatformPricingConfig = lazy(() => import('./pages/platform/PlatformPricin
 const PlatformRevenue = lazy(() => import('./pages/platform/PlatformRevenue'));
 const ArisanRounds = lazy(() => import('./pages/arisan/ArisanRounds'));
 const ArisanDraw = lazy(() => import('./pages/arisan/ArisanDraw'));
+const ArisanMyContributions = lazy(() => import('./pages/arisan/ArisanMyContributions'));
 const PostListing = lazy(() => import('./pages/tenant/PostListing'));
 const MyListings = lazy(() => import('./pages/tenant/MyListings'));
 const RoomListingDirectory = lazy(() => import('./pages/public/RoomListingDirectory'));
@@ -482,6 +483,16 @@ export default function App() {
                     }
                   />
                   <Route
+                    path="arisan/my"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <TenantAccessGuard require="isMember">
+                          <ArisanMyContributions />
+                        </TenantAccessGuard>
+                      </Suspense>
+                    }
+                  />
+                  <Route
                     path="listings/post"
                     element={
                       <Suspense fallback={<PageLoader />}>
@@ -545,6 +556,14 @@ export default function App() {
                   element={
                     <Suspense fallback={<PageLoader />}>
                       <ArisanDraw />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/arisan/my"
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <ArisanMyContributions />
                     </Suspense>
                   }
                 />
