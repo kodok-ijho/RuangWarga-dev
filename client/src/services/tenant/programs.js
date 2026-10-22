@@ -7,6 +7,7 @@
 import { supabase, IS_DEMO } from './shared';
 import { fetchTenantIncomes } from './incomes';
 import { fetchTenantExpenses } from './finance';
+import { summarizeProgramDues, getDemoProgramDues, fetchProgramDues } from './programDues';
 
 export const PROGRAM_STATUS_LABELS = {
   planning: 'Perencanaan',
@@ -115,18 +116,20 @@ export function countActivePrograms(programs = []) {
 }
 
 /**
- * Meringkas kalkulasi anggaran vs realisasi program
+ * Meringkas kalkulasi anggaran vs realisasi program (PANITIA-2.2: mendukung iuran panitia)
  * @param {Array} budgetItems - Daftar item anggaran (RAB)
  * @param {Array} incomes - Daftar transaksi pemasukan
  * @param {Array} expenses - Daftar transaksi pengeluaran
- * @returns {object} Ringkasan planned, actual, sections, dan unbudgeted
+ * @param {Array} [dues] - Daftar tagihan iuran acara (billing_items)
+ * @returns {object} Ringkasan planned, actual, sections, unbudgeted, dan dues
  */
-export function summarizeProgram(budgetItems = [], incomes = [], expenses = []) {
+export function summarizeProgram(budgetItems = [], incomes = [], expenses = [], dues = []) {
   const safeItems = Array.isArray(budgetItems) ? budgetItems : [];
   const safeIncomes = (Array.isArray(incomes) ? incomes : []).filter(
     (inc) => inc && !inc.deleted_at
   );
   const safeExpenses = Array.isArray(expenses) ? expenses : [];
+  const duesSummary = summarizeProgramDues(dues);
 
   // Map budget item ID -> item object
   const budgetItemMap = new Map();
@@ -234,6 +237,9 @@ export function summarizeProgram(budgetItems = [], incomes = [], expenses = []) 
     }
   }
 
+  // Tambah pemasukan dari iuran panitia yang lunas (PANITIA-2.2)
+  actualIncome += duesSummary.collected;
+
   const sections = Array.from(sectionMap.values()).map((sec) => {
     const variance = sec.actual - sec.planned;
     const percent = sec.planned > 0
@@ -265,6 +271,7 @@ export function summarizeProgram(budgetItems = [], incomes = [], expenses = []) 
       income: Math.round(unbudgetedIncome * 100) / 100,
       expense: Math.round(unbudgetedExpense * 100) / 100,
     },
+    dues: duesSummary,
   };
 }
 
@@ -315,7 +322,7 @@ export async function fetchPrograms(tenantId, { status } = {}) {
 }
 
 /**
- * Mengambil seluruh acara beserta ringkasan keuangannya dalam 4 query (PANITIA-1F.5)
+ * Mengambil seluruh acara beserta ringkasan keuangannya dalam 5 query (PANITIA-2.2)
  * @param {string} tenantId - UUID tenant
  * @returns {Promise<Array<{ ...program, summary: object }>>}
  */
@@ -367,12 +374,23 @@ export async function fetchProgramsOverview(tenantId) {
       }
     }
 
+    const allDemoDues = getDemoProgramDues(tenantId);
+    const duesByProg = new Map();
+    for (const d of allDemoDues) {
+      if (d.status !== 'cancelled') {
+        const pid = String(d.program_id || d.programId);
+        if (!duesByProg.has(pid)) duesByProg.set(pid, []);
+        duesByProg.get(pid).push(d);
+      }
+    }
+
     return (progs || []).map((prog) => {
       const sId = String(prog.id);
       const pBudget = budgetByProg.get(sId) || [];
       const pIncomes = incomeByProg.get(sId) || [];
       const pExpenses = expenseByProg.get(sId) || [];
-      const summary = summarizeProgram(pBudget, pIncomes, pExpenses);
+      const pDues = duesByProg.get(sId) || [];
+      const summary = summarizeProgram(pBudget, pIncomes, pExpenses, pDues);
       return {
         ...prog,
         summary,
@@ -380,12 +398,13 @@ export async function fetchProgramsOverview(tenantId) {
     });
   }
 
-  // 4 Query paralel ke Supabase
+  // 5 Query paralel ke Supabase (PANITIA-2.2)
   const [
     { data: programsData, error: progError },
     { data: budgetData, error: budgetError },
     { data: incomesData, error: incomeError },
     { data: expensesData, error: expenseError },
+    { data: duesData, error: duesError },
   ] = await Promise.all([
     supabase
       .from('tenant_programs')
@@ -412,6 +431,12 @@ export async function fetchProgramsOverview(tenantId) {
       .eq('tenant_id', tenantId)
       .not('program_id', 'is', null)
       .order('expense_date', { ascending: false }),
+    supabase
+      .from('billing_items')
+      .select('id, tenant_id, program_id, amount, status')
+      .eq('tenant_id', tenantId)
+      .not('program_id', 'is', null)
+      .neq('status', 'cancelled'),
   ]);
 
   if (progError) {
@@ -429,6 +454,10 @@ export async function fetchProgramsOverview(tenantId) {
   if (expenseError) {
     console.error('[programs] fetchProgramsOverview expenses error:', expenseError);
     throw expenseError;
+  }
+  if (duesError) {
+    console.error('[programs] fetchProgramsOverview dues error:', duesError);
+    throw duesError;
   }
 
   const budgetByProg = new Map();
@@ -475,6 +504,13 @@ export async function fetchProgramsOverview(tenantId) {
     });
   }
 
+  const duesByProg = new Map();
+  for (const row of duesData || []) {
+    const pid = String(row.program_id);
+    if (!duesByProg.has(pid)) duesByProg.set(pid, []);
+    duesByProg.get(pid).push(row);
+  }
+
   return (programsData || []).map((row) => {
     const prog = {
       ...row,
@@ -486,7 +522,8 @@ export async function fetchProgramsOverview(tenantId) {
     const pBudget = budgetByProg.get(sId) || [];
     const pIncomes = incomeByProg.get(sId) || [];
     const pExpenses = expenseByProg.get(sId) || [];
-    const summary = summarizeProgram(pBudget, pIncomes, pExpenses);
+    const pDues = duesByProg.get(sId) || [];
+    const summary = summarizeProgram(pBudget, pIncomes, pExpenses, pDues);
     return {
       ...prog,
       summary,
@@ -1013,24 +1050,26 @@ export async function deleteBudgetItem(tenantId, budgetItemId) {
 // ==============================================================================
 
 /**
- * Mengambil seluruh transaksi acara (pemasukan dan pengeluaran)
+ * Mengambil seluruh transaksi acara (pemasukan, pengeluaran, dan iuran) (PANITIA-2.2)
  * Pemasukan hanya yang deleted_at IS NULL
  * @param {string} tenantId - UUID tenant
  * @param {string} programId - UUID program
- * @returns {Promise<{ incomes: Array, expenses: Array }>}
+ * @returns {Promise<{ incomes: Array, expenses: Array, dues: Array }>}
  */
 export async function fetchProgramTransactions(tenantId, programId) {
   if (!tenantId || !programId) {
-    return { incomes: [], expenses: [] };
+    return { incomes: [], expenses: [], dues: [] };
   }
 
-  const [incomes, expenses] = await Promise.all([
+  const [incomes, expenses, dues] = await Promise.all([
     fetchTenantIncomes(tenantId, { programId }),
     fetchTenantExpenses(tenantId, { programId }),
+    fetchProgramDues(tenantId, programId),
   ]);
 
   return {
     incomes: incomes || [],
     expenses: expenses || [],
+    dues: dues || [],
   };
 }

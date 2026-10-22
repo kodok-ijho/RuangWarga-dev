@@ -177,6 +177,45 @@ describe('PANITIA-1.5: Program & Budget (RAB) Services', () => {
       const summary = summarizeProgram(budgetItems, [], []);
       expect(summary.sections[0].section).toBe('Lainnya');
     });
+
+    it('PANITIA-2.2: summarizeProgram dengan iuran (actual.income bertambah hanya dari yang lunas)', () => {
+      const budgetItems = [
+        {
+          id: 'b-inc-1',
+          kind: 'income',
+          section: 'Sponsorship',
+          amount: 5000000,
+        },
+      ];
+      const incomes = [
+        { id: 'i-1', amount: 3000000, budget_item_id: 'b-inc-1' },
+      ];
+      const expenses = [];
+      const dues = [
+        { id: 'd-1', amount: 50000, status: 'paid' },
+        { id: 'd-2', amount: 50000, status: 'paid' },
+        { id: 'd-3', amount: 50000, status: 'pending_verification' },
+        { id: 'd-4', amount: 50000, status: 'unpaid' },
+        { id: 'd-5', amount: 50000, status: 'cancelled' },
+      ];
+
+      const summary = summarizeProgram(budgetItems, incomes, expenses, dues);
+
+      // planned income tetap 5.000.000 (tidak dipengaruhi iuran)
+      expect(summary.planned.income).toBe(5000000);
+      // actual income bertambah dari iuran lunas (3.000.000 + 100.000)
+      expect(summary.actual.income).toBe(3100000);
+      // unbudgeted income tidak terpengaruh
+      expect(summary.unbudgeted.income).toBe(0);
+      // dues summary hadir
+      expect(summary.dues).toEqual({
+        count: 4,
+        billed: 200000,
+        collected: 100000,
+        pending: 50000,
+        unpaidCount: 1,
+      });
+    });
   });
 
   describe('Alur Demo: Buat Acara, Tambah RAB, Catat Pemasukan/Pengeluaran, & Ringkasan', () => {

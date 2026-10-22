@@ -21,4 +21,5 @@ export * from './tenant/announcements';
 export * from './tenant/events';
 export * from './tenant/programs';
 export * from './tenant/incomes';
+export * from './tenant/programDues';
 

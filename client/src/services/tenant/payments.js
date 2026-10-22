@@ -533,6 +533,64 @@ export async function submitTenantPayment(tenantId, {
 }
 
 /**
+ * Mengajukan pembayaran transfer oleh anggota untuk tagihan tertentu (PANITIA-2.2).
+ * Pembungkus submitTenantPayment dengan method: 'bank_transfer', isStaff: false.
+ * Bukti wajib diunggah (JPG/PNG/WebP/PDF <= 5 MB).
+ *
+ * @param {string} tenantId
+ * @param {object} params
+ * @param {string} params.billId
+ * @param {File|object|string} params.proofFile
+ * @param {string} [params.note]
+ * @param {string} [params.memberId]
+ */
+export async function submitMemberTransfer(tenantId, { billId, proofFile, note, memberId } = {}) {
+  if (!tenantId || !billId) {
+    throw new Error('Tenant ID dan Bill ID wajib disertakan.');
+  }
+
+  if (!proofFile) {
+    throw new Error('Bukti transfer wajib diunggah.');
+  }
+
+  const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+  const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
+  const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+
+  if (typeof proofFile === 'object' && proofFile !== null) {
+    if (proofFile.size !== undefined && proofFile.size > MAX_SIZE) {
+      throw new Error('Ukuran file bukti maksimal 5 MB.');
+    }
+    const name = (proofFile.name || '').toLowerCase();
+    const type = (proofFile.type || '').toLowerCase();
+    const hasValidExt = ALLOWED_EXTS.some((ext) => name.endsWith(ext));
+    const hasValidMime = ALLOWED_MIMES.includes(type);
+    if ((name || type) && !hasValidExt && !hasValidMime) {
+      throw new Error('Format file bukti harus berupa JPG, PNG, WebP, atau PDF.');
+    }
+  } else if (typeof proofFile === 'string') {
+    const trimmed = proofFile.trim();
+    if (!trimmed) {
+      throw new Error('Bukti transfer wajib diunggah.');
+    }
+    const lower = trimmed.toLowerCase();
+    const hasValidExt = ALLOWED_EXTS.some((ext) => lower.endsWith(ext));
+    if (!hasValidExt) {
+      throw new Error('Format file bukti harus berupa JPG, PNG, WebP, atau PDF.');
+    }
+  }
+
+  return submitTenantPayment(tenantId, {
+    billId,
+    method: 'bank_transfer',
+    proofFile,
+    note,
+    memberId,
+    isStaff: false,
+  });
+}
+
+/**
  * Memperbarui rincian pembayaran untuk tenant
  * @param {string} tenantId - UUID tenant
  * @param {string} paymentId - UUID payment

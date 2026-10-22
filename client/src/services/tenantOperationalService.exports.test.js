@@ -14,12 +14,14 @@ const EXPECTED_EXPORTS = [
   "autoGenerateKosBilling",
   "bulkCreateTenantUnits",
   "calculateBillingPreview",
+  "cancelProgramDues",
   "checkoutKosRoom",
   "countActivePrograms",
   "countOccupiedUnits",
   "createArisanRound",
   "createBudgetItem",
   "createProgram",
+  "createProgramDues",
   "createTenantAnnouncement",
   "createTenantBillingItem",
   "createTenantEvent",
@@ -44,9 +46,11 @@ const EXPECTED_EXPORTS = [
   "fetchBillingAutoRuns",
   "fetchBudgetItems",
   "fetchMyJoinRequests",
+  "fetchMyProgramDues",
   "fetchPendingTenantMembers",
   "fetchPlatformPermissions",
   "fetchProgram",
+  "fetchProgramDues",
   "fetchProgramTransactions",
   "fetchPrograms",
   "fetchProgramsOverview",
@@ -72,6 +76,7 @@ const EXPECTED_EXPORTS = [
   "generateTenantBillingItems",
   "getAnnouncementImageUrl",
   "getCachedTenantInviteCode",
+  "getDemoProgramDues",
   "getInviteDetails",
   "getTenantBankAccount",
   "importTenantUnitsCSV",
@@ -81,11 +86,13 @@ const EXPECTED_EXPORTS = [
   "parseUnitsCsv",
   "payArisanBillManual",
   "pickBankAccountForForm",
+  "recordProgramDuesCash",
   "rejectTenantMember",
   "rejectTenantPayment",
   "removeTenantMember",
   "requestJoinTenant",
   "resetDemoIncomesStore",
+  "resetDemoProgramDuesStore",
   "resetDemoProgramsStore",
   "resolveCitizenObligationAndUnit",
   "saveInviteCodeWithRetry",
@@ -93,10 +100,13 @@ const EXPECTED_EXPORTS = [
   "saveTenantInviteCode",
   "setTenantUnitStatus",
   "startNewArisanCycle",
+  "submitMemberTransfer",
   "submitTenantPayment",
   "summarizeProgram",
+  "summarizeProgramDues",
   "updateBudgetItem",
   "updateProgram",
+  "updateProgramDuesAmount",
   "updateTenantAnnouncement",
   "updateTenantEvent",
   "updateTenantExpense",
@@ -113,9 +123,9 @@ const EXPECTED_EXPORTS = [
 ];
 
 describe('tenantOperationalService Exports Guard (DEBT-1.4)', () => {
-  it('harus mengekspor 108 fungsi/konstanta yang sama persis', () => {
+  it('harus mengekspor 118 fungsi/konstanta yang sama persis', () => {
     const exportsList = Object.keys(tenantOperationalService).sort();
     expect(exportsList).toEqual(EXPECTED_EXPORTS);
-    expect(exportsList.length).toBe(108);
+    expect(exportsList.length).toBe(118);
   });
 });

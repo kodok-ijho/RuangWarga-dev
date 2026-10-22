@@ -213,6 +213,72 @@ export function buildBillReminderMessage({
 }
 
 /**
+ * Susun pesan WhatsApp pengingat iuran panitia per acara (PANITIA-2.2).
+ * Pola teks mengikuti buildBillReminderMessage.
+ *
+ * @param {object} params
+ * @param {string} [params.memberName]
+ * @param {string} [params.programName]
+ * @param {number} params.amount
+ * @param {string} [params.dueDate]
+ * @param {object|null} [params.bankAccount]
+ * @param {string} [params.tenantName]
+ * @param {string} [params.appUrl]
+ * @returns {string}
+ */
+export function buildProgramDuesReminderMessage({
+  memberName,
+  programName,
+  amount,
+  dueDate,
+  bankAccount,
+  tenantName,
+  appUrl,
+}) {
+  const name = memberName && String(memberName).trim() ? String(memberName).trim() : 'Bapak/Ibu';
+  const pName = programName && String(programName).trim() ? String(programName).trim() : 'Acara';
+
+  const header = `Pengingat iuran acara ${pName}:`;
+
+  const amountVal = Number(amount || 0);
+  const amountText = formatRupiahWa(amountVal);
+  const dueText = formatDueDate(dueDate);
+  const dueSuffix = dueText ? ` (jatuh tempo ${dueText})` : '';
+
+  const tagihanLine = `- Iuran ${pName}: ${amountText}${dueSuffix}`;
+  const totalLine = `Total: ${amountText}`;
+  const tagihanSection = `${tagihanLine}\n${totalLine}`;
+
+  const resolvedAppUrl = appUrl || '';
+  const hasCompleteBank = Boolean(
+    bankAccount &&
+      typeof bankAccount === 'object' &&
+      bankAccount.bank_name &&
+      String(bankAccount.bank_name).trim() &&
+      bankAccount.account_number &&
+      String(bankAccount.account_number).trim() &&
+      bankAccount.account_holder &&
+      String(bankAccount.account_holder).trim()
+  );
+
+  let paymentLine = '';
+  if (hasCompleteBank) {
+    const bank = String(bankAccount.bank_name).trim();
+    const accNo = String(bankAccount.account_number).trim();
+    const holder = String(bankAccount.account_holder).trim();
+    paymentLine = `Pembayaran bisa ditransfer ke ${bank} ${accNo} a.n. ${holder}, lalu unggah bukti bayar di aplikasi: ${resolvedAppUrl}`;
+  } else {
+    paymentLine = `Konfirmasi pembayaran di aplikasi: ${resolvedAppUrl}`;
+  }
+
+  const tName = tenantName && String(tenantName).trim() ? String(tenantName).trim() : '';
+  const senderLine = tName ? `Pengurus ${tName}` : 'Pengurus';
+  const closingSection = `Terima kasih.\n${senderLine}`;
+
+  return `Halo ${name},\n\n${header}\n${tagihanSection}\n\n${paymentLine}\n\n${closingSection}`;
+}
+
+/**
  * Buat tautan wa.me dengan teks ter-encode.
  * Bila nomor tidak ada/null, kembalikan 'https://wa.me/?text=...'.
  *

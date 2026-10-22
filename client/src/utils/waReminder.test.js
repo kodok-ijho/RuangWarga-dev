@@ -4,6 +4,7 @@ import {
   getUnpaidBillsForReminder,
   getCurrentPeriodJakarta,
   buildBillReminderMessage,
+  buildProgramDuesReminderMessage,
   buildWaLink,
   buildAnnouncementShareText,
   buildAnnouncementShareUrl,
@@ -280,6 +281,51 @@ describe('waReminder - buildAnnouncementShareText & buildAnnouncementShareUrl (R
     expect(url).toContain(encodeURIComponent('Rapat RT'));
     expect(url).toContain(encodeURIComponent('Pukul 19.30 WIB'));
     expect(url).toContain(encodeURIComponent('https://ruangwarga.test/t/tenant-123/announcements'));
+  });
+});
+
+describe('waReminder - buildProgramDuesReminderMessage (PANITIA-2.2)', () => {
+  it('menyusun pesan pengingat iuran acara dengan rekening bank lengkap', () => {
+    const msg = buildProgramDuesReminderMessage({
+      memberName: 'Ahmad Faiz',
+      programName: 'Pentas Seni Tahunan',
+      amount: 50000,
+      dueDate: '2026-11-20',
+      bankAccount: {
+        bank_name: 'BCA',
+        account_number: '1234567890',
+        account_holder: 'Panitia Pentas Seni',
+      },
+      tenantName: 'Panitia Pentas Seni 2026',
+      appUrl: 'https://ruangwarga.id/t/panitia/dues',
+    });
+
+    expect(msg).toContain('Halo Ahmad Faiz,');
+    expect(msg).toContain('Pengingat iuran acara Pentas Seni Tahunan:');
+    expect(msg).toContain('Rp50.000');
+    expect(msg).toContain('20 Nov 2026');
+    expect(msg).toContain('BCA 1234567890 a.n. Panitia Pentas Seni');
+    expect(msg).toContain('https://ruangwarga.id/t/panitia/dues');
+    expect(msg).toContain('Pengurus Panitia Pentas Seni 2026');
+  });
+
+  it('menyusun pesan dengan fallback bila rekening bank belum diisi', () => {
+    const msg = buildProgramDuesReminderMessage({
+      memberName: '',
+      programName: 'Bazar Akbar',
+      amount: 75000,
+      dueDate: '2026-12-05',
+      bankAccount: null,
+      tenantName: '',
+      appUrl: 'https://ruangwarga.id',
+    });
+
+    expect(msg).toContain('Halo Bapak/Ibu,');
+    expect(msg).toContain('Pengingat iuran acara Bazar Akbar:');
+    expect(msg).toContain('Rp75.000');
+    expect(msg).toContain('5 Des 2026');
+    expect(msg).toContain('Konfirmasi pembayaran di aplikasi: https://ruangwarga.id');
+    expect(msg).toContain('Pengurus');
   });
 });
 
