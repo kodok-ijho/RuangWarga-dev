@@ -8,6 +8,10 @@ import { supabase, IS_DEMO } from './shared';
 import { fetchTenantIncomes } from './incomes';
 import { fetchTenantExpenses } from './finance';
 import { summarizeProgramDues, getDemoProgramDues, fetchProgramDues } from './programDues';
+import { PANITIA_PRICING } from '../../config/panitiaPricing';
+import { formatDate } from '../dataHelpers';
+
+export { PANITIA_PRICING };
 
 export const PROGRAM_STATUS_LABELS = {
   planning: 'Perencanaan',
@@ -35,6 +39,10 @@ let demoProgramsStore = [
     lead_member: { id: 'demo-member-1', name: 'Ahmad Faiz' },
     created_at: '2026-01-10T08:00:00Z',
     updated_at: '2026-01-10T08:00:00Z',
+    access_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    accessUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    is_free_trial: true,
+    isFreeTrial: true,
   },
 ];
 
@@ -113,6 +121,91 @@ export function countActivePrograms(programs = []) {
   return programs.filter(
     (p) => p && (p.status === 'planning' || p.status === 'running')
   ).length;
+}
+
+/**
+ * Menghitung status masa aktif dan hak tulis transaksi suatu acara (HARGA.2)
+ * @param {object} program - Data program (memiliki access_until / is_free_trial atau alias camelCase)
+ * @param {object} [options] - { tenantType, now }
+ * @returns {{ state: 'unlimited'|'free_trial'|'active'|'expired'|'inactive', until: string|null, writable: boolean }}
+ */
+export function getProgramAccessState(program, { tenantType, now = new Date() } = {}) {
+  if (tenantType && tenantType !== 'panitia') {
+    return {
+      state: 'unlimited',
+      until: null,
+      writable: true,
+    };
+  }
+
+  const accessUntil = program?.access_until ?? program?.accessUntil ?? null;
+  const isFreeTrial = Boolean(program?.is_free_trial ?? program?.isFreeTrial);
+
+  const nowMs = now instanceof Date ? now.getTime() : new Date(now).getTime();
+  const untilMs = accessUntil ? new Date(accessUntil).getTime() : null;
+
+  if (untilMs !== null) {
+    if (untilMs <= nowMs) {
+      return {
+        state: 'expired',
+        until: accessUntil,
+        writable: false,
+      };
+    }
+    // Masa depan
+    if (isFreeTrial) {
+      return {
+        state: 'free_trial',
+        until: accessUntil,
+        writable: true,
+      };
+    }
+    return {
+      state: 'active',
+      until: accessUntil,
+      writable: true,
+    };
+  }
+
+  // untilMs === null
+  if (isFreeTrial) {
+    return {
+      state: 'expired',
+      until: null,
+      writable: false,
+    };
+  }
+
+  return {
+    state: 'inactive',
+    until: null,
+    writable: false,
+  };
+}
+
+/**
+ * Format label status masa aktif untuk ditampilkan di UI (HARGA.2)
+ * @param {{ state: string, until: string|null }} stateObj
+ * @returns {string}
+ */
+export function formatProgramAccessLabel(stateObj) {
+  if (!stateObj) return '';
+  const { state, until } = stateObj;
+
+  switch (state) {
+    case 'free_trial':
+      return `Gratis sampai ${formatDate(until)}`;
+    case 'active':
+      return `Aktif sampai ${formatDate(until)}`;
+    case 'expired':
+      return until ? `Masa aktif habis ${formatDate(until)}` : 'Masa aktif habis';
+    case 'inactive':
+      return 'Belum aktif';
+    case 'unlimited':
+      return 'Aktif';
+    default:
+      return '';
+  }
 }
 
 /**
@@ -293,7 +386,16 @@ export async function fetchPrograms(tenantId, { status } = {}) {
     if (status) {
       list = list.filter((p) => p.status === status);
     }
-    return list;
+    return list.map((row) => ({
+      ...row,
+      startsOn: row.starts_on ?? row.startsOn,
+      endsOn: row.ends_on ?? row.endsOn,
+      leadMemberId: row.lead_member_id ?? row.leadMemberId,
+      access_until: row.access_until ?? row.accessUntil ?? null,
+      accessUntil: row.access_until ?? row.accessUntil ?? null,
+      is_free_trial: Boolean(row.is_free_trial ?? row.isFreeTrial),
+      isFreeTrial: Boolean(row.is_free_trial ?? row.isFreeTrial),
+    }));
   }
 
   let query = supabase
@@ -318,6 +420,8 @@ export async function fetchPrograms(tenantId, { status } = {}) {
     startsOn: row.starts_on,
     endsOn: row.ends_on,
     leadMemberId: row.lead_member_id,
+    accessUntil: row.access_until,
+    isFreeTrial: row.is_free_trial,
   }));
 }
 
@@ -517,6 +621,8 @@ export async function fetchProgramsOverview(tenantId) {
       startsOn: row.starts_on,
       endsOn: row.ends_on,
       leadMemberId: row.lead_member_id,
+      accessUntil: row.access_until,
+      isFreeTrial: row.is_free_trial,
     };
     const sId = String(prog.id);
     const pBudget = budgetByProg.get(sId) || [];
@@ -544,7 +650,17 @@ export async function fetchProgram(tenantId, programId) {
     const item = demoProgramsStore.find(
       (p) => p.id === programId && p.tenant_id === tenantId
     );
-    return item || null;
+    if (!item) return null;
+    return {
+      ...item,
+      startsOn: item.starts_on ?? item.startsOn,
+      endsOn: item.ends_on ?? item.endsOn,
+      leadMemberId: item.lead_member_id ?? item.leadMemberId,
+      access_until: item.access_until ?? item.accessUntil ?? null,
+      accessUntil: item.access_until ?? item.accessUntil ?? null,
+      is_free_trial: Boolean(item.is_free_trial ?? item.isFreeTrial),
+      isFreeTrial: Boolean(item.is_free_trial ?? item.isFreeTrial),
+    };
   }
 
   const { data, error } = await supabase
@@ -566,6 +682,8 @@ export async function fetchProgram(tenantId, programId) {
     startsOn: data.starts_on,
     endsOn: data.ends_on,
     leadMemberId: data.lead_member_id,
+    accessUntil: data.access_until,
+    isFreeTrial: data.is_free_trial,
   };
 }
 
@@ -591,6 +709,13 @@ export async function createProgram(
 
   const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
   if (isDemoOrMock) {
+    const existing = demoProgramsStore.filter((p) => p.tenant_id === tenantId);
+    const isFirst = existing.length === 0;
+    const accessUntil = isFirst
+      ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      : null;
+    const isFreeTrial = isFirst;
+
     const newProg = {
       id: `prog-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       tenant_id: tenantId,
@@ -607,6 +732,10 @@ export async function createProgram(
       startsOn: startsOn || null,
       endsOn: endsOn || null,
       leadMemberId: leadMemberId || null,
+      access_until: accessUntil,
+      accessUntil: accessUntil,
+      is_free_trial: isFreeTrial,
+      isFreeTrial: isFreeTrial,
     };
     demoProgramsStore.push(newProg);
     return newProg;
@@ -639,6 +768,8 @@ export async function createProgram(
     startsOn: data.starts_on,
     endsOn: data.ends_on,
     leadMemberId: data.lead_member_id,
+    accessUntil: data.access_until,
+    isFreeTrial: data.is_free_trial,
   };
 }
 

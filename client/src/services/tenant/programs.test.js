@@ -3,6 +3,9 @@ import {
   PROGRAM_STATUS_LABELS,
   countActivePrograms,
   summarizeProgram,
+  getProgramAccessState,
+  formatProgramAccessLabel,
+  PANITIA_PRICING,
   fetchPrograms,
   fetchProgramsOverview,
   fetchProgram,
@@ -404,6 +407,137 @@ describe('PANITIA-1.5: Program & Budget (RAB) Services', () => {
 
       expect(p1Overview.summary).toEqual(expectedSummary1);
       expect(p2Overview.summary).toEqual(expectedSummary2);
+    });
+  });
+
+  describe('HARGA.2: Program Access & Pricing State Engine', () => {
+    const baseNow = new Date(2026, 5, 1, 10, 0, 0); // 1 Juni 2026, 10:00:00
+
+    it('PANITIA_PRICING memiliki konfigurasi yang sesuai', () => {
+      expect(PANITIA_PRICING).toEqual({
+        freeTrialMonths: 1,
+        pricePerProgram: 25000,
+        periodMonths: 12,
+      });
+    });
+
+    it('kelima state akses program dihitung dengan benar', () => {
+      const futureDate = new Date(2026, 6, 1, 10, 0, 0).toISOString();
+      const pastDate = new Date(2026, 4, 1, 10, 0, 0).toISOString();
+
+      // 1. Unlimited (bukan tenant panitia)
+      const resUnlimited = getProgramAccessState(
+        { access_until: null, is_free_trial: false },
+        { tenantType: 'rt_rw', now: baseNow }
+      );
+      expect(resUnlimited).toEqual({ state: 'unlimited', until: null, writable: true });
+
+      // 2. Free Trial (panitia, masa depan, is_free_trial true)
+      const resFreeTrial = getProgramAccessState(
+        { access_until: futureDate, is_free_trial: true },
+        { tenantType: 'panitia', now: baseNow }
+      );
+      expect(resFreeTrial).toEqual({ state: 'free_trial', until: futureDate, writable: true });
+
+      // 3. Active (panitia, masa depan, is_free_trial false)
+      const resActive = getProgramAccessState(
+        { access_until: futureDate, is_free_trial: false },
+        { tenantType: 'panitia', now: baseNow }
+      );
+      expect(resActive).toEqual({ state: 'active', until: futureDate, writable: true });
+
+      // 4. Expired (access_until lewat)
+      const resExpiredPast = getProgramAccessState(
+        { access_until: pastDate, is_free_trial: true },
+        { tenantType: 'panitia', now: baseNow }
+      );
+      expect(resExpiredPast).toEqual({ state: 'expired', until: pastDate, writable: false });
+
+      // 4b. Expired (access_until null tetapi is_free_trial true)
+      const resExpiredNull = getProgramAccessState(
+        { access_until: null, is_free_trial: true },
+        { tenantType: 'panitia', now: baseNow }
+      );
+      expect(resExpiredNull).toEqual({ state: 'expired', until: null, writable: false });
+
+      // 5. Inactive (null dan bukan gratis)
+      const resInactive = getProgramAccessState(
+        { access_until: null, is_free_trial: false },
+        { tenantType: 'panitia', now: baseNow }
+      );
+      expect(resInactive).toEqual({ state: 'inactive', until: null, writable: false });
+    });
+
+    it('menguji batas tepat pada access_until', () => {
+      const exactTime = new Date(2026, 5, 1, 10, 0, 0);
+      const exactIso = exactTime.toISOString();
+
+      // Tepat pada waktu kedaluwarsa -> expired, non-writable
+      const atExact = getProgramAccessState(
+        { access_until: exactIso, is_free_trial: false },
+        { tenantType: 'panitia', now: exactTime }
+      );
+      expect(atExact.writable).toBe(false);
+      expect(atExact.state).toBe('expired');
+
+      // 1 ms sebelum kedaluwarsa -> active, writable
+      const beforeExact = new Date(exactTime.getTime() - 1);
+      const atBefore = getProgramAccessState(
+        { access_until: exactIso, is_free_trial: false },
+        { tenantType: 'panitia', now: beforeExact }
+      );
+      expect(atBefore.writable).toBe(true);
+      expect(atBefore.state).toBe('active');
+    });
+
+    it('formatProgramAccessLabel menghasilkan label yang tepat sesuai state', () => {
+      const d1 = new Date(2026, 1, 1, 12, 0, 0); // 1 Feb 2026
+      const d2 = new Date(2027, 1, 2, 12, 0, 0); // 2 Feb 2027
+
+      expect(formatProgramAccessLabel({ state: 'free_trial', until: d1.toISOString() })).toMatch(
+        /Gratis sampai 1 Feb 2026/
+      );
+      expect(formatProgramAccessLabel({ state: 'active', until: d2.toISOString() })).toMatch(
+        /Aktif sampai 2 Feb 2027/
+      );
+      expect(formatProgramAccessLabel({ state: 'inactive', until: null })).toBe('Belum aktif');
+      expect(formatProgramAccessLabel({ state: 'expired', until: d1.toISOString() })).toMatch(
+        /Masa aktif habis 1 Feb 2026/
+      );
+      expect(formatProgramAccessLabel({ state: 'unlimited', until: null })).toBe('Aktif');
+      expect(formatProgramAccessLabel(null)).toBe('');
+    });
+
+    it('mode demo memberikan jatah gratis pada acara pertama dan inactive pada acara kedua', async () => {
+      const demoTenantId = 'demo-tenant-panitia-harga';
+
+      // 1. Acara pertama
+      const prog1 = await createProgram(demoTenantId, { name: 'Acara Pertama Demo' });
+      expect(prog1.is_free_trial).toBe(true);
+      expect(prog1.isFreeTrial).toBe(true);
+      expect(prog1.access_until).toBeDefined();
+      expect(prog1.accessUntil).toBeDefined();
+
+      const state1 = getProgramAccessState(prog1, { tenantType: 'panitia' });
+      expect(state1.state).toBe('free_trial');
+      expect(state1.writable).toBe(true);
+
+      // 2. Acara kedua
+      const prog2 = await createProgram(demoTenantId, { name: 'Acara Kedua Demo' });
+      expect(prog2.is_free_trial).toBe(false);
+      expect(prog2.isFreeTrial).toBe(false);
+      expect(prog2.access_until).toBeNull();
+      expect(prog2.accessUntil).toBeNull();
+
+      const state2 = getProgramAccessState(prog2, { tenantType: 'panitia' });
+      expect(state2.state).toBe('inactive');
+      expect(state2.writable).toBe(false);
+
+      // 3. fetchPrograms membawa field masa aktif
+      const list = await fetchPrograms(demoTenantId);
+      expect(list).toHaveLength(2);
+      expect(list[0].accessUntil).toBeDefined();
+      expect(list[1].accessUntil).toBeNull();
     });
   });
 });

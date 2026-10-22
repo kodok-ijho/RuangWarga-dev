@@ -3,6 +3,7 @@ import * as tenantOperationalService from './tenantOperationalService';
 
 const EXPECTED_EXPORTS = [
   "INVITE_CODE_ALPHABET",
+  "PANITIA_PRICING",
   "PLATFORM_PERMISSIONS",
   "PROGRAM_DOC_TYPES",
   "PROGRAM_STATUS_LABELS",
@@ -73,6 +74,7 @@ const EXPECTED_EXPORTS = [
   "fetchTenantRunningBalance",
   "fetchTenantSettingsAudit",
   "fetchTenantUnits",
+  "formatProgramAccessLabel",
   "generateArisanRoundBills",
   "generateInviteCode",
   "generateKelasSppBilling",
@@ -82,6 +84,7 @@ const EXPECTED_EXPORTS = [
   "getDemoProgramDocuments",
   "getDemoProgramDues",
   "getInviteDetails",
+  "getProgramAccessState",
   "getProgramDocumentUrl",
   "getTenantBankAccount",
   "importTenantUnitsCSV",
@@ -130,9 +133,9 @@ const EXPECTED_EXPORTS = [
 ];
 
 describe('tenantOperationalService Exports Guard (DEBT-1.4)', () => {
-  it('harus mengekspor 125 fungsi/konstanta yang sama persis', () => {
+  it('harus mengekspor 128 fungsi/konstanta yang sama persis', () => {
     const exportsList = Object.keys(tenantOperationalService).sort();
     expect(exportsList).toEqual(EXPECTED_EXPORTS);
-    expect(exportsList.length).toBe(125);
+    expect(exportsList.length).toBe(128);
   });
 });
