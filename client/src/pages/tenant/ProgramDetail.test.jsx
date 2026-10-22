@@ -241,7 +241,7 @@ describe('PANITIA-1.7: ProgramDetail Page', () => {
     expect(screen.queryByRole('button', { name: /Catat Pengeluaran/i })).toBeNull();
   });
 
-  it('exports CSV report and calls Papa.unparse', async () => {
+  it('exports CSV report and calls Papa.unparse with consistent variance (realisasi - rencana)', async () => {
     renderProgramDetail();
 
     await screen.findByText('Pentas Seni Tahunan 2026');
@@ -251,6 +251,14 @@ describe('PANITIA-1.7: ProgramDetail Page', () => {
 
     expect(Papa.unparse).toHaveBeenCalled();
     expect(mockToast.success).toHaveBeenCalledWith('Laporan CSV acara berhasil diunduh.');
+
+    // PANITIA-1F.3: baris "Total Pengeluaran" bernilai realisasi - rencana
+    const csvData = Papa.unparse.mock.calls[0][0];
+    const totalExpenseRow = csvData.find((row) => row[0] === 'Total Pengeluaran');
+    expect(totalExpenseRow).toBeTruthy();
+    expect(totalExpenseRow[2]).toBe(1000000); // rencana
+    expect(totalExpenseRow[3]).toBe(1200000); // realisasi
+    expect(totalExpenseRow[4]).toBe(1200000 - 1000000); // realisasi - rencana = +200000
   });
 
   it('PANITIA-1F.2: menyertakan ketiga bagian di DOM saat tab aktif Ringkasan serta memiliki judul cetak', async () => {
