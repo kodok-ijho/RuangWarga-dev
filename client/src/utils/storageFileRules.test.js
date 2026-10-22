@@ -130,6 +130,12 @@ describe('STOR-1.2: fileRules helper', () => {
       expect(sanitized.length).toBeLessThanOrEqual(100);
       expect(sanitized.endsWith('.pdf')).toBe(true);
     });
+
+    it('pemotongan nama panjang tidak menghasilkan ".."', () => {
+      const sanitized = sanitizeFileName('a'.repeat(95) + '.' + 'b'.repeat(20) + '.pdf');
+      expect(sanitized.includes('..')).toBe(false);
+      expect(sanitized.endsWith('.pdf')).toBe(true);
+    });
   });
 
   describe('adjustFileNameExtension', () => {

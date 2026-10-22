@@ -1809,7 +1809,7 @@ export default function ProgramDetail() {
                             {due.status === 'pending_verification' && canVerifyPayments && (
                               <button
                                 type="button"
-                                onClick={() => navigate(`/t/${tenantId}/verification`)}
+                                onClick={() => navigate(`/t/${tenantId}/payment-verification`)}
                                 className="px-2 py-1 text-xs font-medium rounded bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300 transition-colors"
                                 title="Verifikasi Pembayaran"
                               >

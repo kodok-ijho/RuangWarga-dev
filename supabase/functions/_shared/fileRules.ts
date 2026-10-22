@@ -187,6 +187,8 @@ export function sanitizeFileName(name?: string | null): string {
     } else {
       cleaned = cleaned.substring(0, 100);
     }
+    // Pemotongan bisa menyambung '.' dengan ekstensi menjadi '..'
+    cleaned = cleaned.replace(/\.{2,}/g, '.');
   }
 
   return cleaned || 'file';

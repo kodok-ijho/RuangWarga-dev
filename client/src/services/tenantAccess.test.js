@@ -25,6 +25,7 @@ describe('RTRW-1.1: computeTenantAccess (Pure RBAC v2 Engine)', () => {
       canManageExpenses: false,
       canViewReports: false,
       canManageMembers: false,
+      canManageSettings: false,
       canManageAnnouncements: false,
       canManagePrograms: false,
       canManageBudget: false,

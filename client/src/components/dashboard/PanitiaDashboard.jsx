@@ -148,9 +148,9 @@ export function PanitiaDashboard({
           <div className="divide-y divide-slate-100">
             {myDues.map((due) => {
               const progName = due.program?.name || due.metadata?.program_name || 'Acara';
+              // due.program hanya {id, name}; data masa aktif ada di daftar programs
               const progObj =
-                due.program ||
-                (due.program_id ? programs.find((p) => String(p.id) === String(due.program_id)) : null);
+                (due.program_id ? programs.find((p) => String(p.id) === String(due.program_id)) : null) || due.program;
               const progAccess = getProgramAccessState(progObj, { tenantType: activeTenant?.type });
               const isProgWritable = progAccess.writable;
 

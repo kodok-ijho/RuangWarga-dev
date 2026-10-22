@@ -421,7 +421,7 @@ export async function fetchMyArisanBills(tenantId, memberId) {
   if (billIds.length > 0) {
     const { data: payments, error: payErr } = await supabase
       .from('payments')
-      .select('id, billing_item_id, status, method, paid_at, created_at, proof_file_path')
+      .select('id, billing_item_id, status, method, paid_at, created_at, proof_url')
       .eq('tenant_id', tenantId)
       .in('billing_item_id', billIds)
       .order('created_at', { ascending: false });
