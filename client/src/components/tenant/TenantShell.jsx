@@ -51,7 +51,7 @@ export default function TenantShell() {
   } = useTenant();
 
   const template = useTenantTemplate();
-  const { canViewReports } = useTenantAccess();
+  const { canViewReports, canVerifyPayments } = useTenantAccess();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const tenantId = routeTenantId || activeTenantId;
@@ -109,6 +109,9 @@ export default function TenantShell() {
     { to: `${tenantBase}/residents`, label: template.memberLabel || 'Anggota', icon: AiOutlineTeam },
     { to: `${tenantBase}/announcements`, label: 'Pengumuman', icon: AiOutlineNotification },
     { to: `${tenantBase}/events`, label: template.eventsLabel || 'Acara', icon: AiOutlineCalendar },
+    ...(hasPrograms && canVerifyPayments
+      ? [{ to: `${tenantBase}/payment-verification`, label: 'Verifikasi', icon: AiOutlineCheckCircle }]
+      : []),
     ...(canViewReports
       ? [{ to: `${tenantBase}/incomes`, label: 'Pemasukan', icon: AiOutlineWallet }]
       : []),

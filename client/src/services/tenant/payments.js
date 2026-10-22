@@ -160,6 +160,9 @@ export async function fetchTenantPayments(tenantId, opts = {}) {
         late_fee,
         unit_id,
         status,
+        program_id,
+        metadata,
+        program:tenant_programs(id, name),
         tenant_units:unit_id (
           id,
           label,
@@ -193,6 +196,14 @@ export async function fetchTenantPayments(tenantId, opts = {}) {
     const unit = bill.tenant_units || {};
     const member = p.tenant_members || {};
     const meta = p.metadata || {};
+    const billMeta = bill.metadata || {};
+    const program = bill.program || null;
+    const programId = bill.program_id || billMeta.program_id || meta.program_id || null;
+    const programName =
+      program?.name ||
+      billMeta.program_name ||
+      meta.program_name ||
+      null;
 
     const proofFileUrl = p.proof_url || meta.proof_file_url || meta.proof_url || '';
     const proofFileName =
@@ -219,12 +230,17 @@ export async function fetchTenantPayments(tenantId, opts = {}) {
       proof_file_name: proofFileName,
       receipt_file: proofFileName,
       metadata: meta,
+      program_id: programId,
+      program_name: programName,
       _bill: {
         id: bill.id,
         period: bill.period,
         amount: Number(bill.amount || 0),
         unit_id: bill.unit_id,
         status: bill.status,
+        program_id: programId,
+        metadata: billMeta,
+        program,
       },
       _profile: member.id ? member : null,
       _unit: unit.id
@@ -427,7 +443,7 @@ export async function submitTenantPayment(tenantId, {
   // 1. Ambil detail tagihan untuk memastikan nominal dan status
   const { data: bill, error: billFetchErr } = await supabase
     .from('billing_items')
-    .select('id, amount, late_fee, member_id, status')
+    .select('id, amount, late_fee, member_id, status, program_id, metadata')
     .eq('tenant_id', tenantId)
     .eq('id', billId)
     .single();
@@ -505,6 +521,9 @@ export async function submitTenantPayment(tenantId, {
       proof_path: resolvedProofPath || null,
       proof_stored: isProofUploaded,
       submitted_at: new Date().toISOString(),
+      ...(bill?.program_id ? { program_id: bill.program_id } : {}),
+      ...(bill?.metadata?.bill_type ? { bill_type: bill.metadata.bill_type } : {}),
+      ...(bill?.metadata?.program_name ? { program_name: bill.metadata.program_name } : {}),
       ...(verifiedBy ? { verified_by_name: verifiedBy } : {}),
     },
     created_at: new Date().toISOString(),

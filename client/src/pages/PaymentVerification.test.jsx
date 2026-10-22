@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   resolveVerificationUnit,
   resolveVerificationResident,
+  getPaymentUnitDisplay,
 } from './PaymentVerification';
 import { getUnitById, getProfileById } from '../services/mockData';
 
@@ -63,6 +64,59 @@ describe('PaymentVerification - Unit & Resident Resolution (DEBT-1F.2)', () => {
       expect(resolveVerificationResident(sampleResidents, null, false)).toBeNull();
       expect(resolveVerificationResident(sampleResidents, undefined, false)).toBeNull();
       expect(resolveVerificationResident(sampleResidents, '', false)).toBeNull();
+    });
+  });
+
+  describe('PANITIA-2.5: getPaymentUnitDisplay', () => {
+    it('baris verifikasi iuran menampilkan nama acara', () => {
+      // 1. Tagihan dengan program_id dan program_name
+      const payment1 = {
+        program_id: 'prog-1',
+        program_name: 'Pentas Seni Tahunan',
+      };
+      const display1 = getPaymentUnitDisplay(payment1, null);
+      expect(display1).toBe('Iuran: Pentas Seni Tahunan');
+      expect(display1).not.toContain('Blok');
+      expect(display1).not.toBe('-');
+
+      // 2. Tagihan dengan metadata.bill_type === 'program_dues'
+      const payment2 = {
+        metadata: {
+          bill_type: 'program_dues',
+          program_name: 'Lomba Kemerdekaan',
+        },
+      };
+      const display2 = getPaymentUnitDisplay(payment2, null);
+      expect(display2).toBe('Iuran: Lomba Kemerdekaan');
+      expect(display2).not.toContain('Blok');
+
+      // 3. Tagihan dengan _bill.program.name
+      const payment3 = {
+        _bill: {
+          program_id: 'prog-2',
+          program: { name: 'Malam Keakraban' },
+        },
+      };
+      const display3 = getPaymentUnitDisplay(payment3, null);
+      expect(display3).toBe('Iuran: Malam Keakraban');
+      expect(display3).not.toContain('Blok');
+    });
+
+    it('baris RT/RW tetap "Blok …"', () => {
+      // 1. Tagihan RT/RW dengan unit block dan unit_number
+      const paymentRtrw = {
+        unit_id: 101,
+      };
+      const unitRtrw = {
+        id: 101,
+        block: 'B',
+        unit_number: '12',
+      };
+      const displayRtrw = getPaymentUnitDisplay(paymentRtrw, unitRtrw);
+      expect(displayRtrw).toBe('Blok B/12');
+
+      // 2. Tagihan RT/RW tanpa unit menampilkan "-"
+      expect(getPaymentUnitDisplay(paymentRtrw, null)).toBe('-');
     });
   });
 });

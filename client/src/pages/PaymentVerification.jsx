@@ -165,6 +165,35 @@ export function resolveVerificationResident(residents, residentId, isDemo = IS_D
   return found || (isDemo ? getProfileById(residentId) : null);
 }
 
+export function getPaymentUnitDisplay(payment, unit) {
+  const isProgramDue = Boolean(
+    payment?.program_id ||
+    payment?._bill?.program_id ||
+    payment?.metadata?.bill_type === 'program_dues' ||
+    payment?._bill?.metadata?.bill_type === 'program_dues'
+  );
+
+  if (isProgramDue) {
+    const progName =
+      payment?.program_name ||
+      payment?.program?.name ||
+      payment?._bill?.program?.name ||
+      payment?._bill?.metadata?.program_name ||
+      payment?.metadata?.program_name ||
+      'Acara';
+    return `Iuran: ${progName}`;
+  }
+
+  if (unit) {
+    if (unit.block && unit.unit_number) {
+      return `Blok ${unit.block}/${unit.unit_number}`;
+    }
+    return unit.label || `Unit #${unit.id}`;
+  }
+
+  return '-';
+}
+
 export default function PaymentVerification() {
   const params = useParams();
   const { role, profile, session, isReadOnly: authReadOnly } = useAuth();
@@ -382,7 +411,7 @@ export default function PaymentVerification() {
     return currentList.filter((payment) => {
       const unit = getUnit(payment.unit_id || payment._bill?.unit_id);
       const resident = payment._profile || getResident(payment.resident_id);
-      const unitStr = unit ? `${unit.block}/${unit.unit_number}`.toLowerCase() : '';
+      const unitStr = getPaymentUnitDisplay(payment, unit).toLowerCase();
       const nameStr = (resident?.full_name || payment.payer_name || '').toLowerCase();
       const amountStr = String(payment.amount || '');
       const idStr = String(payment.id || '').toLowerCase();
@@ -775,7 +804,7 @@ export default function PaymentVerification() {
                         {resident?.full_name || 'Tidak diketahui'}
                       </h3>
                       <p className="mt-0.5 text-xs leading-5 text-slate-500">
-                        {unit ? `Blok ${unit.block}/${unit.unit_number}` : '-'} · <strong>{formatPeriod(period)}</strong>
+                        {getPaymentUnitDisplay(payment, unit)} · <strong>{formatPeriod(period)}</strong>
                       </p>
                       <p className="text-sm font-extrabold text-slate-900">{formatRupiah(payment.amount)}</p>
                       <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-xs leading-5 text-slate-400 sm:flex sm:flex-wrap">
@@ -883,9 +912,16 @@ export default function PaymentVerification() {
                 </span>
               </div>
               <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-start gap-3">
-                <span className="text-slate-500 text-xs font-medium">Nomor Unit</span>
+                <span className="text-slate-500 text-xs font-medium">
+                  {selectedPayment?.program_id ||
+                  selectedPayment?._bill?.program_id ||
+                  selectedPayment?.metadata?.bill_type === 'program_dues' ||
+                  selectedPayment?._bill?.metadata?.bill_type === 'program_dues'
+                    ? 'Keterangan'
+                    : 'Nomor Unit'}
+                </span>
                 <span className="min-w-0 break-words text-right font-semibold text-slate-900 text-xs">
-                  {selectedUnit ? `Blok ${selectedUnit.block}/${selectedUnit.unit_number}` : '-'}
+                  {getPaymentUnitDisplay(selectedPayment, selectedUnit)}
                 </span>
               </div>
               <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-start gap-3">

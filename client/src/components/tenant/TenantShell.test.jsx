@@ -352,5 +352,34 @@ describe('TenantShell Navigation (RTRW-1.2)', () => {
       // Nav ponsel memiliki print:hidden
       expect(html).toMatch(/<nav[^>]*print:hidden[^>]*aria-label="Navigasi Komunitas Ponsel"/);
     });
+
+    it('PANITIA-2.5: link Verifikasi tampil untuk bendahara panitia', () => {
+      mockTenantState.activeTenant = {
+        id: 't-panitia-1',
+        name: 'Panitia Pentas Seni',
+        type: 'panitia',
+      };
+      mockTenantState.activeTenantId = 't-panitia-1';
+      mockTenantAccess.canVerifyPayments = true;
+
+      const html = renderToString(
+        <MemoryRouter initialEntries={['/t/t-panitia-1/dashboard']}>
+          <TenantShell />
+        </MemoryRouter>
+      );
+
+      // Link verifikasi muncul di navigasi desktop & drawer
+      expect(html).toContain('href="/t/t-panitia-1/payment-verification"');
+      expect(html).toContain('Verifikasi');
+
+      // Bila canVerifyPayments = false, link verifikasi tidak tampil
+      mockTenantAccess.canVerifyPayments = false;
+      const htmlNoVerify = renderToString(
+        <MemoryRouter initialEntries={['/t/t-panitia-1/dashboard']}>
+          <TenantShell />
+        </MemoryRouter>
+      );
+      expect(htmlNoVerify).not.toContain('href="/t/t-panitia-1/payment-verification"');
+    });
   });
 });
