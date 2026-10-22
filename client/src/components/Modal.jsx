@@ -9,7 +9,8 @@ import { useEffect } from 'react';
  * @param {ReactNode} children - isi modal
  * @param {string} size - 'sm' | 'md' | 'lg' | 'xl'
  */
-export default function Modal({ open, onClose, title, children, size = 'md' }) {
+export default function Modal({ open, isOpen, onClose, title, children, size = 'md' }) {
+  const isModalOpen = Boolean(open ?? isOpen);
   const sizes = {
     sm: 'max-w-sm',
     md: 'max-w-md',
@@ -19,25 +20,24 @@ export default function Modal({ open, onClose, title, children, size = 'md' }) {
 
   // ESC key untuk tutup
   useEffect(() => {
-    if (!open) return;
+    if (!isModalOpen) return;
     const handler = (e) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [open, onClose]);
+  }, [isModalOpen, onClose]);
 
   // Lock scroll body saat modal terbuka
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = '';
-      };
-    }
-  }, [open]);
+    if (!isModalOpen) return;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isModalOpen]);
 
-  if (!open) return null;
+  if (!isModalOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>

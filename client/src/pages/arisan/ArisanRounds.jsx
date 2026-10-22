@@ -14,6 +14,8 @@ import {
   AiOutlineFilter,
   AiOutlineInfoCircle,
   AiOutlineWarning,
+  AiOutlineCopy,
+  AiOutlineWhatsApp,
 } from 'react-icons/ai';
 import { useTenant } from '../../hooks/useTenant';
 import { useToast } from '../../hooks/useToast';
@@ -27,7 +29,13 @@ import {
   fetchArisanRoundBills,
   payArisanBillManual,
   startNewArisanCycle,
+  getRoundContributionSummary,
+  getTenantBankAccount,
 } from '../../services/tenantOperationalService';
+import {
+  buildArisanReminderMessage,
+  buildWaLink,
+} from '../../utils/waReminder';
 import { formatRupiah } from '../../services/dataHelpers';
 import Modal from '../../components/Modal';
 
@@ -61,6 +69,7 @@ export default function ArisanRounds() {
   const { activeTenant, activeTenantId, hasPermission } = useTenant();
   const { isReadOnly, bannerText } = useSubscriptionGate();
   const { canManageRounds, canGenerateBills, canRecordPayment } = getArisanAccess(hasPermission);
+  const canVerifyPayments = Boolean(hasPermission('manage_billing_transfer'));
 
   const tenantId = routeTenantId || activeTenantId;
 
@@ -196,13 +205,36 @@ export default function ArisanRounds() {
     setSelectedRoundForBills(round);
     setLoadingRoundBills(true);
     try {
-      const bills = await fetchArisanRoundBills(tenantId, round.id, round.period);
+      const bills = await fetchArisanRoundBills(tenantId, round.id);
       setRoundBills(bills || []);
     } catch (err) {
       console.error('[ArisanRounds] Gagal memuat tagihan peserta:', err);
       toast.error('Gagal memuat rincian iuran peserta.');
     } finally {
       setLoadingRoundBills(false);
+    }
+  };
+
+  // Salin pengingat semua peserta yang belum bayar ke clipboard
+  const handleCopyAllUnpaidReminders = () => {
+    const unpaid = roundBills.filter((b) => b.status === 'unpaid');
+    if (!unpaid.length) {
+      toast.info('Semua peserta sudah lunas atau dalam verifikasi.');
+      return;
+    }
+    const lines = unpaid.map((b, i) => {
+      const memberObj = b.member || b.tenant_members || {};
+      const name = memberObj.full_name || `Peserta #${i + 1}`;
+      return `${i + 1}. ${name} - ${formatRupiah(b.amount)}`;
+    });
+    const roundLabel = selectedRoundForBills?.period || `Putaran ${selectedRoundForBills?.round_number}`;
+    const text = `Pengingat Setoran Arisan — ${roundLabel}\n\nBerikut daftar peserta yang belum lunas:\n${lines.join('\n')}\n\nMohon segera menyelesaikan setoran arisan. Peserta yang belum lunas tidak ikut kocok putaran ini.\nTerima kasih.`;
+
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+      toast.success('Daftar pengingat berhasil disalin ke clipboard.');
+    } else {
+      toast.info('Clipboard tidak didukung pada browser ini.');
     }
   };
 
@@ -748,25 +780,60 @@ export default function ArisanRounds() {
           title={`Rincian Iuran — ${selectedRoundForBills?.period || ''}`}
         >
           <div className="space-y-4 text-xs">
-            {/* Header Summary */}
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between shadow-xs">
-              <div>
-                <span className="text-slate-500 block text-[10px] uppercase font-bold">
-                  Status Pengumpulan Iuran
+            {/* Header Summary (ARISAN-1.3) */}
+            {(() => {
+              const summary = getRoundContributionSummary(roundBills);
+              return (
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2.5 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                      <span className="text-slate-500 block text-[10px] uppercase font-bold tracking-wider">
+                        Ringkasan Setoran
+                      </span>
+                      <div className="flex flex-wrap items-center gap-2 mt-0.5 font-bold text-xs">
+                        <span className="text-emerald-700 dark:text-emerald-400">{summary.paid} Lunas</span>
+                        <span className="text-slate-300">•</span>
+                        <span className="text-amber-700 dark:text-amber-400">{summary.pending} Menunggu verifikasi</span>
+                        <span className="text-slate-300">•</span>
+                        <span className="text-rose-700 dark:text-rose-400">{summary.unpaid} Belum bayar</span>
+                      </div>
+                    </div>
+                    <div className="sm:text-right shrink-0">
+                      <span className="text-slate-500 block text-[10px] uppercase font-bold tracking-wider">
+                        Total Terkumpul
+                      </span>
+                      <span className="text-sm font-extrabold text-forest-800 dark:text-gold-400">
+                        {formatRupiah(summary.paidAmount)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Keterangan Aturan Kocokan */}
+                  <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-900 flex items-start gap-1.5">
+                    <AiOutlineInfoCircle className="text-amber-600 shrink-0 text-sm mt-0.5" />
+                    <span>Peserta yang belum lunas tidak ikut kocok putaran ini.</span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Tombol Salin Pengingat Semua yang Belum Bayar */}
+            {!loadingRoundBills && roundBills.some((b) => b.status === 'unpaid') && (
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-[11px] text-slate-500 font-medium">
+                  {roundBills.filter((b) => b.status === 'unpaid').length} peserta belum bayar
                 </span>
-                <span className="text-sm font-bold text-slate-900">
-                  {roundBills.filter((b) => b.status === 'paid').length} / {roundBills.length} Peserta Lunas
-                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyAllUnpaidReminders}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors"
+                  title="Salin daftar pengingat semua peserta yang belum lunas"
+                >
+                  <AiOutlineCopy className="text-sm" />
+                  <span>Salin pengingat semua yang belum bayar</span>
+                </button>
               </div>
-              <div className="text-right">
-                <span className="text-slate-500 block text-[10px] uppercase font-bold">
-                  Target Kas Putaran
-                </span>
-                <span className="text-sm font-extrabold text-amber-800">
-                  {formatRupiah(selectedRoundForBills?.total_pool_amount)}
-                </span>
-              </div>
-            </div>
+            )}
 
             {/* Loading */}
             {loadingRoundBills && (
@@ -799,9 +866,27 @@ export default function ArisanRounds() {
             {!loadingRoundBills && roundBills.length > 0 && (
               <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                 {roundBills.map((bill, index) => {
-                  const isPaid = bill.status === 'paid';
-                  const memberName = bill.tenant_members?.full_name || `Peserta #${index + 1}`;
+                  const memberObj = bill.member || bill.tenant_members || {};
+                  const memberName = memberObj.full_name || `Peserta #${index + 1}`;
+                  const memberPhone = memberObj.phone || '';
                   const slotLabel = bill.tenant_units?.label;
+                  const isPaid = bill.status === 'paid';
+                  const isPending =
+                    bill.status === 'pending_verification' || bill.latestPayment?.status === 'pending';
+                  const isUnpaid = !isPaid && !isPending;
+
+                  // Bangun pesan WA untuk yang belum bayar
+                  const bankAccount = getTenantBankAccount(activeTenant?.settings);
+                  const waMsg = buildArisanReminderMessage({
+                    memberName,
+                    roundLabel: selectedRoundForBills?.period || `Putaran ${selectedRoundForBills?.round_number}`,
+                    amount: bill.amount,
+                    dueDate: bill.due_date,
+                    bankAccount,
+                    tenantName: activeTenant?.name,
+                    appUrl: `${typeof window !== 'undefined' ? window.location.origin : ''}/t/${tenantId}/arisan/my`,
+                  });
+                  const waLink = buildWaLink(memberPhone, waMsg);
 
                   return (
                     <div
@@ -823,26 +908,59 @@ export default function ArisanRounds() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                            isPaid
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                              : 'bg-rose-50 text-rose-800 border-rose-200'
-                          }`}
-                        >
-                          {isPaid ? 'Lunas' : 'Belum Bayar'}
-                        </span>
+                        {/* Badge Status */}
+                        {isPaid && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-50 text-emerald-800 border-emerald-200">
+                            Lunas
+                          </span>
+                        )}
 
-                        {!isPaid && canRecordPayment && (
-                          <button
-                            type="button"
-                            disabled={markingPaidId === bill.id || isReadOnly}
-                            onClick={() => handleMarkPaid(bill.id)}
-                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[10px] transition-colors shadow-xs disabled:opacity-50"
-                            title="Tandai pembayaran tunai/transfer telah diterima"
-                          >
-                            {markingPaidId === bill.id ? 'Memproses...' : 'Tandai Lunas'}
-                          </button>
+                        {isPending && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-50 text-amber-800 border-amber-200">
+                              Menunggu verifikasi
+                            </span>
+                            {canVerifyPayments && (
+                              <Link
+                                to={`/t/${tenantId}/payment-verification`}
+                                className="text-[10px] font-semibold text-purple-700 hover:text-purple-900 underline"
+                              >
+                                Verifikasi
+                              </Link>
+                            )}
+                          </div>
+                        )}
+
+                        {isUnpaid && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-rose-50 text-rose-800 border-rose-200">
+                              Belum bayar
+                            </span>
+
+                            {/* Tombol Ingatkan via WA hanya untuk yang belum bayar */}
+                            <a
+                              href={waLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 font-semibold rounded-lg text-[10px] inline-flex items-center gap-1 transition-colors"
+                              title="Kirim pengingat WhatsApp ke peserta"
+                            >
+                              <AiOutlineWhatsApp className="text-xs" />
+                              <span>Ingatkan via WA</span>
+                            </a>
+
+                            {canRecordPayment && (
+                              <button
+                                type="button"
+                                disabled={markingPaidId === bill.id || isReadOnly}
+                                onClick={() => handleMarkPaid(bill.id)}
+                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[10px] transition-colors shadow-xs disabled:opacity-50"
+                                title="Tandai pembayaran tunai telah diterima"
+                              >
+                                {markingPaidId === bill.id ? 'Memproses...' : 'Tandai Lunas'}
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -854,7 +972,7 @@ export default function ArisanRounds() {
             {/* Footer Modal */}
             <div className="pt-3 border-t border-slate-200 flex items-center justify-between">
               <span className="text-[11px] text-slate-500">
-                Pengocokan siap dilakukan jika seluruh peserta telah lunas.
+                Peserta yang belum lunas tidak ikut kocok putaran ini.
               </span>
               <button
                 type="button"
