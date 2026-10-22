@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
   AiOutlineTrophy,
@@ -16,6 +16,10 @@ import {
   AiOutlineCheck,
   AiOutlineHistory,
   AiOutlineFire,
+  AiOutlineShareAlt,
+  AiOutlineCopy,
+  AiOutlineDown,
+  AiOutlineUp,
 } from 'react-icons/ai';
 import { useTenant } from '../../hooks/useTenant';
 import { useToast } from '../../hooks/useToast';
@@ -30,6 +34,11 @@ import {
   startNewArisanCycle,
 } from '../../services/tenantOperationalService';
 import { formatRupiah } from '../../services/dataHelpers';
+import {
+  buildArisanDrawShareText,
+  buildWaLink,
+  formatDateTimeWib,
+} from '../../utils/waReminder';
 import Modal from '../../components/Modal';
 
 export default function ArisanDraw() {
@@ -61,6 +70,7 @@ export default function ArisanDraw() {
   const [isResetCycleModalOpen, setIsResetCycleModalOpen] = useState(false);
   const [resettingCycle, setResettingCycle] = useState(false);
   const [activeTab, setActiveTab] = useState('arena'); // 'arena' | 'candidates' | 'history'
+  const [expandedSnapshots, setExpandedSnapshots] = useState({});
 
   const shuffleIntervalRef = useRef(null);
 
@@ -85,19 +95,13 @@ export default function ArisanDraw() {
 
       // Tentukan selectedRoundId jika belum ada atau tidak valid
       if (!selectedRoundId || !loadedRounds.find((r) => r.id === selectedRoundId)) {
-        // Prioritas 1: round yang ready_to_draw
-        const readyRound = loadedRounds.find((r) => r.status === 'ready_to_draw');
-        if (readyRound) {
-          setSelectedRoundId(readyRound.id);
-        } else {
-          // Prioritas 2: round yang collecting
-          const collectingRound = loadedRounds.find((r) => r.status === 'collecting');
-          if (collectingRound) {
-            setSelectedRoundId(collectingRound.id);
-          } else if (loadedRounds.length > 0) {
-            // Prioritas 3: round terbaru
-            setSelectedRoundId(loadedRounds[0].id);
-          }
+        // Prioritas 1: round yang ready_to_draw atau collecting
+        const activeRound = loadedRounds.find((r) => r.status === 'ready_to_draw' || r.status === 'collecting');
+        if (activeRound) {
+          setSelectedRoundId(activeRound.id);
+        } else if (loadedRounds.length > 0) {
+          // Fallback: round pertama
+          setSelectedRoundId(loadedRounds[0].id);
         }
       }
     } catch (err) {
@@ -142,15 +146,24 @@ export default function ArisanDraw() {
     loadBills();
   }, [tenantId, selectedRoundId]);
 
+  // Klasifikasi setoran peserta untuk putaran terpilih
+  const eligibleBills = useMemo(() => {
+    return roundBills.filter((b) => b.status === 'paid');
+  }, [roundBills]);
+
+  const excludedBills = useMemo(() => {
+    return roundBills.filter((b) => b.status !== 'paid');
+  }, [roundBills]);
+
   // Statistik Tagihan Putaran Terpilih
   const billStats = useMemo(() => {
     const total = roundBills.length;
-    const paidCount = roundBills.filter((b) => b.status === 'paid').length;
-    const unpaidCount = total - paidCount;
+    const paidCount = eligibleBills.length;
+    const unpaidCount = excludedBills.length;
     const isFullyPaid = total > 0 && paidCount === total;
     const percentage = total > 0 ? Math.round((paidCount / total) * 100) : 0;
     return { total, paidCount, unpaidCount, isFullyPaid, percentage };
-  }, [roundBills]);
+  }, [roundBills, eligibleBills, excludedBills]);
 
   // Riwayat Pengocokan (putaran yang sudah drawn)
   const drawnRounds = useMemo(() => {
@@ -159,7 +172,7 @@ export default function ArisanDraw() {
       .sort((a, b) => (b.round_number || 0) - (a.round_number || 0));
   }, [rounds]);
 
-  // Handler Jalankan Pengocokan dengan Animasi Shuffling
+  // Handler Jalankan Pengocokan dengan Konfirmasi dan Animasi Shuffling
   const handleStartDraw = async () => {
     if (!selectedRound) return;
 
@@ -173,41 +186,41 @@ export default function ArisanDraw() {
       return;
     }
 
-    if (selectedRound.status !== 'ready_to_draw') {
-      if (!billStats.isFullyPaid) {
-        toast.error('Pengocokan belum dapat dijalankan karena masih ada iuran peserta yang belum lunas.');
-      } else {
-        toast.error('Status putaran belum siap untuk dikocok.');
-      }
+    if (eligibleBills.length === 0) {
+      toast.error('Belum ada peserta yang setorannya lunas untuk putaran ini.');
       return;
     }
 
-    if (candidates.length === 0) {
-      toast.error('Tidak ada kandidat peserta yang tersisa untuk putaran ini.');
-      return;
-    }
+    const confirmed = window.confirm('Hasil kocok final dan tidak bisa diulang. Lanjutkan?');
+    if (!confirmed) return;
 
     setIsDrawing(true);
     setWinnerCelebration(null);
 
-    // Animasi Shuffling Peserta
+    // Animasi Shuffling Peserta dari daftar peserta lunas
+    const poolForShuffle = eligibleBills.length > 0
+      ? eligibleBills.map((b) => ({
+          full_name: b.member?.full_name || b.metadata?.member_name || 'Peserta',
+          unit: { name: b.unit?.name || b.metadata?.slot_label || 'Peserta Arisan' },
+        }))
+      : candidates;
+
     let counter = 0;
     shuffleIntervalRef.current = setInterval(() => {
       counter++;
-      const randomIndex = Math.floor(Math.random() * candidates.length);
-      setShuffledCandidate(candidates[randomIndex]);
+      const randomIndex = Math.floor(Math.random() * poolForShuffle.length);
+      setShuffledCandidate(poolForShuffle[randomIndex]);
     }, 75);
 
     try {
       // Jalankan RPC atomik di database
       const [result] = await Promise.all([
-        // Operator dicatat server (VERT-2); user.id bukan tenant_members.id.
+        // Operator dicatat server (VERT-2 / ARISAN-1.1); user.id bukan tenant_members.id.
         drawArisanWinner(tenantId, selectedRound.id, null),
-        // Minimal delay 2.8 detik untuk sensasi ketegangan pengocokan yang seru
+        // Minimal delay 2.8 detik untuk sensasi animasi
         new Promise((resolve) => setTimeout(resolve, 2800)),
       ]);
 
-      // Hentikan interval shuffling
       if (shuffleIntervalRef.current) {
         clearInterval(shuffleIntervalRef.current);
         shuffleIntervalRef.current = null;
@@ -243,6 +256,87 @@ export default function ArisanDraw() {
     };
   }, []);
 
+  // Helper untuk membuat teks share WA hasil kocok
+  const getRoundShareText = (r) => {
+    if (!r) return '';
+    const isCurrentSelected = r.id === selectedRound?.id;
+    const isJustDrawn = Boolean(winnerCelebration && winnerCelebration.round_id === r.id);
+
+    const winnerName =
+      (isJustDrawn ? winnerCelebration.winner_name : null) ||
+      r.winner?.full_name ||
+      '-';
+
+    const slotLabel =
+      (isJustDrawn ? winnerCelebration.slot_label : null) ||
+      r.slot_label ||
+      r.winner?.unit?.name ||
+      '';
+
+    const totalPrize =
+      (isJustDrawn ? winnerCelebration.total_prize : null) ??
+      r.pool_amount ??
+      0;
+
+    const drawnAt = r.drawn_at || (isJustDrawn ? new Date().toISOString() : null);
+    const operatorName = r.operator?.full_name || (isJustDrawn ? 'Pengurus' : 'Pengurus');
+
+    const eligible =
+      r.eligible_snapshot ||
+      (isCurrentSelected
+        ? eligibleBills.map((b) => b.member?.full_name || b.metadata?.member_name || 'Peserta')
+        : []);
+
+    const excluded =
+      r.excluded_snapshot ||
+      (isCurrentSelected
+        ? excludedBills.map((b) => b.member?.full_name || b.metadata?.member_name || 'Peserta')
+        : []);
+
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const appUrl = origin ? `${origin}/t/${tenantId}/arisan/draw?roundId=${r.id}` : '';
+
+    return buildArisanDrawShareText({
+      tenantName: activeTenant?.name || 'Arisan',
+      roundLabel: `Putaran #${r.round_number} (${r.period || 'Reguler'})`,
+      drawnAt,
+      operatorName,
+      winnerName,
+      slotLabel,
+      totalPrize,
+      eligible,
+      excluded,
+      appUrl,
+    });
+  };
+
+  // Handler Bagikan ke WhatsApp
+  const handleShareWa = (roundData) => {
+    const text = getRoundShareText(roundData || selectedRound);
+    const waUrl = buildWaLink(null, text);
+    window.open(waUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  // Handler Salin Teks Hasil Kocok
+  const handleCopyText = async (roundData) => {
+    const text = getRoundShareText(roundData || selectedRound);
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Teks hasil kocok berhasil disalin!');
+    } catch (err) {
+      console.error('[ArisanDraw] Gagal menyalin teks:', err);
+      toast.error('Gagal menyalin teks hasil kocok.');
+    }
+  };
+
+  // Toggle accordion snapshot di riwayat transparan
+  const toggleSnapshot = (roundId) => {
+    setExpandedSnapshots((prev) => ({
+      ...prev,
+      [roundId]: !prev[roundId],
+    }));
+  };
+
   // Handler Mulai Siklus Baru
   const handleConfirmResetCycle = async (force = false) => {
     if (isReadOnly) {
@@ -256,7 +350,6 @@ export default function ArisanDraw() {
 
     try {
       setResettingCycle(true);
-      // Operator dicatat server (VERT-2); user.id bukan tenant_members.id.
       const res = await startNewArisanCycle(tenantId, null, force);
       toast.success(`Siklus baru #${res.new_cycle || ''} berhasil dimulai! Status seluruh peserta telah direset.`);
       setIsResetCycleModalOpen(false);
@@ -406,7 +499,7 @@ export default function ArisanDraw() {
             }`}
           >
             <AiOutlineHistory />
-            <span>Riwayat Pemenang</span>
+            <span>Riwayat Transparan</span>
             <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-50 text-amber-800 font-bold">
               {drawnRounds.length}
             </span>
@@ -463,8 +556,8 @@ export default function ArisanDraw() {
                       <div className="pt-2 flex flex-wrap items-center justify-center md:justify-start gap-4 text-xs text-slate-500">
                         <div className="flex items-center gap-1.5">
                           <AiOutlineTeam className="text-purple-600" />
-                          <span>Kandidat Berhak Undi: </span>
-                          <strong className="text-slate-900 font-bold">{candidates.length} Anggota</strong>
+                          <span>Peserta Setoran Lunas: </span>
+                          <strong className="text-slate-900 font-bold">{eligibleBills.length} Anggota</strong>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <AiOutlineClockCircle className="text-amber-600" />
@@ -474,7 +567,7 @@ export default function ArisanDraw() {
                       </div>
                     </div>
 
-                    {/* Stage Animasi Shuffling / Pemenang / Tombol Undi */}
+                    {/* Stage Animasi Shuffling / Kartu Hasil / Tombol Undi */}
                     <div className="w-full md:w-auto flex flex-col items-center">
                       {isDrawing ? (
                         /* Tampilan saat Shuffling Berlangsung */
@@ -491,52 +584,80 @@ export default function ArisanDraw() {
                               {shuffledCandidate ? (shuffledCandidate.unit?.name || 'Peserta Arisan') : 'Undian Berlangsung'}
                             </span>
                           </div>
+                          <p className="text-[10px] text-purple-600 mt-3 italic font-medium">
+                            Pemenang ditentukan acak oleh server
+                          </p>
                         </div>
                       ) : selectedRound.status === 'drawn' ? (
-                        /* Tampilan jika putaran ini SUDAH selesai diundi */
-                        <div className="text-center p-6 bg-purple-50/50 border border-purple-200 rounded-2xl shadow-xs min-w-[280px]">
-                          <div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-800 border border-amber-200 flex items-center justify-center text-3xl mx-auto mb-3 shadow-xs">
+                        /* Kartu Hasil Pemenang (status drawn) */
+                        <div className="text-center p-6 bg-purple-50/50 border border-purple-200 rounded-2xl shadow-xs min-w-[300px] space-y-3">
+                          <div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-800 border border-amber-200 flex items-center justify-center text-3xl mx-auto shadow-xs">
                             🏆
                           </div>
-                          <span className="text-[11px] uppercase tracking-wider text-amber-800 font-extrabold block">
-                            Pemenang Terpilih
-                          </span>
-                          <h3 className="text-lg sm:text-xl font-bold text-slate-900 mt-1">
-                            {selectedRound.winner?.full_name || 'Anggota Beruntung'}
-                          </h3>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            {selectedRound.winner?.phone_number || 'Peserta Arisan'}
-                          </p>
-                          {selectedRound.drawn_at && (
-                            <div className="mt-3 inline-block px-3 py-1 rounded-full bg-white border border-slate-200 text-[10px] text-slate-600 shadow-xs">
-                              Diundi: {new Date(selectedRound.drawn_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                          <div>
+                            <span className="text-[11px] uppercase tracking-wider text-amber-800 font-extrabold block">
+                              Pemenang Terpilih
+                            </span>
+                            <h3 className="text-lg sm:text-xl font-bold text-slate-900 mt-1">
+                              {selectedRound.winner?.full_name || winnerCelebration?.winner_name || 'Pemenang Arisan'}
+                            </h3>
+                            <p className="text-xs text-slate-600 mt-0.5 font-medium">
+                              {selectedRound.slot_label || selectedRound.winner?.unit?.name || winnerCelebration?.slot_label || 'Slot Peserta'}
+                            </p>
+                          </div>
+
+                          <div className="p-3 bg-white rounded-xl border border-purple-100 text-xs space-y-1.5 text-left">
+                            <div className="flex justify-between text-slate-600">
+                              <span>Total Hadiah:</span>
+                              <strong className="text-amber-800 font-extrabold">
+                                {formatRupiah(selectedRound.pool_amount || winnerCelebration?.total_prize || 0)}
+                              </strong>
                             </div>
-                          )}
+                            <div className="flex justify-between text-slate-600">
+                              <span>Waktu Kocok:</span>
+                              <span className="font-medium text-slate-900">
+                                {formatDateTimeWib(selectedRound.drawn_at || new Date().toISOString())}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-slate-600">
+                              <span>Operator:</span>
+                              <span className="font-medium text-slate-900">
+                                {selectedRound.operator?.full_name || 'Pengurus'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-slate-600">
+                              <span>Peserta Ikut / Tidak:</span>
+                              <span className="font-semibold text-slate-900">
+                                {selectedRound.eligible_snapshot?.length ?? (winnerCelebration?.eligible_count ?? eligibleBills.length)} ikut / {selectedRound.excluded_snapshot?.length ?? (winnerCelebration?.excluded_count ?? excludedBills.length)} tidak
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Tombol Bagikan ke WhatsApp & Salin Teks */}
+                          <div className="flex items-center gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => handleShareWa(selectedRound)}
+                              className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                            >
+                              <AiOutlineShareAlt className="text-sm" />
+                              <span>Bagikan ke WhatsApp</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyText(selectedRound)}
+                              className="py-2 px-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold text-xs flex items-center justify-center gap-1 shadow-xs transition-colors"
+                              title="Salin Teks Hasil Kocok"
+                            >
+                              <AiOutlineCopy className="text-sm" />
+                              <span>Salin teks</span>
+                            </button>
+                          </div>
                         </div>
                       ) : (
-                        /* Tampilan Tombol Jalankan Undian (Status collecting atau ready_to_draw) */
+                        /* Tampilan Tombol Jalankan Undian (Status belum drawn) */
                         <div className="text-center space-y-3 min-w-[260px]">
-                          {candidates.length === 0 ? (
-                            <div className="p-4 bg-purple-50 border border-purple-200 rounded-2xl text-center space-y-2 shadow-xs">
-                              <span className="text-3xl block">🎉</span>
-                              <span className="text-xs font-bold text-purple-900 block">
-                                Seluruh Peserta Telah Menang!
-                              </span>
-                              <p className="text-[11px] text-purple-700 leading-relaxed">
-                                Siklus putaran telah lengkap. Mulai siklus baru untuk mengocok kembali seluruh peserta dari awal.
-                              </p>
-                              {canManageRounds && (
-                                <button
-                                  type="button"
-                                  disabled={isReadOnly}
-                                  onClick={() => setIsResetCycleModalOpen(true)}
-                                  className="mt-1 w-full py-2.5 px-4 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs shadow-xs transition-all disabled:opacity-50"
-                                >
-                                  🔄 Mulai Siklus Baru
-                                </button>
-                              )}
-                            </div>
-                          ) : selectedRound.status === 'ready_to_draw' ? (
+                          {eligibleBills.length >= 1 ? (
                             <>
                               <button
                                 type="button"
@@ -548,7 +669,10 @@ export default function ArisanDraw() {
                                 <span>Jalankan Kocok Sekarang</span>
                               </button>
                               <p className="text-[11px] text-emerald-700 font-semibold">
-                                ✓ Seluruh iuran peserta lunas. Siap diundi!
+                                ✓ {eligibleBills.length} peserta setoran lunas berhak ikut kocok.
+                              </p>
+                              <p className="text-[10px] text-slate-500">
+                                Pemenang ditentukan acak oleh server
                               </p>
                             </>
                           ) : (
@@ -558,12 +682,12 @@ export default function ArisanDraw() {
                                 Belum Siap Dikocok
                               </span>
                               <p className="text-[11px] text-slate-600 leading-relaxed">
-                                Pengocokan hanya dapat dijalankan setelah seluruh peserta (100%) melunasi iuran putaran ini.
+                                Minimal 1 peserta harus melunasi setoran iuran putaran ini sebelum pengocokan dapat dijalankan.
                               </p>
                             </div>
                           )}
 
-                          {!canDraw && selectedRound.status === 'ready_to_draw' && (
+                          {!canDraw && eligibleBills.length >= 1 && (
                             <p className="text-[10px] text-slate-500">
                               * Tombol hanya dapat ditekan oleh Pengurus/Admin Arisan.
                             </p>
@@ -573,6 +697,107 @@ export default function ArisanDraw() {
                     </div>
                   </div>
                 </div>
+
+                {/* Dua Daftar Sebelum Kocok: Ikut Kocok & Tidak Ikut */}
+                {selectedRound.status !== 'drawn' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Daftar 1: Ikut kocok (setoran lunas) */}
+                    <div className="p-5 rounded-2xl bg-white border border-emerald-200 shadow-xs">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-bold text-emerald-950 flex items-center gap-2">
+                          <AiOutlineCheckCircle className="text-emerald-600 text-base" />
+                          <span>Ikut kocok (setoran lunas)</span>
+                        </h4>
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          {eligibleBills.length} Peserta
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 mb-3">
+                        Peserta yang setorannya sudah lunas dan berhak masuk ke undian putaran ini.
+                      </p>
+
+                      {eligibleBills.length === 0 ? (
+                        <div className="p-6 text-center bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-500 italic">
+                          Belum ada peserta yang setorannya lunas untuk putaran ini.
+                        </div>
+                      ) : (
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                          {eligibleBills.map((b, idx) => (
+                            <div
+                              key={b.id || idx}
+                              className="p-2.5 bg-emerald-50/40 rounded-xl border border-emerald-100 flex items-center justify-between text-xs"
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <span className="w-5 h-5 rounded-md bg-emerald-100 text-emerald-800 flex items-center justify-center text-[10px] font-bold">
+                                  {idx + 1}
+                                </span>
+                                <div>
+                                  <span className="font-bold text-slate-900 block">
+                                    {b.member?.full_name || b.metadata?.member_name || b.member_id}
+                                  </span>
+                                  <span className="text-[10px] text-slate-500">
+                                    {b.metadata?.slot_label || b.unit?.name || 'Peserta'}
+                                  </span>
+                                </div>
+                              </div>
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                Lunas
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Daftar 2: Tidak ikut (belum lunas) */}
+                    <div className="p-5 rounded-2xl bg-white border border-rose-200 shadow-xs">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-bold text-rose-950 flex items-center gap-2">
+                          <AiOutlineWarning className="text-rose-600 text-base" />
+                          <span>Tidak ikut (belum lunas)</span>
+                        </h4>
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                          {excludedBills.length} Peserta
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 mb-3">
+                        Peserta yang belum melunasi setoran iuran dan dikecualikan dari kocokan putaran ini.
+                      </p>
+
+                      {excludedBills.length === 0 ? (
+                        <div className="p-6 text-center bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-500 italic">
+                          Semua peserta telah lunas setoran!
+                        </div>
+                      ) : (
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                          {excludedBills.map((b, idx) => (
+                            <div
+                              key={b.id || idx}
+                              className="p-2.5 bg-rose-50/40 rounded-xl border border-rose-100 flex items-center justify-between text-xs"
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <span className="w-5 h-5 rounded-md bg-rose-100 text-rose-800 flex items-center justify-center text-[10px] font-bold">
+                                  {idx + 1}
+                                </span>
+                                <div>
+                                  <span className="font-bold text-slate-900 block">
+                                    {b.member?.full_name || b.metadata?.member_name || b.member_id}
+                                  </span>
+                                  <span className="text-[10px] text-slate-500">
+                                    {b.metadata?.slot_label || b.unit?.name || 'Peserta'}
+                                  </span>
+                                </div>
+                              </div>
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">
+                                {b.status === 'pending_verification' ? 'Menunggu Verifikasi' : 'Belum Lunas'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Progress Bar & Status Pelunasan Iuran Peserta Putaran Ini */}
                 <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
@@ -619,7 +844,7 @@ export default function ArisanDraw() {
                   <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
                     <span>
                       {billStats.unpaidCount > 0
-                        ? `${billStats.unpaidCount} peserta masih memiliki tagihan belum lunas.`
+                        ? `${billStats.unpaidCount} peserta belum lunas (hanya peserta lunas yang diundi).`
                         : 'Seluruh peserta telah melunasi tagihan putaran ini.'}
                     </span>
                     <button
@@ -747,12 +972,7 @@ export default function ArisanDraw() {
                                   {formatRupiah(r.pool_amount || 0)}
                                 </span>
                                 <span className="text-[10px] text-slate-500">
-                                  {r.drawn_at
-                                    ? new Date(r.drawn_at).toLocaleDateString('id-ID', {
-                                        day: 'numeric',
-                                        month: 'short',
-                                      })
-                                    : '-'}
+                                  {r.drawn_at ? formatDateTimeWib(r.drawn_at) : '-'}
                                 </span>
                               </div>
                             </div>
@@ -859,10 +1079,10 @@ export default function ArisanDraw() {
                 <div>
                   <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                     <AiOutlineHistory className="text-forest-800" />
-                    <span>Riwayat Lengkap Pengocokan Putaran Arisan</span>
+                    <span>Riwayat Transparan Pengocokan Putaran Arisan</span>
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Seluruh anggota arisan dapat memeriksa catatan transparansi waktu pengundian dan pemenang setiap putaran.
+                    Seluruh anggota arisan dapat memeriksa catatan transparansi waktu pengundian, operator, pemenang, dan daftar snapshot peserta.
                   </p>
                 </div>
 
@@ -875,57 +1095,128 @@ export default function ArisanDraw() {
                     </p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs text-slate-600">
-                      <thead className="bg-slate-50 text-slate-700 uppercase font-semibold border-b border-slate-200">
-                        <tr>
-                          <th className="py-3 px-4">Putaran</th>
-                          <th className="py-3 px-4">Pemenang</th>
-                          <th className="py-3 px-4">Total Hadiah</th>
-                          <th className="py-3 px-4">Waktu Diundi</th>
-                          <th className="py-3 px-4 text-center">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200 font-medium">
-                        {drawnRounds.map((r) => (
-                          <tr key={r.id} className="hover:bg-slate-50/80 transition-colors">
-                            <td className="py-3 px-4 text-slate-900 font-bold">
-                              Putaran #{r.round_number}
-                              <span className="block text-[10px] text-slate-500 font-normal">
-                                {r.period || '-'}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4 text-slate-900 font-bold">
-                              <div className="flex items-center gap-2">
-                                <span className="text-amber-500">🏆</span>
-                                <div>
-                                  <span>{r.winner?.full_name || 'Anggota Arisan'}</span>
-                                  <span className="block text-[10px] text-slate-500 font-normal">
-                                    {r.winner?.phone_number || '-'}
+                  <div className="space-y-4">
+                    {drawnRounds.map((r) => {
+                      const isExpanded = Boolean(expandedSnapshots[r.id]);
+                      const hasSnapshot = Boolean(
+                        (Array.isArray(r.eligible_snapshot) && r.eligible_snapshot.length > 0) ||
+                        (Array.isArray(r.excluded_snapshot) && r.excluded_snapshot.length > 0)
+                      );
+
+                      return (
+                        <div
+                          key={r.id}
+                          className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex items-start gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 border border-amber-200 flex items-center justify-center text-xl shrink-0">
+                                🏆
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="text-sm font-extrabold text-slate-900">
+                                    Putaran #{r.round_number} ({r.period || 'Reguler'})
+                                  </h4>
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                                    Selesai Diundi
                                   </span>
                                 </div>
+                                <div className="text-xs text-slate-600 mt-1 space-y-0.5">
+                                  <p>
+                                    Pemenang: <strong className="text-slate-900 font-bold">{r.winner?.full_name || 'Pemenang Arisan'}</strong> ({r.slot_label || r.winner?.unit?.name || 'Peserta'})
+                                  </p>
+                                  <p>
+                                    Hadiah: <strong className="text-amber-800 font-extrabold">{formatRupiah(r.pool_amount || 0)}</strong>
+                                    {' • '}
+                                    Waktu: <span className="font-medium text-slate-700">{formatDateTimeWib(r.drawn_at)}</span>
+                                    {' • '}
+                                    Operator: <span className="font-medium text-slate-700">{r.operator?.full_name || '-'}</span>
+                                  </p>
+                                </div>
                               </div>
-                            </td>
-                            <td className="py-3 px-4 text-amber-800 font-extrabold">
-                              {formatRupiah(r.pool_amount || 0)}
-                            </td>
-                            <td className="py-3 px-4 text-slate-600">
-                              {r.drawn_at
-                                ? new Date(r.drawn_at).toLocaleString('id-ID', {
-                                    dateStyle: 'medium',
-                                    timeStyle: 'short',
-                                  })
-                                : '-'}
-                            </td>
-                            <td className="py-3 px-4 text-center">
-                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
-                                Selesai Diundi
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                            </div>
+
+                            <div className="flex items-center gap-2 self-end sm:self-center">
+                              <button
+                                type="button"
+                                onClick={() => handleShareWa(r)}
+                                className="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors"
+                              >
+                                <AiOutlineShareAlt className="text-sm" />
+                                <span>Bagikan</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => toggleSnapshot(r.id)}
+                                className="py-2 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs flex items-center gap-1 shadow-xs transition-colors"
+                              >
+                                <span>Daftar Peserta</span>
+                                {isExpanded ? <AiOutlineUp className="text-xs" /> : <AiOutlineDown className="text-xs" />}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Collapsible Detail Snapshot */}
+                          {isExpanded && (
+                            <div className="pt-3 border-t border-slate-200 text-xs">
+                              {!hasSnapshot ? (
+                                <p className="text-slate-500 italic p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                  Daftar peserta tidak tercatat (dikocok sebelum fitur ini)
+                                </p>
+                              ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                  {/* Peserta Ikut Kocok */}
+                                  <div className="p-3 rounded-xl bg-emerald-50/50 border border-emerald-200 space-y-1.5">
+                                    <div className="flex items-center justify-between text-emerald-950 font-bold">
+                                      <span>Ikut kocok (setoran lunas):</span>
+                                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                                        {(r.eligible_snapshot || []).length} orang
+                                      </span>
+                                    </div>
+                                    <div className="text-slate-700 space-y-1">
+                                      {(r.eligible_snapshot || []).length === 0 ? (
+                                        <p className="italic text-slate-400">Tidak ada data</p>
+                                      ) : (
+                                        (r.eligible_snapshot || []).map((p, idx) => (
+                                          <div key={idx} className="flex items-center justify-between text-[11px] py-0.5">
+                                            <span>{typeof p === 'string' ? p : p.full_name || p.name}</span>
+                                            <span className="text-emerald-700 font-semibold">✓ Ikut</span>
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Peserta Tidak Ikut Kocok */}
+                                  <div className="p-3 rounded-xl bg-rose-50/50 border border-rose-200 space-y-1.5">
+                                    <div className="flex items-center justify-between text-rose-950 font-bold">
+                                      <span>Tidak ikut (belum lunas):</span>
+                                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
+                                        {(r.excluded_snapshot || []).length} orang
+                                      </span>
+                                    </div>
+                                    <div className="text-slate-700 space-y-1">
+                                      {(r.excluded_snapshot || []).length === 0 ? (
+                                        <p className="italic text-slate-400">Semua peserta lunas</p>
+                                      ) : (
+                                        (r.excluded_snapshot || []).map((p, idx) => (
+                                          <div key={idx} className="flex items-center justify-between text-[11px] py-0.5">
+                                            <span>{typeof p === 'string' ? p : p.full_name || p.name}</span>
+                                            <span className="text-rose-700 font-semibold">✗ Tidak Ikut</span>
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -970,6 +1261,41 @@ export default function ArisanDraw() {
                 </span>
               </div>
 
+              <div className="p-3 bg-white rounded-xl border border-slate-200 text-xs text-slate-600 text-left space-y-1">
+                <div className="flex justify-between">
+                  <span>Waktu Kocok:</span>
+                  <span className="font-semibold text-slate-900">{formatDateTimeWib(new Date().toISOString())}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Peserta Setoran Lunas:</span>
+                  <span className="font-semibold text-slate-900">{winnerCelebration.eligible_count ?? eligibleBills.length} orang</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Peserta Belum Lunas:</span>
+                  <span className="font-semibold text-slate-900">{winnerCelebration.excluded_count ?? excludedBills.length} orang</span>
+                </div>
+              </div>
+
+              {/* Tombol Bagikan dari Modal */}
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => handleShareWa(selectedRound)}
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                >
+                  <AiOutlineShareAlt className="text-sm" />
+                  <span>Bagikan ke WhatsApp</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCopyText(selectedRound)}
+                  className="py-2.5 px-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold text-xs flex items-center justify-center gap-1 shadow-xs transition-colors"
+                >
+                  <AiOutlineCopy className="text-sm" />
+                  <span>Salin teks</span>
+                </button>
+              </div>
+
               {winnerCelebration.is_cycle_completed ? (
                 <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 space-y-2 shadow-xs">
                   <p>🎉 <strong>Siklus Putaran Penuh Selesai!</strong> Seluruh peserta telah menerima giliran menang. Pengurus dapat memulai siklus baru.</p>
@@ -994,9 +1320,9 @@ export default function ArisanDraw() {
                 <button
                   type="button"
                   onClick={() => setShowCelebrationModal(false)}
-                  className="w-full py-3.5 px-4 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 font-bold text-sm shadow-xs transition-all"
+                  className="w-full py-3 px-4 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs shadow-xs transition-all"
                 >
-                  Tutup &amp; Lihat Hasil
+                  Tutup
                 </button>
               </div>
             </div>

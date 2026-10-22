@@ -1,283 +1,264 @@
-import { describe, it, expect } from 'vitest';
+// @vitest-environment jsdom
+import React from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import ArisanDraw from './ArisanDraw';
+import * as tenantOperationalService from '../../services/tenantOperationalService';
 
-describe('ArisanDraw Logic & Safeguards (T8.6)', () => {
-  const mockRounds = [
-    {
-      id: 'round-1',
+const h = React.createElement;
+
+const mockTenant = {
+  id: 'tenant-arisan-1',
+  name: 'Arisan Dahlia Indah',
+  type: 'arisan',
+};
+
+const mockRounds = [
+  {
+    id: 'round-1',
+    round_number: 1,
+    period: 'Putaran 1 - Oktober 2026',
+    status: 'collecting',
+    pool_amount: 500000,
+    winner_member_id: null,
+    drawn_at: null,
+  },
+  {
+    id: 'round-2',
+    round_number: 2,
+    period: 'Putaran 2 - November 2026',
+    status: 'drawn',
+    pool_amount: 500000,
+    drawn_at: '2026-11-10T12:30:00Z',
+    operator: { full_name: 'Ketua Arisan Budi' },
+    winner: { full_name: 'Ibu Ratna', unit: { name: 'Slot 1' } },
+    slot_label: 'Slot 1',
+    eligible_snapshot: ['Ibu Ratna', 'Ibu Siti'],
+    excluded_snapshot: ['Ibu Dewi'],
+  },
+  {
+    id: 'round-3',
+    round_number: 3,
+    period: 'Putaran 3 - Desember 2026',
+    status: 'drawn',
+    pool_amount: 250000,
+    drawn_at: '2026-12-10T12:30:00Z',
+    operator: { full_name: 'Ketua Arisan Budi' },
+    winner: { full_name: 'Ibu Siti' },
+    eligible_snapshot: null,
+    excluded_snapshot: null,
+  },
+];
+
+const mockCandidates = [
+  { id: 'mem-1', full_name: 'Ibu Ratna', unit: { name: 'Slot 1' } },
+  { id: 'mem-2', full_name: 'Ibu Siti', unit: { name: 'Slot 2' } },
+  { id: 'mem-3', full_name: 'Ibu Dewi', unit: { name: 'Slot 3' } },
+];
+
+const mockRoundBills = [
+  {
+    id: 'bill-1',
+    member_id: 'mem-1',
+    status: 'paid',
+    member: { full_name: 'Ibu Ratna' },
+    metadata: { slot_label: 'Slot 1' },
+  },
+  {
+    id: 'bill-2',
+    member_id: 'mem-2',
+    status: 'paid',
+    member: { full_name: 'Ibu Siti' },
+    metadata: { slot_label: 'Slot 2' },
+  },
+  {
+    id: 'bill-3',
+    member_id: 'mem-3',
+    status: 'unpaid',
+    member: { full_name: 'Ibu Dewi' },
+    metadata: { slot_label: 'Slot 3' },
+  },
+];
+
+const mockToast = {
+  success: vi.fn(),
+  error: vi.fn(),
+  warning: vi.fn(),
+};
+
+vi.mock('../../hooks/useTenant', () => ({
+  useTenant: () => ({
+    activeTenant: mockTenant,
+    activeTenantId: mockTenant.id,
+    hasPermission: () => true,
+  }),
+}));
+
+vi.mock('../../hooks/useToast', () => ({
+  useToast: () => mockToast,
+}));
+
+vi.mock('../../hooks/useSubscriptionGate', () => ({
+  useSubscriptionGate: () => ({
+    isReadOnly: false,
+    bannerText: '',
+  }),
+}));
+
+vi.mock('../../services/tenantOperationalService', async () => {
+  const actual = await vi.importActual('../../services/tenantOperationalService');
+  return {
+    ...actual,
+    fetchArisanRounds: vi.fn(),
+    fetchArisanParticipants: vi.fn(),
+    fetchArisanCandidates: vi.fn(),
+    fetchArisanRoundBills: vi.fn(),
+    drawArisanWinner: vi.fn(),
+    startNewArisanCycle: vi.fn(),
+  };
+});
+
+describe('ArisanDraw Component (ARISAN-1.4)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    tenantOperationalService.fetchArisanRounds.mockResolvedValue(mockRounds);
+    tenantOperationalService.fetchArisanParticipants.mockResolvedValue(mockCandidates);
+    tenantOperationalService.fetchArisanCandidates.mockResolvedValue(mockCandidates);
+    tenantOperationalService.fetchArisanRoundBills.mockResolvedValue(mockRoundBills);
+    tenantOperationalService.drawArisanWinner.mockResolvedValue({
+      success: true,
+      round_id: 'round-1',
       round_number: 1,
-      period: 'Januari 2026',
-      status: 'drawn',
-      pool_amount: 2500000,
-      winner_member_id: 'member-1',
-      winner: { full_name: 'Budi Santoso', phone_number: '08123456781' },
-      drawn_at: '2026-01-15T19:00:00Z',
-    },
-    {
-      id: 'round-2',
-      round_number: 2,
-      period: 'Februari 2026',
-      status: 'ready_to_draw',
-      pool_amount: 2500000,
-      winner_member_id: null,
-      drawn_at: null,
-    },
-    {
-      id: 'round-3',
-      round_number: 3,
-      period: 'Maret 2026',
-      status: 'collecting',
-      pool_amount: 2500000,
-      winner_member_id: null,
-      drawn_at: null,
-    },
-  ];
-
-  const mockParticipants = [
-    { id: 'part-1', member_id: 'member-1', full_name: 'Budi Santoso', has_won: true },
-    { id: 'part-2', member_id: 'member-2', full_name: 'Siti Aminah', has_won: false },
-    { id: 'part-3', member_id: 'member-3', full_name: 'Dewi Lestari', has_won: false },
-    { id: 'part-4', member_id: 'member-4', full_name: 'Agus Pratama', has_won: false },
-    { id: 'part-5', member_id: 'member-5', full_name: 'Hendra Wijaya', has_won: false },
-  ];
-
-  describe('Seleksi Putaran Otomatis (Default Active Round)', () => {
-    it('memprioritaskan putaran dengan status ready_to_draw untuk arena kocok', () => {
-      const readyRound = mockRounds.find((r) => r.status === 'ready_to_draw');
-      expect(readyRound).toBeDefined();
-      expect(readyRound.id).toBe('round-2');
-      expect(readyRound.round_number).toBe(2);
-    });
-
-    it('memilih putaran collecting jika tidak ada putaran ready_to_draw', () => {
-      const roundsWithoutReady = mockRounds.filter((r) => r.status !== 'ready_to_draw');
-      const fallbackRound =
-        roundsWithoutReady.find((r) => r.status === 'ready_to_draw') ||
-        roundsWithoutReady.find((r) => r.status === 'collecting');
-      expect(fallbackRound).toBeDefined();
-      expect(fallbackRound.id).toBe('round-3');
+      winner_member_id: 'mem-1',
+      winner_name: 'Ibu Ratna',
+      slot_label: 'Slot 1',
+      total_prize: 500000,
+      eligible_count: 2,
+      excluded_count: 1,
+      is_cycle_completed: false,
+      remaining_candidates: 2,
     });
   });
 
-  describe('Filter Kandidat Undian (Spec §5: has_won = false)', () => {
-    it('memastikan hanya peserta yang has_won = false yang masuk daftar kandidat', () => {
-      const candidates = mockParticipants.filter((p) => !p.has_won);
-      expect(candidates).toHaveLength(4);
-      expect(candidates.some((c) => c.full_name === 'Budi Santoso')).toBe(false);
-      expect(candidates.every((c) => c.has_won === false)).toBe(true);
-    });
-
-    it('mendeteksi jika seluruh peserta telah menang (siklus penuh selesai)', () => {
-      const allWonParticipants = mockParticipants.map((p) => ({ ...p, has_won: true }));
-      const remainingCandidates = allWonParticipants.filter((p) => !p.has_won);
-      expect(remainingCandidates).toHaveLength(0);
-      const isCycleCompleted = remainingCandidates.length === 0;
-      expect(isCycleCompleted).toBe(true);
-    });
+  afterEach(() => {
+    cleanup();
   });
 
-  describe('Validasi Kelunasan Tagihan Putaran (Bill Readiness Check)', () => {
-    const mockRoundBillsPartial = [
-      { id: 'bill-1', member_id: 'member-1', status: 'paid', amount: 500000 },
-      { id: 'bill-2', member_id: 'member-2', status: 'paid', amount: 500000 },
-      { id: 'bill-3', member_id: 'member-3', status: 'pending', amount: 500000 },
-    ];
+  it('1. menampilkan daftar ikut kocok (setoran lunas) dan tidak ikut (belum lunas) sebelum kocok', async () => {
+    render(
+      h(
+        MemoryRouter,
+        { initialEntries: ['/t/tenant-arisan-1/arisan/draw?roundId=round-1'] },
+        h(
+          Routes,
+          null,
+          h(Route, { path: '/t/:tenantId/arisan/draw', element: h(ArisanDraw) })
+        )
+      )
+    );
 
-    const mockRoundBillsFull = [
-      { id: 'bill-1', member_id: 'member-1', status: 'paid', amount: 500000 },
-      { id: 'bill-2', member_id: 'member-2', status: 'paid', amount: 500000 },
-      { id: 'bill-3', member_id: 'member-3', status: 'paid', amount: 500000 },
-    ];
+    // Tunggu komponen memuat data dan arena tampil
+    await screen.findByText(/Ikut kocok \(setoran lunas\)/i);
+    expect(screen.getByText(/Tidak ikut \(belum lunas\)/i)).toBeTruthy();
 
-    it('menghitung statistik kelunasan putaran parsial secara tepat', () => {
-      const total = mockRoundBillsPartial.length;
-      const paidCount = mockRoundBillsPartial.filter((b) => b.status === 'paid').length;
-      const unpaidCount = total - paidCount;
-      const isFullyPaid = total > 0 && paidCount === total;
-      const percentage = Math.round((paidCount / total) * 100);
+    // Periksa bahwa peserta yang lunas tampil di daftar ikut
+    expect(screen.getAllByText('Ibu Ratna').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Ibu Siti').length).toBeGreaterThan(0);
 
-      expect(total).toBe(3);
-      expect(paidCount).toBe(2);
-      expect(unpaidCount).toBe(1);
-      expect(isFullyPaid).toBe(false);
-      expect(percentage).toBe(67);
-    });
+    // Periksa bahwa peserta belum lunas tampil di daftar tidak ikut
+    expect(screen.getAllByText('Ibu Dewi').length).toBeGreaterThan(0);
 
-    it('menandai isFullyPaid = true jika 100% peserta telah melunasi iuran', () => {
-      const total = mockRoundBillsFull.length;
-      const paidCount = mockRoundBillsFull.filter((b) => b.status === 'paid').length;
-      const isFullyPaid = total > 0 && paidCount === total;
-      const percentage = Math.round((paidCount / total) * 100);
-
-      expect(isFullyPaid).toBe(true);
-      expect(percentage).toBe(100);
-    });
+    // Tombol kocok aktif
+    const drawBtn = screen.getByRole('button', { name: /Jalankan Kocok Sekarang/i });
+    expect(drawBtn.disabled).toBe(false);
   });
 
-  describe('Proteksi Subscription Gate & Hak Operator', () => {
-    const validateCanExecuteDraw = ({
-      status,
-      isReadOnly,
-      userRole,
-      candidatesCount,
-      isFullyPaid,
-    }) => {
-      if (isReadOnly) return { allowed: false, reason: 'READ_ONLY_LOCKED' };
-      if (!['admin', 'bendahara'].includes(userRole)) return { allowed: false, reason: 'UNAUTHORIZED_ROLE' };
-      if (status !== 'ready_to_draw') return { allowed: false, reason: 'NOT_READY_TO_DRAW' };
-      if (!isFullyPaid) return { allowed: false, reason: 'BILLS_UNPAID' };
-      if (candidatesCount === 0) return { allowed: false, reason: 'NO_CANDIDATES' };
-      return { allowed: true, reason: 'READY' };
-    };
+  it('2. kartu hasil menampilkan data pemenang dari putaran berstatus drawn / RPC tiruan', async () => {
+    render(
+      h(
+        MemoryRouter,
+        { initialEntries: ['/t/tenant-arisan-1/arisan/draw?roundId=round-2'] },
+        h(
+          Routes,
+          null,
+          h(Route, { path: '/t/:tenantId/arisan/draw', element: h(ArisanDraw) })
+        )
+      )
+    );
 
-    it('mengizinkan pengurus menjalankan kocok saat semua syarat terpenuhi', () => {
-      const result = validateCanExecuteDraw({
-        status: 'ready_to_draw',
-        isReadOnly: false,
-        userRole: 'admin',
-        candidatesCount: 4,
-        isFullyPaid: true,
-      });
-      expect(result.allowed).toBe(true);
-      expect(result.reason).toBe('READY');
-    });
+    await screen.findByText(/Pemenang Terpilih/i);
 
-    it('menolak pengocokan jika tenant berstatus read_only via useSubscriptionGate', () => {
-      const result = validateCanExecuteDraw({
-        status: 'ready_to_draw',
-        isReadOnly: true,
-        userRole: 'admin',
-        candidatesCount: 4,
-        isFullyPaid: true,
-      });
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toBe('READ_ONLY_LOCKED');
-    });
-
-    it('menolak pengocokan jika dijalankan oleh role anggota biasa', () => {
-      const result = validateCanExecuteDraw({
-        status: 'ready_to_draw',
-        isReadOnly: false,
-        userRole: 'anggota',
-        candidatesCount: 4,
-        isFullyPaid: true,
-      });
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toBe('UNAUTHORIZED_ROLE');
-    });
-
-    it('menolak pengocokan jika masih ada tagihan belum lunas', () => {
-      const result = validateCanExecuteDraw({
-        status: 'collecting',
-        isReadOnly: false,
-        userRole: 'admin',
-        candidatesCount: 4,
-        isFullyPaid: false,
-      });
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toBe('NOT_READY_TO_DRAW');
-    });
+    // Pemenang Ibu Ratna
+    expect(screen.getAllByText('Ibu Ratna').length).toBeGreaterThan(0);
+    // Operator
+    expect(screen.getByText('Ketua Arisan Budi')).toBeTruthy();
+    // Hadiah (Rp 500.000)
+    expect(screen.getAllByText(/500\.000/).length).toBeGreaterThan(0);
+    // Peserta ikut/tidak ikut
+    expect(screen.getByText(/2 ikut \/ 1 tidak/i)).toBeTruthy();
   });
 
-  describe('Transparansi Riwayat Pemenang', () => {
-    it('mengurutkan riwayat putaran yang telah selesai diundi secara descending (putaran terbaru di atas)', () => {
-      const drawnRounds = mockRounds
-        .filter((r) => r.status === 'drawn')
-        .sort((a, b) => b.round_number - a.round_number);
+  it('3. tombol bagikan ke WhatsApp membentuk link wa.me dengan teks hasil kocok', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => {});
 
-      expect(drawnRounds).toHaveLength(1);
-      expect(drawnRounds[0].winner.full_name).toBe('Budi Santoso');
-      expect(drawnRounds[0].pool_amount).toBe(2500000);
-      expect(drawnRounds[0].drawn_at).toBeDefined();
-    });
+    render(
+      h(
+        MemoryRouter,
+        { initialEntries: ['/t/tenant-arisan-1/arisan/draw?roundId=round-2'] },
+        h(
+          Routes,
+          null,
+          h(Route, { path: '/t/:tenantId/arisan/draw', element: h(ArisanDraw) })
+        )
+      )
+    );
+
+    const shareBtn = await screen.findByRole('button', { name: /Bagikan ke WhatsApp/i });
+    fireEvent.click(shareBtn);
+
+    expect(openSpy).toHaveBeenCalled();
+    const openedUrl = openSpy.mock.calls[0][0];
+    expect(openedUrl.startsWith('https://wa.me/?text=')).toBe(true);
+    expect(decodeURIComponent(openedUrl)).toContain('HASIL PENGUKURAN & KOCOKAN ARISAN');
+    expect(decodeURIComponent(openedUrl)).toContain('Ibu Ratna');
+
+    openSpy.mockRestore();
   });
 
-  describe('Aksi Mulai Siklus Baru (T8.7)', () => {
-    const simulateResetCycle = ({ participants, currentCycle, isReadOnly, userRole, force = false }) => {
-      if (isReadOnly) throw new Error('READ_ONLY_LOCKED');
-      if (userRole !== 'admin') throw new Error('UNAUTHORIZED_ROLE');
+  it('4. tab riwayat transparan menampilkan snapshot peserta dan fallback putaran lama', async () => {
+    render(
+      h(
+        MemoryRouter,
+        { initialEntries: ['/t/tenant-arisan-1/arisan/draw'] },
+        h(
+          Routes,
+          null,
+          h(Route, { path: '/t/:tenantId/arisan/draw', element: h(ArisanDraw) })
+        )
+      )
+    );
 
-      const remainingCandidates = participants.filter((p) => !p.has_won);
-      if (!force && remainingCandidates.length > 0) {
-        throw new Error(`CYCLE_INCOMPLETE: ${remainingCandidates.length} participants remaining`);
-      }
+    // Tunggu tab Riwayat Transparan muncul
+    const historyTabBtn = await screen.findByRole('button', { name: /Riwayat Transparan/i });
+    fireEvent.click(historyTabBtn);
 
-      const resetParticipants = participants.map((p) => ({
-        ...p,
-        has_won: false,
-        won_at_round_id: null,
-      }));
+    // Periksa daftar putaran riwayat (round-2 dan round-3)
+    const round2Elements = await screen.findAllByText(/Putaran #2/i);
+    expect(round2Elements.length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Putaran #3/i).length).toBeGreaterThan(0);
 
-      return {
-        success: true,
-        new_cycle: currentCycle + 1,
-        total_participants_reset: resetParticipants.length,
-        participants: resetParticipants,
-      };
-    };
+    // Buka accordion snapshot putaran #2 (index 1 karena round-3 round_number lebih besar)
+    const detailBtns = screen.getAllByRole('button', { name: /Daftar Peserta/i });
+    expect(detailBtns.length).toBeGreaterThan(1);
+    fireEvent.click(detailBtns[1]); // buka putaran #2
 
-    it('berhasil mereset seluruh peserta dan menaikkan nomor siklus saat siklus selesai', () => {
-      const allWonParticipants = mockParticipants.map((p) => ({ ...p, has_won: true }));
-      const result = simulateResetCycle({
-        participants: allWonParticipants,
-        currentCycle: 1,
-        isReadOnly: false,
-        userRole: 'admin',
-        force: false,
-      });
+    // Verifikasi bahwa snapshot peserta ikut dan tidak ikut terlihat
+    await screen.findByText(/Ikut kocok \(setoran lunas\):/i);
+    expect(screen.getByText(/Tidak ikut \(belum lunas\):/i)).toBeTruthy();
 
-      expect(result.success).toBe(true);
-      expect(result.new_cycle).toBe(2);
-      expect(result.total_participants_reset).toBe(5);
-      expect(result.participants.every((p) => p.has_won === false)).toBe(true);
-    });
-
-    it('menolak reset siklus jika tenant dalam status read_only', () => {
-      const allWonParticipants = mockParticipants.map((p) => ({ ...p, has_won: true }));
-      expect(() =>
-        simulateResetCycle({
-          participants: allWonParticipants,
-          currentCycle: 1,
-          isReadOnly: true,
-          userRole: 'admin',
-        })
-      ).toThrow('READ_ONLY_LOCKED');
-    });
-
-    it('menolak reset siklus jika bukan dilakukan oleh admin', () => {
-      const allWonParticipants = mockParticipants.map((p) => ({ ...p, has_won: true }));
-      expect(() =>
-        simulateResetCycle({
-          participants: allWonParticipants,
-          currentCycle: 1,
-          isReadOnly: false,
-          userRole: 'anggota',
-        })
-      ).toThrow('UNAUTHORIZED_ROLE');
-    });
-
-    it('menolak reset siklus jika masih ada kandidat belum menang tanpa force=true', () => {
-      expect(() =>
-        simulateResetCycle({
-          participants: mockParticipants, // masih ada 4 peserta has_won = false
-          currentCycle: 1,
-          isReadOnly: false,
-          userRole: 'admin',
-          force: false,
-        })
-      ).toThrow(/CYCLE_INCOMPLETE/);
-    });
-
-    it('mengizinkan force reset siklus jika admin mengonfirmasi force=true', () => {
-      const result = simulateResetCycle({
-        participants: mockParticipants,
-        currentCycle: 1,
-        isReadOnly: false,
-        userRole: 'admin',
-        force: true,
-      });
-      expect(result.success).toBe(true);
-      expect(result.new_cycle).toBe(2);
-      expect(result.participants.every((p) => p.has_won === false)).toBe(true);
-    });
+    // Buka accordion snapshot putaran #3 (putaran lama tanpa snapshot, index 0)
+    fireEvent.click(detailBtns[0]); // buka putaran #3
+    await screen.findByText(/Daftar peserta tidak tercatat \(dikocok sebelum fitur ini\)/i);
   });
 });
