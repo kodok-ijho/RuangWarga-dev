@@ -43,10 +43,12 @@ import {
   deleteProgramDocument,
   getProgramDocumentUrl,
   PROGRAM_DOC_TYPES,
+  getProgramAccessState,
+  formatProgramAccessLabel,
 } from '../../services/tenantOperationalService';
 import { buildProgramDuesReminderMessage, buildWaLink } from '../../utils/waReminder';
 import { formatRupiah, formatDate } from '../../services/dataHelpers';
-import { STATUS_BADGE_CLASSES } from './Programs';
+import { STATUS_BADGE_CLASSES, ACCESS_STATE_BADGE_CLASSES } from './Programs';
 import MemberBillPayModal from '../../components/payments/MemberBillPayModal';
 
 function formatFileSize(bytes) {
@@ -228,6 +230,13 @@ export default function ProgramDetail() {
       (d) => d.member_id === activeMember.id && d.status !== 'cancelled'
     );
   }, [duesList, activeMember?.id]);
+
+  // Status Masa Aktif Acara (HARGA.2, HARGA.3)
+  const programAccess = useMemo(() => {
+    return getProgramAccessState(program, { tenantType: activeTenant?.type });
+  }, [program, activeTenant?.type]);
+  const isProgramWritable = programAccess.writable;
+  const accessLabel = formatProgramAccessLabel(programAccess);
 
   // Transaksi Gabungan Diurutkan Berdasarkan Tanggal
   const combinedTransactions = useMemo(() => {
@@ -864,6 +873,16 @@ export default function ProgramDetail() {
               <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
                 {program.name}
               </h1>
+              {accessLabel && programAccess.state !== 'unlimited' && (
+                <span
+                  data-testid="program-access-badge"
+                  className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                    ACCESS_STATE_BADGE_CLASSES[programAccess.state] || ACCESS_STATE_BADGE_CLASSES.active
+                  }`}
+                >
+                  {accessLabel}
+                </span>
+              )}
               <span
                 className={`px-3 py-1 rounded-full text-xs font-semibold border ${
                   STATUS_BADGE_CLASSES[program.status] || STATUS_BADGE_CLASSES.planning
@@ -935,8 +954,10 @@ export default function ProgramDetail() {
           {myDueInProgram.status === 'unpaid' && (
             <button
               type="button"
+              disabled={!isProgramWritable}
+              title={!isProgramWritable ? 'Acara belum aktif / masa aktif habis — hanya bisa dilihat' : undefined}
               onClick={() => setPayDueModalBill(myDueInProgram)}
-              className="pv-button-primary px-3 py-1 text-xs"
+              className="pv-button-primary px-3 py-1 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Bayar
             </button>
@@ -1418,8 +1439,10 @@ export default function ProgramDetail() {
               {canRecordIncome && (
                 <button
                   type="button"
+                  disabled={!isProgramWritable}
+                  title={!isProgramWritable ? 'Acara belum aktif / masa aktif habis — hanya bisa dilihat' : undefined}
                   onClick={() => navigate(`/t/${tenantId}/incomes?program=${programId}&new=1`)}
-                  className="pv-button-secondary text-xs sm:text-sm text-emerald-700 border-emerald-200 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400"
+                  className="pv-button-secondary text-xs sm:text-sm text-emerald-700 border-emerald-200 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <AiOutlinePlus className="w-4 h-4 inline mr-1" />
                   <span>Catat Pemasukan</span>
@@ -1428,8 +1451,10 @@ export default function ProgramDetail() {
               {canRecordExpense && (
                 <button
                   type="button"
+                  disabled={!isProgramWritable}
+                  title={!isProgramWritable ? 'Acara belum aktif / masa aktif habis — hanya bisa dilihat' : undefined}
                   onClick={() => navigate(`/t/${tenantId}/expenses?program=${programId}&new=1`)}
-                  className="pv-button-secondary text-xs sm:text-sm text-rose-700 border-rose-200 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-400"
+                  className="pv-button-secondary text-xs sm:text-sm text-rose-700 border-rose-200 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-400 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <AiOutlinePlus className="w-4 h-4 inline mr-1" />
                   <span>Catat Pengeluaran</span>
@@ -1519,8 +1544,10 @@ export default function ProgramDetail() {
             <div className="flex items-center gap-2 print:hidden">
               <button
                 type="button"
+                disabled={!isProgramWritable}
+                title={!isProgramWritable ? 'Acara belum aktif / masa aktif habis — hanya bisa dilihat' : undefined}
                 onClick={handleOpenCreateDuesModal}
-                className="pv-button-primary flex items-center gap-1.5 text-xs sm:text-sm"
+                className="pv-button-primary flex items-center gap-1.5 text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <AiOutlinePlus className="w-4 h-4" />
                 <span>Terbitkan Iuran</span>
@@ -1675,30 +1702,43 @@ export default function ProgramDetail() {
                             {due.status === 'unpaid' && canRecordCash && (
                               <button
                                 type="button"
+                                disabled={!isProgramWritable}
                                 onClick={() => handleRecordCash(due)}
-                                className="px-2 py-1 text-xs font-medium rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 transition-colors"
-                                title="Catat Tunai"
+                                className="px-2 py-1 text-xs font-medium rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                title={!isProgramWritable ? 'Acara belum aktif / masa aktif habis — hanya bisa dilihat' : 'Catat Tunai'}
                               >
                                 Catat Tunai
                               </button>
                             )}
                             {due.status === 'unpaid' && (
-                              <a
-                                href={waUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-2 py-1 text-xs font-medium rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 transition-colors inline-block"
-                                title="Ingatkan via WA"
-                              >
-                                Ingatkan via WA
-                              </a>
+                              isProgramWritable ? (
+                                <a
+                                  href={waUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-2 py-1 text-xs font-medium rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 transition-colors inline-block"
+                                  title="Ingatkan via WA"
+                                >
+                                  Ingatkan via WA
+                                </a>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="px-2 py-1 text-xs font-medium rounded bg-emerald-50 text-emerald-700 opacity-50 cursor-not-allowed dark:bg-emerald-950/40 dark:text-emerald-300"
+                                  title="Acara belum aktif / masa aktif habis — hanya bisa dilihat"
+                                >
+                                  Ingatkan via WA
+                                </button>
+                              )
                             )}
                             {due.status === 'unpaid' && canGenerateBilling && (
                               <button
                                 type="button"
+                                disabled={!isProgramWritable}
                                 onClick={() => handleOpenEditDueAmount(due)}
-                                className="px-2 py-1 text-xs font-medium rounded text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors"
-                                title="Ubah Nominal"
+                                className="px-2 py-1 text-xs font-medium rounded text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                title={!isProgramWritable ? 'Acara belum aktif / masa aktif habis — hanya bisa dilihat' : 'Ubah Nominal'}
                               >
                                 Ubah Nominal
                               </button>

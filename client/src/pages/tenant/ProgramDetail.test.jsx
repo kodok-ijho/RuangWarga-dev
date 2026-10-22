@@ -106,6 +106,8 @@ describe('PANITIA-1.7: ProgramDetail Page', () => {
     starts_on: '2026-11-20',
     ends_on: '2026-11-21',
     status: 'running',
+    is_free_trial: true,
+    access_until: '2099-01-01T00:00:00Z',
     lead_member: { id: 'm-1', name: 'Ahmad Faiz' },
   };
 
@@ -609,6 +611,61 @@ describe('PANITIA-1.7: ProgramDetail Page', () => {
         canRecordCash: true,
         canVerifyPayments: true,
       };
+    });
+  });
+
+  describe('HARGA.3: Penguncian transaksi berdasarkan masa aktif acara', () => {
+    it('tombol transaksi nonaktif untuk acara inactive dan aktif untuk free_trial', async () => {
+      // 1. Acara inactive
+      tenantOperationalService.fetchProgram.mockResolvedValueOnce({
+        ...mockProgram,
+        is_free_trial: false,
+        access_until: null,
+      });
+
+      const { unmount } = renderProgramDetail();
+      await screen.findByText('Pentas Seni Tahunan 2026');
+
+      expect(screen.getByText('Belum aktif')).toBeTruthy();
+
+      // Transaksi tab
+      const txTabBtn = screen.getByRole('button', { name: /Daftar Transaksi/i });
+      fireEvent.click(txTabBtn);
+
+      const incomeBtn = screen.getByRole('button', { name: /Catat Pemasukan/i });
+      const expenseBtn = screen.getByRole('button', { name: /Catat Pengeluaran/i });
+      expect(incomeBtn.disabled).toBe(true);
+      expect(expenseBtn.disabled).toBe(true);
+      expect(incomeBtn.getAttribute('title')).toContain('Acara belum aktif / masa aktif habis');
+
+      // Iuran tab
+      const duesTabBtn = screen.getByRole('button', { name: /^Iuran/i });
+      fireEvent.click(duesTabBtn);
+
+      const terbitkanBtn = screen.getByRole('button', { name: /Terbitkan Iuran/i });
+      expect(terbitkanBtn.disabled).toBe(true);
+
+      unmount();
+
+      // 2. Acara free_trial
+      tenantOperationalService.fetchProgram.mockResolvedValueOnce({
+        ...mockProgram,
+        is_free_trial: true,
+        access_until: '2099-01-01T00:00:00Z',
+      });
+
+      renderProgramDetail();
+      await screen.findByText('Pentas Seni Tahunan 2026');
+
+      expect(screen.getByText(/Gratis sampai/i)).toBeTruthy();
+
+      const txTabBtn2 = screen.getByRole('button', { name: /Daftar Transaksi/i });
+      fireEvent.click(txTabBtn2);
+
+      const incomeBtn2 = screen.getByRole('button', { name: /Catat Pemasukan/i });
+      const expenseBtn2 = screen.getByRole('button', { name: /Catat Pengeluaran/i });
+      expect(incomeBtn2.disabled).toBe(false);
+      expect(expenseBtn2.disabled).toBe(false);
     });
   });
 });

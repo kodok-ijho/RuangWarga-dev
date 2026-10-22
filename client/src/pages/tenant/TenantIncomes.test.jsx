@@ -114,8 +114,8 @@ describe('PANITIA-1.6: TenantIncomes Page', () => {
     ]);
 
     tenantOperationalService.fetchPrograms.mockResolvedValue([
-      { id: 'prog-1', name: 'PenSi 2026' },
-      { id: 'prog-2', name: 'Bazar Kampus' },
+      { id: 'prog-1', name: 'PenSi 2026', is_free_trial: true, access_until: '2099-01-01T00:00:00Z' },
+      { id: 'prog-2', name: 'Bazar Kampus', is_free_trial: false, access_until: '2020-01-01T00:00:00Z' },
     ]);
 
     tenantOperationalService.fetchBudgetItems.mockResolvedValue([
@@ -242,5 +242,23 @@ describe('PANITIA-1.6: TenantIncomes Page', () => {
     await waitFor(() => {
       expect(screen.queryByText('Catat Pemasukan Kas')).toBeNull();
     });
+  });
+
+  it('6. HARGA.3: dropdown acara di form pemasukan menonaktifkan acara expired', async () => {
+    renderTenantIncomes();
+
+    const addBtn = await screen.findByRole('button', { name: /Catat Pemasukan/i });
+    fireEvent.click(addBtn);
+
+    expect(await screen.findByText('Catat Pemasukan Kas')).toBeTruthy();
+    const programSelect = await screen.findByRole('combobox', { name: /Tautkan ke Acara/i });
+
+    const activeOption = programSelect.querySelector('option[value="prog-1"]');
+    const expiredOption = programSelect.querySelector('option[value="prog-2"]');
+
+    expect(activeOption.disabled).toBe(false);
+    expect(activeOption.textContent).toContain('PenSi 2026');
+    expect(expiredOption.disabled).toBe(true);
+    expect(expiredOption.textContent).toContain('Bazar Kampus (masa aktif habis)');
   });
 });

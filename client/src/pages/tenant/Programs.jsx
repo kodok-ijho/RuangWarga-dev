@@ -20,6 +20,8 @@ import {
   summarizeProgram,
   fetchTenantMembers,
   PROGRAM_STATUS_LABELS,
+  getProgramAccessState,
+  formatProgramAccessLabel,
 } from '../../services/tenantOperationalService';
 import { formatRupiah, formatDate } from '../../services/dataHelpers';
 
@@ -29,6 +31,14 @@ export const STATUS_BADGE_CLASSES = {
   completed: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
   done: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
   archived: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
+};
+
+export const ACCESS_STATE_BADGE_CLASSES = {
+  active: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
+  free_trial: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800',
+  inactive: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
+  expired: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800',
+  unlimited: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
 };
 
 export default function Programs() {
@@ -336,13 +346,29 @@ export default function Programs() {
                     <h3 className="font-semibold text-lg text-slate-900 dark:text-white group-hover:text-forest-700 dark:group-hover:text-forest-400 transition-colors line-clamp-1">
                       {prog.name}
                     </h3>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium border shrink-0 ${
-                        STATUS_BADGE_CLASSES[prog.status] || STATUS_BADGE_CLASSES.planning
-                      }`}
-                    >
-                      {PROGRAM_STATUS_LABELS[prog.status] || prog.status}
-                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                      {(() => {
+                        const accessState = getProgramAccessState(prog, { tenantType: activeTenant?.type });
+                        const label = formatProgramAccessLabel(accessState);
+                        if (!label || accessState.state === 'unlimited') return null;
+                        return (
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium border ${
+                              ACCESS_STATE_BADGE_CLASSES[accessState.state] || ACCESS_STATE_BADGE_CLASSES.active
+                            }`}
+                          >
+                            {label}
+                          </span>
+                        );
+                      })()}
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs font-medium border shrink-0 ${
+                          STATUS_BADGE_CLASSES[prog.status] || STATUS_BADGE_CLASSES.planning
+                        }`}
+                      >
+                        {PROGRAM_STATUS_LABELS[prog.status] || prog.status}
+                      </span>
+                    </div>
                   </div>
 
                   {prog.description && (

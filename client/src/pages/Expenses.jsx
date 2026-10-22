@@ -31,6 +31,7 @@ import {
   deleteTenantExpense,
   fetchPrograms,
   fetchBudgetItems,
+  getProgramAccessState,
 } from '../services/tenantOperationalService';
 import {
   formatRupiah,
@@ -135,6 +136,19 @@ export default function Expenses() {
   useEffect(() => {
     if (activeTenantId && queryNew === '1' && canWrite) {
       if (queryProgramId) {
+        const targetProg = tenantPrograms.find((p) => String(p.id) === String(queryProgramId));
+        if (targetProg) {
+          const accessState = getProgramAccessState(targetProg, { tenantType: activeTenant?.type });
+          if (!accessState.writable) {
+            toast.error('Acara belum aktif atau masa aktifnya habis. Transaksi acara ini hanya bisa dilihat.');
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              next.delete('new');
+              return next;
+            }, { replace: true });
+            return;
+          }
+        }
         setInitialProgramForForm(queryProgramId);
       }
       setModalForm('add');
@@ -144,7 +158,7 @@ export default function Expenses() {
         return next;
       }, { replace: true });
     }
-  }, [activeTenantId, queryNew, queryProgramId, canWrite, setSearchParams]);
+  }, [activeTenantId, queryNew, queryProgramId, canWrite, tenantPrograms, activeTenant?.type, setSearchParams, toast]);
 
   const loadExpenses = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -713,6 +727,7 @@ export default function Expenses() {
           hideScopeSelector={Boolean(activeTenantId)}
           categories={expenseCategories}
           tenantId={activeTenantId}
+          tenantType={activeTenant?.type}
           tenantPrograms={tenantPrograms}
           initialProgramId={initialProgramForForm}
           isSaving={isLoading}
@@ -838,6 +853,7 @@ function ExpenseFormModal({
   hideScopeSelector = false,
   categories = EXPENSE_CATEGORIES,
   tenantId = null,
+  tenantType = null,
   tenantPrograms = [],
   initialProgramId = '',
   isSaving,
@@ -1041,9 +1057,17 @@ function ExpenseFormModal({
                 className="pv-input text-xs bg-white"
               >
                 <option value="">Bukan Acara (Operasional Umum)</option>
-                {tenantPrograms.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
+                {tenantPrograms.map((p) => {
+                  const state = getProgramAccessState(p, { tenantType });
+                  const suffix = !state.writable
+                    ? (state.state === 'expired' ? ' (masa aktif habis)' : ' (belum aktif)')
+                    : '';
+                  return (
+                    <option key={p.id} value={p.id} disabled={!state.writable}>
+                      {p.name}{suffix}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 

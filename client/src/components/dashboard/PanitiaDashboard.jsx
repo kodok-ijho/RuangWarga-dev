@@ -16,9 +16,11 @@ import {
   fetchMyProgramDues,
   summarizeProgram,
   PROGRAM_STATUS_LABELS,
+  getProgramAccessState,
+  formatProgramAccessLabel,
 } from '../../services/tenantOperationalService';
 import { formatRupiah, formatDate } from '../../services/dataHelpers';
-import { STATUS_BADGE_CLASSES } from '../../pages/tenant/Programs';
+import { STATUS_BADGE_CLASSES, ACCESS_STATE_BADGE_CLASSES } from '../../pages/tenant/Programs';
 import MemberBillPayModal from '../payments/MemberBillPayModal';
 
 export function PanitiaDashboard({
@@ -146,6 +148,12 @@ export function PanitiaDashboard({
           <div className="divide-y divide-slate-100">
             {myDues.map((due) => {
               const progName = due.program?.name || due.metadata?.program_name || 'Acara';
+              const progObj =
+                due.program ||
+                (due.program_id ? programs.find((p) => String(p.id) === String(due.program_id)) : null);
+              const progAccess = getProgramAccessState(progObj, { tenantType: activeTenant?.type });
+              const isProgWritable = progAccess.writable;
+
               return (
                 <div key={due.id} className="py-2.5 flex items-center justify-between gap-3 flex-wrap">
                   <div>
@@ -179,8 +187,10 @@ export function PanitiaDashboard({
                         </span>
                         <button
                           type="button"
+                          disabled={!isProgWritable}
+                          title={!isProgWritable ? 'Acara belum aktif / masa aktif habis — hanya bisa dilihat' : undefined}
                           onClick={() => setSelectedBillToPay(due)}
-                          className="pv-button-primary px-3 py-1 text-xs"
+                          className="pv-button-primary px-3 py-1 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Bayar
                         </button>
@@ -307,13 +317,29 @@ export function PanitiaDashboard({
                       <h3 className="font-bold text-slate-900 text-base group-hover:text-forest-700 transition-colors line-clamp-1">
                         {prog.name}
                       </h3>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border shrink-0 ${
-                          STATUS_BADGE_CLASSES[prog.status] || STATUS_BADGE_CLASSES.planning
-                        }`}
-                      >
-                        {PROGRAM_STATUS_LABELS[prog.status] || prog.status}
-                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                        {(() => {
+                          const accessState = getProgramAccessState(prog, { tenantType: activeTenant?.type });
+                          const label = formatProgramAccessLabel(accessState);
+                          if (!label || accessState.state === 'unlimited') return null;
+                          return (
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                                ACCESS_STATE_BADGE_CLASSES[accessState.state] || ACCESS_STATE_BADGE_CLASSES.active
+                              }`}
+                            >
+                              {label}
+                            </span>
+                          );
+                        })()}
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border shrink-0 ${
+                            STATUS_BADGE_CLASSES[prog.status] || STATUS_BADGE_CLASSES.planning
+                          }`}
+                        >
+                          {PROGRAM_STATUS_LABELS[prog.status] || prog.status}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-1.5 text-xs text-slate-500">

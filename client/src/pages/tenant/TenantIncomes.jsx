@@ -21,6 +21,7 @@ import {
   deleteTenantIncome,
   fetchPrograms,
   fetchBudgetItems,
+  getProgramAccessState,
 } from '../../services/tenantOperationalService';
 import { formatRupiah, formatDate } from '../../services/dataHelpers';
 import { getLocalDateString } from '../../utils/date';
@@ -96,6 +97,19 @@ export default function TenantIncomes() {
     const qNew = searchParams.get('new');
     if (qNew === '1' && canWrite) {
       if (qProgram) {
+        const targetProg = programs.find((p) => String(p.id) === String(qProgram));
+        if (targetProg) {
+          const accessState = getProgramAccessState(targetProg, { tenantType: activeTenant?.type });
+          if (!accessState.writable) {
+            toast.error('Acara belum aktif atau masa aktifnya habis. Transaksi acara ini hanya bisa dilihat.');
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              next.delete('new');
+              return next;
+            }, { replace: true });
+            return;
+          }
+        }
         setInitialProgramForForm(qProgram);
       }
       setModalForm('add');
@@ -105,7 +119,7 @@ export default function TenantIncomes() {
         return next;
       }, { replace: true });
     }
-  }, [searchParams, canWrite, setSearchParams]);
+  }, [searchParams, canWrite, programs, activeTenant?.type, setSearchParams, toast]);
 
   const programMap = useMemo(() => {
     const map = new Map();
@@ -499,6 +513,7 @@ export default function TenantIncomes() {
       {modalForm && canWrite && (
         <IncomeFormModal
           tenantId={tenantId}
+          tenantType={activeTenant?.type}
           income={modalForm === 'add' ? null : modalForm}
           categories={categories}
           programs={programs}
@@ -517,6 +532,7 @@ export default function TenantIncomes() {
 
 function IncomeFormModal({
   tenantId,
+  tenantType,
   income,
   categories = [],
   programs = [],
@@ -719,9 +735,17 @@ function IncomeFormModal({
                 className="pv-input text-xs bg-white"
               >
                 <option value="">Bukan Acara (Operasional Umum)</option>
-                {programs.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
+                {programs.map((p) => {
+                  const state = getProgramAccessState(p, { tenantType });
+                  const suffix = !state.writable
+                    ? (state.state === 'expired' ? ' (masa aktif habis)' : ' (belum aktif)')
+                    : '';
+                  return (
+                    <option key={p.id} value={p.id} disabled={!state.writable}>
+                      {p.name}{suffix}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
