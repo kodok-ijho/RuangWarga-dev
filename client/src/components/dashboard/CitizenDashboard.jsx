@@ -48,7 +48,15 @@ export function CitizenDashboard({
   const [arisanBillsError, setArisanBillsError] = useState(null);
 
   const loadArisanBills = useCallback(async () => {
-    if (!isArisan || !tenantId || !activeMember?.id) {
+    if (!isArisan || !tenantId) {
+      setLoadingArisanBills(false);
+      return;
+    }
+    if (!activeMember?.id) {
+      if (tenantCtx?.loading) {
+        setLoadingArisanBills(true);
+        return;
+      }
       setLoadingArisanBills(false);
       return;
     }
@@ -63,7 +71,7 @@ export function CitizenDashboard({
     } finally {
       setLoadingArisanBills(false);
     }
-  }, [isArisan, tenantId, activeMember?.id]);
+  }, [isArisan, tenantId, activeMember?.id, tenantCtx?.loading]);
 
   useEffect(() => {
     loadArisanBills();
