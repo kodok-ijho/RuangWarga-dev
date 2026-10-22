@@ -4,6 +4,7 @@ import * as tenantOperationalService from './tenantOperationalService';
 const EXPECTED_EXPORTS = [
   "INVITE_CODE_ALPHABET",
   "PLATFORM_PERMISSIONS",
+  "PROGRAM_DOC_TYPES",
   "PROGRAM_STATUS_LABELS",
   "ROLE_TEMPLATES",
   "VALID_PAYMENT_METHODS",
@@ -31,6 +32,7 @@ const EXPECTED_EXPORTS = [
   "createTenantUnit",
   "deleteBudgetItem",
   "deleteProgram",
+  "deleteProgramDocument",
   "deleteTenantAnnouncement",
   "deleteTenantEvent",
   "deleteTenantExpense",
@@ -50,6 +52,7 @@ const EXPECTED_EXPORTS = [
   "fetchPendingTenantMembers",
   "fetchPlatformPermissions",
   "fetchProgram",
+  "fetchProgramDocuments",
   "fetchProgramDues",
   "fetchProgramTransactions",
   "fetchPrograms",
@@ -76,8 +79,10 @@ const EXPECTED_EXPORTS = [
   "generateTenantBillingItems",
   "getAnnouncementImageUrl",
   "getCachedTenantInviteCode",
+  "getDemoProgramDocuments",
   "getDemoProgramDues",
   "getInviteDetails",
+  "getProgramDocumentUrl",
   "getTenantBankAccount",
   "importTenantUnitsCSV",
   "isLegacyQrisEnabled",
@@ -92,6 +97,7 @@ const EXPECTED_EXPORTS = [
   "removeTenantMember",
   "requestJoinTenant",
   "resetDemoIncomesStore",
+  "resetDemoProgramDocumentsStore",
   "resetDemoProgramDuesStore",
   "resetDemoProgramsStore",
   "resolveCitizenObligationAndUnit",
@@ -117,15 +123,16 @@ const EXPECTED_EXPORTS = [
   "updateTenantRole",
   "updateTenantUnit",
   "uploadAnnouncementImage",
+  "uploadProgramDocument",
   "validateFacilities",
   "validateRentPrice",
   "verifyTenantPayment",
 ];
 
 describe('tenantOperationalService Exports Guard (DEBT-1.4)', () => {
-  it('harus mengekspor 118 fungsi/konstanta yang sama persis', () => {
+  it('harus mengekspor 125 fungsi/konstanta yang sama persis', () => {
     const exportsList = Object.keys(tenantOperationalService).sort();
     expect(exportsList).toEqual(EXPECTED_EXPORTS);
-    expect(exportsList.length).toBe(118);
+    expect(exportsList.length).toBe(125);
   });
 });
