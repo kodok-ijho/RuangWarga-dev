@@ -57,6 +57,7 @@ const TenantDashboard = lazy(() => import('./pages/tenant/TenantDashboard'));
 const TenantIncomes = lazy(() => import('./pages/tenant/TenantIncomes'));
 const Programs = lazy(() => import('./pages/tenant/Programs'));
 const ProgramDetail = lazy(() => import('./pages/tenant/ProgramDetail'));
+const ProgramLpj = lazy(() => import('./pages/tenant/ProgramLpj'));
 const TenantUnits = lazy(() => import('./pages/tenant/TenantUnits'));
 const TenantSettings = lazy(() => import('./pages/tenant/TenantSettings'));
 const TenantAnnouncements = lazy(() => import('./pages/tenant/TenantAnnouncements'));
@@ -342,6 +343,16 @@ export default function App() {
                       <Suspense fallback={<PageLoader />}>
                         <TenantAccessGuard require="isMember">
                           <ProgramDetail />
+                        </TenantAccessGuard>
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="programs/:programId/lpj"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <TenantAccessGuard require="isMember">
+                          <ProgramLpj />
                         </TenantAccessGuard>
                       </Suspense>
                     }

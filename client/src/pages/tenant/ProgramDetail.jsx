@@ -13,6 +13,7 @@ import {
   AiOutlineDownload,
   AiOutlineReload,
   AiOutlineCheckCircle,
+  AiOutlineFileText,
 } from 'react-icons/ai';
 import { useTenant } from '../../context/TenantContext';
 import { useTenantAccess } from '../../hooks/useTenantAccess';
@@ -807,6 +808,14 @@ export default function ProgramDetail() {
           >
             <AiOutlinePrinter className="w-4 h-4" />
             <span>Cetak</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate(`/t/${tenantId}/programs/${programId}/lpj`)}
+            className="pv-button-secondary flex items-center gap-1.5 text-xs sm:text-sm"
+          >
+            <AiOutlineFileText className="w-4 h-4" />
+            <span>Susun LPJ</span>
           </button>
           {canManagePrograms && (
             <>
