@@ -71,7 +71,7 @@ export default function Programs() {
     setLoadError(null);
     try {
       const [programsData, membersData] = await Promise.all([
-        fetchPrograms(tenantId).catch(() => []),
+        fetchPrograms(tenantId),
         fetchTenantMembers(tenantId).catch(() => []),
       ]);
 
@@ -97,7 +97,8 @@ export default function Programs() {
       }
       setSummaries(sumMap);
     } catch (err) {
-      setLoadError(err.message || 'Gagal memuat daftar acara');
+      console.error('Gagal memuat acara:', err);
+      setLoadError('Gagal memuat acara.');
     } finally {
       setIsLoading(false);
     }
@@ -282,9 +283,18 @@ export default function Programs() {
           <SkeletonCard />
         </div>
       ) : loadError ? (
-        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 dark:bg-rose-950/30 dark:border-rose-900 dark:text-rose-300">
-          <p className="font-semibold text-sm">Terjadi Kesalahan</p>
-          <p className="text-xs mt-1">{loadError}</p>
+        <div className="p-8 rounded-2xl bg-white border border-rose-200 text-center space-y-3">
+          <p className="font-bold text-sm text-rose-700">Gagal memuat acara.</p>
+          <div>
+            <button
+              type="button"
+              onClick={loadData}
+              className="pv-button-secondary text-xs inline-flex items-center gap-1.5"
+            >
+              <AiOutlineReload className="w-3.5 h-3.5" />
+              <span>Coba lagi</span>
+            </button>
+          </div>
         </div>
       ) : displayedPrograms.length === 0 ? (
         <EmptyState

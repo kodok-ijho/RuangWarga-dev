@@ -217,4 +217,17 @@ describe('PANITIA-1.7: Programs Page', () => {
       expect(mockToast.success).toHaveBeenCalledWith('Acara berhasil dibuat.');
     });
   });
+
+  it('PANITIA-1F.4: displays error state with "Coba lagi" button when fetchPrograms fails', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    tenantOperationalService.fetchPrograms.mockRejectedValue(new Error('Koneksi terputus'));
+
+    renderPrograms();
+
+    expect(await screen.findByText('Gagal memuat acara.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Coba lagi/i })).toBeTruthy();
+    expect(screen.queryByText(/Tidak ada acara aktif/i)).toBeNull();
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
 });

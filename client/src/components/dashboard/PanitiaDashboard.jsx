@@ -38,12 +38,14 @@ export function PanitiaDashboard({
   const [programs, setPrograms] = useState([]);
   const [summaries, setSummaries] = useState({});
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
   const loadData = useCallback(async () => {
     if (!tid) return;
     setIsLoading(true);
+    setLoadError(null);
     try {
-      const allPrograms = await fetchPrograms(tid).catch(() => []);
+      const allPrograms = await fetchPrograms(tid);
       setPrograms(allPrograms || []);
 
       const activeList = (allPrograms || []).filter(
@@ -65,8 +67,9 @@ export function PanitiaDashboard({
         })
       );
       setSummaries(sumMap);
-    } catch (_err) {
-      // ignore
+    } catch (err) {
+      console.error('Gagal memuat acara:', err);
+      setLoadError('Gagal memuat acara.');
     } finally {
       setIsLoading(false);
     }
@@ -158,6 +161,20 @@ export function PanitiaDashboard({
               <div className="h-4 bg-slate-200 rounded w-1/3" />
               <div className="h-3 bg-slate-100 rounded w-1/2" />
               <div className="h-8 bg-slate-50 rounded" />
+            </div>
+          </div>
+        ) : loadError ? (
+          <div className="p-8 bg-white rounded-2xl border border-rose-200 text-center space-y-3">
+            <p className="text-sm font-bold text-rose-700">Gagal memuat acara.</p>
+            <div>
+              <button
+                type="button"
+                onClick={loadData}
+                className="pv-button-secondary text-xs inline-flex items-center gap-1.5"
+              >
+                <AiOutlineReload className="w-3.5 h-3.5" />
+                <span>Coba lagi</span>
+              </button>
             </div>
           </div>
         ) : activePrograms.length === 0 ? (

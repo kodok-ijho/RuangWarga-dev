@@ -67,7 +67,7 @@ export default function SubscriptionStatus() {
           const progs = await fetchPrograms(currentTenant.id);
           setActiveProgramsCount(countActivePrograms(progs));
         } catch (_e) {
-          setActiveProgramsCount(1);
+          setActiveProgramsCount('–');
         }
       }
       setPaymentsHistory([
@@ -138,7 +138,7 @@ export default function SubscriptionStatus() {
           const progs = await fetchPrograms(currentTenant.id);
           setActiveProgramsCount(countActivePrograms(progs));
         } catch (_e) {
-          setActiveProgramsCount(0);
+          setActiveProgramsCount('–');
         }
       } else {
         const { count: unitCount } = await supabase
@@ -316,7 +316,7 @@ export default function SubscriptionStatus() {
                       <span>Pemakaian Acara</span>
                     </span>
                     <span className="text-xs font-bold text-slate-900">
-                      {activeProgramsCount} acara aktif
+                      {typeof activeProgramsCount === 'number' ? `${activeProgramsCount} acara aktif` : '–'}
                     </span>
                   </div>
 

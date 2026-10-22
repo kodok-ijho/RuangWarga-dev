@@ -116,4 +116,25 @@ describe('PANITIA-1.8: PanitiaDashboard Component', () => {
     expect(await screen.findByText('Belum ada acara')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Buat Acara Baru/i })).toBeNull();
   });
+
+  it('PANITIA-1F.4: displays error state with "Coba lagi" button when fetchPrograms fails', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    tenantOperationalService.fetchPrograms.mockRejectedValue(new Error('Database timeout'));
+
+    render(
+      <MemoryRouter>
+        <PanitiaDashboard
+          tenantId="t-panitia-1"
+          activeTenant={{ id: 't-panitia-1', name: 'OSIS SMA 1', type: 'panitia' }}
+          template={{ features: { hasPrograms: true } }}
+        />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Gagal memuat acara.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Coba lagi/i })).toBeTruthy();
+    expect(screen.queryByText(/Buat Acara Pertama/i)).toBeNull();
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
 });

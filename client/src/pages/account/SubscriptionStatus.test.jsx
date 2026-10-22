@@ -101,4 +101,18 @@ describe('PANITIA-1.8: SubscriptionStatus for Panitia', () => {
     expect(await screen.findByText('2 acara aktif')).toBeTruthy();
     expect(screen.getByText('Pemakaian Acara')).toBeTruthy();
   });
+
+  it('PANITIA-1F.4: displays "–" when active programs count calculation fails', async () => {
+    tenantOperationalService.fetchPrograms.mockRejectedValue(new Error('Database error'));
+
+    render(
+      <MemoryRouter initialEntries={['/account/subscription?tenantId=t-panitia-sub']}>
+        <Routes>
+          <Route path="/account/subscription" element={<SubscriptionStatus />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('–')).toBeTruthy();
+  });
 });
