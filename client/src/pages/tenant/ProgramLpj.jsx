@@ -12,7 +12,8 @@ import {
   PROGRAM_STATUS_LABELS,
   PROGRAM_DOC_TYPES,
 } from '../../services/tenantOperationalService';
-import { formatRupiah, formatDate } from '../../services/dataHelpers';
+import { formatRupiah } from '../../services/dataHelpers';
+import { formatDateWIB } from '../../utils/date';
 import { SkeletonCard } from '../../components/ui';
 
 function formatFileSize(bytes) {
@@ -71,8 +72,8 @@ export default function ProgramLpj() {
         // Inisialisasi pengesahan
         const defaultLead = progData.lead_member?.name || progData.lead_member?.full_name || '';
         setSignLeadName((prev) => (prev ? prev : defaultLead));
-        setSignCity((prev) => (prev ? prev : (activeTenant?.city || 'Jakarta')));
-        const todayStr = formatDate(new Date().toISOString());
+        setSignCity((prev) => (prev ? prev : (activeTenant?.city || '')));
+        const todayStr = formatDateWIB(new Date().toISOString());
         setSignDate((prev) => (prev ? prev : todayStr));
       } catch (err) {
         setLoadError(err.message || 'Gagal memuat data LPJ acara.');
@@ -243,8 +244,8 @@ export default function ProgramLpj() {
           <div className="flex flex-wrap justify-center items-center gap-4 text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-4">
             <div>
               <span className="font-semibold text-slate-700 dark:text-slate-300">Waktu:</span>{' '}
-              {formatDate(program.starts_on)}
-              {program.ends_on && program.ends_on !== program.starts_on ? ` s/d ${formatDate(program.ends_on)}` : ''}
+              {formatDateWIB(program.starts_on)}
+              {program.ends_on && program.ends_on !== program.starts_on ? ` s/d ${formatDateWIB(program.ends_on)}` : ''}
             </div>
             <span>•</span>
             <div>
@@ -412,7 +413,7 @@ export default function ProgramLpj() {
                     const bItem = inc.budget_item_id ? budgetItemMap.get(String(inc.budget_item_id)) : null;
                     return (
                       <tr key={inc.id}>
-                        <td className="py-2 px-3">{formatDate(inc.income_date || inc.date)}</td>
+                        <td className="py-2 px-3">{formatDateWIB(inc.income_date || inc.date)}</td>
                         <td className="py-2 px-3 text-slate-600 dark:text-slate-400">
                           {bItem ? `${bItem.section} - ${bItem.item}` : 'Di luar anggaran'}
                         </td>
@@ -441,7 +442,7 @@ export default function ProgramLpj() {
                 <tr>
                   <th className="py-2 px-3 font-semibold">Tanggal</th>
                   <th className="py-2 px-3 font-semibold">Pos Anggaran</th>
-                  <th className="py-2 px-3 font-semibold">Penerima</th>
+                  <th className="py-2 px-3 font-semibold">Kategori</th>
                   <th className="py-2 px-3 font-semibold">Uraian</th>
                   <th className="py-2 px-3 font-semibold text-center">Nota</th>
                   <th className="py-2 px-3 font-semibold text-right">Jumlah</th>
@@ -466,11 +467,11 @@ export default function ProgramLpj() {
                     );
                     return (
                       <tr key={exp.id}>
-                        <td className="py-2 px-3">{formatDate(exp.date)}</td>
+                        <td className="py-2 px-3">{formatDateWIB(exp.date)}</td>
                         <td className="py-2 px-3 text-slate-600 dark:text-slate-400">
                           {bItem ? `${bItem.section} - ${bItem.item}` : 'Di luar anggaran'}
                         </td>
-                        <td className="py-2 px-3 font-medium">{exp.recipient || '-'}</td>
+                        <td className="py-2 px-3 font-medium">{exp.category || '-'}</td>
                         <td className="py-2 px-3">{exp.description || '-'}</td>
                         <td className="py-2 px-3 text-center">
                           {hasReceipt ? (
@@ -523,7 +524,7 @@ export default function ProgramLpj() {
                         <td className="py-2 px-3 font-medium text-slate-900 dark:text-white">{mName}</td>
                         <td className="py-2 px-3 text-right font-semibold">{formatRupiah(due.amount)}</td>
                         <td className="py-2 px-3 text-slate-600 dark:text-slate-400">
-                          {due.due_date ? formatDate(due.due_date) : '-'}
+                          {due.due_date ? formatDateWIB(due.due_date) : '-'}
                         </td>
                         <td className="py-2 px-3">
                           {due.status === 'paid' && (
@@ -590,7 +591,7 @@ export default function ProgramLpj() {
                       </td>
                       <td className="py-2 px-3 text-slate-500 truncate max-w-xs">{doc.file_name}</td>
                       <td className="py-2 px-3 text-right">{formatFileSize(doc.file_size)}</td>
-                      <td className="py-2 px-3 text-slate-600 dark:text-slate-400">{formatDate(doc.created_at)}</td>
+                      <td className="py-2 px-3 text-slate-600 dark:text-slate-400">{formatDateWIB(doc.created_at)}</td>
                     </tr>
                   ))
                 )}

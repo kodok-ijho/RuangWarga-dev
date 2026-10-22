@@ -99,7 +99,7 @@ describe('PANITIA-3.5: ProgramLpj Page', () => {
         program_id: 'prog-1',
         budget_item_id: 'b-2',
         amount: 1200000,
-        recipient: 'Catering Berkah',
+        category: 'Konsumsi',
         description: 'Snack rapat dan makan siang',
         date: '2026-11-05',
         receipt_file_path: 'tenants/tenant-panitia-1/expenses/exp-1-nota.jpg',
@@ -178,7 +178,7 @@ describe('PANITIA-3.5: ProgramLpj Page', () => {
 
     // 5. Rincian Pengeluaran
     const sec5 = screen.getByTestId('lpj-section-5');
-    expect(within(sec5).getByText('Catering Berkah')).toBeTruthy();
+    expect(within(sec5).getByText('Konsumsi')).toBeTruthy();
     expect(within(sec5).getByText('Snack rapat dan makan siang')).toBeTruthy();
     expect(within(sec5).getByText('nota ✓')).toBeTruthy();
 
@@ -245,5 +245,19 @@ describe('PANITIA-3.5: ProgramLpj Page', () => {
     expect(within(sec8).getByText(/Bandung, 25 November 2026/i)).toBeTruthy();
     expect(within(sec8).getByText('Dr. Ahmad Faiz, M.Sc')).toBeTruthy();
     expect(within(sec8).getByText('Siti Rahmawati, S.E')).toBeTruthy();
+  });
+
+  it('F.4: kota bawaan pengesahan kosong string bila tenant tidak memiliki city', async () => {
+    mockTenant = {
+      id: 'tenant-panitia-1',
+      name: 'Panitia Dies Natalis 2026',
+      city: '',
+    };
+
+    renderProgramLpj();
+    await screen.findByText('Laporan Pertanggungjawaban (LPJ)');
+
+    const cityInput = screen.getByLabelText(/^Kota$/i);
+    expect(cityInput.value).toBe('');
   });
 });

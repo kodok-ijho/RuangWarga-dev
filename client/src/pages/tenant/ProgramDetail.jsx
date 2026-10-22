@@ -49,7 +49,7 @@ import {
 } from '../../services/tenantOperationalService';
 import { buildProgramDuesReminderMessage, buildWaLink } from '../../utils/waReminder';
 import { formatRupiah, formatDate } from '../../services/dataHelpers';
-import { getLocalDateString } from '../../utils/date';
+import { getLocalDateString, formatDateWIB } from '../../utils/date';
 import { STATUS_BADGE_CLASSES, ACCESS_STATE_BADGE_CLASSES } from './Programs';
 import MemberBillPayModal from '../../components/payments/MemberBillPayModal';
 
@@ -617,16 +617,28 @@ export default function ProgramDetail() {
     }
   };
 
-  // --- Handlers Dokumen Acara (PANITIA-3.4) ---
+  // --- Handlers Dokumen Acara (PANITIA-3.4 / F.4) ---
   const handleOpenDocument = async (doc) => {
+    const w = typeof window !== 'undefined' ? window.open('', '_blank') : null;
     try {
       const url = await getProgramDocumentUrl(doc.file_path);
       if (url) {
-        window.open(url, '_blank', 'noopener,noreferrer');
+        if (w) {
+          w.opener = null;
+          w.location.href = url;
+        } else if (typeof window !== 'undefined') {
+          window.location.assign(url);
+        }
       } else {
+        if (w) {
+          try { w.close(); } catch {}
+        }
         toast.error('Gagal membuka dokumen.');
       }
     } catch (err) {
+      if (w) {
+        try { w.close(); } catch {}
+      }
       toast.error(err.message || 'Gagal membuka dokumen.');
     }
   };
@@ -1907,7 +1919,7 @@ export default function ProgramDetail() {
                             <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500 mt-2">
                               <span>{formatFileSize(doc.file_size)}</span>
                               <span>•</span>
-                              <span>{formatDate(doc.created_at)}</span>
+                              <span>{formatDateWIB(doc.created_at)}</span>
                             </div>
                           </div>
                         </div>
@@ -2610,7 +2622,7 @@ export default function ProgramDetail() {
               id="doc-file"
               data-testid="doc-file-input"
               type="file"
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.webp"
+              accept=".pdf,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.webp"
               onChange={(e) => {
                 const file = e.target.files?.[0] || null;
                 setDocFormData((prev) => ({ ...prev, file }));

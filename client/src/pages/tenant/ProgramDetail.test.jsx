@@ -654,6 +654,29 @@ describe('PANITIA-1.7: ProgramDetail Page', () => {
         canVerifyPayments: true,
       };
     });
+
+    it('F.4: tombol Buka dokumen membuka tab kosong sinkron lalu assign href', async () => {
+      const mockWin = { location: { href: '' }, opener: 'test', close: vi.fn() };
+      const openSpy = vi.spyOn(window, 'open').mockReturnValue(mockWin);
+      tenantOperationalService.getProgramDocumentUrl.mockResolvedValueOnce('https://r2.ruangwarga.test/mock-url.pdf');
+
+      renderProgramDetail();
+      await screen.findByText('Pentas Seni Tahunan 2026');
+
+      const docTabBtn = screen.getByRole('button', { name: /^Dokumen/i });
+      fireEvent.click(docTabBtn);
+
+      const bukaButtons = await screen.findAllByRole('button', { name: /Buka/i });
+      fireEvent.click(bukaButtons[0]);
+
+      expect(openSpy).toHaveBeenCalledWith('', '_blank');
+      await waitFor(() => {
+        expect(mockWin.location.href).toBe('https://r2.ruangwarga.test/mock-url.pdf');
+        expect(mockWin.opener).toBeNull();
+      });
+
+      openSpy.mockRestore();
+    });
   });
 
   describe('HARGA.3: Penguncian transaksi berdasarkan masa aktif acara', () => {
