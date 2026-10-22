@@ -32,7 +32,13 @@ import {
   summarizeProgram,
   fetchTenantMembers,
   PROGRAM_STATUS_LABELS,
+  getTenantBankAccount,
+  createProgramDues,
+  updateProgramDuesAmount,
+  cancelProgramDues,
+  recordProgramDuesCash,
 } from '../../services/tenantOperationalService';
+import { buildProgramDuesReminderMessage, buildWaLink } from '../../utils/waReminder';
 import { formatRupiah, formatDate } from '../../services/dataHelpers';
 import { STATUS_BADGE_CLASSES } from './Programs';
 
@@ -50,12 +56,15 @@ export default function ProgramDetail() {
   const canManageBudget = Boolean(tenantAccess.canManageBudget && canTransact);
   const canRecordIncome = Boolean(tenantAccess.canRecordIncome && canTransact);
   const canRecordExpense = Boolean(tenantAccess.canManageExpenses && canTransact);
+  const canGenerateBilling = Boolean(tenantAccess.canGenerateBilling && canTransact);
+  const canRecordCash = Boolean(tenantAccess.canRecordCash && canTransact);
+  const canVerifyPayments = Boolean(tenantAccess.canVerifyPayments && canTransact);
 
   const [program, setProgram] = useState(null);
   const [budgetItems, setBudgetItems] = useState([]);
-  const [transactions, setTransactions] = useState({ incomes: [], expenses: [] });
+  const [transactions, setTransactions] = useState({ incomes: [], expenses: [], dues: [] });
   const [members, setMembers] = useState([]);
-  const [activeTab, setActiveTab] = useState('summary'); // 'summary' | 'budget' | 'transactions'
+  const [activeTab, setActiveTab] = useState('summary'); // 'summary' | 'budget' | 'transactions' | 'dues'
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
@@ -98,6 +107,22 @@ export default function ProgramDetail() {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [isDeletingItem, setIsDeletingItem] = useState(false);
 
+  // Modal Dues Form (Terbitkan Iuran) (PANITIA-2.3)
+  const [isCreateDuesModalOpen, setIsCreateDuesModalOpen] = useState(false);
+  const [isSubmittingDues, setIsSubmittingDues] = useState(false);
+  const [duesFormData, setDuesFormData] = useState({
+    amount: '',
+    dueDate: '',
+    note: '',
+    selectedMemberIds: [],
+  });
+
+  // Modal Edit Due Amount
+  const [isEditDueModalOpen, setIsEditDueModalOpen] = useState(false);
+  const [dueToEdit, setDueToEdit] = useState(null);
+  const [editDueAmount, setEditDueAmount] = useState('');
+  const [isSubmittingEditDue, setIsSubmittingEditDue] = useState(false);
+
   const loadData = useCallback(async () => {
     if (!tenantId || !programId) return;
     setIsLoading(true);
@@ -106,7 +131,7 @@ export default function ProgramDetail() {
       const [progData, itemsData, transData, membersData] = await Promise.all([
         fetchProgram(tenantId, programId),
         fetchBudgetItems(tenantId, programId).catch(() => []),
-        fetchProgramTransactions(tenantId, programId).catch(() => ({ incomes: [], expenses: [] })),
+        fetchProgramTransactions(tenantId, programId).catch(() => ({ incomes: [], expenses: [], dues: [] })),
         fetchTenantMembers(tenantId).catch(() => []),
       ]);
 
@@ -116,7 +141,7 @@ export default function ProgramDetail() {
 
       setProgram(progData);
       setBudgetItems(itemsData || []);
-      setTransactions(transData || { incomes: [], expenses: [] });
+      setTransactions(transData || { incomes: [], expenses: [], dues: [] });
       setMembers(membersData || []);
     } catch (err) {
       setLoadError(err.message || 'Gagal memuat detail acara.');
@@ -129,10 +154,25 @@ export default function ProgramDetail() {
     loadData();
   }, [loadData]);
 
-  // Ringkasan Keuangan Acara
+  // Ringkasan Keuangan Acara (termasuk Iuran Acara)
   const summary = useMemo(() => {
-    return summarizeProgram(budgetItems, transactions.incomes, transactions.expenses);
+    return summarizeProgram(
+      budgetItems,
+      transactions.incomes,
+      transactions.expenses,
+      transactions.dues || []
+    );
   }, [budgetItems, transactions]);
+
+  // Daftar Iuran Acara
+  const duesList = useMemo(() => {
+    return transactions.dues || [];
+  }, [transactions]);
+
+  // Rekening Bank Penerima dari Pengaturan Tenant
+  const tenantBankAccount = useMemo(() => {
+    return getTenantBankAccount(activeTenant);
+  }, [activeTenant]);
 
   // Transaksi Gabungan Diurutkan Berdasarkan Tanggal
   const combinedTransactions = useMemo(() => {
@@ -395,6 +435,122 @@ export default function ProgramDetail() {
     }
   };
 
+  // --- Handlers Iuran Panitia (PANITIA-2.3) ---
+  const handleOpenCreateDuesModal = () => {
+    const activeDueMemberIds = new Set(
+      duesList.filter((d) => d.status !== 'cancelled').map((d) => d.member_id)
+    );
+    const defaultSelected = approvedMembers
+      .filter((m) => !activeDueMemberIds.has(m.id))
+      .map((m) => m.id);
+
+    const today = new Date().toISOString().split('T')[0];
+    const defaultDueDate = program?.starts_on && program.starts_on >= today
+      ? program.starts_on
+      : today;
+
+    setDuesFormData({
+      amount: '',
+      dueDate: defaultDueDate,
+      note: '',
+      selectedMemberIds: defaultSelected,
+    });
+    setIsCreateDuesModalOpen(true);
+  };
+
+  const handleSubmitCreateDues = async (e) => {
+    e.preventDefault();
+    const amountNum = Number(duesFormData.amount);
+    if (!amountNum || amountNum <= 0) {
+      toast.error('Nominal iuran harus lebih besar dari 0.');
+      return;
+    }
+    if (!duesFormData.dueDate) {
+      toast.error('Tanggal jatuh tempo wajib diisi.');
+      return;
+    }
+    if (!duesFormData.selectedMemberIds.length) {
+      toast.error('Pilih setidaknya satu anggota untuk ditagih.');
+      return;
+    }
+
+    setIsSubmittingDues(true);
+    try {
+      const res = await createProgramDues(tenantId, programId, {
+        amount: amountNum,
+        dueDate: duesFormData.dueDate,
+        memberIds: duesFormData.selectedMemberIds,
+        note: duesFormData.note,
+        programName: program?.name,
+      });
+      toast.success(`${res.created} iuran diterbitkan, ${res.skipped} sudah ada.`);
+      setIsCreateDuesModalOpen(false);
+      await loadData();
+    } catch (err) {
+      toast.error(err.message || 'Gagal menerbitkan iuran.');
+    } finally {
+      setIsSubmittingDues(false);
+    }
+  };
+
+  const handleOpenEditDueAmount = (due) => {
+    setDueToEdit(due);
+    setEditDueAmount(due.amount || '');
+    setIsEditDueModalOpen(true);
+  };
+
+  const handleSubmitEditDueAmount = async (e) => {
+    e.preventDefault();
+    const num = Number(editDueAmount);
+    if (!num || num <= 0) {
+      toast.error('Nominal harus lebih besar dari 0.');
+      return;
+    }
+
+    setIsSubmittingEditDue(true);
+    try {
+      await updateProgramDuesAmount(tenantId, dueToEdit.id, num);
+      toast.success('Nominal iuran berhasil diubah.');
+      setIsEditDueModalOpen(false);
+      setDueToEdit(null);
+      await loadData();
+    } catch (err) {
+      toast.error(err.message || 'Gagal mengubah nominal iuran.');
+    } finally {
+      setIsSubmittingEditDue(false);
+    }
+  };
+
+  const handleRecordCash = async (due) => {
+    if (!due) return;
+    const confirmCash = window.confirm(`Catat pembayaran tunai sebesar ${formatRupiah(due.amount)} dari ${due.member?.full_name || 'anggota'}?`);
+    if (!confirmCash) return;
+
+    try {
+      await recordProgramDuesCash(tenantId, due.id, {
+        note: `Pembayaran tunai iuran acara ${program?.name || ''}`,
+      });
+      toast.success('Pembayaran tunai berhasil dicatat.');
+      await loadData();
+    } catch (err) {
+      toast.error(err.message || 'Gagal mencatat pembayaran tunai.');
+    }
+  };
+
+  const handleCancelDue = async (due) => {
+    if (!due) return;
+    const confirmCancel = window.confirm(`Batalkan iuran untuk ${due.member?.full_name || 'anggota'}?`);
+    if (!confirmCancel) return;
+
+    try {
+      await cancelProgramDues(tenantId, due.id);
+      toast.success('Iuran berhasil dibatalkan.');
+      await loadData();
+    } catch (err) {
+      toast.error(err.message || 'Gagal membatalkan iuran.');
+    }
+  };
+
   // --- Handlers Ekspor & Cetak ---
   const handleExportCSV = () => {
     if (!program) return;
@@ -445,6 +601,21 @@ export default function ProgramDetail() {
       ['--- DAFTAR TRANSAKSI ACARA ---'],
       ['Tanggal', 'Jenis', 'Pos Anggaran', 'Seksi', 'Pihak/Sumber/Penerima', 'Keterangan', 'Jumlah (Rp)'],
       ...transRows,
+      [],
+      ['--- DAFTAR IURAN PANITIA ---'],
+      ['Nama Anggota', 'Nominal (Rp)', 'Jatuh Tempo', 'Status'],
+      ...duesList.map((d) => [
+        d.member?.full_name || d.member?.name || `Anggota ${d.member_id}`,
+        d.amount,
+        d.due_date || '-',
+        d.status === 'paid'
+          ? 'Lunas'
+          : d.status === 'pending_verification'
+          ? 'Menunggu Verifikasi'
+          : d.status === 'cancelled'
+          ? 'Dibatalkan'
+          : 'Belum Bayar',
+      ]),
     ];
 
     const csv = Papa.unparse(csvData);
@@ -657,6 +828,20 @@ export default function ProgramDetail() {
             {combinedTransactions.length}
           </span>
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('dues')}
+          className={`py-3 px-4 font-medium text-sm border-b-2 transition-colors flex items-center gap-1.5 ${
+            activeTab === 'dues'
+              ? 'border-forest-600 text-forest-700 dark:text-forest-400 dark:border-forest-400'
+              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'
+          }`}
+        >
+          <span>Iuran</span>
+          <span className="px-1.5 py-0.5 rounded-full text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+            {duesList.length}
+          </span>
+        </button>
       </div>
 
       {/* TAB 1: RINGKASAN */}
@@ -815,6 +1000,32 @@ export default function ProgramDetail() {
                         </tr>
                       )}
                     </>
+                  )}
+
+                  {/* Baris Iuran Panitia (PANITIA-2.3) */}
+                  {(summary.dues?.billed || 0) > 0 && (
+                    <tr className="bg-sky-50/50 dark:bg-sky-950/20 text-slate-700 dark:text-slate-300">
+                      <td className="py-3 px-4 font-medium">Iuran panitia</td>
+                      <td className="py-3 px-4">
+                        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          Pemasukan
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right text-slate-400 font-medium">
+                        {formatRupiah(summary.dues.billed)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-semibold text-emerald-600">
+                        {formatRupiah(summary.dues.collected)}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        {formatRupiah(summary.dues.collected - summary.dues.billed)}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        {summary.dues.billed > 0
+                          ? `${Math.round((summary.dues.collected / summary.dues.billed) * 100)}%`
+                          : '0%'}
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>
@@ -1120,6 +1331,445 @@ export default function ProgramDetail() {
             </div>
           </div>
         </div>
+
+      {/* TAB 4: IURAN PANITIA (PANITIA-2.3) */}
+      <div
+        data-testid="tab-section-dues"
+        className={`space-y-6 ${activeTab === 'dues' ? 'block' : 'hidden print:block'}`}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Iuran Panitia Acara</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Iuran wajib kepanitiaan untuk mendanai kegiatan {program?.name}.
+            </p>
+          </div>
+          {canGenerateBilling && (
+            <div className="flex items-center gap-2 print:hidden">
+              <button
+                type="button"
+                onClick={handleOpenCreateDuesModal}
+                className="pv-button-primary flex items-center gap-1.5 text-xs sm:text-sm"
+              >
+                <AiOutlinePlus className="w-4 h-4" />
+                <span>Terbitkan Iuran</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Info Rekening Penerima */}
+        {!tenantBankAccount ? (
+          <div data-testid="missing-bank-alert" className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-950/30 dark:border-amber-900 dark:text-amber-300 flex items-center justify-between gap-4 text-xs sm:text-sm print:hidden">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">Perhatian:</span>
+              <span>Isi rekening penerima di Pengaturan agar anggota bisa transfer.</span>
+            </div>
+            {tenantAccess.canManageSettings && (
+              <button
+                type="button"
+                onClick={() => navigate(`/t/${tenantId}/settings`)}
+                className="text-amber-900 dark:text-amber-200 underline font-semibold shrink-0"
+              >
+                Pengaturan
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 flex items-center gap-2">
+            <span className="font-medium text-slate-500">Rekening Penerima:</span>
+            <span className="font-bold text-slate-800 dark:text-white">
+              {tenantBankAccount.bank_name} {tenantBankAccount.account_number}
+            </span>
+            <span>a.n. {tenantBankAccount.account_holder}</span>
+          </div>
+        )}
+
+        {/* 5 Kartu Ringkasan Iuran */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="pv-card p-3.5 border border-slate-200 dark:border-slate-800">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">
+              Anggota Ditagih
+            </span>
+            <span className="text-lg font-bold text-slate-900 dark:text-white">
+              {summary.dues?.count || duesList.length} orang
+            </span>
+          </div>
+          <div className="pv-card p-3.5 border border-slate-200 dark:border-slate-800">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">
+              Total Ditagih
+            </span>
+            <span className="text-lg font-bold text-slate-900 dark:text-white">
+              {formatRupiah(summary.dues?.billed || 0)}
+            </span>
+          </div>
+          <div className="pv-card p-3.5 border border-slate-200 dark:border-slate-800">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">
+              Terkumpul
+            </span>
+            <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+              {formatRupiah(summary.dues?.collected || 0)}
+            </span>
+          </div>
+          <div className="pv-card p-3.5 border border-slate-200 dark:border-slate-800">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">
+              Menunggu Verifikasi
+            </span>
+            <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+              {formatRupiah(summary.dues?.pending || 0)}
+            </span>
+          </div>
+          <div className="pv-card p-3.5 border border-slate-200 dark:border-slate-800 col-span-2 sm:col-span-1">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">
+              Belum Bayar
+            </span>
+            <span className="text-lg font-bold text-amber-600 dark:text-amber-400">
+              {summary.dues?.unpaidCount || 0} orang
+            </span>
+          </div>
+        </div>
+
+        {/* Tabel Anggota Iuran */}
+        <div className="pv-card border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs sm:text-sm">
+              <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                <tr>
+                  <th className="py-2.5 px-4 font-medium">Nama Anggota</th>
+                  <th className="py-2.5 px-4 font-medium text-right">Nominal</th>
+                  <th className="py-2.5 px-4 font-medium">Jatuh Tempo</th>
+                  <th className="py-2.5 px-4 font-medium">Status</th>
+                  <th className="py-2.5 px-4 font-medium text-center print:hidden">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {duesList.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400 text-xs">
+                      Belum ada iuran yang diterbitkan untuk acara ini.
+                    </td>
+                  </tr>
+                ) : (
+                  duesList.map((due) => {
+                    const memberName = due.member?.full_name || due.member?.name || `Anggota ${due.member_id}`;
+                    const waMessage = buildProgramDuesReminderMessage({
+                      memberName,
+                      programName: program?.name,
+                      amount: due.amount,
+                      dueDate: due.due_date,
+                      bankAccount: tenantBankAccount,
+                      tenantName: activeTenant?.name,
+                      appUrl: typeof window !== 'undefined' ? `${window.location.origin}/t/${tenantId}/programs/${programId}` : '',
+                    });
+                    const waUrl = buildWaLink(due.member?.phone, waMessage);
+
+                    return (
+                      <tr key={due.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-3 px-4 font-medium text-slate-900 dark:text-white">
+                          <div>{memberName}</div>
+                          {due.member?.phone && (
+                            <div className="text-xs text-slate-400">{due.member.phone}</div>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-right font-semibold text-slate-800 dark:text-slate-200">
+                          {formatRupiah(due.amount)}
+                        </td>
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
+                          {due.due_date ? formatDate(due.due_date) : '-'}
+                        </td>
+                        <td className="py-3 px-4">
+                          {due.status === 'paid' && (
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300">
+                              Lunas
+                            </span>
+                          )}
+                          {due.status === 'pending_verification' && (
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300">
+                              Menunggu verifikasi
+                            </span>
+                          )}
+                          {due.status === 'unpaid' && (
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300">
+                              Belum bayar
+                            </span>
+                          )}
+                          {due.status === 'cancelled' && (
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400">
+                              Dibatalkan
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-center print:hidden">
+                          <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                            {due.status === 'unpaid' && canRecordCash && (
+                              <button
+                                type="button"
+                                onClick={() => handleRecordCash(due)}
+                                className="px-2 py-1 text-xs font-medium rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 transition-colors"
+                                title="Catat Tunai"
+                              >
+                                Catat Tunai
+                              </button>
+                            )}
+                            {due.status === 'unpaid' && (
+                              <a
+                                href={waUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2 py-1 text-xs font-medium rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 transition-colors inline-block"
+                                title="Ingatkan via WA"
+                              >
+                                Ingatkan via WA
+                              </a>
+                            )}
+                            {due.status === 'unpaid' && canGenerateBilling && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditDueAmount(due)}
+                                className="px-2 py-1 text-xs font-medium rounded text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors"
+                                title="Ubah Nominal"
+                              >
+                                Ubah Nominal
+                              </button>
+                            )}
+                            {due.status === 'unpaid' && canGenerateBilling && (
+                              <button
+                                type="button"
+                                onClick={() => handleCancelDue(due)}
+                                className="px-2 py-1 text-xs font-medium rounded text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                                title="Batalkan"
+                              >
+                                Batalkan
+                              </button>
+                            )}
+                            {due.status === 'pending_verification' && canVerifyPayments && (
+                              <button
+                                type="button"
+                                onClick={() => navigate(`/t/${tenantId}/verification`)}
+                                className="px-2 py-1 text-xs font-medium rounded bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300 transition-colors"
+                                title="Verifikasi Pembayaran"
+                              >
+                                Verifikasi
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal Terbitkan Iuran (PANITIA-2.3) */}
+      <Modal
+        open={isCreateDuesModalOpen}
+        onClose={() => !isSubmittingDues && setIsCreateDuesModalOpen(false)}
+        title="Terbitkan Iuran Acara"
+        size="md"
+      >
+        <form onSubmit={handleSubmitCreateDues} className="space-y-4">
+          <div>
+            <label htmlFor="dues-amount" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Nominal per Anggota (Rp) <span className="text-rose-500">*</span>
+            </label>
+            <input
+              id="dues-amount"
+              type="number"
+              min="1"
+              required
+              placeholder="Contoh: 50000"
+              value={duesFormData.amount}
+              onChange={(e) => setDuesFormData({ ...duesFormData, amount: e.target.value })}
+              className="pv-input w-full"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="dues-due-date" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Jatuh Tempo <span className="text-rose-500">*</span>
+            </label>
+            <input
+              id="dues-due-date"
+              type="date"
+              required
+              value={duesFormData.dueDate}
+              onChange={(e) => setDuesFormData({ ...duesFormData, dueDate: e.target.value })}
+              className="pv-input w-full"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="dues-note" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Catatan (Opsional)
+            </label>
+            <input
+              id="dues-note"
+              type="text"
+              placeholder="Contoh: Iuran operasional panitia pentas seni"
+              value={duesFormData.note}
+              onChange={(e) => setDuesFormData({ ...duesFormData, note: e.target.value })}
+              className="pv-input w-full"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Pilih Anggota Ditagih ({duesFormData.selectedMemberIds.length} dipilih) <span className="text-rose-500">*</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDuesFormData({
+                      ...duesFormData,
+                      selectedMemberIds: approvedMembers.map((m) => m.id),
+                    })
+                  }
+                  className="text-xs text-forest-700 dark:text-forest-400 hover:underline"
+                >
+                  Pilih Semua
+                </button>
+                <span className="text-slate-300">|</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDuesFormData({
+                      ...duesFormData,
+                      selectedMemberIds: [],
+                    })
+                  }
+                  className="text-xs text-slate-500 hover:underline"
+                >
+                  Batal Semua
+                </button>
+              </div>
+            </div>
+
+            <div className="max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-lg p-2 space-y-1">
+              {approvedMembers.length === 0 ? (
+                <p className="text-xs text-slate-400 text-center py-4">Belum ada anggota terdaftar.</p>
+              ) : (
+                approvedMembers.map((m) => {
+                  const isChecked = duesFormData.selectedMemberIds.includes(m.id);
+                  const hasDue = duesList.some(
+                    (d) => d.member_id === m.id && d.status !== 'cancelled'
+                  );
+                  return (
+                    <label
+                      key={m.id}
+                      className="flex items-center justify-between p-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded cursor-pointer text-xs"
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setDuesFormData({
+                                ...duesFormData,
+                                selectedMemberIds: [...duesFormData.selectedMemberIds, m.id],
+                              });
+                            } else {
+                              setDuesFormData({
+                                ...duesFormData,
+                                selectedMemberIds: duesFormData.selectedMemberIds.filter(
+                                  (id) => id !== m.id
+                                ),
+                              });
+                            }
+                          }}
+                          className="rounded text-forest-600 focus:ring-forest-500"
+                        />
+                        <span className="font-medium text-slate-800 dark:text-slate-200">
+                          {m.full_name || m.name}
+                        </span>
+                        {m.is_owner && (
+                          <span className="px-1.5 py-0.2 rounded text-[10px] bg-amber-50 text-amber-700 border border-amber-200">
+                            Owner
+                          </span>
+                        )}
+                      </div>
+                      {hasDue && (
+                        <span className="text-[11px] text-slate-400 italic">
+                          (Sudah ada iuran)
+                        </span>
+                      )}
+                    </label>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+            <button
+              type="button"
+              disabled={isSubmittingDues}
+              onClick={() => setIsCreateDuesModalOpen(false)}
+              className="pv-button-secondary text-xs sm:text-sm"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmittingDues || duesFormData.selectedMemberIds.length === 0}
+              className="pv-button-primary text-xs sm:text-sm"
+            >
+              {isSubmittingDues ? 'Menerbitkan...' : 'Terbitkan Iuran'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal Ubah Nominal Iuran (PANITIA-2.3) */}
+      <Modal
+        open={isEditDueModalOpen}
+        onClose={() => !isSubmittingEditDue && setIsEditDueModalOpen(false)}
+        title="Ubah Nominal Iuran"
+        size="sm"
+      >
+        <form onSubmit={handleSubmitEditDueAmount} className="space-y-4">
+          <div>
+            <p className="text-xs text-slate-500 mb-2">
+              Ubah nominal iuran untuk <strong>{dueToEdit?.member?.full_name || 'anggota'}</strong>.
+            </p>
+            <label htmlFor="edit-due-amount" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Nominal Baru (Rp) <span className="text-rose-500">*</span>
+            </label>
+            <input
+              id="edit-due-amount"
+              type="number"
+              min="1"
+              required
+              value={editDueAmount}
+              onChange={(e) => setEditDueAmount(e.target.value)}
+              className="pv-input w-full"
+            />
+          </div>
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+            <button
+              type="button"
+              disabled={isSubmittingEditDue}
+              onClick={() => setIsEditDueModalOpen(false)}
+              className="pv-button-secondary text-xs sm:text-sm"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmittingEditDue}
+              className="pv-button-primary text-xs sm:text-sm"
+            >
+              {isSubmittingEditDue ? 'Menyimpan...' : 'Simpan'}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Modal Edit Acara */}
       <Modal

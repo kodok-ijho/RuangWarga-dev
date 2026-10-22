@@ -19,6 +19,9 @@ let mockTenantAccess = {
   canRecordIncome: true,
   canManageExpenses: true,
   canViewReports: true,
+  canGenerateBilling: true,
+  canRecordCash: true,
+  canVerifyPayments: true,
 };
 
 let mockSubscriptionGate = {
@@ -71,6 +74,11 @@ vi.mock('../../services/tenantOperationalService', async () => {
     deleteBudgetItem: vi.fn(),
     fetchProgramTransactions: vi.fn(),
     fetchTenantMembers: vi.fn(),
+    createProgramDues: vi.fn(),
+    updateProgramDuesAmount: vi.fn(),
+    cancelProgramDues: vi.fn(),
+    recordProgramDuesCash: vi.fn(),
+    getTenantBankAccount: vi.fn(),
   };
 });
 
@@ -167,6 +175,9 @@ describe('PANITIA-1.7: ProgramDetail Page', () => {
       canRecordIncome: true,
       canManageExpenses: true,
       canViewReports: true,
+      canGenerateBilling: true,
+      canRecordCash: true,
+      canVerifyPayments: true,
     };
     mockSubscriptionGate = {
       canTransact: true,
@@ -333,6 +344,152 @@ describe('PANITIA-1.7: ProgramDetail Page', () => {
 
     await waitFor(() => {
       expect(screen.queryByText('Ubah Status Acara')).toBeNull();
+    });
+  });
+
+  describe('PANITIA-2.3: Tab Iuran di ProgramDetail', () => {
+    const mockDues = [
+      {
+        id: 'due-1',
+        member_id: 'm-1',
+        member: { id: 'm-1', full_name: 'Budi Santoso', phone: '081234567890' },
+        amount: 50000,
+        due_date: '2026-11-20',
+        status: 'unpaid',
+      },
+      {
+        id: 'due-2',
+        member_id: 'm-2',
+        member: { id: 'm-2', full_name: 'Siti Aminah', phone: '089876543210' },
+        amount: 50000,
+        due_date: '2026-11-20',
+        status: 'paid',
+      },
+    ];
+
+    beforeEach(() => {
+      tenantOperationalService.fetchProgram.mockResolvedValue(mockProgram);
+      tenantOperationalService.fetchBudgetItems.mockResolvedValue(mockBudgetItems);
+      tenantOperationalService.fetchProgramTransactions.mockResolvedValue({
+        incomes: mockTransactions.incomes,
+        expenses: mockTransactions.expenses,
+        dues: mockDues,
+      });
+      tenantOperationalService.fetchTenantMembers.mockResolvedValue([
+        { id: 'm-1', full_name: 'Budi Santoso', phone: '081234567890', status: 'approved' },
+        { id: 'm-2', full_name: 'Siti Aminah', phone: '089876543210', status: 'approved' },
+        { id: 'm-3', full_name: 'Doni Pratama', phone: '081122334455', status: 'approved' },
+      ]);
+      tenantOperationalService.createProgramDues.mockResolvedValue({ created: 1, skipped: 2 });
+    });
+
+    it('tab Iuran menampilkan status anggota dan ringkasan', async () => {
+      renderProgramDetail();
+
+      await screen.findByText('Pentas Seni Tahunan 2026');
+
+      // Klik tab Iuran
+      const duesTabBtn = screen.getByRole('button', { name: /^Iuran/i });
+      fireEvent.click(duesTabBtn);
+
+      // Anggota dan badge status tampil
+      expect(await screen.findByText('Budi Santoso')).toBeTruthy();
+      expect(screen.getByText('Siti Aminah')).toBeTruthy();
+      expect(screen.getByText('Belum bayar')).toBeTruthy();
+      expect(screen.getByText('Lunas')).toBeTruthy();
+
+      // Ringkasan iuran
+      expect(screen.getByText('Total Ditagih')).toBeTruthy();
+      expect(screen.getByText('Terkumpul')).toBeTruthy();
+    });
+
+    it('form menerbitkan memanggil createProgramDues dengan anggota terpilih', async () => {
+      renderProgramDetail();
+
+      await screen.findByText('Pentas Seni Tahunan 2026');
+
+      const duesTabBtn = screen.getByRole('button', { name: /^Iuran/i });
+      fireEvent.click(duesTabBtn);
+
+      const terbitkanBtn = await screen.findByRole('button', { name: /Terbitkan Iuran/i });
+      fireEvent.click(terbitkanBtn);
+
+      expect(await screen.findByText('Terbitkan Iuran Acara')).toBeTruthy();
+
+      // Isi nominal
+      const amountInput = screen.getByLabelText(/Nominal per Anggota/i);
+      fireEvent.change(amountInput, { target: { value: '75000' } });
+
+      // Submit
+      const submitButtons = screen.getAllByRole('button', { name: /^Terbitkan Iuran$/i });
+      const submitBtn = submitButtons.find((b) => b.getAttribute('type') === 'submit') || submitButtons[submitButtons.length - 1];
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(tenantOperationalService.createProgramDues).toHaveBeenCalledWith(
+          'tenant-panitia-1',
+          'prog-1',
+          expect.objectContaining({
+            amount: 75000,
+            memberIds: expect.any(Array),
+          })
+        );
+      });
+    });
+
+    it('tombol tulis tersembunyi untuk anggota biasa', async () => {
+      mockTenantAccess = {
+        canManagePrograms: false,
+        canManageBudget: false,
+        canRecordIncome: false,
+        canManageExpenses: false,
+        canViewReports: true,
+        canGenerateBilling: false,
+        canRecordCash: false,
+        canVerifyPayments: false,
+      };
+
+      renderProgramDetail();
+
+      await screen.findByText('Pentas Seni Tahunan 2026');
+
+      const duesTabBtn = screen.getByRole('button', { name: /^Iuran/i });
+      fireEvent.click(duesTabBtn);
+
+      // Pastikan tabel iuran tampil tapi tombol-tombol aksi tulis tidak tampil
+      expect(await screen.findByText('Budi Santoso')).toBeTruthy();
+      expect(screen.queryByRole('button', { name: /Terbitkan Iuran/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /Catat Tunai/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /Ubah Nominal/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /Batalkan/i })).toBeNull();
+
+      // Reset mockTenantAccess
+      mockTenantAccess = {
+        canManagePrograms: true,
+        canManageBudget: true,
+        canRecordIncome: true,
+        canManageExpenses: true,
+        canViewReports: true,
+        canGenerateBilling: true,
+        canRecordCash: true,
+        canVerifyPayments: true,
+      };
+    });
+
+    it('tombol WA membentuk link wa.me', async () => {
+      renderProgramDetail();
+
+      await screen.findByText('Pentas Seni Tahunan 2026');
+
+      const duesTabBtn = screen.getByRole('button', { name: /^Iuran/i });
+      fireEvent.click(duesTabBtn);
+
+      const waLink = await screen.findByRole('link', { name: /Ingatkan via WA/i });
+      expect(waLink).toBeTruthy();
+      const href = waLink.getAttribute('href');
+      expect(href).toContain('https://wa.me/6281234567890?text=');
+      expect(href).toContain(encodeURIComponent('Pentas Seni Tahunan 2026'));
+      expect(href).toContain(encodeURIComponent('50.000'));
     });
   });
 });
