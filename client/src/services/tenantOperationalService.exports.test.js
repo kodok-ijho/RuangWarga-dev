@@ -48,6 +48,7 @@ const EXPECTED_EXPORTS = [
   "fetchArisanRounds",
   "fetchBillingAutoRuns",
   "fetchBudgetItems",
+  "fetchMyArisanBills",
   "fetchMyJoinRequests",
   "fetchMyProgramDues",
   "fetchPendingTenantMembers",
@@ -86,6 +87,7 @@ const EXPECTED_EXPORTS = [
   "getInviteDetails",
   "getProgramAccessState",
   "getProgramDocumentUrl",
+  "getRoundContributionSummary",
   "getTenantBankAccount",
   "importTenantUnitsCSV",
   "isLegacyQrisEnabled",
@@ -133,9 +135,9 @@ const EXPECTED_EXPORTS = [
 ];
 
 describe('tenantOperationalService Exports Guard (DEBT-1.4)', () => {
-  it('harus mengekspor 128 fungsi/konstanta yang sama persis', () => {
+  it('harus mengekspor 130 fungsi/konstanta yang sama persis', () => {
     const exportsList = Object.keys(tenantOperationalService).sort();
     expect(exportsList).toEqual(EXPECTED_EXPORTS);
-    expect(exportsList.length).toBe(128);
+    expect(exportsList.length).toBe(130);
   });
 });

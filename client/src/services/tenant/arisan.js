@@ -25,6 +25,11 @@ export async function fetchArisanRounds(tenantId) {
         total_pool_amount: 3000000,
         winner_member_id: null,
         drawn_at: null,
+        drawn_by: null,
+        eligible_snapshot: null,
+        excluded_snapshot: null,
+        operator: null,
+        winner: null,
         created_at: new Date().toISOString(),
       },
     ];
@@ -42,6 +47,8 @@ export async function fetchArisanRounds(tenantId) {
       total_pool_amount,
       drawn_at,
       drawn_by,
+      eligible_snapshot,
+      excluded_snapshot,
       notes,
       created_at,
       winner:winner_member_id (
@@ -218,35 +225,58 @@ export async function generateArisanRoundBills(tenantId, roundId, { dueDate } = 
 }
 
 /**
- * Mengambil daftar tagihan iuran peserta untuk suatu putaran arisan
+ * Mengambil daftar tagihan iuran peserta untuk suatu putaran arisan (ARISAN-1.2)
+ * Mencocokkan HANYA metadata->>round_id, membawa member:tenant_members(id, full_name, phone) dan status pembayaran terakhir.
  */
-export async function fetchArisanRoundBills(tenantId, roundId, period) {
-  if (!tenantId) return [];
+export async function fetchArisanRoundBills(tenantId, roundId) {
+  if (!tenantId || !roundId) return [];
 
   if (IS_DEMO || String(tenantId).startsWith('demo-')) {
-    return [
+    const demoBills = [
       {
-        id: 'demo-bill-1',
+        id: `demo-bill-${roundId}-1`,
         tenant_id: tenantId,
         member_id: 'demo-member-1',
         amount: 300000,
         status: 'paid',
-        period: period || 'Putaran 1',
-        tenant_members: { full_name: 'Ibu Rina', phone: '08123456789' },
+        period: 'Putaran 1',
+        metadata: { round_id: String(roundId), type: 'arisan_contribution' },
+        tenant_members: { id: 'demo-member-1', full_name: 'Ibu Rina', phone: '08123456789' },
+        member: { id: 'demo-member-1', full_name: 'Ibu Rina', phone: '08123456789' },
+        latestPayment: { id: 'demo-pay-1', status: 'approved', method: 'cash' },
+        payments: { id: 'demo-pay-1', status: 'approved', method: 'cash' },
       },
       {
-        id: 'demo-bill-2',
+        id: `demo-bill-${roundId}-2`,
         tenant_id: tenantId,
         member_id: 'demo-member-2',
         amount: 300000,
         status: 'unpaid',
-        period: period || 'Putaran 1',
-        tenant_members: { full_name: 'Pak Budi', phone: '08123456780' },
+        period: 'Putaran 1',
+        metadata: { round_id: String(roundId), type: 'arisan_contribution' },
+        tenant_members: { id: 'demo-member-2', full_name: 'Pak Budi', phone: '08123456780' },
+        member: { id: 'demo-member-2', full_name: 'Pak Budi', phone: '08123456780' },
+        latestPayment: null,
+        payments: null,
+      },
+      {
+        id: `demo-bill-${roundId}-3`,
+        tenant_id: tenantId,
+        member_id: 'demo-member-3',
+        amount: 300000,
+        status: 'pending_verification',
+        period: 'Putaran 1',
+        metadata: { round_id: String(roundId), type: 'arisan_contribution' },
+        tenant_members: { id: 'demo-member-3', full_name: 'Ibu Siti', phone: '08123456781' },
+        member: { id: 'demo-member-3', full_name: 'Ibu Siti', phone: '08123456781' },
+        latestPayment: { id: 'demo-pay-3', status: 'pending', method: 'transfer' },
+        payments: { id: 'demo-pay-3', status: 'pending', method: 'transfer' },
       },
     ];
+    return demoBills;
   }
 
-  let query = supabase
+  const { data, error } = await supabase
     .from('billing_items')
     .select(`
       id,
@@ -269,22 +299,202 @@ export async function fetchArisanRoundBills(tenantId, roundId, period) {
         label
       )
     `)
-    .eq('tenant_id', tenantId);
-
-  if (roundId) {
-    query = query.filter('metadata->>round_id', 'eq', String(roundId));
-  } else if (period) {
-    query = query.eq('period', period);
-  }
-
-  const { data, error } = await query.order('created_at', { ascending: true });
+    .eq('tenant_id', tenantId)
+    .filter('metadata->>round_id', 'eq', String(roundId))
+    .order('created_at', { ascending: true });
 
   if (error) {
     console.error('[tenantOperationalService] fetchArisanRoundBills error:', error);
     throw new Error(error.message || 'Gagal memuat tagihan putaran arisan.');
   }
 
-  return data || [];
+  const billIds = (data || []).map((b) => b.id).filter(Boolean);
+  const latestPaymentsByBill = new Map();
+
+  if (billIds.length > 0) {
+    const { data: payments, error: payErr } = await supabase
+      .from('payments')
+      .select('id, billing_item_id, status, method, paid_at, created_at')
+      .eq('tenant_id', tenantId)
+      .in('billing_item_id', billIds)
+      .order('created_at', { ascending: false });
+
+    if (!payErr && payments) {
+      for (const p of payments) {
+        if (!latestPaymentsByBill.has(p.billing_item_id)) {
+          latestPaymentsByBill.set(p.billing_item_id, p);
+        }
+      }
+    }
+  }
+
+  return (data || []).map((b) => {
+    const latest = latestPaymentsByBill.get(b.id) || null;
+    const memberObj = b.tenant_members || b.member || null;
+    return {
+      ...b,
+      member: memberObj,
+      tenant_members: memberObj,
+      payments: latest,
+      latestPayment: latest,
+    };
+  });
+}
+
+/**
+ * Mengambil daftar tagihan arisan milik anggota tertentu (ARISAN-1.2)
+ * Difilter berdasarkan metadata->>type = 'arisan_contribution', diurutkan belum lunas dulu.
+ */
+export async function fetchMyArisanBills(tenantId, memberId) {
+  if (!tenantId || !memberId) return [];
+
+  if (IS_DEMO || String(tenantId).startsWith('demo-')) {
+    return [
+      {
+        id: 'demo-my-arisan-bill-1',
+        tenant_id: tenantId,
+        member_id: memberId,
+        amount: 300000,
+        status: 'unpaid',
+        period: 'Putaran 2 - November 2026',
+        due_date: '2026-11-10',
+        metadata: {
+          type: 'arisan_contribution',
+          round_id: 'demo-round-2',
+          round_number: 2,
+          period_label: 'Putaran 2 - November 2026',
+        },
+        round_number: 2,
+        round_label: 'Putaran 2 - November 2026',
+        latestPayment: null,
+        payments: null,
+      },
+      {
+        id: 'demo-my-arisan-bill-2',
+        tenant_id: tenantId,
+        member_id: memberId,
+        amount: 300000,
+        status: 'paid',
+        period: 'Putaran 1 - Oktober 2026',
+        due_date: '2026-10-10',
+        metadata: {
+          type: 'arisan_contribution',
+          round_id: 'demo-round-1',
+          round_number: 1,
+          period_label: 'Putaran 1 - Oktober 2026',
+        },
+        round_number: 1,
+        round_label: 'Putaran 1 - Oktober 2026',
+        latestPayment: { id: 'demo-pay-arisan-1', status: 'approved', method: 'transfer' },
+        payments: { id: 'demo-pay-arisan-1', status: 'approved', method: 'transfer' },
+      },
+    ];
+  }
+
+  const { data, error } = await supabase
+    .from('billing_items')
+    .select(`
+      id,
+      tenant_id,
+      unit_id,
+      member_id,
+      period,
+      amount,
+      late_fee,
+      due_date,
+      status,
+      metadata,
+      created_at
+    `)
+    .eq('tenant_id', tenantId)
+    .eq('member_id', memberId)
+    .filter('metadata->>type', 'eq', 'arisan_contribution');
+
+  if (error) {
+    console.error('[tenantOperationalService] fetchMyArisanBills error:', error);
+    throw new Error(error.message || 'Gagal memuat tagihan arisan saya.');
+  }
+
+  const billIds = (data || []).map((b) => b.id).filter(Boolean);
+  const latestPaymentsByBill = new Map();
+
+  if (billIds.length > 0) {
+    const { data: payments, error: payErr } = await supabase
+      .from('payments')
+      .select('id, billing_item_id, status, method, paid_at, created_at, proof_file_path')
+      .eq('tenant_id', tenantId)
+      .in('billing_item_id', billIds)
+      .order('created_at', { ascending: false });
+
+    if (!payErr && payments) {
+      for (const p of payments) {
+        if (!latestPaymentsByBill.has(p.billing_item_id)) {
+          latestPaymentsByBill.set(p.billing_item_id, p);
+        }
+      }
+    }
+  }
+
+  const statusPriority = {
+    unpaid: 1,
+    pending_verification: 2,
+    paid: 3,
+    cancelled: 4,
+  };
+
+  const formatted = (data || []).map((b) => {
+    const latest = latestPaymentsByBill.get(b.id) || null;
+    return {
+      ...b,
+      round_number: b.metadata?.round_number || null,
+      round_label: b.metadata?.period_label || b.period,
+      latestPayment: latest,
+      payments: latest,
+    };
+  });
+
+  return formatted.sort((a, b) => {
+    const pA = statusPriority[a.status] || 99;
+    const pB = statusPriority[b.status] || 99;
+    if (pA !== pB) return pA - pB;
+    return String(b.due_date || b.created_at || '').localeCompare(String(a.due_date || a.created_at || ''));
+  });
+}
+
+/**
+ * Menghitung ringkasan kontribusi putaran arisan (murni tanpa efek samping) (ARISAN-1.2)
+ * @param {Array} bills
+ * @returns {{ total: number, paid: number, pending: number, unpaid: number, paidAmount: number }}
+ */
+export function getRoundContributionSummary(bills = []) {
+  if (!Array.isArray(bills)) {
+    return { total: 0, paid: 0, pending: 0, unpaid: 0, paidAmount: 0 };
+  }
+
+  let paid = 0;
+  let pending = 0;
+  let unpaid = 0;
+  let paidAmount = 0;
+
+  for (const b of bills) {
+    const status = b.status || (b.latestPayment?.status === 'pending' ? 'pending_verification' : 'unpaid');
+    if (status === 'paid') {
+      paid += 1;
+      paidAmount += Number(b.amount || 0);
+    } else if (status === 'pending_verification' || b.latestPayment?.status === 'pending') {
+      pending += 1;
+    } else if (status === 'unpaid') {
+      unpaid += 1;
+    }
+  }
+
+  return {
+    total: bills.length,
+    paid,
+    pending,
+    unpaid,
+    paidAmount,
+  };
 }
 
 /**

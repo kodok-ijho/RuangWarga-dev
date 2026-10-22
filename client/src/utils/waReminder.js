@@ -279,6 +279,170 @@ export function buildProgramDuesReminderMessage({
 }
 
 /**
+ * Memformat tanggal dan jam dalam zona waktu Asia/Jakarta (WIB).
+ * Contoh output: "22 Oktober 2026, 17:30 WIB"
+ *
+ * @param {Date|string|number} dateInput
+ * @returns {string}
+ */
+export function formatDateTimeWib(dateInput) {
+  if (!dateInput) return '-';
+  const d = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  if (Number.isNaN(d.getTime())) return '-';
+
+  const parts = new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(d);
+
+  const day = parts.find((p) => p.type === 'day')?.value;
+  const month = parts.find((p) => p.type === 'month')?.value;
+  const year = parts.find((p) => p.type === 'year')?.value;
+  const hour = parts.find((p) => p.type === 'hour')?.value;
+  const minute = parts.find((p) => p.type === 'minute')?.value;
+
+  return `${day} ${month} ${year}, ${hour}:${minute} WIB`;
+}
+
+/**
+ * Susun pesan WhatsApp pengingat setoran arisan per putaran (ARISAN-1.2).
+ *
+ * @param {object} params
+ * @param {string} [params.memberName]
+ * @param {string} [params.roundLabel]
+ * @param {number} params.amount
+ * @param {string} [params.dueDate]
+ * @param {object|null} [params.bankAccount]
+ * @param {string} [params.tenantName]
+ * @param {string} [params.appUrl]
+ * @returns {string}
+ */
+export function buildArisanReminderMessage({
+  memberName,
+  roundLabel,
+  amount,
+  dueDate,
+  bankAccount,
+  tenantName,
+  appUrl,
+}) {
+  const name = memberName && String(memberName).trim() ? String(memberName).trim() : 'Bapak/Ibu';
+  const rLabel = roundLabel && String(roundLabel).trim() ? String(roundLabel).trim() : 'Arisan';
+
+  const header = `Pengingat setoran arisan ${rLabel}:`;
+
+  const amountVal = Number(amount || 0);
+  const amountText = formatRupiahWa(amountVal);
+  const dueText = formatDueDate(dueDate);
+  const dueSuffix = dueText ? ` (jatuh tempo ${dueText})` : '';
+
+  const tagihanLine = `- Setoran ${rLabel}: ${amountText}${dueSuffix}`;
+  const totalLine = `Total: ${amountText}`;
+  const tagihanSection = `${tagihanLine}\n${totalLine}`;
+
+  const resolvedAppUrl = appUrl || '';
+  const hasCompleteBank = Boolean(
+    bankAccount &&
+      typeof bankAccount === 'object' &&
+      bankAccount.bank_name &&
+      String(bankAccount.bank_name).trim() &&
+      bankAccount.account_number &&
+      String(bankAccount.account_number).trim() &&
+      bankAccount.account_holder &&
+      String(bankAccount.account_holder).trim()
+  );
+
+  let paymentLine = '';
+  if (hasCompleteBank) {
+    const bank = String(bankAccount.bank_name).trim();
+    const accNo = String(bankAccount.account_number).trim();
+    const holder = String(bankAccount.account_holder).trim();
+    paymentLine = `Pembayaran bisa ditransfer ke ${bank} ${accNo} a.n. ${holder}, lalu unggah bukti bayar di aplikasi: ${resolvedAppUrl}`;
+  } else {
+    paymentLine = `Konfirmasi pembayaran di aplikasi: ${resolvedAppUrl}`;
+  }
+
+  const tName = tenantName && String(tenantName).trim() ? String(tenantName).trim() : '';
+  const senderLine = tName ? `Pengurus ${tName}` : 'Pengurus Arisan';
+  const closingSection = `Terima kasih.\n${senderLine}`;
+
+  return `Halo ${name},\n\n${header}\n${tagihanSection}\n\n${paymentLine}\n\n${closingSection}`;
+}
+
+/**
+ * Membentuk teks pengumuman hasil kocokan arisan untuk dibagikan via WhatsApp (ARISAN-1.2).
+ *
+ * @param {object} params
+ * @param {string} [params.tenantName]
+ * @param {string} [params.roundLabel]
+ * @param {Date|string|number} [params.drawnAt]
+ * @param {string} [params.operatorName]
+ * @param {string} params.winnerName
+ * @param {string} [params.slotLabel]
+ * @param {number} params.totalPrize
+ * @param {Array} [params.eligible]
+ * @param {Array} [params.excluded]
+ * @param {string} [params.appUrl]
+ * @returns {string}
+ */
+export function buildArisanDrawShareText({
+  tenantName,
+  roundLabel,
+  drawnAt,
+  operatorName,
+  winnerName,
+  slotLabel,
+  totalPrize,
+  eligible = [],
+  excluded = [],
+  appUrl,
+}) {
+  const tName = tenantName && String(tenantName).trim() ? String(tenantName).trim() : 'Arisan';
+  const rLabel = roundLabel && String(roundLabel).trim() ? String(roundLabel).trim() : 'Putaran Arisan';
+  const opName = operatorName && String(operatorName).trim() ? String(operatorName).trim() : 'Pengurus';
+  const winName = winnerName && String(winnerName).trim() ? String(winnerName).trim() : '-';
+  const slotSuffix = slotLabel && String(slotLabel).trim() ? ` (${String(slotLabel).trim()})` : '';
+  const prizeText = formatRupiahWa(Number(totalPrize || 0));
+
+  const timeWib = formatDateTimeWib(drawnAt);
+
+  const extractName = (item) => {
+    if (!item) return '';
+    if (typeof item === 'string') return item.trim();
+    return String(item.full_name || item.name || item.member_name || '').trim();
+  };
+
+  const eligibleList = Array.isArray(eligible) ? eligible.map(extractName).filter(Boolean) : [];
+  const eligibleText = eligibleList.length > 0 ? eligibleList.join(', ') : '-';
+
+  const excludedList = Array.isArray(excluded) ? excluded.map(extractName).filter(Boolean) : [];
+
+  let text = `*HASIL PENGUKURAN & KOCOKAN ARISAN*\n${tName} — ${rLabel}\n\n`;
+  text += `Selamat kepada:\n*${winName}*${slotSuffix}\n`;
+  text += `Total Hadiah: *${prizeText}*\n\n`;
+  text += `Waktu Kocok: ${timeWib}\n`;
+  text += `Operator: ${opName}\n\n`;
+  text += `Peserta yang ikut kocok (setoran lunas):\n${eligibleText}\n`;
+
+  if (excludedList.length > 0) {
+    text += `\nBelum lunas (tidak ikut kocok): ${excludedList.join(', ')}\n`;
+  }
+
+  text += `\nHasil kocok tercatat permanen di RuangWarga dan tidak bisa diulang.`;
+
+  if (appUrl && String(appUrl).trim()) {
+    text += `\n\nDetail putaran: ${String(appUrl).trim()}`;
+  }
+
+  return text;
+}
+
+/**
  * Buat tautan wa.me dengan teks ter-encode.
  * Bila nomor tidak ada/null, kembalikan 'https://wa.me/?text=...'.
  *

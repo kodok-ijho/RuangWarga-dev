@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { supabase } from '../supabaseClient';
-import { drawArisanWinner, startNewArisanCycle, payArisanBillManual } from './arisan';
+import {
+  drawArisanWinner,
+  startNewArisanCycle,
+  payArisanBillManual,
+  fetchArisanRoundBills,
+  fetchMyArisanBills,
+  getRoundContributionSummary,
+} from './arisan';
 import { submitTenantPayment } from './payments';
 
 vi.mock('./payments', () => ({
@@ -120,6 +127,164 @@ describe('tenant/arisan - Unit Tests (VERT-1)', () => {
     it('melempar error jika tenantId atau billId tidak diisi', async () => {
       await expect(payArisanBillManual(null, BILL_ID)).rejects.toThrow('Tenant ID dan Bill ID wajib diisi.');
       await expect(payArisanBillManual(TENANT_ID, null)).rejects.toThrow('Tenant ID dan Bill ID wajib diisi.');
+    });
+  });
+
+  describe('ARISAN-1.2: getRoundContributionSummary (murni)', () => {
+    it('menghitung ringkasan kontribusi dengan benar untuk status campuran', () => {
+      const bills = [
+        { id: 'b1', amount: 300000, status: 'paid' },
+        { id: 'b2', amount: 300000, status: 'paid' },
+        { id: 'b3', amount: 300000, status: 'pending_verification' },
+        { id: 'b4', amount: 300000, status: 'unpaid' },
+        { id: 'b5', amount: 300000, status: 'unpaid', latestPayment: { status: 'pending' } },
+      ];
+
+      const summary = getRoundContributionSummary(bills);
+
+      expect(summary).toEqual({
+        total: 5,
+        paid: 2,
+        pending: 2,
+        unpaid: 1,
+        paidAmount: 600000,
+      });
+    });
+
+    it('mengembalikan 0 untuk array kosong atau non-array', () => {
+      expect(getRoundContributionSummary([])).toEqual({
+        total: 0,
+        paid: 0,
+        pending: 0,
+        unpaid: 0,
+        paidAmount: 0,
+      });
+      expect(getRoundContributionSummary(null)).toEqual({
+        total: 0,
+        paid: 0,
+        pending: 0,
+        unpaid: 0,
+        paidAmount: 0,
+      });
+    });
+  });
+
+  describe('ARISAN-1.2: fetchArisanRoundBills', () => {
+    it('mencocokkan HANYA metadata->>round_id dan mengabaikan fallback periode', async () => {
+      const mockQuery = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        filter: vi.fn().mockReturnThis(),
+        order: vi.fn().mockResolvedValue({
+          data: [
+            {
+              id: 'bill-1',
+              tenant_id: TENANT_ID,
+              member_id: 'mem-1',
+              amount: 300000,
+              status: 'unpaid',
+              metadata: { round_id: ROUND_ID },
+              tenant_members: { id: 'mem-1', full_name: 'Ibu Ani', phone: '081111' },
+            },
+          ],
+          error: null,
+        }),
+      };
+
+      const mockPaymentsQuery = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        in: vi.fn().mockReturnThis(),
+        order: vi.fn().mockResolvedValue({
+          data: [
+            {
+              id: 'pay-1',
+              billing_item_id: 'bill-1',
+              status: 'pending',
+              method: 'transfer',
+              created_at: '2026-10-22T10:00:00Z',
+            },
+          ],
+          error: null,
+        }),
+      };
+
+      fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+        if (table === 'billing_items') return mockQuery;
+        if (table === 'payments') return mockPaymentsQuery;
+        return {};
+      });
+
+      // Panggil dengan roundId dan parameter ketiga (periode dummy) yang seharusnya diabaikan
+      const result = await fetchArisanRoundBills(TENANT_ID, ROUND_ID, '2026-10');
+
+      expect(fromSpy).toHaveBeenCalledWith('billing_items');
+      expect(mockQuery.filter).toHaveBeenCalledWith('metadata->>round_id', 'eq', ROUND_ID);
+      // Memastikan TIDAK ada eq('period', ...) yang dipanggil
+      expect(mockQuery.eq).toHaveBeenCalledWith('tenant_id', TENANT_ID);
+      expect(mockQuery.eq).not.toHaveBeenCalledWith('period', '2026-10');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].member.full_name).toBe('Ibu Ani');
+      expect(result[0].latestPayment.status).toBe('pending');
+    });
+
+    it('mengembalikan array kosong jika tenantId atau roundId kosong', async () => {
+      expect(await fetchArisanRoundBills(null, ROUND_ID)).toEqual([]);
+      expect(await fetchArisanRoundBills(TENANT_ID, null)).toEqual([]);
+    });
+  });
+
+  describe('ARISAN-1.2: fetchMyArisanBills', () => {
+    it('mengembalikan tagihan arisan demo dengan urutan unpaid terlebih dahulu', async () => {
+      const bills = await fetchMyArisanBills('demo-arisan', 'demo-member-1');
+
+      expect(bills.length).toBeGreaterThanOrEqual(2);
+      expect(bills[0].status).toBe('unpaid');
+      expect(bills[0].round_label).toBeDefined();
+      expect(bills[1].status).toBe('paid');
+    });
+
+    it('mengambil dari Supabase dan mengurutkan unpaid > pending_verification > paid', async () => {
+      const mockQuery = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        filter: vi.fn().mockResolvedValue({
+          data: [
+            { id: 'b-paid', status: 'paid', amount: 300000, period: 'Putaran 1', metadata: { round_number: 1 } },
+            { id: 'b-unpaid', status: 'unpaid', amount: 300000, period: 'Putaran 3', metadata: { round_number: 3 } },
+            { id: 'b-pending', status: 'pending_verification', amount: 300000, period: 'Putaran 2', metadata: { round_number: 2 } },
+          ],
+          error: null,
+        }),
+      };
+
+      const mockPaymentsQuery = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        in: vi.fn().mockReturnThis(),
+        order: vi.fn().mockResolvedValue({
+          data: [],
+          error: null,
+        }),
+      };
+
+      fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+        if (table === 'billing_items') return mockQuery;
+        if (table === 'payments') return mockPaymentsQuery;
+        return {};
+      });
+
+      const res = await fetchMyArisanBills(TENANT_ID, 'member-uuid-1');
+
+      expect(mockQuery.filter).toHaveBeenCalledWith('metadata->>type', 'eq', 'arisan_contribution');
+      expect(res.map((b) => b.id)).toEqual(['b-unpaid', 'b-pending', 'b-paid']);
+      expect(res[0].round_number).toBe(3);
+    });
+
+    it('mengembalikan array kosong jika tenantId atau memberId null', async () => {
+      expect(await fetchMyArisanBills(null, 'member-1')).toEqual([]);
+      expect(await fetchMyArisanBills(TENANT_ID, null)).toEqual([]);
     });
   });
 });

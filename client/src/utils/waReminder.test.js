@@ -5,6 +5,9 @@ import {
   getCurrentPeriodJakarta,
   buildBillReminderMessage,
   buildProgramDuesReminderMessage,
+  buildArisanReminderMessage,
+  buildArisanDrawShareText,
+  formatDateTimeWib,
   buildWaLink,
   buildAnnouncementShareText,
   buildAnnouncementShareUrl,
@@ -326,6 +329,106 @@ describe('waReminder - buildProgramDuesReminderMessage (PANITIA-2.2)', () => {
     expect(msg).toContain('5 Des 2026');
     expect(msg).toContain('Konfirmasi pembayaran di aplikasi: https://ruangwarga.id');
     expect(msg).toContain('Pengurus');
+  });
+});
+
+describe('ARISAN-1.2: buildArisanReminderMessage', () => {
+  it('menyusun pesan pengingat setoran arisan lengkap dengan rekening bank', () => {
+    const msg = buildArisanReminderMessage({
+      memberName: 'Ibu Ratna',
+      roundLabel: 'Putaran 2 (November 2026)',
+      amount: 250000,
+      dueDate: '2026-11-15',
+      bankAccount: {
+        bank_name: 'Mandiri',
+        account_number: '1400012345678',
+        account_holder: 'Bendahara Arisan Melati',
+      },
+      tenantName: 'Arisan Melati Indah',
+      appUrl: 'https://ruangwarga.id/t/arisan/my',
+    });
+
+    expect(msg).toContain('Halo Ibu Ratna,');
+    expect(msg).toContain('Pengingat setoran arisan Putaran 2 (November 2026):');
+    expect(msg).toContain('Setoran Putaran 2 (November 2026): Rp250.000');
+    expect(msg).toContain('Total: Rp250.000');
+    expect(msg).toContain('Mandiri 1400012345678 a.n. Bendahara Arisan Melati');
+    expect(msg).toContain('https://ruangwarga.id/t/arisan/my');
+    expect(msg).toContain('Pengurus Arisan Melati Indah');
+  });
+
+  it('menggunakan fallback jika parameter kosong', () => {
+    const msg = buildArisanReminderMessage({
+      memberName: '',
+      roundLabel: '',
+      amount: 0,
+      dueDate: null,
+      bankAccount: null,
+      tenantName: '',
+      appUrl: '',
+    });
+
+    expect(msg).toContain('Halo Bapak/Ibu,');
+    expect(msg).toContain('Pengingat setoran arisan Arisan:');
+    expect(msg).toContain('Konfirmasi pembayaran di aplikasi:');
+    expect(msg).toContain('Pengurus Arisan');
+  });
+});
+
+describe('ARISAN-1.2: buildArisanDrawShareText', () => {
+  it('menyusun teks pengumuman hasil kocok lengkap (dengan peserta yang ikut dan dikecualikan)', () => {
+    const utcDate = '2026-10-22T08:30:00Z'; // 15:30 WIB
+    const text = buildArisanDrawShareText({
+      tenantName: 'Arisan Mawar',
+      roundLabel: 'Putaran 3 - Oktober 2026',
+      drawnAt: utcDate,
+      operatorName: 'Ibu Siska (Ketua)',
+      winnerName: 'Ibu Endang',
+      slotLabel: 'Slot #05',
+      totalPrize: 1500000,
+      eligible: [
+        { full_name: 'Ibu Endang' },
+        { full_name: 'Ibu Siti' },
+        { full_name: 'Ibu Ani' },
+      ],
+      excluded: [
+        { full_name: 'Pak Rudi' },
+      ],
+      appUrl: 'https://ruangwarga.id/t/arisan-mawar/arisan',
+    });
+
+    expect(text).toContain('HASIL PENGUKURAN & KOCOKAN ARISAN');
+    expect(text).toContain('Arisan Mawar — Putaran 3 - Oktober 2026');
+    expect(text).toContain('*Ibu Endang* (Slot #05)');
+    expect(text).toContain('Total Hadiah: *Rp1.500.000*');
+    expect(text).toContain('WIB');
+    expect(text).toContain('15:30 WIB');
+    expect(text).toContain('Operator: Ibu Siska (Ketua)');
+    expect(text).toContain('Peserta yang ikut kocok (setoran lunas):');
+    expect(text).toContain('Ibu Endang, Ibu Siti, Ibu Ani');
+    expect(text).toContain('Belum lunas (tidak ikut kocok): Pak Rudi');
+    expect(text).toContain('Hasil kocok tercatat permanen di RuangWarga dan tidak bisa diulang.');
+    expect(text).toContain('Detail putaran: https://ruangwarga.id/t/arisan-mawar/arisan');
+  });
+
+  it('tidak menyertakan baris belum lunas jika tidak ada peserta yang dikecualikan', () => {
+    const text = buildArisanDrawShareText({
+      tenantName: 'Arisan Sejahtera',
+      roundLabel: 'Putaran 1',
+      drawnAt: '2026-10-22T08:30:00Z',
+      operatorName: 'Pak Joko',
+      winnerName: 'Ibu Lina',
+      slotLabel: '',
+      totalPrize: 2000000,
+      eligible: [{ full_name: 'Ibu Lina' }, { full_name: 'Ibu Maya' }],
+      excluded: [],
+      appUrl: '',
+    });
+
+    expect(text).toContain('Ibu Lina');
+    expect(text).toContain('Peserta yang ikut kocok (setoran lunas):');
+    expect(text).not.toContain('Belum lunas (tidak ikut kocok)');
+    expect(text).toContain('Hasil kocok tercatat permanen di RuangWarga dan tidak bisa diulang.');
   });
 });
 
