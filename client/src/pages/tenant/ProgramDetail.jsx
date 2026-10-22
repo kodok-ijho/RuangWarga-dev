@@ -41,10 +41,11 @@ import {
 import { buildProgramDuesReminderMessage, buildWaLink } from '../../utils/waReminder';
 import { formatRupiah, formatDate } from '../../services/dataHelpers';
 import { STATUS_BADGE_CLASSES } from './Programs';
+import MemberBillPayModal from '../../components/payments/MemberBillPayModal';
 
 export default function ProgramDetail() {
   const { tenantId: routeTenantId, programId } = useParams();
-  const { activeTenant } = useTenant();
+  const { activeTenant, activeMember } = useTenant();
   const tenantId = routeTenantId || activeTenant?.id;
   const navigate = useNavigate();
 
@@ -123,6 +124,9 @@ export default function ProgramDetail() {
   const [editDueAmount, setEditDueAmount] = useState('');
   const [isSubmittingEditDue, setIsSubmittingEditDue] = useState(false);
 
+  // Modal Pay Due (Member) (PANITIA-2.4)
+  const [payDueModalBill, setPayDueModalBill] = useState(null);
+
   const loadData = useCallback(async () => {
     if (!tenantId || !programId) return;
     setIsLoading(true);
@@ -173,6 +177,14 @@ export default function ProgramDetail() {
   const tenantBankAccount = useMemo(() => {
     return getTenantBankAccount(activeTenant);
   }, [activeTenant]);
+
+  // Iuran Anggota Login di Acara Ini (PANITIA-2.4)
+  const myDueInProgram = useMemo(() => {
+    if (!activeMember?.id) return null;
+    return duesList.find(
+      (d) => d.member_id === activeMember.id && d.status !== 'cancelled'
+    );
+  }, [duesList, activeMember?.id]);
 
   // Transaksi Gabungan Diurutkan Berdasarkan Tanggal
   const combinedTransactions = useMemo(() => {
@@ -786,6 +798,47 @@ export default function ProgramDetail() {
           </div>
         </div>
       </div>
+
+      {/* Banner Iuran Pribadi (PANITIA-2.4) */}
+      {myDueInProgram && (
+        <div
+          data-testid="my-due-banner"
+          className={`p-3.5 rounded-xl border flex items-center justify-between gap-4 flex-wrap print:hidden ${
+            myDueInProgram.status === 'paid'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-900 dark:bg-emerald-950/30 dark:border-emerald-900 dark:text-emerald-300'
+              : myDueInProgram.status === 'pending_verification'
+              ? 'bg-blue-50 border-blue-200 text-blue-900 dark:bg-blue-950/30 dark:border-blue-900 dark:text-blue-300'
+              : 'bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-950/30 dark:border-amber-900 dark:text-amber-300'
+          }`}
+        >
+          <div className="flex items-center gap-2 text-xs sm:text-sm">
+            <span className="font-semibold">Iuran Anda:</span>
+            <span>{formatRupiah(myDueInProgram.amount)}</span>
+            <span>•</span>
+            {myDueInProgram.status === 'paid' && (
+              <span className="font-bold text-emerald-700 dark:text-emerald-400">Lunas</span>
+            )}
+            {myDueInProgram.status === 'pending_verification' && (
+              <span className="font-bold text-blue-700 dark:text-blue-400">
+                Menunggu verifikasi bendahara
+              </span>
+            )}
+            {myDueInProgram.status === 'unpaid' && (
+              <span className="font-bold text-amber-700 dark:text-amber-400">Belum bayar</span>
+            )}
+          </div>
+
+          {myDueInProgram.status === 'unpaid' && (
+            <button
+              type="button"
+              onClick={() => setPayDueModalBill(myDueInProgram)}
+              className="pv-button-primary px-3 py-1 text-xs"
+            >
+              Bayar
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Tab Navigation */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 space-x-2 print:hidden">
@@ -2167,6 +2220,16 @@ export default function ProgramDetail() {
           </div>
         </div>
       </Modal>
+      {/* Modal Bayar Iuran Saya (PANITIA-2.4) */}
+      {payDueModalBill && (
+        <MemberBillPayModal
+          tenantId={tenantId}
+          bill={payDueModalBill}
+          title={`Bayar Iuran: ${program?.name || 'Acara'}`}
+          onClose={() => setPayDueModalBill(null)}
+          onPaid={loadData}
+        />
+      )}
     </div>
   );
 }

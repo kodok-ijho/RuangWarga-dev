@@ -17,6 +17,16 @@ let mockSubscriptionGate = {
   isReadOnly: false,
 };
 
+let mockActiveTenant = { id: 't-panitia-1', name: 'OSIS SMA 1', type: 'panitia' };
+let mockActiveMember = { id: 'm-1', full_name: 'Budi Santoso' };
+
+vi.mock('../../context/TenantContext', () => ({
+  useTenant: () => ({
+    activeTenant: mockActiveTenant,
+    activeMember: mockActiveMember,
+  }),
+}));
+
 vi.mock('../../hooks/useTenantAccess', () => ({
   useTenantAccess: () => mockTenantAccess,
 }));
@@ -33,6 +43,7 @@ vi.mock('../../services/tenantOperationalService', async () => {
     fetchProgramsOverview: vi.fn(),
     fetchBudgetItems: vi.fn(),
     fetchProgramTransactions: vi.fn(),
+    fetchMyProgramDues: vi.fn(),
   };
 });
 
@@ -50,6 +61,7 @@ describe('PANITIA-1.8: PanitiaDashboard Component', () => {
     };
     tenantOperationalService.fetchBudgetItems.mockResolvedValue([]);
     tenantOperationalService.fetchProgramTransactions.mockResolvedValue({ incomes: [], expenses: [] });
+    tenantOperationalService.fetchMyProgramDues.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -142,5 +154,38 @@ describe('PANITIA-1.8: PanitiaDashboard Component', () => {
     expect(screen.queryByText(/Buat Acara Pertama/i)).toBeNull();
     expect(consoleErrorSpy).toHaveBeenCalled();
     consoleErrorSpy.mockRestore();
+  });
+
+  it('PANITIA-2.4: kartu Iuran Saya tampil dengan 1 iuran unpaid', async () => {
+    tenantOperationalService.fetchPrograms.mockResolvedValue([]);
+    tenantOperationalService.fetchProgramsOverview.mockResolvedValue([]);
+    tenantOperationalService.fetchMyProgramDues.mockResolvedValue([
+      {
+        id: 'due-101',
+        program_id: 'p-1',
+        program: { id: 'p-1', name: 'Pentas Seni Tahunan 2026' },
+        amount: 50000,
+        due_date: '2026-11-20',
+        status: 'unpaid',
+      },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <PanitiaDashboard
+          tenantId="t-panitia-1"
+          activeTenant={{ id: 't-panitia-1', name: 'OSIS SMA 1', type: 'panitia' }}
+          template={{ features: { hasPrograms: true } }}
+        />
+      </MemoryRouter>
+    );
+
+    // Kartu Iuran Saya muncul
+    expect(await screen.findByTestId('my-dues-card')).toBeTruthy();
+    expect(screen.getByText('Iuran Saya')).toBeTruthy();
+    expect(screen.getByText('Pentas Seni Tahunan 2026')).toBeTruthy();
+    expect(screen.getByText(/50\.000/)).toBeTruthy();
+    expect(screen.getByText('Belum bayar')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Bayar$/i })).toBeTruthy();
   });
 });

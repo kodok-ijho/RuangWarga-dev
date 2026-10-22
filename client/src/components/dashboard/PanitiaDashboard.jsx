@@ -8,25 +8,32 @@ import {
   AiOutlineWallet,
   AiOutlineInbox,
 } from 'react-icons/ai';
+import { useTenant } from '../../context/TenantContext';
 import { useTenantAccess } from '../../hooks/useTenantAccess';
 import { useSubscriptionGate } from '../../hooks/useSubscriptionGate';
 import {
   fetchProgramsOverview,
+  fetchMyProgramDues,
   summarizeProgram,
   PROGRAM_STATUS_LABELS,
 } from '../../services/tenantOperationalService';
 import { formatRupiah, formatDate } from '../../services/dataHelpers';
 import { STATUS_BADGE_CLASSES } from '../../pages/tenant/Programs';
+import MemberBillPayModal from '../payments/MemberBillPayModal';
 
 export function PanitiaDashboard({
   tenantId,
-  activeTenant,
+  activeTenant: propActiveTenant,
   template,
+  activeMember: propActiveMember,
 }) {
   const navigate = useNavigate();
   const tenantAccess = useTenantAccess();
   const { canTransact } = useSubscriptionGate();
+  const { activeTenant: contextActiveTenant, activeMember: contextActiveMember } = useTenant();
 
+  const activeTenant = propActiveTenant || contextActiveTenant;
+  const activeMember = propActiveMember || contextActiveMember;
   const tid = activeTenant?.id || tenantId;
 
   const canManagePrograms = Boolean(tenantAccess.canManagePrograms && canTransact);
@@ -35,6 +42,8 @@ export function PanitiaDashboard({
 
   const [programs, setPrograms] = useState([]);
   const [summaries, setSummaries] = useState({});
+  const [myDues, setMyDues] = useState([]);
+  const [selectedBillToPay, setSelectedBillToPay] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
@@ -43,8 +52,14 @@ export function PanitiaDashboard({
     setIsLoading(true);
     setLoadError(null);
     try {
-      const overviewData = await fetchProgramsOverview(tid);
+      const [overviewData, myDuesData] = await Promise.all([
+        fetchProgramsOverview(tid),
+        activeMember?.id
+          ? fetchMyProgramDues(tid, activeMember.id).catch(() => [])
+          : Promise.resolve([]),
+      ]);
       setPrograms(overviewData || []);
+      setMyDues(myDuesData || []);
 
       const sumMap = {};
       for (const p of overviewData || []) {
@@ -57,7 +72,7 @@ export function PanitiaDashboard({
     } finally {
       setIsLoading(false);
     }
-  }, [tid]);
+  }, [tid, activeMember?.id]);
 
   useEffect(() => {
     loadData();
@@ -112,6 +127,77 @@ export function PanitiaDashboard({
           )}
         </div>
       </div>
+
+      {/* ── Kartu Iuran Saya (PANITIA-2.4) ─────────────────────────────── */}
+      {myDues.length > 0 && (
+        <div data-testid="my-dues-card" className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">💳</span>
+              <h2 className="text-sm sm:text-base font-bold text-slate-900">
+                Iuran Saya
+              </h2>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-forest-50 font-semibold text-forest-700">
+                {myDues.length}
+              </span>
+            </div>
+          </div>
+
+          <div className="divide-y divide-slate-100">
+            {myDues.map((due) => {
+              const progName = due.program?.name || due.metadata?.program_name || 'Acara';
+              return (
+                <div key={due.id} className="py-2.5 flex items-center justify-between gap-3 flex-wrap">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900">{progName}</h3>
+                    <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                      <span>{formatRupiah(due.amount)}</span>
+                      {due.due_date && (
+                        <>
+                          <span>•</span>
+                          <span>Jatuh tempo: {formatDate(due.due_date)}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {due.status === 'paid' && (
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        Lunas
+                      </span>
+                    )}
+                    {due.status === 'pending_verification' && (
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                        Menunggu verifikasi bendahara
+                      </span>
+                    )}
+                    {due.status === 'unpaid' && (
+                      <>
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                          Belum bayar
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedBillToPay(due)}
+                          className="pv-button-primary px-3 py-1 text-xs"
+                        >
+                          Bayar
+                        </button>
+                      </>
+                    )}
+                    {due.status === 'cancelled' && (
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                        Dibatalkan
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── Active Programs Section ─────────────────────────────────────── */}
       <div className="space-y-4">
@@ -276,6 +362,17 @@ export function PanitiaDashboard({
           </div>
         )}
       </div>
+
+      {/* Modal Pembayaran Iuran Anggota (PANITIA-2.4) */}
+      {selectedBillToPay && (
+        <MemberBillPayModal
+          tenantId={tid}
+          bill={selectedBillToPay}
+          title={`Bayar Iuran: ${selectedBillToPay.program?.name || selectedBillToPay.metadata?.program_name || 'Acara'}`}
+          onClose={() => setSelectedBillToPay(null)}
+          onPaid={loadData}
+        />
+      )}
     </div>
   );
 }
