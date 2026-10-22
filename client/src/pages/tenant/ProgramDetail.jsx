@@ -49,6 +49,7 @@ import {
 } from '../../services/tenantOperationalService';
 import { buildProgramDuesReminderMessage, buildWaLink } from '../../utils/waReminder';
 import { formatRupiah, formatDate } from '../../services/dataHelpers';
+import { PANITIA_PRICING } from '../../config/panitiaPricing';
 import { getLocalDateString, formatDateWIB } from '../../utils/date';
 import { STATUS_BADGE_CLASSES, ACCESS_STATE_BADGE_CLASSES } from './Programs';
 import MemberBillPayModal from '../../components/payments/MemberBillPayModal';
@@ -1000,20 +1001,20 @@ export default function ProgramDetail() {
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-300">
               {programAccess.state === 'free_trial' ? (
-                `Gratis sampai ${programAccess.until ? formatDate(programAccess.until) : '-'}. Setelah itu aktifkan Rp25.000 / 12 bulan.`
+                `Gratis sampai ${programAccess.until ? formatDate(programAccess.until) : '-'}. Setelah itu aktifkan ${formatRupiah(PANITIA_PRICING.pricePerProgram)} / ${PANITIA_PRICING.periodMonths} bulan.`
               ) : programAccess.state === 'active' ? (
-                `Aktif sampai ${programAccess.until ? formatDate(programAccess.until) : '-'}. Tarif perpanjangan Rp25.000 / 12 bulan.`
+                `Aktif sampai ${programAccess.until ? formatDate(programAccess.until) : '-'}. Tarif perpanjangan ${formatRupiah(PANITIA_PRICING.pricePerProgram)} / ${PANITIA_PRICING.periodMonths} bulan.`
               ) : programAccess.state === 'expired' ? (
-                `Masa aktif habis sejak ${programAccess.until ? formatDate(programAccess.until) : '-'}. Aktifkan kembali Rp25.000 / 12 bulan.`
+                `Masa aktif habis sejak ${programAccess.until ? formatDate(programAccess.until) : '-'}. Aktifkan kembali ${formatRupiah(PANITIA_PRICING.pricePerProgram)} / ${PANITIA_PRICING.periodMonths} bulan.`
               ) : (
-                `Belum aktif. Tarif aktivasi Rp25.000 / 12 bulan.`
+                `Belum aktif. Tarif aktivasi ${formatRupiah(PANITIA_PRICING.pricePerProgram)} / ${PANITIA_PRICING.periodMonths} bulan.`
               )}
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 shrink-0">
             <span className="text-xs font-mono font-semibold text-slate-700 dark:text-slate-300">
-              Rp25.000 / 12 bulan
+              {formatRupiah(PANITIA_PRICING.pricePerProgram)} / {PANITIA_PRICING.periodMonths} bulan
             </span>
             <div className="flex items-center gap-2">
               <button

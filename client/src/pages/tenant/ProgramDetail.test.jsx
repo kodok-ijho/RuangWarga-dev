@@ -745,9 +745,9 @@ describe('PANITIA-1.7: ProgramDetail Page', () => {
 
       const panel = screen.getByTestId('program-access-panel');
       expect(panel).toBeTruthy();
-      expect(panel.textContent).toContain('Rp25.000 / 12 bulan');
+      expect(panel.textContent).toMatch(/Rp\s*25\.000 \/ 12 bulan/);
       expect(panel.textContent).toContain('Gratis sampai');
-      expect(panel.textContent).toContain('Setelah itu aktifkan Rp25.000 / 12 bulan');
+      expect(panel.textContent).toMatch(/Setelah itu aktifkan Rp\s*25\.000 \/ 12 bulan/);
 
       const btn = screen.getByRole('button', { name: /Aktifkan \/ Perpanjang/i });
       expect(btn.disabled).toBe(true);
