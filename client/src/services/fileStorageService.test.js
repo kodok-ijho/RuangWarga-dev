@@ -124,6 +124,24 @@ describe('STOR-1.4: fileStorageService & R2 Edge Function Integration', () => {
       expect(parsed.message).toBe('Internal server error');
       expect(parsed.status).toBe(500);
     });
+
+    it('PANITIA-3.2: memetakan pesan 413 dan 415 untuk kind program_document', async () => {
+      const err413 = {
+        context: { status: 413, json: async () => ({}) },
+      };
+      const parsed413 = await parseInvokeError(err413, 'program_document');
+      expect(parsed413.message).toBe('Ukuran file melebihi batas 10 MB.');
+      expect(parsed413.status).toBe(413);
+
+      const err415 = {
+        context: { status: 415, json: async () => ({}) },
+      };
+      const parsed415 = await parseInvokeError(err415, 'program_document');
+      expect(parsed415.message).toBe(
+        'Format file tidak didukung. Gunakan PDF, Word, Excel, PowerPoint, JPG, PNG, atau WebP.'
+      );
+      expect(parsed415.status).toBe(415);
+    });
   });
 
   describe('uploadTenantFile', () => {
@@ -212,6 +230,52 @@ describe('STOR-1.4: fileStorageService & R2 Edge Function Integration', () => {
 
       expect(mockInvoke).not.toHaveBeenCalled();
       expect(path).toContain('demo-tenant-1/payments/demo-bill-1');
+    });
+
+    it('PANITIA-3.2: mode demo mengembalikan path canonical untuk kind program_document', async () => {
+      const path = await uploadTenantFile({
+        kind: 'program_document',
+        tenantId: 'demo-tenant-1',
+        programId: '22222222-2222-2222-2222-222222222222',
+        file: new File([''], 'Proposal Dies Natalis.pdf'),
+      });
+
+      expect(mockInvoke).not.toHaveBeenCalled();
+      expect(path).toMatch(
+        /^[0-9a-f-]{36}\/programs\/22222222-2222-2222-2222-222222222222\/[0-9a-f-]{36}_Proposal_Dies_Natalis\.pdf$/
+      );
+    });
+
+    it('PANITIA-3.2: mengirim FormData lengkap untuk kind program_document', async () => {
+      let passedFunctionName = '';
+      let passedBody = null;
+
+      mockInvoke.mockImplementation(async (fnName, options) => {
+        passedFunctionName = fnName;
+        passedBody = options.body;
+        return {
+          data: {
+            path: '11111111-1111-1111-1111-111111111111/programs/22222222-2222-2222-2222-222222222222/33333333-3333-3333-3333-333333333333_proposal.pdf',
+            contentType: 'application/pdf',
+            size: 1024,
+          },
+          error: null,
+        };
+      });
+
+      const file = new File(['dummy-doc'], 'proposal.pdf', { type: 'application/pdf' });
+      const path = await uploadTenantFile({
+        kind: 'program_document',
+        tenantId: '11111111-1111-1111-1111-111111111111',
+        programId: '22222222-2222-2222-2222-222222222222',
+        file,
+      });
+
+      expect(passedFunctionName).toBe('storage-upload');
+      expect(passedBody.get('kind')).toBe('program_document');
+      expect(passedBody.get('tenantId')).toBe('11111111-1111-1111-1111-111111111111');
+      expect(passedBody.get('programId')).toBe('22222222-2222-2222-2222-222222222222');
+      expect(path).toBe('11111111-1111-1111-1111-111111111111/programs/22222222-2222-2222-2222-222222222222/33333333-3333-3333-3333-333333333333_proposal.pdf');
     });
   });
 

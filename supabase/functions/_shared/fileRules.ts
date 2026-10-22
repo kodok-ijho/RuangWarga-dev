@@ -6,6 +6,7 @@
  */
 
 export const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
+export const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024; // 10 MB (PANITIA-3)
 
 export const ALLOWED_MIME = [
   'image/jpeg',
@@ -16,6 +17,18 @@ export const ALLOWED_MIME = [
 
 export type AllowedMimeType = typeof ALLOWED_MIME[number];
 
+export const ALLOWED_DOCUMENT_MIME = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+] as const;
+
+export type AllowedDocumentMimeType = typeof ALLOWED_DOCUMENT_MIME[number];
+
 export const ALLOWED_IMAGE_MIME = [
   'image/jpeg',
   'image/png',
@@ -24,17 +37,21 @@ export const ALLOWED_IMAGE_MIME = [
 
 export type AllowedImageMimeType = typeof ALLOWED_IMAGE_MIME[number];
 
-export const MIME_TO_EXTENSION: Record<AllowedMimeType, string> = {
+export const MIME_TO_EXTENSION: Record<string, string> = {
   'image/jpeg': '.jpg',
   'image/png': '.png',
   'image/webp': '.webp',
   'application/pdf': '.pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
 };
 
 // Regex path canonical disalin persis dari client/src/utils/storagePolicy.js
 export const EXPENSE_RECEIPT_PATH_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/expenses\/[12][0-9]{3}\/[a-zA-Z0-9_\-.]+$/;
 export const PAYMENT_PROOF_PATH_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/payments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[a-zA-Z0-9_\-.]+$/;
 export const ANNOUNCEMENT_IMAGE_PATH_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/announcements\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|jpeg|png|webp)$/i;
+export const PROGRAM_DOCUMENT_PATH_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/programs\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_[a-zA-Z0-9_.-]+$/;
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ISO_DATE_REGEX = /^[12][0-9]{3}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])$/;
@@ -49,10 +66,13 @@ export function isUuid(s: unknown): boolean {
 
 /**
  * Mendeteksi tipe MIME dari magic bytes file.
- * Hanya mengembalikan MIME jika cocok dengan JPEG, PNG, WebP, atau PDF.
+ * Hanya mengembalikan MIME jika cocok dengan JPEG, PNG, WebP, PDF, atau OOXML (ZIP + ekstensi docx/xlsx/pptx).
  * Selain itu mengembalikan null.
  */
-export function detectMime(bytes: Uint8Array | null | undefined): AllowedMimeType | null {
+export function detectMime(
+  bytes: Uint8Array | null | undefined,
+  fileName?: string | null
+): string | null {
   if (!bytes || !(bytes instanceof Uint8Array) || bytes.length < 3) {
     return null;
   }
@@ -101,6 +121,30 @@ export function detectMime(bytes: Uint8Array | null | undefined): AllowedMimeTyp
     bytes[3] === 0x46 // 'F'
   ) {
     return 'application/pdf';
+  }
+
+  // 5. ZIP (50 4B 03 04) -> PANITIA-3: OOXML jika ekstensi .docx / .xlsx / .pptx
+  if (
+    bytes.length >= 4 &&
+    bytes[0] === 0x50 && // 'P'
+    bytes[1] === 0x4B && // 'K'
+    bytes[2] === 0x03 &&
+    bytes[3] === 0x04
+  ) {
+    if (fileName && typeof fileName === 'string') {
+      const parts = fileName.trim().toLowerCase().split('.');
+      const ext = parts.length > 1 ? parts.pop() : '';
+      if (ext === 'docx') {
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      }
+      if (ext === 'xlsx') {
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      }
+      if (ext === 'pptx') {
+        return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      }
+    }
+    return null;
   }
 
   return null;
@@ -197,6 +241,10 @@ export function isValidPath(kind: string, path: unknown): boolean {
 
   if (kind === 'announcement_image') {
     return ANNOUNCEMENT_IMAGE_PATH_REGEX.test(path);
+  }
+
+  if (kind === 'program_document') {
+    return PROGRAM_DOCUMENT_PATH_REGEX.test(path);
   }
 
   return false;
@@ -328,6 +376,46 @@ export function buildAnnouncementImagePath(
 
   if (!isValidPath('announcement_image', path)) {
     throw new Error('Path gambar pengumuman tidak valid atau melanggar struktur canonical');
+  }
+
+  return path;
+}
+
+/**
+ * Menyusun canonical path untuk dokumen acara tenant:
+ * Format: {tenant_id}/programs/{program_id}/{uuid}_{safe_name}
+ */
+export function buildProgramDocumentPath(
+  tenantId: string,
+  programId: string,
+  uuid?: string,
+  fileName?: string,
+  detectedMime?: string | null
+): string {
+  if (!isUuid(tenantId)) {
+    throw new Error('tenantId harus berupa UUID yang valid');
+  }
+  if (!isUuid(programId)) {
+    throw new Error('programId harus berupa UUID yang valid');
+  }
+  const generatedUuid = uuid || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : '');
+  if (!isUuid(generatedUuid)) {
+    throw new Error('uuid untuk dokumen harus berupa UUID yang valid');
+  }
+  if (!fileName || typeof fileName !== 'string' || !fileName.trim()) {
+    throw new Error('fileName wajib diisi');
+  }
+
+  let finalName = fileName;
+  if (detectedMime) {
+    finalName = adjustFileNameExtension(finalName, detectedMime);
+  }
+  const safeName = sanitizeFileName(finalName);
+
+  const path = `${tenantId.trim().toLowerCase()}/programs/${programId.trim().toLowerCase()}/${generatedUuid.trim().toLowerCase()}_${safeName}`;
+
+  if (!isValidPath('program_document', path)) {
+    throw new Error('Path dokumen acara tidak valid atau melanggar struktur canonical');
   }
 
   return path;

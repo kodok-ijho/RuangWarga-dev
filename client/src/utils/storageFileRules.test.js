@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   MAX_FILE_BYTES,
+  MAX_DOCUMENT_BYTES,
   ALLOWED_MIME,
+  ALLOWED_DOCUMENT_MIME,
   detectMime,
   sanitizeFileName,
   adjustFileNameExtension,
@@ -9,8 +12,10 @@ import {
   isValidPath,
   buildPaymentProofPath,
   buildExpenseReceiptPath,
+  buildProgramDocumentPath,
   PAYMENT_PROOF_PATH_REGEX,
   EXPENSE_RECEIPT_PATH_REGEX,
+  PROGRAM_DOCUMENT_PATH_REGEX,
   clampExpiresIn,
   DEFAULT_EXPIRES_IN,
   MIN_EXPIRES_IN,
@@ -79,6 +84,26 @@ describe('STOR-1.2: fileRules helper', () => {
       expect(detectMime(undefined)).toBeNull();
       expect(detectMime(new Uint8Array([]))).toBeNull();
       expect(detectMime(new Uint8Array([0xFF, 0xD8]))).toBeNull();
+    });
+
+    it('PANITIA-3.2: mendeteksi format OOXML (docx/xlsx/pptx) dari ZIP bytes + ekstensi', () => {
+      const zipBytes = new Uint8Array([0x50, 0x4B, 0x03, 0x04, 0x14, 0x00]);
+      expect(detectMime(zipBytes, 'proposal_kegiatan.docx')).toBe(
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      );
+      expect(detectMime(zipBytes, 'rab_anggaran.xlsx')).toBe(
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      );
+      expect(detectMime(zipBytes, 'slide_presentasi.pptx')).toBe(
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+      );
+    });
+
+    it('PANITIA-3.2: menolak ZIP biasa yang bukan OOXML (.zip) atau tanpa nama file', () => {
+      const zipBytes = new Uint8Array([0x50, 0x4B, 0x03, 0x04, 0x14, 0x00]);
+      expect(detectMime(zipBytes, 'archive.zip')).toBeNull();
+      expect(detectMime(zipBytes, 'backup.tar.gz')).toBeNull();
+      expect(detectMime(zipBytes)).toBeNull();
     });
   });
 
@@ -220,6 +245,47 @@ describe('STOR-1.2: fileRules helper', () => {
       expect(() => buildExpenseReceiptPath(VALID_TENANT_ID, 'invalid-date', 'file.jpg', VALID_RECEIPT_UUID)).toThrow();
       expect(() => buildExpenseReceiptPath(VALID_TENANT_ID, '2026-05-20', '', VALID_RECEIPT_UUID)).toThrow();
       expect(() => buildExpenseReceiptPath(VALID_TENANT_ID, '2026-05-20', 'file.jpg', 'not-uuid')).toThrow();
+    });
+  });
+
+  describe('PANITIA-3.2: buildProgramDocumentPath & isValidPath', () => {
+    const VALID_PROGRAM_ID = '44444444-4444-4444-4444-444444444444';
+    const VALID_DOC_UUID = '55555555-5555-5555-5555-555555555555';
+
+    it('menyusun path canonical dokumen acara dan lolos isValidPath', () => {
+      const path = buildProgramDocumentPath(
+        VALID_TENANT_ID,
+        VALID_PROGRAM_ID,
+        VALID_DOC_UUID,
+        'Proposal Pentas Seni 2026.pdf'
+      );
+      expect(path).toBe(
+        `${VALID_TENANT_ID}/programs/${VALID_PROGRAM_ID}/${VALID_DOC_UUID}_Proposal_Pentas_Seni_2026.pdf`
+      );
+      expect(isValidPath('program_document', path)).toBe(true);
+      expect(PROGRAM_DOCUMENT_PATH_REGEX.test(path)).toBe(true);
+    });
+
+    it('menolak path dokumen jika tenant, segmen, atau format UUID salah', () => {
+      // Segmen salah (announcements bukan programs)
+      const wrongSegment = `${VALID_TENANT_ID}/announcements/${VALID_PROGRAM_ID}/${VALID_DOC_UUID}_doc.pdf`;
+      expect(isValidPath('program_document', wrongSegment)).toBe(false);
+
+      // Traversal path
+      const traversal = `${VALID_TENANT_ID}/programs/${VALID_PROGRAM_ID}/../${VALID_DOC_UUID}_doc.pdf`;
+      expect(isValidPath('program_document', traversal)).toBe(false);
+
+      // Bukan UUID
+      const invalidUuid = `not-uuid/programs/${VALID_PROGRAM_ID}/${VALID_DOC_UUID}_doc.pdf`;
+      expect(isValidPath('program_document', invalidUuid)).toBe(false);
+    });
+
+    it('memastikan jenis lama tetap lulus validasi dan tidak terpengaruh', () => {
+      const paymentPath = `${VALID_TENANT_ID}/payments/${VALID_BILLING_ITEM_ID}/1700000000000_bukti.jpg`;
+      expect(isValidPath('payment_proof', paymentPath)).toBe(true);
+
+      const expensePath = `${VALID_TENANT_ID}/expenses/2026/${VALID_RECEIPT_UUID}_nota.png`;
+      expect(isValidPath('expense_receipt', expensePath)).toBe(true);
     });
   });
 

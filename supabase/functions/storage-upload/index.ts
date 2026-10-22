@@ -2,14 +2,17 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import {
   MAX_FILE_BYTES,
+  MAX_DOCUMENT_BYTES,
   ALLOWED_MIME,
   ALLOWED_IMAGE_MIME,
+  ALLOWED_DOCUMENT_MIME,
   detectMime,
   isUuid,
   isValidPath,
   buildPaymentProofPath,
   buildExpenseReceiptPath,
   buildAnnouncementImagePath,
+  buildProgramDocumentPath,
 } from "../_shared/fileRules.ts";
 import { putObject } from "../_shared/r2.ts";
 
@@ -89,11 +92,21 @@ serve(async (req) => {
     const tenantId = formData.get("tenantId");
     const billingItemId = formData.get("billingItemId");
     const expenseDate = formData.get("expenseDate");
+    const programId = formData.get("programId");
     const file = formData.get("file");
 
-    if (!kind || (kind !== "payment_proof" && kind !== "expense_receipt" && kind !== "announcement_image")) {
+    if (
+      !kind ||
+      (kind !== "payment_proof" &&
+        kind !== "expense_receipt" &&
+        kind !== "announcement_image" &&
+        kind !== "program_document")
+    ) {
       return new Response(
-        JSON.stringify({ error: "Parameter kind harus bernilai 'payment_proof', 'expense_receipt', atau 'announcement_image'." }),
+        JSON.stringify({
+          error:
+            "Parameter kind harus bernilai 'payment_proof', 'expense_receipt', 'announcement_image', atau 'program_document'.",
+        }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -128,6 +141,18 @@ serve(async (req) => {
       if (!expenseDate || typeof expenseDate !== "string" || !dateRegex.test(expenseDate)) {
         return new Response(
           JSON.stringify({ error: "Parameter expenseDate wajib dalam format YYYY-MM-DD untuk nota pengeluaran." }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+    }
+
+    if (kind === "program_document") {
+      if (!programId || typeof programId !== "string" || !isUuid(programId)) {
+        return new Response(
+          JSON.stringify({ error: "Parameter programId wajib berupa UUID yang valid untuk dokumen acara." }),
           {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -174,9 +199,15 @@ serve(async (req) => {
     }
 
     // 5. Validasi Ukuran & Deteksi Magic Bytes
-    if (file.size > MAX_FILE_BYTES) {
+    const maxBytes = kind === "program_document" ? MAX_DOCUMENT_BYTES : MAX_FILE_BYTES;
+    if (file.size > maxBytes) {
       return new Response(
-        JSON.stringify({ error: "Ukuran file melebihi batas maksimal 5 MB." }),
+        JSON.stringify({
+          error:
+            kind === "program_document"
+              ? "Ukuran file melebihi batas maksimal 10 MB."
+              : "Ukuran file melebihi batas maksimal 5 MB.",
+        }),
         {
           status: 413,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -186,9 +217,22 @@ serve(async (req) => {
 
     const arrayBuffer = await file.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
-    const detectedMime = detectMime(bytes);
+    const detectedMime = detectMime(bytes, file.name);
 
-    if (kind === "announcement_image") {
+    if (kind === "program_document") {
+      if (!detectedMime || !(ALLOWED_DOCUMENT_MIME as readonly string[]).includes(detectedMime)) {
+        return new Response(
+          JSON.stringify({
+            error:
+              "Format file tidak didukung. Dokumen acara hanya mendukung PDF, Word, Excel, PowerPoint, JPG, PNG, dan WebP.",
+          }),
+          {
+            status: 415,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+    } else if (kind === "announcement_image") {
       if (!detectedMime || !ALLOWED_IMAGE_MIME.includes(detectedMime as any)) {
         return new Response(
           JSON.stringify({ error: "Format file tidak didukung. Gambar pengumuman hanya mendukung JPEG, PNG, dan WebP." }),
@@ -199,7 +243,7 @@ serve(async (req) => {
         );
       }
     } else {
-      if (!detectedMime || !ALLOWED_MIME.includes(detectedMime)) {
+      if (!detectedMime || !ALLOWED_MIME.includes(detectedMime as any)) {
         return new Response(
           JSON.stringify({ error: "Format file tidak didukung. Hanya JPEG, PNG, WebP, dan PDF yang diizinkan." }),
           {
@@ -234,6 +278,14 @@ serve(async (req) => {
         path = buildAnnouncementImagePath(
           tenantId,
           imageUuid,
+          detectedMime
+        );
+      } else if (kind === "program_document") {
+        path = buildProgramDocumentPath(
+          tenantId,
+          String(programId),
+          crypto.randomUUID(),
+          file.name,
           detectedMime
         );
       } else {

@@ -34,7 +34,7 @@ export function clampExpiresIn(expiresIn) {
  * @param {any} error
  * @returns {Promise<Error>}
  */
-export async function parseInvokeError(error) {
+export async function parseInvokeError(error, kind) {
   let status = error?.context?.status ?? error?.status ?? 500;
   let serverMessage = '';
 
@@ -49,9 +49,17 @@ export async function parseInvokeError(error) {
 
   let friendlyMessage = '';
   if (status === 413) {
-    friendlyMessage = 'Ukuran file melebihi batas 5 MB.';
+    friendlyMessage = kind === 'program_document'
+      ? 'Ukuran file melebihi batas 10 MB.'
+      : 'Ukuran file melebihi batas 5 MB.';
   } else if (status === 415) {
-    friendlyMessage = 'Format file tidak didukung. Gunakan JPG, PNG, WebP, atau PDF.';
+    if (kind === 'program_document') {
+      friendlyMessage = 'Format file tidak didukung. Gunakan PDF, Word, Excel, PowerPoint, JPG, PNG, atau WebP.';
+    } else if (kind === 'announcement_image') {
+      friendlyMessage = 'Format file tidak didukung. Gunakan JPG, PNG, atau WebP.';
+    } else {
+      friendlyMessage = 'Format file tidak didukung. Gunakan JPG, PNG, WebP, atau PDF.';
+    }
   } else if (status === 403) {
     friendlyMessage = 'Anda tidak memiliki izin untuk file ini.';
   } else if (status === 401) {
@@ -69,10 +77,11 @@ export async function parseInvokeError(error) {
  * Mengunggah file tenant ke Cloudflare R2 via Edge Function storage-upload.
  *
  * @param {object} params
- * @param {'payment_proof'|'expense_receipt'|'announcement_image'} params.kind - Jenis file
+ * @param {'payment_proof'|'expense_receipt'|'announcement_image'|'program_document'} params.kind - Jenis file
  * @param {string} params.tenantId - UUID tenant
  * @param {string} [params.billingItemId] - UUID billing_item (wajib jika kind === 'payment_proof')
  * @param {string} [params.expenseDate] - Tanggal ISO 'YYYY-MM-DD' (wajib jika kind === 'expense_receipt')
+ * @param {string} [params.programId] - UUID program (wajib jika kind === 'program_document')
  * @param {File} params.file - Objek File yang akan diunggah
  * @param {object} [params.client] - Supabase client instance opsional (default: singleton)
  * @returns {Promise<string>} Canonical path file yang tersimpan
@@ -82,6 +91,7 @@ export async function uploadTenantFile({
   tenantId,
   billingItemId,
   expenseDate,
+  programId,
   file,
   client = supabase,
 } = {}) {
@@ -93,6 +103,16 @@ export async function uploadTenantFile({
     if (kind === 'announcement_image') {
       return `${tenantId || 'demo-tenant'}/announcements/${Date.now()}_${fileName}`;
     }
+    if (kind === 'program_document') {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const tId = uuidRegex.test(tenantId) ? tenantId : '00000000-0000-0000-0000-000000000001';
+      const pId = uuidRegex.test(programId) ? programId : '00000000-0000-0000-0000-000000000002';
+      const docUuid = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : '00000000-0000-0000-0000-000000000003';
+      const safeName = fileName.replace(/[^a-zA-Z0-9_.-]/g, '_');
+      return `${tId}/programs/${pId}/${docUuid}_${safeName}`;
+    }
     const year = expenseDate ? String(expenseDate).slice(0, 4) : '2026';
     return `${tenantId || 'demo-tenant'}/expenses/${year}/${Date.now()}_${fileName}`;
   }
@@ -102,6 +122,7 @@ export async function uploadTenantFile({
   if (tenantId) formData.append('tenantId', tenantId);
   if (billingItemId) formData.append('billingItemId', billingItemId);
   if (expenseDate) formData.append('expenseDate', expenseDate);
+  if (programId) formData.append('programId', programId);
   if (file) formData.append('file', file);
 
   const { data, error } = await client.functions.invoke('storage-upload', {
@@ -109,7 +130,7 @@ export async function uploadTenantFile({
   });
 
   if (error) {
-    throw await parseInvokeError(error);
+    throw await parseInvokeError(error, kind);
   }
 
   if (!data?.path) {
@@ -154,7 +175,7 @@ export async function getTenantFileUrl({
   });
 
   if (error) {
-    throw await parseInvokeError(error);
+    throw await parseInvokeError(error, kind);
   }
 
   if (!data?.url) {
