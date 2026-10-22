@@ -148,7 +148,7 @@ export default function MemberBillPayModal({
           <div className="flex items-center justify-between text-xs sm:text-sm">
             <span className="text-slate-500 dark:text-slate-400">Total Tagihan</span>
             <span className="text-base font-bold text-slate-900 dark:text-white">
-              {formatRupiah(bill?.amount || 0)}
+              {formatRupiah(Number(bill?.amount || 0) + Number(bill?.late_fee || 0))}
             </span>
           </div>
           {bill?.due_date && (

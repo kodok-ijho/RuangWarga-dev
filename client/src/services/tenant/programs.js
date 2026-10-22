@@ -1189,18 +1189,29 @@ export async function deleteBudgetItem(tenantId, budgetItemId) {
  */
 export async function fetchProgramTransactions(tenantId, programId) {
   if (!tenantId || !programId) {
-    return { incomes: [], expenses: [], dues: [] };
+    return { incomes: [], expenses: [], dues: [], duesError: false };
   }
 
-  const [incomes, expenses, dues] = await Promise.all([
+  let dues = [];
+  let duesError = false;
+
+  const [incomes, expenses] = await Promise.all([
     fetchTenantIncomes(tenantId, { programId }),
     fetchTenantExpenses(tenantId, { programId }),
-    fetchProgramDues(tenantId, programId),
   ]);
+
+  try {
+    dues = await fetchProgramDues(tenantId, programId);
+  } catch (err) {
+    console.error('[programs] fetchProgramDues error:', err);
+    dues = [];
+    duesError = true;
+  }
 
   return {
     incomes: incomes || [],
     expenses: expenses || [],
     dues: dues || [],
+    duesError,
   };
 }

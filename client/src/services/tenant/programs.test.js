@@ -540,4 +540,28 @@ describe('PANITIA-1.5: Program & Budget (RAB) Services', () => {
       expect(list[1].accessUntil).toBeNull();
     });
   });
+
+  describe('PANITIA-ARISAN-1F F.3: fetchProgramTransactions resilience', () => {
+    it('dues gagal -> pemasukan dan pengeluaran tetap tampil dengan flag duesError: true', async () => {
+      const demoTenantId = 'demo-tenant-panitia-f3';
+      const prog = await createProgram(demoTenantId, { name: 'Acara Uji Dues Gagal' });
+      await createTenantIncome(demoTenantId, {
+        amount: 2500000,
+        category: 'Donasi',
+        programId: prog.id,
+        sourceName: 'Donatur A',
+      });
+
+      const programDuesModule = await import('./programDues');
+      const spyDues = vi.spyOn(programDuesModule, 'fetchProgramDues').mockRejectedValueOnce(new Error('Koneksi iuran terputus'));
+
+      const res = await fetchProgramTransactions(demoTenantId, prog.id);
+      expect(res.incomes).toHaveLength(1);
+      expect(res.incomes[0].amount).toBe(2500000);
+      expect(res.dues).toEqual([]);
+      expect(res.duesError).toBe(true);
+
+      spyDues.mockRestore();
+    });
+  });
 });

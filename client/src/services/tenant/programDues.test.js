@@ -175,7 +175,7 @@ describe('PANITIA-2.2: programDues Service', () => {
       // Update setelah lunas gagal
       await expect(
         updateProgramDuesAmount(tenantId, bill.id, 100000)
-      ).rejects.toThrow('Hanya tagihan dengan status belum bayar');
+      ).rejects.toThrow('Iuran sudah dibayar atau diajukan; muat ulang halaman.');
     });
 
     it('membatalkan tagihan hanya bila status unpaid', async () => {
@@ -197,7 +197,7 @@ describe('PANITIA-2.2: programDues Service', () => {
       // Membatalkan lagi gagal karena sudah cancelled
       await expect(
         cancelProgramDues(tenantId, bill.id)
-      ).rejects.toThrow('Hanya tagihan dengan status belum bayar');
+      ).rejects.toThrow('Iuran sudah dibayar atau diajukan; muat ulang halaman.');
     });
   });
 
@@ -314,6 +314,58 @@ describe('PANITIA-2.2: programDues Service', () => {
       });
 
       expect(res).toBeDefined();
+    });
+
+    it('mode demo submitMemberTransfer mengubah status iuran acara menjadi pending_verification', async () => {
+      const tenantId = 'demo-tenant-panitia';
+      const programId = 'demo-prog-transfer';
+
+      await createProgramDues(tenantId, programId, {
+        amount: 50000,
+        dueDate: '2026-11-20',
+        memberIds: ['m-transfer'],
+      });
+
+      const dues = await fetchProgramDues(tenantId, programId);
+      const bill = dues.find((b) => b.member_id === 'm-transfer');
+      expect(bill.status).toBe('unpaid');
+
+      const validFile = {
+        name: 'bukti_transfer.jpg',
+        size: 1024 * 50,
+        type: 'image/jpeg',
+      };
+
+      await submitMemberTransfer(tenantId, {
+        billId: bill.id,
+        proofFile: validFile,
+        memberId: 'm-transfer',
+      });
+
+      const updatedDues = await fetchProgramDues(tenantId, programId);
+      const updatedBill = updatedDues.find((b) => b.id === bill.id);
+      expect(updatedBill.status).toBe('pending_verification');
+      expect(updatedBill.latestPayment?.status).toBe('pending');
+    });
+
+    it('menerjemahkan error kode 23505 saat duplikasi iuran acara', async () => {
+      const { supabase } = await import('../supabaseClient');
+      const spy = vi.spyOn(supabase, 'from').mockReturnValue({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        neq: vi.fn().mockResolvedValue({ data: [], error: null }),
+        insert: vi.fn().mockResolvedValue({ error: { code: '23505', message: 'duplicate key' } }),
+      });
+
+      await expect(
+        createProgramDues('real-tenant', 'real-prog', {
+          amount: 50000,
+          dueDate: '2026-11-20',
+          memberIds: ['m1'],
+        })
+      ).rejects.toThrow('Sebagian anggota sudah punya iuran aktif untuk acara ini. Muat ulang lalu coba lagi.');
+
+      spy.mockRestore();
     });
   });
 });

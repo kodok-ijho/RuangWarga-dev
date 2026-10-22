@@ -303,6 +303,13 @@ export async function createProgramDues(
     if (insertErr) {
       // eslint-disable-next-line no-console
       console.error('[programDues] createProgramDues insert error:', insertErr);
+      if (
+        insertErr.code === '23505' ||
+        String(insertErr.message || '').includes('23505') ||
+        String(insertErr.details || '').includes('23505')
+      ) {
+        throw new Error('Sebagian anggota sudah punya iuran aktif untuk acara ini. Muat ulang lalu coba lagi.');
+      }
       throw insertErr;
     }
   }
@@ -329,27 +336,14 @@ export async function updateProgramDuesAmount(tenantId, billId, amount) {
   const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
   if (isDemoOrMock) {
     const bill = demoProgramDuesStore.find(
-      (b) => b.tenant_id === tenantId && b.id === billId
+      (b) => b.tenant_id === tenantId && b.id === billId && b.status === 'unpaid'
     );
-    if (!bill) throw new Error('Tagihan tidak ditemukan.');
-    if (bill.status !== 'unpaid') {
-      throw new Error('Hanya tagihan dengan status belum bayar yang dapat diubah.');
+    if (!bill) {
+      throw new Error('Iuran sudah dibayar atau diajukan; muat ulang halaman.');
     }
     bill.amount = numAmount;
     bill.updated_at = new Date().toISOString();
     return bill;
-  }
-
-  const { data: bill, error: fetchErr } = await supabase
-    .from('billing_items')
-    .select('id, status')
-    .eq('tenant_id', tenantId)
-    .eq('id', billId)
-    .single();
-
-  if (fetchErr || !bill) throw new Error('Tagihan tidak ditemukan.');
-  if (bill.status !== 'unpaid') {
-    throw new Error('Hanya tagihan dengan status belum bayar yang dapat diubah.');
   }
 
   const { data: updated, error: updateErr } = await supabase
@@ -357,13 +351,18 @@ export async function updateProgramDuesAmount(tenantId, billId, amount) {
     .update({ amount: numAmount, updated_at: new Date().toISOString() })
     .eq('tenant_id', tenantId)
     .eq('id', billId)
-    .select()
-    .single();
+    .eq('status', 'unpaid')
+    .select('id, amount, status')
+    .maybeSingle();
 
   if (updateErr) {
     // eslint-disable-next-line no-console
     console.error('[programDues] updateProgramDuesAmount error:', updateErr);
     throw updateErr;
+  }
+
+  if (!updated) {
+    throw new Error('Iuran sudah dibayar atau diajukan; muat ulang halaman.');
   }
 
   return updated;
@@ -382,27 +381,14 @@ export async function cancelProgramDues(tenantId, billId) {
   const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
   if (isDemoOrMock) {
     const bill = demoProgramDuesStore.find(
-      (b) => b.tenant_id === tenantId && b.id === billId
+      (b) => b.tenant_id === tenantId && b.id === billId && b.status === 'unpaid'
     );
-    if (!bill) throw new Error('Tagihan tidak ditemukan.');
-    if (bill.status !== 'unpaid') {
-      throw new Error('Hanya tagihan dengan status belum bayar yang dapat dibatalkan.');
+    if (!bill) {
+      throw new Error('Iuran sudah dibayar atau diajukan; muat ulang halaman.');
     }
     bill.status = 'cancelled';
     bill.updated_at = new Date().toISOString();
     return bill;
-  }
-
-  const { data: bill, error: fetchErr } = await supabase
-    .from('billing_items')
-    .select('id, status')
-    .eq('tenant_id', tenantId)
-    .eq('id', billId)
-    .single();
-
-  if (fetchErr || !bill) throw new Error('Tagihan tidak ditemukan.');
-  if (bill.status !== 'unpaid') {
-    throw new Error('Hanya tagihan dengan status belum bayar yang dapat dibatalkan.');
   }
 
   const { data: updated, error: updateErr } = await supabase
@@ -410,13 +396,18 @@ export async function cancelProgramDues(tenantId, billId) {
     .update({ status: 'cancelled', updated_at: new Date().toISOString() })
     .eq('tenant_id', tenantId)
     .eq('id', billId)
-    .select()
-    .single();
+    .eq('status', 'unpaid')
+    .select('id, status')
+    .maybeSingle();
 
   if (updateErr) {
     // eslint-disable-next-line no-console
     console.error('[programDues] cancelProgramDues error:', updateErr);
     throw updateErr;
+  }
+
+  if (!updated) {
+    throw new Error('Iuran sudah dibayar atau diajukan; muat ulang halaman.');
   }
 
   return updated;

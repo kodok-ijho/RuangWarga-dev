@@ -524,6 +524,48 @@ describe('PANITIA-1.7: ProgramDetail Page', () => {
       expect(href).toContain(encodeURIComponent('Pentas Seni Tahunan 2026'));
       expect(href).toContain(encodeURIComponent('50.000'));
     });
+
+    it('F.3: tombol WA tersembunyi untuk anggota biasa tanpa izin tagihan/kas/verifikasi', async () => {
+      mockTenantAccess = {
+        canManagePrograms: false,
+        canManageBudget: false,
+        canRecordIncome: false,
+        canManageExpenses: false,
+        canViewReports: false,
+        canGenerateBilling: false,
+        canRecordCash: false,
+        canVerifyPayments: false,
+      };
+
+      renderProgramDetail();
+      await screen.findByText('Pentas Seni Tahunan 2026');
+
+      const duesTabBtn = screen.getByRole('button', { name: /^Iuran/i });
+      fireEvent.click(duesTabBtn);
+
+      await screen.findByText('Budi Santoso');
+      expect(screen.queryByRole('link', { name: /Ingatkan via WA/i })).toBeNull();
+    });
+
+    it('F.3: dues gagal memuat -> pemasukan tetap tampil dan alert iuran muncul', async () => {
+      tenantOperationalService.fetchProgramTransactions.mockResolvedValueOnce({
+        incomes: mockTransactions.incomes,
+        expenses: mockTransactions.expenses,
+        dues: [],
+        duesError: true,
+      });
+
+      renderProgramDetail();
+      await screen.findByText('Pentas Seni Tahunan 2026');
+
+      const txTabBtn = screen.getByRole('button', { name: /Daftar Transaksi/i });
+      fireEvent.click(txTabBtn);
+      expect(await screen.findByText('Pencairan sponsorship termin 1')).toBeTruthy();
+
+      const duesTabBtn = screen.getByRole('button', { name: /^Iuran/i });
+      fireEvent.click(duesTabBtn);
+      expect(await screen.findByText(/Data iuran gagal dimuat/i)).toBeTruthy();
+    });
   });
 
   describe('PANITIA-3.4: Tab Dokumen', () => {

@@ -14,6 +14,7 @@ import {
   AiOutlineReload,
   AiOutlineCheckCircle,
   AiOutlineFileText,
+  AiOutlineWarning,
 } from 'react-icons/ai';
 import { useTenant } from '../../context/TenantContext';
 import { useTenantAccess } from '../../hooks/useTenantAccess';
@@ -48,6 +49,7 @@ import {
 } from '../../services/tenantOperationalService';
 import { buildProgramDuesReminderMessage, buildWaLink } from '../../utils/waReminder';
 import { formatRupiah, formatDate } from '../../services/dataHelpers';
+import { getLocalDateString } from '../../utils/date';
 import { STATUS_BADGE_CLASSES, ACCESS_STATE_BADGE_CLASSES } from './Programs';
 import MemberBillPayModal from '../../components/payments/MemberBillPayModal';
 
@@ -508,7 +510,7 @@ export default function ProgramDetail() {
       .filter((m) => !activeDueMemberIds.has(m.id))
       .map((m) => m.id);
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const defaultDueDate = program?.starts_on && program.starts_on >= today
       ? program.starts_on
       : today;
@@ -1609,6 +1611,14 @@ export default function ProgramDetail() {
           )}
         </div>
 
+        {/* Peringatan jika data iuran gagal dimuat */}
+        {transactions?.duesError && (
+          <div data-testid="dues-error-alert" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
+            <AiOutlineWarning className="shrink-0 text-amber-600 text-base" />
+            <span>Data iuran gagal dimuat</span>
+          </div>
+        )}
+
         {/* Info Rekening Penerima */}
         {!tenantBankAccount ? (
           <div data-testid="missing-bank-alert" className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-950/30 dark:border-amber-900 dark:text-amber-300 flex items-center justify-between gap-4 text-xs sm:text-sm print:hidden">
@@ -1643,7 +1653,7 @@ export default function ProgramDetail() {
               Anggota Ditagih
             </span>
             <span className="text-lg font-bold text-slate-900 dark:text-white">
-              {summary.dues?.count || duesList.length} orang
+              {summary.dues?.count ?? 0} orang
             </span>
           </div>
           <div className="pv-card p-3.5 border border-slate-200 dark:border-slate-800">
@@ -1763,7 +1773,7 @@ export default function ProgramDetail() {
                                 Catat Tunai
                               </button>
                             )}
-                            {due.status === 'unpaid' && (
+                            {due.status === 'unpaid' && (canGenerateBilling || canRecordCash || canVerifyPayments) && (
                               isProgramWritable ? (
                                 <a
                                   href={waUrl}

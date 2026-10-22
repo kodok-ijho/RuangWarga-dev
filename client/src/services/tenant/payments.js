@@ -432,6 +432,31 @@ export async function submitTenantPayment(tenantId, {
 
   const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
   if (isDemoOrMock) {
+    try {
+      const { getDemoProgramDues } = await import('./programDues');
+      const demoDues = getDemoProgramDues(tenantId);
+      const dueBill = demoDues.find((d) => d.id === billId);
+      if (dueBill) {
+        dueBill.status = isStaff || method === 'cash' ? 'paid' : 'pending_verification';
+        const paymentRecord = {
+          id: `demo-pay-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          billing_item_id: billId,
+          status: isStaff || method === 'cash' ? 'completed' : 'pending',
+          method,
+          proof_url: proofFile?.name || (typeof proofFile === 'string' ? proofFile : 'demo-proof.jpg'),
+          paid_at: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          metadata: { note: note || '' },
+        };
+        dueBill.payments = paymentRecord;
+        dueBill.latestPayment = paymentRecord;
+        dueBill.updated_at = new Date().toISOString();
+        return paymentRecord;
+      }
+    } catch {
+      // lanjut ke mockData jika bukan iuran acara
+    }
+
     const mock = await import('../mockData');
     return mock.recordResidentPayment([billId], {
       method,
