@@ -154,7 +154,12 @@ export default function ManageRoles() {
   const handleApplyTemplate = () => {
     guardAction(async () => {
       const templateKey = activeTenant?.type || 'rt_rw';
-      const typeLabel = templateKey === 'panitia' ? 'Kepanitiaan' : 'RT/RW';
+      const typeLabel =
+        templateKey === 'panitia'
+          ? 'Kepanitiaan'
+          : templateKey === 'arisan'
+          ? 'Arisan'
+          : 'RT/RW';
       if (
         !window.confirm(
           `Terapkan template jabatan pengurus ${typeLabel} standar? Jabatan yang sudah ada tidak akan diubah atau digandakan.`
@@ -214,7 +219,13 @@ export default function ManageRoles() {
               >
                 <AiOutlineSafetyCertificate className="text-sm text-forest-800" />
                 <span>
-                  Gunakan Template Jabatan {activeTenant?.type === 'panitia' ? 'Kepanitiaan' : 'RT/RW'}
+                  Gunakan Template Jabatan {
+                    activeTenant?.type === 'panitia'
+                      ? 'Kepanitiaan'
+                      : activeTenant?.type === 'arisan'
+                      ? 'Arisan'
+                      : 'RT/RW'
+                  }
                 </span>
               </button>
             )}

@@ -259,11 +259,14 @@ describe('tenant/rbac - Unit Tests (DEBT-1F.1)', () => {
         expect(roleDef.permissions).not.toContain('manage_announcements');
       }
 
-      // Pastikan manage_tenant_users dan run_special_action TIDAK ADA di template mana pun
+      // Pastikan manage_tenant_users TIDAK ADA di template mana pun,
+      // dan run_special_action hanya ada di Ketua Arisan (ARISAN-1.6)
       for (const tpl of Object.values(ROLE_TEMPLATES)) {
         for (const roleDef of tpl) {
           expect(roleDef.permissions).not.toContain('manage_tenant_users');
-          expect(roleDef.permissions).not.toContain('run_special_action');
+          if (roleDef.name !== 'Ketua Arisan') {
+            expect(roleDef.permissions).not.toContain('run_special_action');
+          }
         }
       }
     });
@@ -396,6 +399,31 @@ describe('tenant/rbac - Unit Tests (DEBT-1F.1)', () => {
         'Humas',
       ]);
       expect(result.created).toHaveLength(5);
+    });
+
+    it('ARISAN-1.6: template arisan memiliki jabatan Ketua Arisan & Bendahara Arisan dan seluruh izin ada di PLATFORM_PERMISSIONS', () => {
+      const arisanTemplate = ROLE_TEMPLATES.arisan;
+      expect(arisanTemplate).toBeDefined();
+      expect(Array.isArray(arisanTemplate)).toBe(true);
+
+      const ketua = arisanTemplate.find((r) => r.name === 'Ketua Arisan');
+      const bendahara = arisanTemplate.find((r) => r.name === 'Bendahara Arisan');
+
+      expect(ketua).toBeDefined();
+      expect(bendahara).toBeDefined();
+
+      const platformKeys = new Set(PLATFORM_PERMISSIONS.map((p) => p.key));
+
+      for (const perm of ketua.permissions) {
+        expect(platformKeys.has(perm)).toBe(true);
+      }
+      expect(ketua.permissions).toContain('run_special_action');
+      expect(ketua.permissions).toContain('generate_billing');
+
+      for (const perm of bendahara.permissions) {
+        expect(platformKeys.has(perm)).toBe(true);
+      }
+      expect(bendahara.permissions).toContain('manage_expenses');
     });
   });
 });

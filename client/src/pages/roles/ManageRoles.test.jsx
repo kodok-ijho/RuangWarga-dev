@@ -113,7 +113,7 @@ describe('ManageRoles (RTRW-2.6)', () => {
     });
   });
 
-  it('tombol template tidak tampil untuk tipe tenant selain rt_rw (misal kos/arisan)', async () => {
+  it('tombol template tidak tampil untuk tipe tenant yang belum memiliki template (misal kos)', async () => {
     mockTenant = {
       id: 'tenant-kos-1',
       name: 'Kos Melati',
@@ -130,6 +130,31 @@ describe('ManageRoles (RTRW-2.6)', () => {
       name: /Gunakan Template Jabatan/i,
     });
     expect(templateBtn).toBeNull();
+  });
+
+  it('tombol template tampil untuk tenant arisan dan menampilkan label Arisan (ARISAN-1.6)', async () => {
+    mockTenant = {
+      id: 'tenant-arisan-1',
+      name: 'Arisan Dahlia',
+      type: 'arisan',
+      is_owner: true,
+    };
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockImplementation(() => true);
+
+    renderManageRoles('tenant-arisan-1');
+
+    const templateBtn = await screen.findByRole('button', {
+      name: /Gunakan Template Jabatan Arisan/i,
+    });
+    expect(templateBtn).toBeTruthy();
+
+    fireEvent.click(templateBtn);
+
+    expect(confirmSpy).toHaveBeenCalledWith(
+      expect.stringMatching(/Terapkan template jabatan pengurus Arisan standar/i)
+    );
+    expect(tenantOperationalService.applyRoleTemplate).toHaveBeenCalledWith('tenant-arisan-1', 'arisan');
   });
 
   it('tombol template tampil untuk tenant panitia dan menampilkan label Kepanitiaan (PANITIA-1.4)', async () => {

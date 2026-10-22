@@ -423,6 +423,31 @@ export const ROLE_TEMPLATES = {
       permissions: ['view_reports'],
     },
   ],
+  arisan: [
+    {
+      name: 'Ketua Arisan',
+      permissions: [
+        'run_special_action',
+        'generate_billing',
+        'manage_billing_cash',
+        'manage_billing_transfer',
+        'manage_members',
+        'manage_announcements',
+        'view_reports',
+        'manage_settings',
+      ],
+    },
+    {
+      name: 'Bendahara Arisan',
+      permissions: [
+        'generate_billing',
+        'manage_billing_cash',
+        'manage_billing_transfer',
+        'view_reports',
+        'manage_expenses',
+      ],
+    },
+  ],
 };
 
 /**
