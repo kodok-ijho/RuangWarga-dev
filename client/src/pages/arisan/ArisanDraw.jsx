@@ -208,7 +208,7 @@ export default function ArisanDraw() {
     if (!r) return '-';
     if (Array.isArray(r.eligible_snapshot)) {
       const found = r.eligible_snapshot.find(
-        (p) => p && (p.member_id === r.winner_member_id || p.id === r.winner_member_id)
+        (p) => p && p.member_id === r.winner_member_id
       );
       if (found?.slot_label) return found.slot_label;
     }
@@ -956,9 +956,9 @@ export default function ArisanDraw() {
                                   {idx + 1}
                                 </div>
                                 <div>
-                                  <h5 className="text-xs font-bold text-slate-900">{cand.full_name}</h5>
+                                  <h5 className="text-xs font-bold text-slate-900">{cand.member?.full_name || cand.full_name || 'Peserta'}</h5>
                                   <span className="text-[10px] text-slate-500">
-                                    {cand.unit?.name || 'Peserta Arisan'}
+                                    {cand.slot?.label || '-'}
                                   </span>
                                 </div>
                               </div>
@@ -1098,9 +1098,9 @@ export default function ArisanDraw() {
                               {hasWon ? '🏆' : idx + 1}
                             </div>
                             <div>
-                              <h5 className="text-xs font-bold text-slate-900">{member.full_name}</h5>
+                              <h5 className="text-xs font-bold text-slate-900">{member.member?.full_name || member.full_name || 'Peserta'}</h5>
                               <span className="text-[10px] text-slate-500 block">
-                                {member.unit?.name || 'Peserta Arisan'}
+                                {member.slot?.label || '-'}
                               </span>
                             </div>
                           </div>

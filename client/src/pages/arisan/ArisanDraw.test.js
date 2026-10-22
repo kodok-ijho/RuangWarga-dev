@@ -269,7 +269,7 @@ describe('ArisanDraw Component (ARISAN-1.4 & PANITIA-ARISAN-1F F.1)', () => {
     // Pemenang Ibu Ratna
     expect(screen.getAllByText('Ibu Ratna').length).toBeGreaterThan(0);
     // Slot dari snapshot
-    expect(screen.getByText('Slot 1')).toBeTruthy();
+    expect(screen.getAllByText('Slot 1').length).toBeGreaterThan(0);
     // Operator
     expect(screen.getByText('Ketua Arisan Budi')).toBeTruthy();
     // Hadiah (Rp 500.000 dari total_pool_amount)
