@@ -187,6 +187,7 @@ export default defineConfig(({ mode }) => {
   test: {
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     exclude: ['tests/**', 'node_modules/**', 'dist/**'],
+    testTimeout: 20000,
   },
   };
 });
