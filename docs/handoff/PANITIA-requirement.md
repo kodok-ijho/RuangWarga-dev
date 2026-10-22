@@ -16,7 +16,7 @@ Vertikal ini **menggantikan Kelas** (SPP) di pilihan pendaftaran tenant. Contoh 
 2. **Kelas diganti Kepanitiaan.** Pilihan "Kelas" hilang dari pendaftaran tenant. Di dev belum ada tenant Kelas.
 3. **Pengeluaran langsung dicatat bendahara**, dengan nota. Tidak ada alur pengajuan dan persetujuan dana.
 4. **Pemasukan dicatat manual** (sponsor, donatur, tiket, dana organisasi), **dan iuran panitia bisa ditagih** lewat modul tagihan.
-5. **Harga langganan dihitung per acara aktif**, bukan per blok unit. Angka harganya belum ditentukan.
+5. **Harga per acara** (diperjelas 2026-10-22): acara pertama gratis 1 bulan, lalu Rp25.000 per acara per 12 bulan; acara kedua dst langsung Rp25.000 per 12 bulan; lewat masa aktif = baca-saja dan bisa diperpanjang. Tenant Kepanitiaan tidak memakai uji coba tenant. Pembayaran menunggu DOKU platform.
 
 ## Peran
 - **Ketua** (owner): mengelola semuanya.
@@ -29,8 +29,9 @@ Vertikal ini **menggantikan Kelas** (SPP) di pilihan pendaftaran tenant. Contoh 
 | Batch | Fitur |
 |---|---|
 | **PANITIA-1** | Jenis tenant dan setup; daftar acara (status: perencanaan, berjalan, selesai, arsip); **anggaran/RAB** per acara (pos pemasukan dan pengeluaran per seksi, jumlah × harga satuan); **pemasukan dan pengeluaran** yang ditautkan ke acara dan pos anggaran; **laporan per acara** (rencana vs realisasi per seksi, saldo); unduh CSV dan cetak; template jabatan; halaman Pemasukan yang juga dipakai RT/RW dan Kos. |
-| **PANITIA-2** | **Iuran panitia**: tagihan per anggota per acara, tanpa unit, lewat transfer + bukti atau tunai, dengan verifikasi bendahara. Pembayaran masuk realisasi acara. Juga **dokumen acara** (proposal, RAB, rundown/blueprint, surat, LPJ) di R2, dan **LPJ** siap cetak. |
-| **PANITIA-HARGA** | Harga langganan per acara aktif. Butuh angka harga dari user dan menyentuh langganan, jadi batch tersendiri. |
+| **PANITIA-2** | **Iuran panitia**: tagihan per anggota per acara (nominal sama, bisa diubah per orang), tanpa unit, lewat transfer + bukti atau tunai, dengan verifikasi bendahara. Pembayaran masuk realisasi acara. Lihat `PANITIA-2.md`. |
+| **PANITIA-3** | **Dokumen acara** (proposal, RAB, rundown/blueprint, surat, LPJ) di R2, dan **LPJ** siap cetak. Lihat `PANITIA-3.md`. |
+| **PANITIA-HARGA** | Masa aktif per acara dan penguncian transaksi acara yang belum aktif / lewat masa. Pembayaran QRIS menyusul saat DOKU platform aktif. Lihat `PANITIA-HARGA.md`. |
 | Nanti | Penjualan tiket online, listing acara publik, pengajuan dana per seksi, beberapa rekening per acara. |
 
 ## Catatan teknis
@@ -38,4 +39,4 @@ Vertikal ini **menggantikan Kelas** (SPP) di pilihan pendaftaran tenant. Contoh 
 - Pemasukan dan pengeluaran memakai tabel yang sudah ada (`non_ipl_incomes`, `expenses`), ditambah kolom opsional `program_id` dan `budget_item_id`. Laporan kas organisasi yang sudah ada otomatis ikut menghitungnya.
 - Tabel `tenant_events` (agenda/acara RT/RW dari RTRW-3) tetap ada. Di tenant Kepanitiaan, menunya diberi label "Agenda" supaya tidak tertukar dengan "Acara".
 - Kode Kelas (wizard, cabang SPP) dibiarkan tidak terpakai dulu. Penghapusannya batch tersendiri, setelah dipastikan tidak ada tenant Kelas di produksi.
-- Sampai PANITIA-HARGA selesai, tenant Kepanitiaan belum bisa berlangganan. Setelah masa uji coba habis, tenant menjadi baca-saja.
+- Setelah PANITIA-HARGA, tenant Kepanitiaan tidak lagi menjadi baca-saja karena uji coba tenant; penguncian ada di tiap acara.
