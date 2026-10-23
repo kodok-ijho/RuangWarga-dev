@@ -154,37 +154,61 @@ export default function ArisanDraw() {
     loadBills();
   }, [tenantId, selectedRoundId]);
 
-  // Map status tagihan per member_id
+  // Map status tagihan per member_id (2F.2)
+  // Aturan server:
+  // - Bila anggota punya tagihan 'paid' di putaran itu -> lunas ('paid')
+  // - Kalau tidak, pakai tagihan yang bukan 'cancelled'
+  // - Hanya 'cancelled' -> belum lunas ('cancelled')
   const billStatusByMemberId = useMemo(() => {
-    const map = new Map();
+    const billsByMember = new Map();
     for (const b of roundBills) {
-      if (b.member_id) {
-        map.set(b.member_id, b.status);
+      if (!b?.member_id) continue;
+      const list = billsByMember.get(b.member_id) || [];
+      list.push(b);
+      billsByMember.set(b.member_id, list);
+    }
+
+    const map = new Map();
+    for (const [memberId, bills] of billsByMember.entries()) {
+      const hasPaid = bills.some((b) => b.status === 'paid');
+      if (hasPaid) {
+        map.set(memberId, 'paid');
+      } else {
+        const nonCancelled = bills.find((b) => b.status !== 'cancelled');
+        if (nonCancelled) {
+          map.set(memberId, nonCancelled.status);
+        } else {
+          map.set(memberId, 'cancelled');
+        }
       }
     }
     return map;
   }, [roundBills]);
 
-  // Klasifikasi kandidat (peserta yang belum pernah menang, has_won = false)
-  // yang setorannya lunas (ikut kocok) vs belum lunas (tidak ikut kocok).
+  // Kandidat yang sah: belum pernah menang (has_won !== true) DAN member.status === 'approved' (2F.2)
+  // Kandidat dengan member.status selain 'approved' tidak masuk "Ikut kocok" maupun "Tidak ikut",
+  // dan tidak dihitung di statistik.
+  const activeCandidates = useMemo(() => {
+    return (candidates || []).filter(
+      (c) => c && c.has_won !== true && c.member?.status === 'approved'
+    );
+  }, [candidates]);
+
+  // Klasifikasi kandidat yang setorannya lunas (ikut kocok) vs belum lunas (tidak ikut kocok).
   // Pemenang putaran sebelumnya tidak masuk ke kedua daftar.
   const eligibleCandidates = useMemo(() => {
-    return (candidates || [])
-      .filter((c) => c.has_won !== true)
-      .filter((cand) => {
-        const mid = cand.member_id || cand.member?.id || cand.id;
-        return billStatusByMemberId.get(mid) === 'paid';
-      });
-  }, [candidates, billStatusByMemberId]);
+    return activeCandidates.filter((cand) => {
+      const mid = cand.member_id || cand.member?.id || cand.id;
+      return billStatusByMemberId.get(mid) === 'paid';
+    });
+  }, [activeCandidates, billStatusByMemberId]);
 
   const excludedCandidates = useMemo(() => {
-    return (candidates || [])
-      .filter((c) => c.has_won !== true)
-      .filter((cand) => {
-        const mid = cand.member_id || cand.member?.id || cand.id;
-        return billStatusByMemberId.get(mid) !== 'paid';
-      });
-  }, [candidates, billStatusByMemberId]);
+    return activeCandidates.filter((cand) => {
+      const mid = cand.member_id || cand.member?.id || cand.id;
+      return billStatusByMemberId.get(mid) !== 'paid';
+    });
+  }, [activeCandidates, billStatusByMemberId]);
 
   // Statistik Tagihan Putaran Terpilih
   const billStats = useMemo(() => {
@@ -916,14 +940,14 @@ export default function ArisanDraw() {
                       <div className="flex items-center justify-between mb-4">
                         <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                           <AiOutlineTeam className="text-purple-600" />
-                          <span>Kandidat Undian ({(candidates || []).filter((c) => c.has_won !== true).length})</span>
+                          <span>Kandidat Undian ({activeCandidates.length})</span>
                         </h4>
                         <span className="text-[11px] text-slate-500">
                           Peserta yang belum pernah menang
                         </span>
                       </div>
 
-                      {(candidates || []).filter((c) => c.has_won !== true).length === 0 ? (
+                      {activeCandidates.length === 0 ? (
                         <div className="p-8 text-center bg-slate-50 rounded-xl border border-slate-200 space-y-3 shadow-xs">
                           <span className="text-3xl block">🎉</span>
                           <div>
@@ -946,7 +970,7 @@ export default function ArisanDraw() {
                         </div>
                       ) : (
                         <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                          {(candidates || []).filter((c) => c.has_won !== true).map((cand, idx) => (
+                          {activeCandidates.map((cand, idx) => (
                             <div
                               key={cand.id}
                               className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between shadow-xs"

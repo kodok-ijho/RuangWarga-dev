@@ -73,10 +73,38 @@ const mockRounds = [
 ];
 
 const mockCandidates = [
-  { id: 'cand-1', member_id: 'mem-1', full_name: 'Ibu Ratna', slot: { label: 'Slot 1' }, has_won: false },
-  { id: 'cand-2', member_id: 'mem-2', full_name: 'Ibu Siti', slot: { label: 'Slot 2' }, has_won: false },
-  { id: 'cand-3', member_id: 'mem-3', full_name: 'Ibu Dewi', slot: { label: 'Slot 3' }, has_won: false },
-  { id: 'cand-4', member_id: 'mem-old', full_name: 'Ibu Pemenang Lama', slot: { label: 'Slot 4' }, has_won: true },
+  {
+    id: 'cand-1',
+    member_id: 'mem-1',
+    full_name: 'Ibu Ratna',
+    member: { id: 'mem-1', full_name: 'Ibu Ratna', status: 'approved' },
+    slot: { label: 'Slot 1' },
+    has_won: false,
+  },
+  {
+    id: 'cand-2',
+    member_id: 'mem-2',
+    full_name: 'Ibu Siti',
+    member: { id: 'mem-2', full_name: 'Ibu Siti', status: 'approved' },
+    slot: { label: 'Slot 2' },
+    has_won: false,
+  },
+  {
+    id: 'cand-3',
+    member_id: 'mem-3',
+    full_name: 'Ibu Dewi',
+    member: { id: 'mem-3', full_name: 'Ibu Dewi', status: 'approved' },
+    slot: { label: 'Slot 3' },
+    has_won: false,
+  },
+  {
+    id: 'cand-4',
+    member_id: 'mem-old',
+    full_name: 'Ibu Pemenang Lama',
+    member: { id: 'mem-old', full_name: 'Ibu Pemenang Lama', status: 'approved' },
+    slot: { label: 'Slot 4' },
+    has_won: true,
+  },
 ];
 
 const mockRoundBills = [
@@ -337,5 +365,132 @@ describe('ArisanDraw Component (ARISAN-1.4 & PANITIA-ARISAN-1F F.1)', () => {
     // Buka accordion putaran perdana tanpa snapshot
     fireEvent.click(detailBtns[2]);
     await screen.findByText(/Daftar peserta tidak tercatat \(dikocok sebelum fitur ini\)/i);
+  });
+
+  describe('2F.2: Filter Kandidat dan Resolusi Status Tagihan Per Anggota', () => {
+    it('kandidat berstatus left / pending tidak tampil di kedua daftar dan tidak dihitung statistik', async () => {
+      const candidatesWithInactive = [
+        ...mockCandidates,
+        {
+          id: 'cand-left',
+          member_id: 'mem-left',
+          full_name: 'Bpk Keluar',
+          member: { id: 'mem-left', full_name: 'Bpk Keluar', status: 'left' },
+          slot: { label: 'Slot 5' },
+          has_won: false,
+        },
+        {
+          id: 'cand-pending',
+          member_id: 'mem-pending',
+          full_name: 'Sdr Menunggu',
+          member: { id: 'mem-pending', full_name: 'Sdr Menunggu', status: 'pending' },
+          slot: { label: 'Slot 6' },
+          has_won: false,
+        },
+      ];
+      tenantOperationalService.fetchArisanCandidates.mockResolvedValueOnce(candidatesWithInactive);
+
+      // Beri tagihan paid untuk Bpk Keluar dan unpaid untuk Sdr Menunggu
+      tenantOperationalService.fetchArisanRoundBills.mockResolvedValueOnce([
+        ...mockRoundBills,
+        {
+          id: 'bill-left',
+          member_id: 'mem-left',
+          status: 'paid',
+          member: { full_name: 'Bpk Keluar' },
+        },
+        {
+          id: 'bill-pending',
+          member_id: 'mem-pending',
+          status: 'unpaid',
+          member: { full_name: 'Sdr Menunggu' },
+        },
+      ]);
+
+      render(
+        h(
+          MemoryRouter,
+          { initialEntries: ['/t/tenant-arisan-1/arisan/draw?roundId=round-1'] },
+          h(
+            Routes,
+            null,
+            h(Route, { path: '/t/:tenantId/arisan/draw', element: h(ArisanDraw) })
+          )
+        )
+      );
+
+      await screen.findByText(/Ikut kocok \(setoran lunas\)/i);
+
+      // Bpk Keluar (left) dan Sdr Menunggu (pending) tidak boleh tampil di mana pun
+      expect(screen.queryByText('Bpk Keluar')).toBeNull();
+      expect(screen.queryByText('Sdr Menunggu')).toBeNull();
+
+      // Statistik hanya menghitung kandidat approved: 2 lunas (Ratna, Siti) + 1 belum lunas (Dewi) = 3 total (67%)
+      expect(screen.getByText(/2 dari 3 Peserta Lunas/i)).toBeTruthy();
+      expect(screen.getByText('67%')).toBeTruthy();
+    });
+
+    it('anggota dengan tagihan cancelled + paid (urutan apa pun) tampil di Ikut kocok', async () => {
+      // Ratna: [cancelled, paid]
+      // Siti: [paid, cancelled]
+      const billsCancelledPaid = [
+        {
+          id: 'bill-ratna-cancelled',
+          member_id: 'mem-1',
+          status: 'cancelled',
+          member: { full_name: 'Ibu Ratna' },
+        },
+        {
+          id: 'bill-ratna-paid',
+          member_id: 'mem-1',
+          status: 'paid',
+          member: { full_name: 'Ibu Ratna' },
+        },
+        {
+          id: 'bill-siti-paid',
+          member_id: 'mem-2',
+          status: 'paid',
+          member: { full_name: 'Ibu Siti' },
+        },
+        {
+          id: 'bill-siti-cancelled',
+          member_id: 'mem-2',
+          status: 'cancelled',
+          member: { full_name: 'Ibu Siti' },
+        },
+        {
+          id: 'bill-dewi-only-cancelled',
+          member_id: 'mem-3',
+          status: 'cancelled',
+          member: { full_name: 'Ibu Dewi' },
+        },
+      ];
+      tenantOperationalService.fetchArisanRoundBills.mockResolvedValueOnce(billsCancelledPaid);
+
+      render(
+        h(
+          MemoryRouter,
+          { initialEntries: ['/t/tenant-arisan-1/arisan/draw?roundId=round-1'] },
+          h(
+            Routes,
+            null,
+            h(Route, { path: '/t/:tenantId/arisan/draw', element: h(ArisanDraw) })
+          )
+        )
+      );
+
+      await screen.findByText(/Ikut kocok \(setoran lunas\)/i);
+
+      // Ibu Ratna (cancelled + paid) dan Ibu Siti (paid + cancelled) harus berada di Ikut kocok
+      expect(screen.getAllByText('Ibu Ratna').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Ibu Siti').length).toBeGreaterThan(0);
+
+      // Ibu Dewi (hanya cancelled) berada di Tidak ikut (belum lunas)
+      expect(screen.getAllByText('Ibu Dewi').length).toBeGreaterThan(0);
+
+      // Statistik: 2 lunas, 1 belum lunas
+      expect(screen.getByText(/2 dari 3 Peserta Lunas/i)).toBeTruthy();
+      expect(screen.getByText('67%')).toBeTruthy();
+    });
   });
 });

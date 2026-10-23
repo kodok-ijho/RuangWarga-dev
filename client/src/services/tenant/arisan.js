@@ -562,14 +562,14 @@ export async function fetchArisanCandidates(tenantId) {
         id: 'demo-cand-1',
         member_id: 'demo-mem-1',
         has_won: false,
-        member: { full_name: 'Pak Budi', phone: '08123456780' },
+        member: { full_name: 'Pak Budi', phone: '08123456780', status: 'approved' },
         slot: { label: 'Slot #01' },
       },
       {
         id: 'demo-cand-2',
         member_id: 'demo-mem-2',
         has_won: false,
-        member: { full_name: 'Ibu Siti', phone: '08123456781' },
+        member: { full_name: 'Ibu Siti', phone: '08123456781', status: 'approved' },
         slot: { label: 'Slot #02' },
       },
     ];
