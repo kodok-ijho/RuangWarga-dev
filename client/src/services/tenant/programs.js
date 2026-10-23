@@ -9,7 +9,6 @@ import { fetchTenantIncomes } from './incomes';
 import { fetchTenantExpenses } from './finance';
 import { summarizeProgramDues, getDemoProgramDues, fetchProgramDues } from './programDues';
 import { PANITIA_PRICING } from '../../config/panitiaPricing';
-import { formatDate } from '../dataHelpers';
 import { formatDateWIB } from '../../utils/date';
 
 export { PANITIA_PRICING };

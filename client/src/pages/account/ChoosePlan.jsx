@@ -155,10 +155,10 @@ export default function ChoosePlan() {
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
                 <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
                   <span className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs">1</span>
-                  <span>Acara Pertama Gratis 1 Bulan</span>
+                  <span>Acara Pertama Gratis {PANITIA_PRICING.freeTrialMonths} Bulan</span>
                 </div>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Setiap organisasi kepanitiaan baru mendapatkan acara pertama gratis 1 bulan untuk mencoba seluruh modul (RAB, Iuran, Transaksi, LPJ, dan Dokumen).
+                  Setiap organisasi kepanitiaan baru mendapatkan acara pertama gratis {PANITIA_PRICING.freeTrialMonths} bulan untuk mencoba seluruh modul (RAB, Iuran, Transaksi, LPJ, dan Dokumen).
                 </p>
               </div>
 
@@ -178,7 +178,7 @@ export default function ChoosePlan() {
                   <span>Acara Lewat Masa Menjadi Baca-Saja</span>
                 </div>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Setelah 12 bulan (atau setelah masa gratis berakhir), acara yang belum diperpanjang menjadi baca-saja. Semua data tersimpan aman dan laporan/LPJ tetap dapat diunduh.
+                  Setelah {PANITIA_PRICING.periodMonths} bulan (atau setelah masa gratis berakhir), acara yang belum diperpanjang menjadi baca-saja. Semua data tersimpan aman dan laporan/LPJ tetap dapat diunduh.
                 </p>
               </div>
 

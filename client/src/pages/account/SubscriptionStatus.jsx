@@ -394,7 +394,7 @@ export default function SubscriptionStatus() {
 
                   <div className="flex justify-between items-center pt-2 border-t border-slate-100">
                     <span className="text-[11px] text-slate-500">
-                      {formatRupiah(PANITIA_PRICING.pricePerProgram)} / 12 bulan per acara
+                      {formatRupiah(PANITIA_PRICING.pricePerProgram)} / {PANITIA_PRICING.periodMonths} bulan per acara
                     </span>
                     <button
                       type="button"

@@ -1741,7 +1741,7 @@ export default function ProgramDetail() {
                       <tr key={due.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                         <td className="py-3 px-4 font-medium text-slate-900 dark:text-white">
                           <div>{memberName}</div>
-                          {due.member?.phone && (
+                          {due.member?.phone && (canGenerateBilling || canRecordCash || canVerifyPayments) && (
                             <div className="text-xs text-slate-400">{due.member.phone}</div>
                           )}
                         </td>

@@ -547,6 +547,53 @@ describe('PANITIA-1.7: ProgramDetail Page', () => {
       expect(screen.queryByRole('link', { name: /Ingatkan via WA/i })).toBeNull();
     });
 
+    it('2F.4: nomor HP anggota hanya tampil untuk pengurus (canGenerateBilling || canRecordCash || canVerifyPayments)', async () => {
+      // 1. Kasus anggota biasa tanpa izin tagihan/kas/verifikasi -> nomor HP tidak tampil
+      mockTenantAccess = {
+        canManagePrograms: false,
+        canManageBudget: false,
+        canRecordIncome: false,
+        canManageExpenses: false,
+        canViewReports: false,
+        canGenerateBilling: false,
+        canRecordCash: false,
+        canVerifyPayments: false,
+      };
+
+      const { unmount } = renderProgramDetail();
+      await screen.findByText('Pentas Seni Tahunan 2026');
+
+      const duesTabBtn = screen.getByRole('button', { name: /^Iuran/i });
+      fireEvent.click(duesTabBtn);
+
+      await screen.findByText('Budi Santoso');
+      expect(screen.queryByText('081234567890')).toBeNull();
+      expect(screen.queryByText('089876543210')).toBeNull();
+
+      unmount();
+
+      // 2. Kasus bendahara dengan izin -> nomor HP tampil
+      mockTenantAccess = {
+        canManagePrograms: true,
+        canManageBudget: true,
+        canRecordIncome: true,
+        canManageExpenses: true,
+        canViewReports: true,
+        canGenerateBilling: true,
+        canRecordCash: true,
+        canVerifyPayments: true,
+      };
+
+      renderProgramDetail();
+      await screen.findByText('Pentas Seni Tahunan 2026');
+
+      const duesTabBtnStaff = screen.getByRole('button', { name: /^Iuran/i });
+      fireEvent.click(duesTabBtnStaff);
+
+      expect(await screen.findByText('081234567890')).toBeTruthy();
+      expect(screen.getByText('089876543210')).toBeTruthy();
+    });
+
     it('F.3: dues gagal memuat -> pemasukan tetap tampil dan alert iuran muncul', async () => {
       tenantOperationalService.fetchProgramTransactions.mockResolvedValueOnce({
         incomes: mockTransactions.incomes,
