@@ -1001,11 +1001,11 @@ export default function ProgramDetail() {
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-300">
               {programAccess.state === 'free_trial' ? (
-                `Gratis sampai ${programAccess.until ? formatDate(programAccess.until) : '-'}. Setelah itu aktifkan ${formatRupiah(PANITIA_PRICING.pricePerProgram)} / ${PANITIA_PRICING.periodMonths} bulan.`
+                `Gratis sampai ${programAccess.until ? formatDateWIB(programAccess.until) : '-'}. Setelah itu aktifkan ${formatRupiah(PANITIA_PRICING.pricePerProgram)} / ${PANITIA_PRICING.periodMonths} bulan.`
               ) : programAccess.state === 'active' ? (
-                `Aktif sampai ${programAccess.until ? formatDate(programAccess.until) : '-'}. Tarif perpanjangan ${formatRupiah(PANITIA_PRICING.pricePerProgram)} / ${PANITIA_PRICING.periodMonths} bulan.`
+                `Aktif sampai ${programAccess.until ? formatDateWIB(programAccess.until) : '-'}. Tarif perpanjangan ${formatRupiah(PANITIA_PRICING.pricePerProgram)} / ${PANITIA_PRICING.periodMonths} bulan.`
               ) : programAccess.state === 'expired' ? (
-                `Masa aktif habis sejak ${programAccess.until ? formatDate(programAccess.until) : '-'}. Aktifkan kembali ${formatRupiah(PANITIA_PRICING.pricePerProgram)} / ${PANITIA_PRICING.periodMonths} bulan.`
+                `Masa aktif habis sejak ${programAccess.until ? formatDateWIB(programAccess.until) : '-'}. Aktifkan kembali ${formatRupiah(PANITIA_PRICING.pricePerProgram)} / ${PANITIA_PRICING.periodMonths} bulan.`
               ) : (
                 `Belum aktif. Tarif aktivasi ${formatRupiah(PANITIA_PRICING.pricePerProgram)} / ${PANITIA_PRICING.periodMonths} bulan.`
               )}
