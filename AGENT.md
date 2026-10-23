@@ -3,6 +3,10 @@
 Panduan kerja untuk AI coding agent (Antigravity CLI) di repo ini.
 Baca file ini SEBELUM membuat rencana atau mengubah kode apa pun.
 
+**Mulai dari `PLAN.md`** (rencana induk, kondisi terkini, roadmap).
+
+**Mulai dari `PLAN.md`** (rencana induk, kondisi terkini, roadmap).
+
 **Sumber tugas utama:**
 - `docs/handoff/` — batch aktif terbaru (mis. `SEC-1.md`), rujuk `docs/handoff/README.md` untuk alur kerja lengkap.
 
@@ -26,7 +30,7 @@ bisnis yang dilayani:
 1. **RT/RW & Koordinator Perumahan**
 2. **Kos-kosan/Kontrakan**
 3. **Arisan**
-4. **Kelas** (iuran kelompok kecil)
+4. **Kepanitiaan** (`panitia`, organisasi acara — menggantikan Kelas)
 
 Filosofi pembangunan: **"pabrik dulu, baru produk"** — fondasi platform
 (tenant, subscription, billing, dua dashboard level) dibangun tuntas sebelum
@@ -60,7 +64,7 @@ modul vertikal difinalisasi.
 ## 5. Model Data Multi-Tenant
 
 Skema platform:
-- `tenants` — 1 baris per pelanggan (RT/RW/kos/arisan/kelas), punya `type` enum.
+- `tenants` — 1 baris per pelanggan (RT/RW/kos/arisan/panitia), punya `type` enum.
 - `tenant_subscriptions`, `tenant_subscription_blocks`, `block_pricing`,
   `subscription_periods`, `subscription_payments` — mesin billing platform.
 - `tenant_units` (generik: rumah/kamar/slot), `tenant_members` (generik:
@@ -138,7 +142,7 @@ diakses tanpa tenant context sama sekali).
 
 - Jangan ubah project Supabase **production** existing secara langsung.
 - Jangan kembangkan `legacy-backend/`.
-- Jangan push langsung ke `main`. Branch kerja mengikuti batch aktif (mis. `claude/eloquent-tesla-f0ddcr`).
+- Jangan push langsung ke `main`. Branch kerja mengikuti batch aktif (saat ini `claude/ruangwarga-remote-2-disconnect-m4oku0`).
 - Jangan install package baru tanpa menyebut alasan di ringkasan commit.
 
 ## 12. Format Ringkasan Setelah Task Selesai
