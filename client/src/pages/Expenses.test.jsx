@@ -1,9 +1,18 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
+import { render, screen, waitFor, cleanup, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import fs from 'fs';
 import path from 'path';
+
+const mockToast = {
+  error: vi.fn(),
+  success: vi.fn(),
+  warning: vi.fn(),
+  info: vi.fn(),
+};
 
 // Mocks
 vi.mock('../hooks/useAuth', () => ({
@@ -26,13 +35,24 @@ vi.mock('../hooks/useTenantTemplate', () => ({
 }));
 
 vi.mock('../hooks/useToast', () => ({
-  useToast: vi.fn().mockReturnValue({
-    error: vi.fn(),
-    success: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-  }),
+  useToast: () => mockToast,
 }));
+
+vi.mock('../services/tenantOperationalService', async () => {
+  const actual = await vi.importActual('../services/tenantOperationalService');
+  return {
+    ...actual,
+    fetchPrograms: vi.fn(),
+  };
+});
+
+vi.mock('react-dom', async () => {
+  const actual = await vi.importActual('react-dom');
+  return {
+    ...actual,
+    createPortal: (node) => node,
+  };
+});
 
 vi.mock('../services/dataService', () => ({
   fetchExpenses: vi.fn(),
@@ -76,6 +96,7 @@ import {
   fetchTenantExpenses,
   createTenantExpense,
   updateTenantExpense,
+  fetchPrograms,
 } from '../services/tenantOperationalService';
 import { supabase } from '../services/supabaseClient';
 import Expenses from './Expenses';
@@ -129,6 +150,12 @@ describe('TASK-080 Expenses Implementation (Sub-Gate 8.2-B)', () => {
         receipt_url: `${mockTenantId}/expenses/2026/uuid-1_nota-sampah.jpg`,
       },
     ]);
+
+    fetchPrograms.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   // A. Tenant neutrality
@@ -630,14 +657,117 @@ describe('TASK-080 Expenses Implementation (Sub-Gate 8.2-B)', () => {
     expect(capturedPayload.budget_item_id).toBe('budget-uuid-2');
   });
 
-  // U. PANITIA-ARISAN-1F F.5 Expenses improvements
-  it('U. F.5 — Expenses memuat program secara mandiri dan handleDelete menampilkan err.message', () => {
-    const expensesSource = fs.readFileSync(
-      path.resolve(__dirname, 'Expenses.jsx'),
-      'utf8'
-    );
-    expect(expensesSource).toContain("toast.error(err.message || 'Gagal menghapus pengeluaran.');");
-    expect(expensesSource).toContain('if (!programsLoaded) return;');
-    expect(expensesSource).toContain('const loadPrograms = useCallback');
+  // U. 2F.3 — Deep link transaksi acara pada Expenses (?program=<id>&new=1)
+  describe('2F.3: Deep link transaksi acara pada Expenses (?program=<id>&new=1)', () => {
+    const renderExpenses = (initialEntry = `/t/${mockTenantId}/expenses`) => {
+      return render(
+        <MemoryRouter initialEntries={[initialEntry]}>
+          <Routes>
+            <Route path="/t/:tenantId/expenses" element={<Expenses />} />
+          </Routes>
+        </MemoryRouter>
+      );
+    };
+
+    beforeEach(() => {
+      useTenant.mockReturnValue({
+        activeTenant: { id: mockTenantId, name: 'Panitia Dies Natalis', type: 'panitia' },
+        activeTenantId: mockTenantId,
+        currentTenant: { id: mockTenantId, name: 'Panitia Dies Natalis', type: 'panitia' },
+        userTenants: [],
+        isOwner: true,
+        permissions: ['manage_expenses', 'view_reports'],
+        subscriptionStatus: 'active',
+      });
+    });
+
+    it('acara expired → toast dan modal tidak terbuka', async () => {
+      let resolvePrograms;
+      const asyncPrograms = new Promise((resolve) => {
+        resolvePrograms = resolve;
+      });
+      fetchPrograms.mockReturnValue(asyncPrograms);
+
+      renderExpenses(`/t/${mockTenantId}/expenses?program=prog-expired&new=1`);
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+
+      resolvePrograms([
+        {
+          id: 'prog-expired',
+          name: 'Acara Expired',
+          status: 'running',
+          is_free_trial: false,
+          access_until: '2020-01-01T00:00:00Z',
+        },
+      ]);
+
+      await waitFor(() => {
+        expect(mockToast.error).toHaveBeenCalledWith(
+          expect.stringMatching(/Acara belum aktif atau masa aktifnya habis/i)
+        );
+      });
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('acara tidak ada → toast dan modal tidak terbuka', async () => {
+      let resolvePrograms;
+      const asyncPrograms = new Promise((resolve) => {
+        resolvePrograms = resolve;
+      });
+      fetchPrograms.mockReturnValue(asyncPrograms);
+
+      renderExpenses(`/t/${mockTenantId}/expenses?program=prog-ghost&new=1`);
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+
+      resolvePrograms([
+        {
+          id: 'prog-active',
+          name: 'Acara Aktif',
+          status: 'running',
+          is_free_trial: true,
+          access_until: '2099-01-01T00:00:00Z',
+        },
+      ]);
+
+      await waitFor(() => {
+        expect(mockToast.error).toHaveBeenCalledWith(
+          'Acara tidak ditemukan atau tidak bisa dipilih.'
+        );
+      });
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('acara aktif → modal terbuka dengan acara terpilih', async () => {
+      let resolvePrograms;
+      const asyncPrograms = new Promise((resolve) => {
+        resolvePrograms = resolve;
+      });
+      fetchPrograms.mockReturnValue(asyncPrograms);
+
+      renderExpenses(`/t/${mockTenantId}/expenses?program=prog-active&new=1`);
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+
+      resolvePrograms([
+        {
+          id: 'prog-active',
+          name: 'Acara Aktif',
+          status: 'running',
+          is_free_trial: true,
+          access_until: '2099-01-01T00:00:00Z',
+        },
+      ]);
+
+      const dialog = await screen.findByRole('dialog');
+      expect(dialog).toBeTruthy();
+      expect(within(dialog).getByText('Catat Pengeluaran')).toBeTruthy();
+
+      const programSelect = await within(dialog).findByLabelText(/Acara/i);
+      expect(programSelect.value).toBe('prog-active');
+    });
   });
 });

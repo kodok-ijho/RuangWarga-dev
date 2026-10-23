@@ -103,17 +103,25 @@ export default function TenantIncomes() {
 
       if (qProgram) {
         const targetProg = programs.find((p) => String(p.id) === String(qProgram));
-        if (targetProg) {
-          const accessState = getProgramAccessState(targetProg, { tenantType: activeTenant?.type });
-          if (!accessState.writable) {
-            toast.error('Acara belum aktif atau masa aktifnya habis. Transaksi acara ini hanya bisa dilihat.');
-            setSearchParams((prev) => {
-              const next = new URLSearchParams(prev);
-              next.delete('new');
-              return next;
-            }, { replace: true });
-            return;
-          }
+        if (!targetProg) {
+          toast.error('Acara tidak ditemukan atau tidak bisa dipilih.');
+          setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('new');
+            return next;
+          }, { replace: true });
+          return;
+        }
+
+        const accessState = getProgramAccessState(targetProg, { tenantType: activeTenant?.type });
+        if (!accessState.writable) {
+          toast.error('Acara belum aktif atau masa aktifnya habis. Transaksi acara ini hanya bisa dilihat.');
+          setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('new');
+            return next;
+          }, { replace: true });
+          return;
         }
         setInitialProgramForForm(qProgram);
       }

@@ -161,17 +161,25 @@ export default function Expenses() {
 
       if (queryProgramId) {
         const targetProg = tenantPrograms.find((p) => String(p.id) === String(queryProgramId));
-        if (targetProg) {
-          const accessState = getProgramAccessState(targetProg, { tenantType: activeTenant?.type });
-          if (!accessState.writable) {
-            toast.error('Acara belum aktif atau masa aktifnya habis. Transaksi acara ini hanya bisa dilihat.');
-            setSearchParams((prev) => {
-              const next = new URLSearchParams(prev);
-              next.delete('new');
-              return next;
-            }, { replace: true });
-            return;
-          }
+        if (!targetProg) {
+          toast.error('Acara tidak ditemukan atau tidak bisa dipilih.');
+          setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('new');
+            return next;
+          }, { replace: true });
+          return;
+        }
+
+        const accessState = getProgramAccessState(targetProg, { tenantType: activeTenant?.type });
+        if (!accessState.writable) {
+          toast.error('Acara belum aktif atau masa aktifnya habis. Transaksi acara ini hanya bisa dilihat.');
+          setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('new');
+            return next;
+          }, { replace: true });
+          return;
         }
         setInitialProgramForForm(queryProgramId);
       }
@@ -1056,10 +1064,11 @@ function ExpenseFormModal({
         {tenantId && tenantPrograms.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 rounded-xl bg-slate-50 border border-slate-200">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label htmlFor="expense-program-select" className="block text-xs font-semibold text-slate-700 mb-1">
                 Acara <span className="text-slate-400 font-normal">(opsional)</span>
               </label>
               <select
+                id="expense-program-select"
                 value={form.program_id}
                 onChange={(e) => {
                   const newPid = e.target.value;

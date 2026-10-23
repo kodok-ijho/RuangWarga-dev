@@ -291,4 +291,32 @@ describe('PANITIA-1.6: TenantIncomes Page', () => {
 
     expect(screen.queryByText('Catat Pemasukan Kas')).toBeNull();
   });
+
+  it('2F.3: deep link ke acara yang tidak ada (atau daftar acara kosong) menolak buka modal dan menampilkan toast', async () => {
+    let resolvePrograms;
+    const asyncPrograms = new Promise((resolve) => {
+      resolvePrograms = resolve;
+    });
+    tenantOperationalService.fetchPrograms.mockReturnValue(asyncPrograms);
+
+    renderTenantIncomes('/t/tenant-panitia-1/incomes?program=prog-unknown&new=1');
+
+    expect(screen.queryByText('Catat Pemasukan Kas')).toBeNull();
+
+    resolvePrograms([
+      {
+        id: 'prog-1',
+        name: 'PenSi 2026',
+        status: 'running',
+        is_free_trial: true,
+        access_until: '2099-01-01T00:00:00Z',
+      },
+    ]);
+
+    await waitFor(() => {
+      expect(mockToast.error).toHaveBeenCalledWith('Acara tidak ditemukan atau tidak bisa dipilih.');
+    });
+
+    expect(screen.queryByText('Catat Pemasukan Kas')).toBeNull();
+  });
 });
