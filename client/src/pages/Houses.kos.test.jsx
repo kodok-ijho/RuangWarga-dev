@@ -15,44 +15,54 @@ const mockTenant = {
   settings: {},
 };
 
+const mockAuth = {
+  role: 'admin',
+  session: { access_token: 'fake-token' },
+  isReadOnly: false,
+};
+
+const mockTenantState = {
+  activeTenantId: 'tenant-kos-1',
+  activeTenant: mockTenant,
+};
+
+const mockTemplate = {
+  unitLabel: 'Kamar',
+  occupiedUnitLabel: 'Terisi',
+  emptyUnitLabel: 'Kosong',
+  memberLabel: 'Penyewa',
+  billLabel: 'Sewa',
+};
+
+const mockToast = {
+  error: vi.fn(),
+  success: vi.fn(),
+  warning: vi.fn(),
+  info: vi.fn(),
+};
+
+const mockTour = {
+  triggerTour: vi.fn(),
+};
+
 vi.mock('../hooks/useAuth', () => ({
-  useAuth: () => ({
-    role: 'admin',
-    session: { access_token: 'fake-token' },
-    isReadOnly: false,
-  }),
+  useAuth: () => mockAuth,
 }));
 
 vi.mock('../hooks/useTenant', () => ({
-  useTenant: () => ({
-    activeTenantId: 'tenant-kos-1',
-    activeTenant: mockTenant,
-  }),
+  useTenant: () => mockTenantState,
 }));
 
 vi.mock('../hooks/useTenantTemplate', () => ({
-  useTenantTemplate: () => ({
-    unitLabel: 'Kamar',
-    occupiedUnitLabel: 'Terisi',
-    emptyUnitLabel: 'Kosong',
-    memberLabel: 'Penyewa',
-    billLabel: 'Sewa',
-  }),
+  useTenantTemplate: () => mockTemplate,
 }));
 
 vi.mock('../hooks/useToast', () => ({
-  useToast: () => ({
-    error: vi.fn(),
-    success: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-  }),
+  useToast: () => mockToast,
 }));
 
 vi.mock('../context/TourContext', () => ({
-  useTour: () => ({
-    triggerTour: vi.fn(),
-  }),
+  useTour: () => mockTour,
 }));
 
 vi.mock('../services/dataService', () => ({
@@ -142,10 +152,8 @@ describe('Houses Kos Vacancy Listing (KOS-2.6b)', () => {
     await waitFor(() => {
       const diiklankanBadges = screen.getAllByRole('button', { name: /^Diiklankan$/i });
       expect(diiklankanBadges.length).toBeGreaterThan(0);
+      const iklankanButtons = screen.getAllByRole('button', { name: /^Iklankan$/i });
+      expect(iklankanButtons.length).toBeGreaterThan(0);
     });
-
-    // Kamar 103 tanpa iklan -> tombol "Iklankan" muncul (bukan Diiklankan)
-    const iklankanButtons = screen.getAllByRole('button', { name: /^Iklankan$/i });
-    expect(iklankanButtons.length).toBeGreaterThan(0);
   });
 });
