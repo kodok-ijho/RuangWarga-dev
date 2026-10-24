@@ -1124,26 +1124,35 @@ function UnitFormModal({ unit, owners, canEditSchema, iplSchemas, template, acti
             )}
           </div>
 
-          <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-3.5 text-sm hover:bg-slate-50 cursor-pointer transition">
-            <input
-              type="checkbox"
-              checked={Boolean(form.is_occupied)}
-              onChange={(event) => {
-                const checked = event.target.checked;
-                updateField('is_occupied', checked);
-                if (canEditSchema) {
-                  updateField('ipl_schema_id', checked ? 'schema-komplit' : 'schema-basic');
-                }
-              }}
-              className="mt-1 accent-gold-500"
-            />
-            <span>
-              <span className="font-semibold text-slate-800">{template?.unitLabel || 'Unit'} sedang terisi ({template?.occupiedUnitLabel || 'Terdaftar'})</span>
-              <span className="block text-xs text-slate-500 mt-0.5">
-                Matikan jika {template?.unitLabel?.toLowerCase() || 'unit'} kosong atau belum ada {template?.memberLabel?.toLowerCase() || 'anggota'}. {canEditSchema ? `Otomatis menyesuaikan skema ${template?.billLabel || 'IPL'} di atas.` : ''}
+          {activeTenant?.type === 'kos' ? (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+              <span className="font-semibold">Status Keterisian Kamar:</span>
+              <p className="mt-0.5 text-[11px] text-amber-800">
+                Status terisi atau kosong kamar kos dikelola secara otomatis melalui <b>Kontrak Sewa</b>.
+              </p>
+            </div>
+          ) : (
+            <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-3.5 text-sm hover:bg-slate-50 cursor-pointer transition">
+              <input
+                type="checkbox"
+                checked={Boolean(form.is_occupied)}
+                onChange={(event) => {
+                  const checked = event.target.checked;
+                  updateField('is_occupied', checked);
+                  if (canEditSchema) {
+                    updateField('ipl_schema_id', checked ? 'schema-komplit' : 'schema-basic');
+                  }
+                }}
+                className="mt-1 accent-gold-500"
+              />
+              <span>
+                <span className="font-semibold text-slate-800">{template?.unitLabel || 'Unit'} sedang terisi ({template?.occupiedUnitLabel || 'Terdaftar'})</span>
+                <span className="block text-xs text-slate-500 mt-0.5">
+                  Matikan jika {template?.unitLabel?.toLowerCase() || 'unit'} kosong atau belum ada {template?.memberLabel?.toLowerCase() || 'anggota'}. {canEditSchema ? `Otomatis menyesuaikan skema ${template?.billLabel || 'IPL'} di atas.` : ''}
+                </span>
               </span>
-            </span>
-          </label>
+            </label>
+          )}
 
           <Field label="Catatan">
             <textarea

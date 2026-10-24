@@ -742,16 +742,17 @@ export async function fetchActiveContractByUnit(tenantId, unitId) {
 }
 
 /**
- * Menetapkan penyewa ke kamar kos dan mengaktifkan kontrak sewa
- * Memperbarui status unit (vacant -> occupied), menyimpan metadata kontrak,
- * serta membuat tagihan sewa awal di billing_items dengan contract_start & contract_end.
+ * Menetapkan penyewa ke kamar kos dan mengaktifkan kontrak sewa.
+ * Pembungkus backward-compatible yang mendelegasikan ke createKosContract (KOS-2.3, KOS-2.8).
+ * Menghapus update langsung tenant_units.status dari browser (status kamar diturunkan dari kontrak).
  * 
  * @param {string} tenantId - UUID tenant
- * @param {object} params - { unitId, memberId, contractStart, contractEnd, rentPrice, dueDate, notes }
+ * @param {object} params - { unitId, memberId, tenantName, contractStart, contractEnd, rentPrice, dueDate, notes }
  */
 export async function assignRoomContract(tenantId, {
   unitId,
   memberId,
+  tenantName,
   contractStart,
   contractEnd,
   rentPrice,
@@ -760,86 +761,30 @@ export async function assignRoomContract(tenantId, {
 } = {}) {
   if (!tenantId) throw new Error('Tenant ID wajib disertakan.');
   if (!unitId) throw new Error('Kamar (unitId) wajib dipilih.');
-  if (!contractStart || !contractEnd) {
-    throw new Error('Tanggal mulai dan selesai kontrak sewa wajib diisi.');
+  if (!contractStart) {
+    throw new Error('Tanggal mulai kontrak sewa wajib diisi.');
   }
 
-  const startDate = new Date(contractStart);
-  const endDate = new Date(contractEnd);
-  if (endDate <= startDate) {
-    throw new Error('Tanggal selesai kontrak harus lebih besar dari tanggal mulai kontrak.');
+  let months = null;
+  if (contractStart && contractEnd) {
+    const s = new Date(contractStart);
+    const e = new Date(contractEnd);
+    if (e <= s) {
+      throw new Error('Tanggal selesai kontrak harus lebih besar dari tanggal mulai kontrak.');
+    }
+    const diffMonths = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + 1;
+    if (diffMonths > 0) months = diffMonths;
   }
 
-  const period = contractStart.slice(0, 7);
-  const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
-
-  // 1. Update unit status menjadi 'occupied' beserta metadata kontrak
-  if (!isDemoOrMock) {
-    const { data: currentUnit, error: fetchErr } = await supabase
-      .from('tenant_units')
-      .select('metadata')
-      .eq('tenant_id', tenantId)
-      .eq('id', unitId)
-      .single();
-
-    if (fetchErr) {
-      console.error('[assignRoomContract] fetch unit error:', fetchErr);
-      throw new Error(fetchErr.message || 'Kamar tidak ditemukan untuk tenant ini.');
-    }
-
-    const currentMeta = currentUnit?.metadata || {};
-    const updatedMeta = {
-      ...currentMeta,
-      contract_start: contractStart,
-      contract_end: contractEnd,
-      tenant_member_id: memberId || null,
-      rent_price: Number(rentPrice || currentMeta.default_rent_price || 0),
-      notes: notes || '',
-    };
-
-    const { data: updatedUnits, error: updateErr } = await supabase
-      .from('tenant_units')
-      .update({
-        status: 'occupied',
-        metadata: updatedMeta,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('tenant_id', tenantId)
-      .eq('id', unitId)
-      .select();
-
-    if (updateErr) {
-      console.error('[assignRoomContract] update unit error:', updateErr);
-      throw new Error(updateErr.message || 'Gagal memperbarui data kamar.');
-    }
-
-    if (!updatedUnits || updatedUnits.length === 0) {
-      throw new Error('Gagal mengaktifkan kontrak: Anda tidak punya izin mengubah kamar.');
-    }
-  }
-
-  // 2. Buat billing_item sewa untuk periode awal kontrak
-  const bill = await createTenantBillingItem(tenantId, {
-    unit_id: unitId,
-    member_id: memberId || null,
-    period,
-    amount: Number(rentPrice || 0),
-    due_date: dueDate || contractStart,
-    contract_start: contractStart,
-    contract_end: contractEnd,
-    metadata: {
-      billing_type: 'rent',
-      notes: notes || 'Kontrak sewa kamar',
-    },
-  });
-
-  return {
+  return createKosContract(tenantId, {
     unitId,
     memberId,
-    contractStart,
-    contractEnd,
-    bill,
-  };
+    tenantName,
+    startDate: contractStart,
+    months,
+    rentPrice,
+    notes,
+  });
 }
 
 /**

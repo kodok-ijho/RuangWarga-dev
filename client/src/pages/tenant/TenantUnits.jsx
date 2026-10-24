@@ -30,6 +30,7 @@ import {
   importTenantUnitsCSV,
   parseUnitsCsv,
   fetchTenantMembers,
+  fetchKosContracts,
 } from '../../services/tenantOperationalService';
 
 /**
@@ -100,6 +101,7 @@ export default function TenantUnits() {
 
   const [units, setUnits] = useState([]);
   const [members, setMembers] = useState([]);
+  const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Search & Filter
@@ -136,18 +138,20 @@ export default function TenantUnits() {
     if (!tenantId) return;
     try {
       setLoading(true);
-      const [unitsRes, membersRes] = await Promise.all([
+      const [unitsRes, membersRes, contractsRes] = await Promise.all([
         fetchTenantUnits(tenantId),
         fetchTenantMembers(tenantId),
+        tenantType === 'kos' ? fetchKosContracts(tenantId).catch(() => []) : Promise.resolve([]),
       ]);
       setUnits(unitsRes || []);
       setMembers(membersRes || []);
+      setContracts(contractsRes || []);
     } catch (err) {
       toast.error(err.message || `Gagal memuat data ${unitLabel.toLowerCase()}`);
     } finally {
       setLoading(false);
     }
-  }, [tenantId, unitLabel, toast]);
+  }, [tenantId, tenantType, unitLabel, toast]);
 
   useEffect(() => {
     loadData();
@@ -166,6 +170,17 @@ export default function TenantUnits() {
     });
     return map;
   }, [members]);
+
+  // Mapping Kontrak Aktif per Unit ID (untuk kos)
+  const activeContractsByUnitId = useMemo(() => {
+    const map = new Map();
+    contracts.forEach((c) => {
+      if (c && c.status === 'active' && c.unit_id != null) {
+        map.set(String(c.unit_id), c);
+      }
+    });
+    return map;
+  }, [contracts]);
 
   // Filter & Pencarian Unit
   const filteredUnits = useMemo(() => {
@@ -559,7 +574,11 @@ export default function TenantUnits() {
                   {filteredUnits.map((u) => {
                     const occ = u.metadata?.occupant;
                     const linked = membersByUnitId.get(String(u.id)) || [];
-                    const statusBadge = getUnitStatusBadge(u.status, template);
+                    const activeContract = activeContractsByUnitId.get(String(u.id));
+                    const effectiveStatus = tenantType === 'kos'
+                      ? (u.status === 'inactive' ? 'inactive' : (activeContract || u.status === 'occupied' ? 'occupied' : 'vacant'))
+                      : u.status;
+                    const statusBadge = getUnitStatusBadge(effectiveStatus, template);
                     const isInactive = u.status === 'inactive';
 
                     return (
@@ -577,9 +596,9 @@ export default function TenantUnits() {
                               />
                               {statusBadge.label}
                             </span>
-                            {tenantType === 'kos' && u.status === 'occupied' && !u.metadata?.contract_start && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                                Belum ada kontrak
+                            {tenantType === 'kos' && activeContract && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                Kontrak Aktif
                               </span>
                             )}
                           </div>
@@ -599,7 +618,14 @@ export default function TenantUnits() {
                           </td>
                         )}
                         <td className="py-3.5 px-4 text-slate-700">
-                          {occ && occ.name ? (
+                          {tenantType === 'kos' && activeContract ? (
+                            <div className="space-y-0.5">
+                              <div className="font-semibold text-slate-900">
+                                {activeContract.member?.full_name || activeContract.tenant_name || 'Penyewa Terdaftar'}
+                              </div>
+                              <div className="text-[11px] text-emerald-700 font-medium">Penyewa Kontrak</div>
+                            </div>
+                          ) : occ && occ.name ? (
                             <div className="space-y-0.5">
                               <div className="font-semibold text-slate-900">{occ.name}</div>
                               {occ.phone && (
@@ -694,7 +720,11 @@ export default function TenantUnits() {
             {filteredUnits.map((u) => {
               const occ = u.metadata?.occupant;
               const linked = membersByUnitId.get(String(u.id)) || [];
-              const statusBadge = getUnitStatusBadge(u.status, template);
+              const activeContract = activeContractsByUnitId.get(String(u.id));
+              const effectiveStatus = tenantType === 'kos'
+                ? (u.status === 'inactive' ? 'inactive' : (activeContract || u.status === 'occupied' ? 'occupied' : 'vacant'))
+                : u.status;
+              const statusBadge = getUnitStatusBadge(effectiveStatus, template);
               const isInactive = u.status === 'inactive';
 
               return (
@@ -713,9 +743,9 @@ export default function TenantUnits() {
                         />
                         {statusBadge.label}
                       </span>
-                      {tenantType === 'kos' && u.status === 'occupied' && !u.metadata?.contract_start && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                          Belum ada kontrak
+                      {tenantType === 'kos' && activeContract && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          Kontrak Aktif
                         </span>
                       )}
                     </div>
@@ -750,7 +780,14 @@ export default function TenantUnits() {
                     <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                       Penghuni:
                     </div>
-                    {occ && occ.name ? (
+                    {tenantType === 'kos' && activeContract ? (
+                      <div>
+                        <div className="font-semibold text-slate-900">
+                          {activeContract.member?.full_name || activeContract.tenant_name || 'Penyewa Terdaftar'}
+                        </div>
+                        <div className="text-[11px] text-emerald-700 font-medium">Penyewa Kontrak Aktif</div>
+                      </div>
+                    ) : occ && occ.name ? (
                       <div>
                         <div className="font-semibold text-slate-900">{occ.name}</div>
                         {occ.phone && <div className="text-slate-500">{occ.phone}</div>}
