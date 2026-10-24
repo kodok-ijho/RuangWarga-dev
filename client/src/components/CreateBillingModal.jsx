@@ -29,6 +29,7 @@ export default function CreateBillingModal({
   tenantId,
   tenantType = 'rt_rw',
   initialUnitId = '',
+  initialMemberId = '',
   onSuccess,
 }) {
   const toast = useToast();
@@ -149,8 +150,15 @@ export default function CreateBillingModal({
       setTenantName(matchedName || 'Penyewa Terdaftar');
     } else {
       setIsRoomOccupied(false);
-      setMemberId('');
-      setTenantName('');
+      const prevMemberId = initialMemberId || found.metadata?.previous_tenant_member_id || '';
+      if (prevMemberId) {
+        setMemberId(prevMemberId);
+        const m = memberList.find((x) => String(x.id) === String(prevMemberId));
+        setTenantName(m?.full_name || '');
+      } else {
+        setMemberId('');
+        setTenantName('');
+      }
       setMemberSelectMode('member');
     }
   };
