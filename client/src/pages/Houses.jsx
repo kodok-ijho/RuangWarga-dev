@@ -9,7 +9,6 @@ import {
   AiOutlinePlus,
   AiOutlineSearch,
 } from 'react-icons/ai';
-import { HiOutlineSparkles } from 'react-icons/hi';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { useTour } from '../context/TourContext';
@@ -36,6 +35,8 @@ import {
   fetchIPLSchemas,
 } from '../services/dataService';
 import { fetchTenantUnits, fetchTenantMembers } from '../services/tenantOperationalService';
+import { fetchTenantListings } from '../services/publicListingService';
+import RoomListingAction from '../components/RoomListingAction';
 import {
   isStaffRole,
   isBendaharaOrAbove,
@@ -78,6 +79,7 @@ export default function Houses() {
   const [units, setUnits] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [iplSchemas, setIplSchemas] = useState(DEFAULT_IPL_SCHEMAS);
+  const [tenantListings, setTenantListings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -111,6 +113,7 @@ export default function Houses() {
     setSortDirection('asc');
     setUnits([]);
     setProfiles([]);
+    setTenantListings([]);
     setLoadError(null);
   }, [activeTenantId]);
 
@@ -121,13 +124,16 @@ export default function Houses() {
     setLoadError(null);
     try {
       if (targetTenantId && !String(targetTenantId).startsWith('demo-')) {
-        const [tenantUnits, members, resSchemas] = await Promise.all([
+        const [tenantUnits, members, resSchemas, listings] = await Promise.all([
           fetchTenantUnits(targetTenantId),
           fetchTenantMembers(targetTenantId),
           fetchIPLSchemas(token).catch((err) => {
             console.warn('Failed to fetch IPL schemas; using defaults:', err);
             return DEFAULT_IPL_SCHEMAS;
           }),
+          activeTenant?.type === 'kos'
+            ? fetchTenantListings(targetTenantId).catch(() => [])
+            : Promise.resolve([]),
         ]);
         if (seq !== fetchSeqRef.current || activeTenantRef.current !== targetTenantId) {
           return;
@@ -147,14 +153,18 @@ export default function Houses() {
         );
         setProfiles(members || []);
         setIplSchemas(resSchemas && resSchemas.length > 0 ? resSchemas : DEFAULT_IPL_SCHEMAS);
+        setTenantListings(listings || []);
       } else {
-        const [resUnits, resProfiles, resSchemas] = await Promise.all([
+        const [resUnits, resProfiles, resSchemas, listings] = await Promise.all([
           fetchUnits(token),
           fetchResidents(token),
           fetchIPLSchemas(token).catch((err) => {
             console.warn('Failed to fetch IPL schemas; using defaults:', err);
             return DEFAULT_IPL_SCHEMAS;
           }),
+          activeTenant?.type === 'kos' && targetTenantId
+            ? fetchTenantListings(targetTenantId).catch(() => [])
+            : Promise.resolve([]),
         ]);
         if (seq !== fetchSeqRef.current || activeTenantRef.current !== targetTenantId) {
           return;
@@ -162,6 +172,7 @@ export default function Houses() {
         setUnits(resUnits || []);
         setProfiles(resProfiles || []);
         setIplSchemas(resSchemas && resSchemas.length > 0 ? resSchemas : DEFAULT_IPL_SCHEMAS);
+        setTenantListings(listings || []);
       }
     } catch (err) {
       if (seq !== fetchSeqRef.current || activeTenantRef.current !== targetTenantId) {
@@ -220,6 +231,16 @@ export default function Houses() {
       blocks: blocks.length,
     };
   }, [blocks.length, units]);
+
+  const listingsByUnitId = useMemo(() => {
+    const map = new Map();
+    (tenantListings || []).forEach((lst) => {
+      if (lst && lst.unit_id != null) {
+        map.set(String(lst.unit_id), lst);
+      }
+    });
+    return map;
+  }, [tenantListings]);
 
   const filteredUnits = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -711,15 +732,26 @@ export default function Houses() {
                         Lt. {unit.floor || '-'} / {unit.size || 0}m²
                       </TableCell>
                       <TableCell>
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${
-                            unit.is_occupied
-                              ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
-                              : 'border border-slate-200 bg-slate-100 text-slate-500'
-                          }`}
-                        >
-                          {unit.is_occupied ? template.occupiedUnitLabel : template.emptyUnitLabel}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${
+                              unit.is_occupied
+                                ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                                : 'border border-slate-200 bg-slate-100 text-slate-500'
+                            }`}
+                          >
+                            {unit.is_occupied ? template.occupiedUnitLabel : template.emptyUnitLabel}
+                          </span>
+                          {!unit.is_occupied && activeTenant?.type === 'kos' && (
+                            <RoomListingAction
+                              unitId={unit.id}
+                              tenantId={activeTenant.id}
+                              listing={listingsByUnitId.get(String(unit.id))}
+                              canPostListing={canWrite}
+                              compact={true}
+                            />
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell align="right">
                         <div className="flex items-center justify-end gap-1">
@@ -783,15 +815,26 @@ export default function Houses() {
                         <p className="text-[11px] text-slate-400">ID #{unit.id} • Lt. {unit.floor || 1}</p>
                       </div>
                     </div>
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${
-                        unit.is_occupied
-                          ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
-                          : 'border border-slate-200 bg-slate-100 text-slate-500'
-                      }`}
-                    >
-                      {unit.is_occupied ? template.occupiedUnitLabel : template.emptyUnitLabel}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${
+                          unit.is_occupied
+                            ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                            : 'border border-slate-200 bg-slate-100 text-slate-500'
+                        }`}
+                      >
+                        {unit.is_occupied ? template.occupiedUnitLabel : template.emptyUnitLabel}
+                      </span>
+                      {!unit.is_occupied && activeTenant?.type === 'kos' && (
+                        <RoomListingAction
+                          unitId={unit.id}
+                          tenantId={activeTenant.id}
+                          listing={listingsByUnitId.get(String(unit.id))}
+                          canPostListing={canWrite}
+                          compact={true}
+                        />
+                      )}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50/70 p-2.5 rounded-xl border border-slate-100">
@@ -874,6 +917,7 @@ export default function Houses() {
           role={role}
           template={template}
           activeTenant={activeTenant}
+          listing={listingsByUnitId.get(String(selectedUnit.id))}
           onClose={() => setSelectedUnit(null)}
           onEdit={() => {
             if (!canWrite) return;
@@ -921,8 +965,7 @@ function StatCard({ label, value, tone }) {
   );
 }
 
-function UnitDetailModal({ unit, getUnitOwner, getUnitOccupant, profiles, iplSchemas, token, role, template, activeTenant, onClose, onEdit, onDelete, canWrite }) {
-  const navigate = useNavigate();
+function UnitDetailModal({ unit, getUnitOwner, getUnitOccupant, profiles, iplSchemas, token, role, template, activeTenant, listing, onClose, onEdit, onDelete, canWrite }) {
   const owner = getUnitOwner(unit.id);
   const occupant = getUnitOccupant(unit.id);
   const relatedProfiles = profiles.filter((profile) => profile.unit_id === unit.id);
@@ -989,16 +1032,14 @@ function UnitDetailModal({ unit, getUnitOwner, getUnitOccupant, profiles, iplSch
 
       {!unit.is_occupied && activeTenant?.type === 'kos' && canWrite && (
         <div className="mt-4">
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              navigate(`/t/${activeTenant.id}/listings/post?unitId=${unit.id}`);
-            }}
-            className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-gold-500 px-3 py-2 text-xs font-semibold text-forest-900 shadow-sm hover:bg-gold-600 transition-colors"
-          >
-            <HiOutlineSparkles className="text-base" /> Iklankan Kamar Ini ke Publik
-          </button>
+          <RoomListingAction
+            unitId={unit.id}
+            tenantId={activeTenant.id}
+            listing={listing}
+            canPostListing={canWrite}
+            compact={false}
+            className="w-full justify-center py-2"
+          />
         </div>
       )}
 
@@ -1124,26 +1165,35 @@ function UnitFormModal({ unit, owners, canEditSchema, iplSchemas, template, acti
             )}
           </div>
 
-          <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-3.5 text-sm hover:bg-slate-50 cursor-pointer transition">
-            <input
-              type="checkbox"
-              checked={Boolean(form.is_occupied)}
-              onChange={(event) => {
-                const checked = event.target.checked;
-                updateField('is_occupied', checked);
-                if (canEditSchema) {
-                  updateField('ipl_schema_id', checked ? 'schema-komplit' : 'schema-basic');
-                }
-              }}
-              className="mt-1 accent-gold-500"
-            />
-            <span>
-              <span className="font-semibold text-slate-800">{template?.unitLabel || 'Unit'} sedang terisi ({template?.occupiedUnitLabel || 'Terdaftar'})</span>
-              <span className="block text-xs text-slate-500 mt-0.5">
-                Matikan jika {template?.unitLabel?.toLowerCase() || 'unit'} kosong atau belum ada {template?.memberLabel?.toLowerCase() || 'anggota'}. {canEditSchema ? `Otomatis menyesuaikan skema ${template?.billLabel || 'IPL'} di atas.` : ''}
+          {activeTenant?.type === 'kos' ? (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+              <span className="font-semibold">Status Keterisian Kamar:</span>
+              <p className="mt-0.5 text-[11px] text-amber-800">
+                Status terisi atau kosong kamar kos dikelola secara otomatis melalui <b>Kontrak Sewa</b>.
+              </p>
+            </div>
+          ) : (
+            <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-3.5 text-sm hover:bg-slate-50 cursor-pointer transition">
+              <input
+                type="checkbox"
+                checked={Boolean(form.is_occupied)}
+                onChange={(event) => {
+                  const checked = event.target.checked;
+                  updateField('is_occupied', checked);
+                  if (canEditSchema) {
+                    updateField('ipl_schema_id', checked ? 'schema-komplit' : 'schema-basic');
+                  }
+                }}
+                className="mt-1 accent-gold-500"
+              />
+              <span>
+                <span className="font-semibold text-slate-800">{template?.unitLabel || 'Unit'} sedang terisi ({template?.occupiedUnitLabel || 'Terdaftar'})</span>
+                <span className="block text-xs text-slate-500 mt-0.5">
+                  Matikan jika {template?.unitLabel?.toLowerCase() || 'unit'} kosong atau belum ada {template?.memberLabel?.toLowerCase() || 'anggota'}. {canEditSchema ? `Otomatis menyesuaikan skema ${template?.billLabel || 'IPL'} di atas.` : ''}
+                </span>
               </span>
-            </span>
-          </label>
+            </label>
+          )}
 
           <Field label="Catatan">
             <textarea

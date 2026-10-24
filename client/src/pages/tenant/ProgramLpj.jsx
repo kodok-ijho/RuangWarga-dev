@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { AiOutlineArrowLeft, AiOutlinePrinter } from 'react-icons/ai';
+import { AiOutlineArrowLeft, AiOutlinePrinter, AiOutlineWarning } from 'react-icons/ai';
 import { useTenant } from '../../context/TenantContext';
 import {
   fetchProgram,
@@ -12,7 +12,8 @@ import {
   PROGRAM_STATUS_LABELS,
   PROGRAM_DOC_TYPES,
 } from '../../services/tenantOperationalService';
-import { formatRupiah, formatDate } from '../../services/dataHelpers';
+import { formatRupiah } from '../../services/dataHelpers';
+import { formatDateWIB } from '../../utils/date';
 import { SkeletonCard } from '../../components/ui';
 
 function formatFileSize(bytes) {
@@ -32,6 +33,7 @@ export default function ProgramLpj() {
   const [program, setProgram] = useState(null);
   const [budgetItems, setBudgetItems] = useState([]);
   const [transactions, setTransactions] = useState({ incomes: [], expenses: [], dues: [] });
+  const [transactionsError, setTransactionsError] = useState(false);
   const [documents, setDocuments] = useState([]);
   const [members, setMembers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,46 +45,56 @@ export default function ProgramLpj() {
   const [signLeadName, setSignLeadName] = useState('');
   const [signTreasurerName, setSignTreasurerName] = useState('');
 
-  useEffect(() => {
-    async function loadLpjData() {
-      if (!tenantId || !programId) return;
-      setIsLoading(true);
-      setLoadError(null);
-      try {
-        const [progData, itemsData, transData, docsData, membersData] = await Promise.all([
-          fetchProgram(tenantId, programId),
-          fetchBudgetItems(tenantId, programId).catch(() => []),
-          fetchProgramTransactions(tenantId, programId).catch(() => ({ incomes: [], expenses: [], dues: [] })),
-          fetchProgramDocuments(tenantId, programId).catch(() => []),
-          fetchTenantMembers(tenantId).catch(() => []),
-        ]);
+  const loadLpjData = useCallback(async () => {
+    if (!tenantId || !programId) return;
+    setIsLoading(true);
+    setLoadError(null);
+    setTransactionsError(false);
+    try {
+      const [progData, itemsData, transResult, docsData, membersData] = await Promise.all([
+        fetchProgram(tenantId, programId),
+        fetchBudgetItems(tenantId, programId).catch(() => []),
+        fetchProgramTransactions(tenantId, programId).catch((err) => {
+          console.error('[ProgramLpj] fetchProgramTransactions error:', err);
+          return { incomes: [], expenses: [], dues: [], duesError: true, failed: true };
+        }),
+        fetchProgramDocuments(tenantId, programId).catch(() => []),
+        fetchTenantMembers(tenantId).catch(() => []),
+      ]);
 
-        if (!progData) {
-          setLoadError('Data acara tidak ditemukan.');
-          return;
-        }
-
-        setProgram(progData);
-        setBudgetItems(itemsData || []);
-        setTransactions(transData || { incomes: [], expenses: [], dues: [] });
-        setDocuments(docsData || []);
-        setMembers(membersData || []);
-
-        // Inisialisasi pengesahan
-        const defaultLead = progData.lead_member?.name || progData.lead_member?.full_name || '';
-        setSignLeadName((prev) => (prev ? prev : defaultLead));
-        setSignCity((prev) => (prev ? prev : (activeTenant?.city || 'Jakarta')));
-        const todayStr = formatDate(new Date().toISOString());
-        setSignDate((prev) => (prev ? prev : todayStr));
-      } catch (err) {
-        setLoadError(err.message || 'Gagal memuat data LPJ acara.');
-      } finally {
-        setIsLoading(false);
+      if (!progData) {
+        setLoadError('Data acara tidak ditemukan.');
+        return;
       }
-    }
 
-    loadLpjData();
+      setProgram(progData);
+      setBudgetItems(itemsData || []);
+      const hasTransErr = Boolean(transResult?.failed || transResult?.duesError || !transResult);
+      setTransactions(
+        transResult && !transResult.failed
+          ? transResult
+          : { incomes: [], expenses: [], dues: [] }
+      );
+      setTransactionsError(hasTransErr);
+      setDocuments(docsData || []);
+      setMembers(membersData || []);
+
+      // Inisialisasi pengesahan
+      const defaultLead = progData.lead_member?.name || progData.lead_member?.full_name || '';
+      setSignLeadName((prev) => (prev ? prev : defaultLead));
+      setSignCity((prev) => (prev ? prev : (activeTenant?.city || '')));
+      const todayStr = formatDateWIB(new Date().toISOString());
+      setSignDate((prev) => (prev ? prev : todayStr));
+    } catch (err) {
+      setLoadError(err.message || 'Gagal memuat data LPJ acara.');
+    } finally {
+      setIsLoading(false);
+    }
   }, [tenantId, programId, activeTenant?.city]);
+
+  useEffect(() => {
+    loadLpjData();
+  }, [loadLpjData]);
 
   // Kalkulasi ringkasan keuangan
   const summary = useMemo(() => {
@@ -104,6 +116,7 @@ export default function ProgramLpj() {
   }, [budgetItems]);
 
   const handlePrint = () => {
+    if (transactionsError) return;
     window.print();
   };
 
@@ -155,13 +168,38 @@ export default function ProgramLpj() {
           <button
             type="button"
             onClick={handlePrint}
-            className="pv-button-primary flex items-center gap-2 text-sm"
+            disabled={transactionsError}
+            className={`pv-button-primary flex items-center gap-2 text-sm ${
+              transactionsError ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
           >
             <AiOutlinePrinter className="w-4 h-4" />
             <span>Cetak LPJ (A4)</span>
           </button>
         </div>
       </div>
+
+      {/* Banner Peringatan Transaksi/Iuran Error (2F.1) */}
+      {transactionsError && (
+        <div
+          data-testid="lpj-transactions-error-banner"
+          className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs sm:text-sm print:hidden"
+        >
+          <div className="flex items-center gap-2">
+            <AiOutlineWarning className="shrink-0 text-rose-600 text-lg" />
+            <span>
+              Data transaksi/iuran gagal dimuat. Angka di LPJ ini belum lengkap. Muat ulang sebelum mencetak.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={loadLpjData}
+            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-lg text-xs transition-colors shrink-0 shadow-xs"
+          >
+            Coba lagi
+          </button>
+        </div>
+      )}
 
       {/* Panel Pengaturan Pengesahan (Layar Saja) */}
       <div className="p-5 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl space-y-4 print:hidden">
@@ -243,8 +281,8 @@ export default function ProgramLpj() {
           <div className="flex flex-wrap justify-center items-center gap-4 text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-4">
             <div>
               <span className="font-semibold text-slate-700 dark:text-slate-300">Waktu:</span>{' '}
-              {formatDate(program.starts_on)}
-              {program.ends_on && program.ends_on !== program.starts_on ? ` s/d ${formatDate(program.ends_on)}` : ''}
+              {formatDateWIB(program.starts_on)}
+              {program.ends_on && program.ends_on !== program.starts_on ? ` s/d ${formatDateWIB(program.ends_on)}` : ''}
             </div>
             <span>•</span>
             <div>
@@ -412,7 +450,7 @@ export default function ProgramLpj() {
                     const bItem = inc.budget_item_id ? budgetItemMap.get(String(inc.budget_item_id)) : null;
                     return (
                       <tr key={inc.id}>
-                        <td className="py-2 px-3">{formatDate(inc.income_date || inc.date)}</td>
+                        <td className="py-2 px-3">{formatDateWIB(inc.income_date || inc.date)}</td>
                         <td className="py-2 px-3 text-slate-600 dark:text-slate-400">
                           {bItem ? `${bItem.section} - ${bItem.item}` : 'Di luar anggaran'}
                         </td>
@@ -441,7 +479,7 @@ export default function ProgramLpj() {
                 <tr>
                   <th className="py-2 px-3 font-semibold">Tanggal</th>
                   <th className="py-2 px-3 font-semibold">Pos Anggaran</th>
-                  <th className="py-2 px-3 font-semibold">Penerima</th>
+                  <th className="py-2 px-3 font-semibold">Kategori</th>
                   <th className="py-2 px-3 font-semibold">Uraian</th>
                   <th className="py-2 px-3 font-semibold text-center">Nota</th>
                   <th className="py-2 px-3 font-semibold text-right">Jumlah</th>
@@ -466,11 +504,11 @@ export default function ProgramLpj() {
                     );
                     return (
                       <tr key={exp.id}>
-                        <td className="py-2 px-3">{formatDate(exp.date)}</td>
+                        <td className="py-2 px-3">{formatDateWIB(exp.date)}</td>
                         <td className="py-2 px-3 text-slate-600 dark:text-slate-400">
                           {bItem ? `${bItem.section} - ${bItem.item}` : 'Di luar anggaran'}
                         </td>
-                        <td className="py-2 px-3 font-medium">{exp.recipient || '-'}</td>
+                        <td className="py-2 px-3 font-medium">{exp.category || '-'}</td>
                         <td className="py-2 px-3">{exp.description || '-'}</td>
                         <td className="py-2 px-3 text-center">
                           {hasReceipt ? (
@@ -523,7 +561,7 @@ export default function ProgramLpj() {
                         <td className="py-2 px-3 font-medium text-slate-900 dark:text-white">{mName}</td>
                         <td className="py-2 px-3 text-right font-semibold">{formatRupiah(due.amount)}</td>
                         <td className="py-2 px-3 text-slate-600 dark:text-slate-400">
-                          {due.due_date ? formatDate(due.due_date) : '-'}
+                          {due.due_date ? formatDateWIB(due.due_date) : '-'}
                         </td>
                         <td className="py-2 px-3">
                           {due.status === 'paid' && (
@@ -590,7 +628,7 @@ export default function ProgramLpj() {
                       </td>
                       <td className="py-2 px-3 text-slate-500 truncate max-w-xs">{doc.file_name}</td>
                       <td className="py-2 px-3 text-right">{formatFileSize(doc.file_size)}</td>
-                      <td className="py-2 px-3 text-slate-600 dark:text-slate-400">{formatDate(doc.created_at)}</td>
+                      <td className="py-2 px-3 text-slate-600 dark:text-slate-400">{formatDateWIB(doc.created_at)}</td>
                     </tr>
                   ))
                 )}

@@ -23,6 +23,7 @@ import {
 } from '../finance/financialAggregation';
 import { getReportingPeriodRange } from '../finance/financialDateResolver';
 import { uploadTenantFile } from '../fileStorageService';
+import { fetchKosContracts } from './billing';
 
 /**
  * Mengambil daftar pengeluaran kas tenant
@@ -718,20 +719,24 @@ export function resolveCitizenObligationAndUnit({
 }
 
 /**
- * Menghitung unit terisi dan kosong per jenis tenant (KOS-1F.5).
+ * Menghitung unit terisi dan kosong per jenis tenant (KOS-1F.5, KOS-2.8).
  * - rt_rw: status === 'active' atau is_occupied dihitung sebagai terisi, total = seluruh unit, vacant = total - occupied.
- * - kos / kelas / arisan: unit terisi bila status === 'occupied' ATAU ada anggota approved dengan unit_id = unit.
+ * - kos: terisi HANYA bila unit memiliki kontrak aktif (status === 'occupied' ATAU ada kontrak aktif di daftar contracts),
+ *   BUKAN sekadar ada anggota approved. Unit inactive tidak dihitung.
+ * - kelas / arisan: unit terisi bila status === 'occupied' ATAU ada anggota approved dengan unit_id = unit.
  *   Unit inactive tidak dihitung, baik sebagai terisi maupun kosong.
  *   vacant = jumlah unit bukan inactive dikurangi yang terisi.
  *
  * @param {Array} units
  * @param {Array} members
  * @param {string} tenantType
+ * @param {Array} [contracts=null] - daftar kontrak kos opsional untuk pengecekan status kontrak aktif
  * @returns {{ total: number, occupied: number, vacant: number }}
  */
-export function countOccupiedUnits(units = [], members = [], tenantType = 'rt_rw') {
+export function countOccupiedUnits(units = [], members = [], tenantType = 'rt_rw', contracts = null) {
   const safeUnits = Array.isArray(units) ? units : [];
   const safeMembers = Array.isArray(members) ? members : [];
+  const safeContracts = Array.isArray(contracts) ? contracts : null;
 
   if (tenantType === 'rt_rw') {
     const total = safeUnits.length;
@@ -742,6 +747,33 @@ export function countOccupiedUnits(units = [], members = [], tenantType = 'rt_rw
 
   // kos / kelas / arisan: abaikan unit inactive
   const nonInactiveUnits = safeUnits.filter((u) => u.status !== 'inactive');
+
+  if (tenantType === 'kos') {
+    // KOS-2.8: Status terisi untuk kos diturunkan HANYA dari kontrak aktif
+    let activeContractUnitIds = null;
+    if (safeContracts) {
+      activeContractUnitIds = new Set(
+        safeContracts
+          .filter((c) => c.status === 'active' && c.unit_id != null)
+          .map((c) => String(c.unit_id))
+      );
+    }
+
+    const occupied = nonInactiveUnits.filter((u) => {
+      if (activeContractUnitIds) {
+        return activeContractUnitIds.has(String(u.id));
+      }
+      return Boolean(u.has_active_contract || u.active_contract || u.status === 'occupied');
+    }).length;
+
+    const vacant = Math.max(0, nonInactiveUnits.length - occupied);
+    return {
+      total: nonInactiveUnits.length,
+      occupied,
+      vacant,
+    };
+  }
+
   const approvedMemberUnitIds = new Set(
     safeMembers
       .filter((m) => (!m.status || m.status === 'approved') && m.unit_id != null)
@@ -783,16 +815,17 @@ export async function fetchTenantDashboardData(
   const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
 
   if (isDemoOrMock) {
-    const [units, members, pendingMembers, pendingPayments, monthlyFinance, billMatrix] = await Promise.all([
+    const [units, members, pendingMembers, pendingPayments, monthlyFinance, billMatrix, contracts] = await Promise.all([
       fetchTenantUnits(tenantId),
       fetchTenantMembers(tenantId),
       fetchPendingTenantMembers(tenantId),
       fetchTenantPayments(tenantId, { status: 'pending' }),
       fetchTenantMonthlyFinance(tenantId, { year, month }),
       fetchTenantBillMatrix(tenantId, year),
+      resolvedTenantType === 'kos' ? fetchKosContracts(tenantId).catch(() => []) : Promise.resolve([]),
     ]);
 
-    const unitStats = countOccupiedUnits(units, members, resolvedTenantType || 'rt_rw');
+    const unitStats = countOccupiedUnits(units, members, resolvedTenantType || 'rt_rw', contracts);
     const totalUnits = unitStats.total;
     const occupiedUnits = unitStats.occupied;
     const vacantUnits = unitStats.vacant;
@@ -889,7 +922,12 @@ export async function fetchTenantDashboardData(
     }
   }
 
-  const unitStats = countOccupiedUnits(units, members, resolvedTenantType || 'rt_rw');
+  let contracts = [];
+  if (resolvedTenantType === 'kos') {
+    contracts = await fetchKosContracts(tenantId).catch(() => []);
+  }
+
+  const unitStats = countOccupiedUnits(units, members, resolvedTenantType || 'rt_rw', contracts);
   const totalUnits = unitStats.total;
   const occupiedUnits = unitStats.occupied;
   const vacantUnits = unitStats.vacant;

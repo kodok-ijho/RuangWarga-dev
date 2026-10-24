@@ -305,11 +305,50 @@ export async function generateTenantBillingItems(tenantId, { period, dry_run = f
 /**
  * Mengambil daftar billing_items milik tenant (dengan filter period, status, unitId)
  */
+const demoBillingItemsMap = new Map();
+
+function getInitialDemoBillingItems(tenantId) {
+  if (demoBillingItemsMap.has(tenantId)) {
+    return demoBillingItemsMap.get(tenantId);
+  }
+  const initial = [
+    {
+      id: 'demo-bill-1',
+      tenant_id: tenantId,
+      unit_id: 1,
+      member_id: 'demo-mem-1',
+      period: '2026-10',
+      amount: 1500000,
+      late_fee: 0,
+      due_date: '2026-10-29',
+      status: 'unpaid',
+      contract_start: '2026-10-19',
+      contract_end: null,
+      metadata: {
+        bill_type: 'rent',
+        service_start: '2026-10-19',
+        service_end: '2026-11-18',
+        notes: 'Tagihan sewa Oktober 2026',
+      },
+      tenant_units: { id: 1, label: 'Kamar 101' },
+      tenant_members: { id: 'demo-mem-1', full_name: 'Dhani Mahasiswa', phone: '08123456789' },
+    },
+  ];
+  demoBillingItemsMap.set(tenantId, initial);
+  return initial;
+}
+
 export async function fetchTenantBillingItems(tenantId, { period, status, unitId } = {}) {
   if (!tenantId) return [];
 
   if (IS_DEMO || String(tenantId).startsWith('demo-')) {
-    return [];
+    let list = [...getInitialDemoBillingItems(tenantId)];
+    if (unitId !== undefined && unitId !== null) {
+      list = list.filter((b) => Number(b.unit_id) === Number(unitId));
+    }
+    if (period) list = list.filter((b) => b.period === period);
+    if (status) list = list.filter((b) => b.status === status);
+    return list;
   }
 
   let query = supabase
@@ -390,10 +429,13 @@ export async function createTenantBillingItem(tenantId, payload = {}) {
 
   const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
   if (isDemoOrMock) {
-    return {
-      id: `mock-bill-${Date.now()}`,
+    const list = getInitialDemoBillingItems(tenantId);
+    const newBill = {
+      id: `mock-bill-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       ...row,
     };
+    list.unshift(newBill);
+    return newBill;
   }
 
   const { data, error } = await supabase
@@ -427,16 +469,333 @@ export async function createTenantBillingItem(tenantId, payload = {}) {
 }
 
 /**
- * Menetapkan penyewa ke kamar kos dan mengaktifkan kontrak sewa
- * Memperbarui status unit (vacant -> occupied), menyimpan metadata kontrak,
- * serta membuat tagihan sewa awal di billing_items dengan contract_start & contract_end.
+ * Menghitung periode sewa bulanan berulang berdasarkan tanggal masuk (KOS-2)
+ * Rumus selalu dihitung dari startDate (bukan berantai) untuk mencegah pergeseran tanggal akhir bulan.
+ *
+ * @param {string} startDate - Tanggal mulai sewa (YYYY-MM-DD)
+ * @param {number} [graceDays=10] - Tenggat bayar (jumlah hari setelah service_start)
+ * @param {number} [count=3] - Jumlah periode yang ingin dihasilkan
+ * @param {string|null} [maxEndDate=null] - Batas akhir sewa jika ada (YYYY-MM-DD)
+ * @returns {Array<{ index: number, period: string, service_start: string, service_end: string, due_date: string }>}
+ */
+export function computeRentPeriods(startDate, graceDays = 10, count = 3, maxEndDate = null) {
+  if (!startDate) return [];
+  const parts = String(startDate).slice(0, 10).split('-').map(Number);
+  if (parts.length < 3 || Number.isNaN(parts[0]) || Number.isNaN(parts[1]) || Number.isNaN(parts[2])) {
+    return [];
+  }
+  const [startYear, startMonth, startDay] = parts;
+  const periods = [];
+
+  for (let n = 0; n < count; n += 1) {
+    const totalMonths = (startYear * 12 + (startMonth - 1)) + n;
+    const yearN = Math.floor(totalMonths / 12);
+    const monthN = (totalMonths % 12) + 1;
+    const daysInMonth = new Date(Date.UTC(yearN, monthN, 0)).getUTCDate();
+    const dayN = Math.min(startDay, daysInMonth);
+    const serviceStart = `${yearN}-${String(monthN).padStart(2, '0')}-${String(dayN).padStart(2, '0')}`;
+
+    if (maxEndDate && serviceStart > maxEndDate) {
+      break;
+    }
+
+    const totalMonthsNext = totalMonths + 1;
+    const yearNext = Math.floor(totalMonthsNext / 12);
+    const monthNext = (totalMonthsNext % 12) + 1;
+    const daysInNextMonth = new Date(Date.UTC(yearNext, monthNext, 0)).getUTCDate();
+    const dayNext = Math.min(startDay, daysInNextMonth);
+    const nextStartUtc = Date.UTC(yearNext, monthNext - 1, dayNext);
+    const prevDay = new Date(nextStartUtc - 24 * 60 * 60 * 1000);
+    let serviceEnd = prevDay.toISOString().slice(0, 10);
+
+    if (maxEndDate && serviceEnd > maxEndDate) {
+      serviceEnd = maxEndDate;
+    }
+
+    const dueDateObj = new Date(Date.UTC(yearN, monthN - 1, dayN + Number(graceDays || 0)));
+    const dueDate = dueDateObj.toISOString().slice(0, 10);
+    const period = `${yearN}-${String(monthN).padStart(2, '0')}`;
+
+    periods.push({
+      index: n,
+      period,
+      service_start: serviceStart,
+      service_end: serviceEnd,
+      due_date: dueDate,
+    });
+  }
+
+  return periods;
+}
+
+// Store demo untuk kontrak kos (KOS-2.3)
+const demoKosContractsMap = new Map();
+
+function getInitialDemoContracts(tenantId) {
+  if (demoKosContractsMap.has(tenantId)) {
+    return demoKosContractsMap.get(tenantId);
+  }
+  const initial = [
+    {
+      id: 'demo-contract-1',
+      tenant_id: tenantId,
+      unit_id: 1,
+      member_id: 'demo-mem-1',
+      tenant_name: 'Dhani Mahasiswa',
+      rent_price: 1500000,
+      start_date: '2026-10-19',
+      end_date: null,
+      grace_days: 10,
+      status: 'active',
+      notes: 'Kontrak sewa mahasiswa',
+      created_at: '2026-10-19T00:00:00Z',
+      unit: { id: 1, label: 'Kamar 101', status: 'occupied' },
+      member: { id: 'demo-mem-1', full_name: 'Dhani Mahasiswa', phone: '08123456789', status: 'approved' },
+    },
+  ];
+  demoKosContractsMap.set(tenantId, initial);
+  return initial;
+}
+
+export function resetDemoKosContractsStore() {
+  demoKosContractsMap.clear();
+  demoBillingItemsMap.clear();
+}
+
+/**
+ * Membuat kontrak sewa kos baru pada mode demo
+ */
+async function createDemoKosContract(tenantId, {
+  unitId,
+  memberId = null,
+  tenantName = null,
+  rentPrice,
+  startDate,
+  months = null,
+  graceDays = 10,
+  notes = null,
+}) {
+  const contracts = getInitialDemoContracts(tenantId);
+  const numericUnitId = Number(unitId);
+
+  // Cek apakah kamar sudah punya kontrak aktif
+  const existingUnitContract = contracts.find(
+    (c) => c.unit_id === numericUnitId && c.status === 'active'
+  );
+  if (existingUnitContract) {
+    throw new Error('Kamar sudah memiliki kontrak sewa aktif');
+  }
+
+  // Cek apakah member sudah punya kontrak aktif
+  if (memberId) {
+    const existingMemberContract = contracts.find(
+      (c) => c.member_id === memberId && c.status === 'active'
+    );
+    if (existingMemberContract) {
+      throw new Error('Penyewa sudah memiliki kontrak sewa aktif di kamar lain');
+    }
+  }
+
+  const periods = computeRentPeriods(startDate, graceDays, 1);
+  const firstPeriod = periods[0] || {
+    period: startDate.slice(0, 7),
+    service_start: startDate,
+    service_end: startDate,
+    due_date: startDate,
+  };
+
+  let endDate = null;
+  if (months && Number(months) > 0) {
+    const allPeriods = computeRentPeriods(startDate, graceDays, Number(months));
+    const lastP = allPeriods[allPeriods.length - 1];
+    endDate = lastP ? lastP.service_end : null;
+  }
+
+  const contractId = `demo-contract-${Date.now()}`;
+  const newContract = {
+    id: contractId,
+    tenant_id: tenantId,
+    unit_id: numericUnitId,
+    member_id: memberId || null,
+    tenant_name: tenantName || 'Penyewa Kamar',
+    rent_price: Number(rentPrice || 0),
+    start_date: startDate,
+    end_date: endDate,
+    grace_days: Number(graceDays || 10),
+    status: 'active',
+    notes: notes || null,
+    created_at: new Date().toISOString(),
+    unit: { id: numericUnitId, label: `Kamar ${numericUnitId}`, status: 'occupied' },
+    member: memberId ? { id: memberId, full_name: tenantName || 'Penyewa Kamar', status: 'approved' } : null,
+  };
+
+  contracts.unshift(newContract);
+  demoKosContractsMap.set(tenantId, contracts);
+
+  // Buat tagihan periode pertama di billing_items
+  const bill = await createTenantBillingItem(tenantId, {
+    unit_id: numericUnitId,
+    member_id: memberId || null,
+    period: firstPeriod.period,
+    amount: Number(rentPrice || 0),
+    due_date: firstPeriod.due_date,
+    contract_start: startDate,
+    contract_end: endDate,
+    metadata: {
+      bill_type: 'rent',
+      billing_type: 'rent',
+      auto_generated: false,
+      contract_id: contractId,
+      service_start: firstPeriod.service_start,
+      service_end: firstPeriod.service_end,
+      notes: notes || 'Tagihan sewa periode pertama (kontrak baru)',
+    },
+  });
+
+  return {
+    success: true,
+    contract_id: contractId,
+    bill_id: bill.id,
+    unit_id: numericUnitId,
+    member_id: memberId || null,
+    tenant_name: newContract.tenant_name,
+    rent_price: Number(rentPrice || 0),
+    start_date: startDate,
+    end_date: endDate,
+    grace_days: newContract.grace_days,
+    contract: newContract,
+    bill,
+  };
+}
+
+/**
+ * Membuat kontrak sewa kos master dan menerbitkan tagihan periode pertama (KOS-2)
+ *
+ * @param {string} tenantId - UUID tenant kos
+ * @param {object} params - { unitId, memberId, tenantName, rentPrice, startDate, months, graceDays, notes }
+ */
+export async function createKosContract(tenantId, {
+  unitId,
+  memberId = null,
+  tenantName = null,
+  rentPrice,
+  startDate,
+  months = null,
+  graceDays = 10,
+  notes = null,
+} = {}) {
+  if (!tenantId) throw new Error('Tenant ID wajib disertakan.');
+  if (!unitId) throw new Error('Kamar (unitId) wajib dipilih.');
+  if (!startDate) throw new Error('Tanggal mulai sewa wajib diisi.');
+  if (rentPrice === undefined || rentPrice === null || rentPrice < 0) {
+    throw new Error('Harga sewa tidak boleh bernilai negatif.');
+  }
+
+  const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
+  if (isDemoOrMock) {
+    return createDemoKosContract(tenantId, {
+      unitId,
+      memberId,
+      tenantName,
+      rentPrice,
+      startDate,
+      months,
+      graceDays,
+      notes,
+    });
+  }
+
+  const { data, error } = await supabase.rpc('create_kos_contract', {
+    p_tenant_id: tenantId,
+    p_unit_id: Number(unitId),
+    p_member_id: memberId || null,
+    p_tenant_name: tenantName || null,
+    p_rent_price: Number(rentPrice || 0),
+    p_start_date: startDate,
+    p_months: months ? Number(months) : null,
+    p_grace_days: graceDays !== undefined && graceDays !== null ? Number(graceDays) : null,
+    p_notes: notes || null,
+  });
+
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error('[createKosContract] RPC error:', error);
+    throw new Error(error.message || 'Gagal membuat kontrak sewa kos.');
+  }
+
+  return data;
+}
+
+/**
+ * Mengambil daftar kontrak sewa untuk tenant kos
+ *
+ * @param {string} tenantId - UUID tenant kos
+ */
+export async function fetchKosContracts(tenantId) {
+  if (!tenantId) return [];
+  const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
+  if (isDemoOrMock) {
+    return getInitialDemoContracts(tenantId);
+  }
+
+  const { data, error } = await supabase
+    .from('kos_contracts')
+    .select('*, unit:tenant_units(id, label, status), member:tenant_members(id, full_name, phone, status)')
+    .eq('tenant_id', tenantId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error('[fetchKosContracts] error:', error);
+    throw new Error(error.message || 'Gagal memuat data kontrak kos.');
+  }
+
+  return data || [];
+}
+
+/**
+ * Mengambil kontrak sewa aktif untuk kamar tertentu
+ *
+ * @param {string} tenantId - UUID tenant kos
+ * @param {string|number} unitId - ID kamar
+ */
+export async function fetchActiveContractByUnit(tenantId, unitId) {
+  if (!tenantId || !unitId) return null;
+  const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
+  if (isDemoOrMock) {
+    const list = getInitialDemoContracts(tenantId);
+    return list.find((c) => c.unit_id === Number(unitId) && c.status === 'active') || null;
+  }
+
+  const { data, error } = await supabase
+    .from('kos_contracts')
+    .select('*, unit:tenant_units(id, label, status), member:tenant_members(id, full_name, phone, status)')
+    .eq('tenant_id', tenantId)
+    .eq('unit_id', Number(unitId))
+    .eq('status', 'active')
+    .maybeSingle();
+
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error('[fetchActiveContractByUnit] error:', error);
+    throw new Error(error.message || 'Gagal memuat kontrak aktif kamar.');
+  }
+
+  return data || null;
+}
+
+/**
+ * Menetapkan penyewa ke kamar kos dan mengaktifkan kontrak sewa.
+ * Pembungkus backward-compatible yang mendelegasikan ke createKosContract (KOS-2.3, KOS-2.8).
+ * Menghapus update langsung tenant_units.status dari browser (status kamar diturunkan dari kontrak).
  * 
  * @param {string} tenantId - UUID tenant
- * @param {object} params - { unitId, memberId, contractStart, contractEnd, rentPrice, dueDate, notes }
+ * @param {object} params - { unitId, memberId, tenantName, contractStart, contractEnd, rentPrice, dueDate, notes }
  */
 export async function assignRoomContract(tenantId, {
   unitId,
   memberId,
+  tenantName,
   contractStart,
   contractEnd,
   rentPrice,
@@ -445,65 +804,97 @@ export async function assignRoomContract(tenantId, {
 } = {}) {
   if (!tenantId) throw new Error('Tenant ID wajib disertakan.');
   if (!unitId) throw new Error('Kamar (unitId) wajib dipilih.');
-  if (!contractStart || !contractEnd) {
-    throw new Error('Tanggal mulai dan selesai kontrak sewa wajib diisi.');
+  if (!contractStart) {
+    throw new Error('Tanggal mulai kontrak sewa wajib diisi.');
   }
 
-  const startDate = new Date(contractStart);
-  const endDate = new Date(contractEnd);
-  if (endDate <= startDate) {
-    throw new Error('Tanggal selesai kontrak harus lebih besar dari tanggal mulai kontrak.');
+  let months = null;
+  if (contractStart && contractEnd) {
+    const s = new Date(contractStart);
+    const e = new Date(contractEnd);
+    if (e <= s) {
+      throw new Error('Tanggal selesai kontrak harus lebih besar dari tanggal mulai kontrak.');
+    }
+    const diffMonths = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + 1;
+    if (diffMonths > 0) months = diffMonths;
+  }
+
+  const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
+
+  if (isDemoOrMock) {
+    const res = await createKosContract(tenantId, {
+      unitId,
+      memberId,
+      tenantName,
+      startDate: contractStart,
+      months,
+      rentPrice,
+      notes,
+    });
+
+    return {
+      ...res,
+      unitId: res?.unit_id || unitId,
+      memberId: res?.member_id || memberId,
+      contractStart: res?.start_date || contractStart,
+      contractEnd: res?.end_date || contractEnd,
+      bill: {
+        unit_id: res?.unit_id || unitId,
+        member_id: res?.member_id || memberId,
+        amount: Number(res?.rent_price || rentPrice || 0),
+        contract_start: res?.start_date || contractStart,
+        contract_end: res?.end_date || contractEnd,
+        metadata: { billing_type: 'rent', notes: notes || 'Kontrak sewa kamar' },
+      },
+    };
+  }
+
+  // Non-demo (KOS-2.8): Hapus update langsung status: 'occupied' dari browser.
+  // Hanya simpan metadata kontrak sewa dan pastikan izin update unit valid.
+  const { data: currentUnit, error: fetchErr } = await supabase
+    .from('tenant_units')
+    .select('metadata')
+    .eq('tenant_id', tenantId)
+    .eq('id', unitId)
+    .single();
+
+  if (fetchErr) {
+    // eslint-disable-next-line no-console
+    console.error('[assignRoomContract] fetch unit error:', fetchErr);
+    throw new Error(fetchErr.message || 'Kamar tidak ditemukan untuk tenant ini.');
+  }
+
+  const currentMeta = currentUnit?.metadata || {};
+  const updatedMeta = {
+    ...currentMeta,
+    contract_start: contractStart,
+    contract_end: contractEnd,
+    tenant_member_id: memberId || null,
+    rent_price: Number(rentPrice || currentMeta.default_rent_price || 0),
+    notes: notes || '',
+  };
+
+  const { data: updatedUnits, error: updateErr } = await supabase
+    .from('tenant_units')
+    .update({
+      metadata: updatedMeta,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('tenant_id', tenantId)
+    .eq('id', unitId)
+    .select();
+
+  if (updateErr) {
+    // eslint-disable-next-line no-console
+    console.error('[assignRoomContract] update unit error:', updateErr);
+    throw new Error(updateErr.message || 'Gagal memperbarui data kamar.');
+  }
+
+  if (!updatedUnits || updatedUnits.length === 0) {
+    throw new Error('Gagal mengaktifkan kontrak: Anda tidak punya izin mengubah kamar.');
   }
 
   const period = contractStart.slice(0, 7);
-  const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
-
-  // 1. Update unit status menjadi 'occupied' beserta metadata kontrak
-  if (!isDemoOrMock) {
-    const { data: currentUnit, error: fetchErr } = await supabase
-      .from('tenant_units')
-      .select('metadata')
-      .eq('tenant_id', tenantId)
-      .eq('id', unitId)
-      .single();
-
-    if (fetchErr) {
-      console.error('[assignRoomContract] fetch unit error:', fetchErr);
-      throw new Error(fetchErr.message || 'Kamar tidak ditemukan untuk tenant ini.');
-    }
-
-    const currentMeta = currentUnit?.metadata || {};
-    const updatedMeta = {
-      ...currentMeta,
-      contract_start: contractStart,
-      contract_end: contractEnd,
-      tenant_member_id: memberId || null,
-      rent_price: Number(rentPrice || currentMeta.default_rent_price || 0),
-      notes: notes || '',
-    };
-
-    const { data: updatedUnits, error: updateErr } = await supabase
-      .from('tenant_units')
-      .update({
-        status: 'occupied',
-        metadata: updatedMeta,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('tenant_id', tenantId)
-      .eq('id', unitId)
-      .select();
-
-    if (updateErr) {
-      console.error('[assignRoomContract] update unit error:', updateErr);
-      throw new Error(updateErr.message || 'Gagal memperbarui data kamar.');
-    }
-
-    if (!updatedUnits || updatedUnits.length === 0) {
-      throw new Error('Gagal mengaktifkan kontrak: Anda tidak punya izin mengubah kamar.');
-    }
-  }
-
-  // 2. Buat billing_item sewa untuk periode awal kontrak
   const bill = await createTenantBillingItem(tenantId, {
     unit_id: unitId,
     member_id: memberId || null,
@@ -660,13 +1051,39 @@ export async function checkoutKosRoom(tenantId, {
       delete targetUnit.metadata.notes;
     }
 
+    // Akhiri kontrak aktif kamar di demo store
+    const contracts = getInitialDemoContracts(tenantId);
+    const activeContract = contracts.find(
+      (c) => c.unit_id === Number(unitId) && c.status === 'active'
+    );
+    if (activeContract) {
+      activeContract.status = 'ended';
+      activeContract.end_date = checkoutDate;
+      activeContract.ended_at = new Date().toISOString();
+      activeContract.end_reason = reason || 'Checkout penyewa';
+    }
+
+    let cancelledFutureBills = 0;
+    if (cancelFutureBills) {
+      const bills = getInitialDemoBillingItems(tenantId);
+      bills.forEach((b) => {
+        if (Number(b.unit_id) === Number(unitId) && b.status !== 'paid' && b.status !== 'cancelled') {
+          const sStart = b.metadata?.service_start || b.contract_start || b.period;
+          if (sStart && sStart > checkoutDate) {
+            b.status = 'cancelled';
+            cancelledFutureBills += 1;
+          }
+        }
+      });
+    }
+
     return {
       success: true,
       unit_id: Number(unitId),
       unit_label: targetUnit?.label || `Kamar ${unitId}`,
       status: 'vacant',
       checkout_date: checkoutDate,
-      cancelled_future_bills: 0,
+      cancelled_future_bills: cancelledFutureBills,
     };
   }
 

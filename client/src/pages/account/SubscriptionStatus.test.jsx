@@ -109,7 +109,7 @@ describe('PANITIA-1.8: SubscriptionStatus for Panitia', () => {
     expect(screen.queryByText(/2 acara aktif/i)).toBeNull();
   });
 
-  it('HARGA.4: displays empty text when programs fetch fails or is empty', async () => {
+  it('HARGA.4: displays error and retry button when programs fetch fails (F.5)', async () => {
     tenantOperationalService.fetchPrograms.mockRejectedValue(new Error('Database error'));
 
     render(
@@ -120,6 +120,24 @@ describe('PANITIA-1.8: SubscriptionStatus for Panitia', () => {
       </MemoryRouter>
     );
 
+    expect(await screen.findByText('Gagal memuat acara.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Coba lagi/i })).toBeTruthy();
+    expect(screen.queryByText('Belum ada acara yang dibuat.')).toBeNull();
+  });
+
+  it('HARGA.4: displays empty text when programs list is empty, and payment history has no word "trial"', async () => {
+    tenantOperationalService.fetchPrograms.mockResolvedValue([]);
+
+    render(
+      <MemoryRouter initialEntries={['/account/subscription?tenantId=t-panitia-sub']}>
+        <Routes>
+          <Route path="/account/subscription" element={<SubscriptionStatus />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
     expect(await screen.findByText('Belum ada acara yang dibuat.')).toBeTruthy();
+    expect(screen.getByText('Belum ada riwayat pembayaran langganan')).toBeTruthy();
+    expect(screen.queryByText(/paket masa percobaan \(trial\)/i)).toBeNull();
   });
 });

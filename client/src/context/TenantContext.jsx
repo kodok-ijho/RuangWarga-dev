@@ -410,7 +410,7 @@ export function TenantProvider({ children }) {
         permissions: ALL_PLATFORM_PERMISSIONS,
         subscription: {
           id: `sub-demo-${Date.now()}`,
-          status: 'trial',
+          status: type === 'panitia' ? 'active' : 'trial',
           trial_started_at: new Date().toISOString(),
           trial_ends_at: new Date(Date.now() + 15 * 86400000).toISOString(),
           current_period_start: null,

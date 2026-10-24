@@ -54,6 +54,18 @@ describe('joinForm utilities (KOS-1.1 & PANITIA-1.3)', () => {
       expect(res.map((u) => u.id)).toEqual([1, 2]);
     });
 
+    it('untuk kos: menyaring unit yang memiliki kontrak aktif meskipun statusnya vacant', () => {
+      const kosUnits = [
+        { id: 1, label: 'Kamar 101', status: 'vacant' },
+        { id: 2, label: 'Kamar 102', status: 'vacant' },
+      ];
+      const contracts = [
+        { unit_id: 1, status: 'active' },
+      ];
+      const res = getJoinableUnits(kosUnits, 'kos', contracts);
+      expect(res.map((u) => u.id)).toEqual([2]);
+    });
+
     it('untuk kelas: menyaring inactive dan occupied, hanya menyisakan active dan vacant', () => {
       const res = getJoinableUnits(sampleUnits, 'kelas');
       expect(res.map((u) => u.id)).toEqual([1, 2]);

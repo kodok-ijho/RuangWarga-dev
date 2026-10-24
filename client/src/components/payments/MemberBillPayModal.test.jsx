@@ -176,4 +176,22 @@ describe('PANITIA-2.4: MemberBillPayModal Component', () => {
     expect(handlePaid).toHaveBeenCalled();
     expect(handleClose).toHaveBeenCalled();
   });
+
+  it('PANITIA-ARISAN-1F F.3: modal menampilkan nominal + denda (amount + late_fee)', () => {
+    const billWithLateFee = {
+      ...sampleBill,
+      amount: 50000,
+      late_fee: 5000,
+    };
+
+    render(
+      <MemberBillPayModal
+        tenantId="tenant-panitia-1"
+        bill={billWithLateFee}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/55\.000/)).toBeTruthy();
+  });
 });

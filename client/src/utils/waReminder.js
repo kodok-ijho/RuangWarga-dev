@@ -422,7 +422,7 @@ export function buildArisanDrawShareText({
 
   const excludedList = Array.isArray(excluded) ? excluded.map(extractName).filter(Boolean) : [];
 
-  let text = `*HASIL PENGUKURAN & KOCOKAN ARISAN*\n${tName} — ${rLabel}\n\n`;
+  let text = `*HASIL KOCOKAN ARISAN*\n${tName} — ${rLabel}\n\n`;
   text += `Selamat kepada:\n*${winName}*${slotSuffix}\n`;
   text += `Total Hadiah: *${prizeText}*\n\n`;
   text += `Waktu Kocok: ${timeWib}\n`;

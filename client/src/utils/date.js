@@ -27,3 +27,42 @@ export function getLocalDateString(date = new Date()) {
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+/**
+ * Format tanggal dalam zona waktu Indonesia Barat (WIB / Asia/Jakarta) (PANITIA-ARISAN-1F / F.4)
+ *
+ * Nilai tanggal saja (YYYY-MM-DD) dibaca sebagai tanggal kalender tanpa pergeseran zona.
+ *
+ * @param {string|number|Date} value - Nilai tanggal ISO atau YYYY-MM-DD
+ * @param {Intl.DateTimeFormatOptions} [opts] - Opsi Intl tambahan
+ * @returns {string} Tanggal terformat (mis. "2 Feb 2026") atau '-' jika kosong
+ */
+export function formatDateWIB(value, opts = {}) {
+  if (!value && value !== 0) return '-';
+
+  const defaultOpts = {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  };
+  const options = {
+    ...defaultOpts,
+    ...opts,
+    timeZone: opts?.timeZone || 'Asia/Jakarta',
+  };
+
+  let dateObj;
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+    const [y, m, d] = value.trim().split('-').map(Number);
+    // Jam 12:00:00 WIB (UTC+7) setara dengan 05:00:00 UTC, selalu berada di tengah hari tanggal tersebut
+    dateObj = new Date(Date.UTC(y, m - 1, d, 5, 0, 0));
+  } else {
+    dateObj = value instanceof Date ? value : new Date(value);
+  }
+
+  if (isNaN(dateObj.getTime())) {
+    return typeof value === 'string' ? value : '-';
+  }
+
+  return new Intl.DateTimeFormat('id-ID', options).format(dateObj);
+}

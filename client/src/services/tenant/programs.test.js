@@ -540,4 +540,82 @@ describe('PANITIA-1.5: Program & Budget (RAB) Services', () => {
       expect(list[1].accessUntil).toBeNull();
     });
   });
+
+  describe('PANITIA-ARISAN-1F F.3: fetchProgramTransactions resilience', () => {
+    it('dues gagal -> pemasukan dan pengeluaran tetap tampil dengan flag duesError: true', async () => {
+      const demoTenantId = 'demo-tenant-panitia-f3';
+      const prog = await createProgram(demoTenantId, { name: 'Acara Uji Dues Gagal' });
+      await createTenantIncome(demoTenantId, {
+        amount: 2500000,
+        category: 'Donasi',
+        programId: prog.id,
+        sourceName: 'Donatur A',
+      });
+
+      const programDuesModule = await import('./programDues');
+      const spyDues = vi.spyOn(programDuesModule, 'fetchProgramDues').mockRejectedValueOnce(new Error('Koneksi iuran terputus'));
+
+      const res = await fetchProgramTransactions(demoTenantId, prog.id);
+      expect(res.incomes).toHaveLength(1);
+      expect(res.incomes[0].amount).toBe(2500000);
+      expect(res.dues).toEqual([]);
+      expect(res.duesError).toBe(true);
+
+      spyDues.mockRestore();
+    });
+  });
+
+  describe('PANITIA-ARISAN-1F F.5: masa aktif acara', () => {
+    it('tenantType null atau undefined menghasilkan access state unlimited', () => {
+      const prog = { is_free_trial: false, access_until: null };
+      expect(getProgramAccessState(prog, { tenantType: null })).toEqual({
+        state: 'unlimited',
+        until: null,
+        writable: true,
+      });
+      expect(getProgramAccessState(prog, { tenantType: undefined })).toEqual({
+        state: 'unlimited',
+        until: null,
+        writable: true,
+      });
+    });
+
+    it('label masa aktif WIB untuk 2026-02-01T18:30:00Z = "2 Feb 2026"', () => {
+      const activeLabel = formatProgramAccessLabel({
+        state: 'active',
+        until: '2026-02-01T18:30:00Z',
+      });
+      expect(activeLabel).toBe('Aktif sampai 2 Feb 2026');
+
+      const trialLabel = formatProgramAccessLabel({
+        state: 'free_trial',
+        until: '2026-02-01T18:30:00Z',
+      });
+      expect(trialLabel).toBe('Gratis sampai 2 Feb 2026');
+
+      const expiredLabel = formatProgramAccessLabel({
+        state: 'expired',
+        until: '2026-02-01T18:30:00Z',
+      });
+      expect(expiredLabel).toBe('Masa aktif habis 2 Feb 2026');
+    });
+
+    it('jatah gratis demo hanya sekali per tenant dan tidak kembali setelah acara dihapus', async () => {
+      resetDemoProgramsStore([], []);
+      const demoTenantId = 'demo-tenant-panitia-sekali';
+
+      // Acara 1: dapat jatah gratis
+      const p1 = await createProgram(demoTenantId, { name: 'Acara Gratis Pertama' });
+      expect(p1.is_free_trial).toBe(true);
+      expect(p1.access_until).toBeTruthy();
+
+      // Hapus acara 1
+      await deleteProgram(demoTenantId, p1.id);
+
+      // Acara 2: tidak dapat jatah gratis lagi
+      const p2 = await createProgram(demoTenantId, { name: 'Acara Kedua Tanpa Gratis' });
+      expect(p2.is_free_trial).toBe(false);
+      expect(p2.access_until).toBeNull();
+    });
+  });
 });

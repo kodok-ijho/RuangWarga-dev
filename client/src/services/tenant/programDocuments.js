@@ -139,6 +139,9 @@ export async function uploadProgramDocument(tenantId, programId, { docType, titl
   }
 
   const fileName = file.name || 'document';
+  if (fileName.length > 200) {
+    throw new Error('Nama file terlalu panjang (maks. 200 karakter)');
+  }
   const parts = fileName.split('.');
   const ext = parts.length > 1 ? `.${parts.pop().toLowerCase()}` : '';
 
@@ -223,20 +226,26 @@ export async function deleteProgramDocument(tenantId, documentId) {
     );
     if (idx !== -1) {
       demoProgramDocumentsStore.splice(idx, 1);
+      return { success: true };
     }
-    return { success: true };
+    throw new Error('Dokumen tidak ditemukan atau gagal dihapus.');
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('program_documents')
     .delete()
     .eq('tenant_id', tenantId)
-    .eq('id', documentId);
+    .eq('id', documentId)
+    .select('id');
 
   if (error) {
     // eslint-disable-next-line no-console
     console.error('[programDocuments] deleteProgramDocument error:', error);
     throw error;
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error('Dokumen tidak ditemukan atau gagal dihapus.');
   }
 
   return { success: true };

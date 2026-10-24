@@ -52,6 +52,7 @@ export default function ArisanDraw() {
 
   const tenantId = routeTenantId || activeTenantId;
   const initialRoundId = searchParams.get('roundId');
+  const initialTab = searchParams.get('tab') || 'arena';
 
   // State Utama
   const [rounds, setRounds] = useState([]);
@@ -69,7 +70,7 @@ export default function ArisanDraw() {
   const [showCelebrationModal, setShowCelebrationModal] = useState(false);
   const [isResetCycleModalOpen, setIsResetCycleModalOpen] = useState(false);
   const [resettingCycle, setResettingCycle] = useState(false);
-  const [activeTab, setActiveTab] = useState('arena'); // 'arena' | 'candidates' | 'history'
+  const [activeTab, setActiveTab] = useState(initialTab); // 'arena' | 'candidates' | 'history'
   const [expandedSnapshots, setExpandedSnapshots] = useState({});
 
   const shuffleIntervalRef = useRef(null);
@@ -119,9 +120,16 @@ export default function ArisanDraw() {
   // Update query param bila selectedRoundId berubah
   useEffect(() => {
     if (selectedRoundId) {
-      setSearchParams({ roundId: selectedRoundId }, { replace: true });
+      setSearchParams({ roundId: selectedRoundId, ...(activeTab !== 'arena' ? { tab: activeTab } : {}) }, { replace: true });
     }
-  }, [selectedRoundId]);
+  }, [selectedRoundId, activeTab]);
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['arena', 'candidates', 'history'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   // Ambil objek putaran terpilih
   const selectedRound = useMemo(() => {
@@ -146,24 +154,71 @@ export default function ArisanDraw() {
     loadBills();
   }, [tenantId, selectedRoundId]);
 
-  // Klasifikasi setoran peserta untuk putaran terpilih
-  const eligibleBills = useMemo(() => {
-    return roundBills.filter((b) => b.status === 'paid');
+  // Map status tagihan per member_id (2F.2)
+  // Aturan server:
+  // - Bila anggota punya tagihan 'paid' di putaran itu -> lunas ('paid')
+  // - Kalau tidak, pakai tagihan yang bukan 'cancelled'
+  // - Hanya 'cancelled' -> belum lunas ('cancelled')
+  const billStatusByMemberId = useMemo(() => {
+    const billsByMember = new Map();
+    for (const b of roundBills) {
+      if (!b?.member_id) continue;
+      const list = billsByMember.get(b.member_id) || [];
+      list.push(b);
+      billsByMember.set(b.member_id, list);
+    }
+
+    const map = new Map();
+    for (const [memberId, bills] of billsByMember.entries()) {
+      const hasPaid = bills.some((b) => b.status === 'paid');
+      if (hasPaid) {
+        map.set(memberId, 'paid');
+      } else {
+        const nonCancelled = bills.find((b) => b.status !== 'cancelled');
+        if (nonCancelled) {
+          map.set(memberId, nonCancelled.status);
+        } else {
+          map.set(memberId, 'cancelled');
+        }
+      }
+    }
+    return map;
   }, [roundBills]);
 
-  const excludedBills = useMemo(() => {
-    return roundBills.filter((b) => b.status !== 'paid');
-  }, [roundBills]);
+  // Kandidat yang sah: belum pernah menang (has_won !== true) DAN member.status === 'approved' (2F.2)
+  // Kandidat dengan member.status selain 'approved' tidak masuk "Ikut kocok" maupun "Tidak ikut",
+  // dan tidak dihitung di statistik.
+  const activeCandidates = useMemo(() => {
+    return (candidates || []).filter(
+      (c) => c && c.has_won !== true && c.member?.status === 'approved'
+    );
+  }, [candidates]);
+
+  // Klasifikasi kandidat yang setorannya lunas (ikut kocok) vs belum lunas (tidak ikut kocok).
+  // Pemenang putaran sebelumnya tidak masuk ke kedua daftar.
+  const eligibleCandidates = useMemo(() => {
+    return activeCandidates.filter((cand) => {
+      const mid = cand.member_id || cand.member?.id || cand.id;
+      return billStatusByMemberId.get(mid) === 'paid';
+    });
+  }, [activeCandidates, billStatusByMemberId]);
+
+  const excludedCandidates = useMemo(() => {
+    return activeCandidates.filter((cand) => {
+      const mid = cand.member_id || cand.member?.id || cand.id;
+      return billStatusByMemberId.get(mid) !== 'paid';
+    });
+  }, [activeCandidates, billStatusByMemberId]);
 
   // Statistik Tagihan Putaran Terpilih
   const billStats = useMemo(() => {
-    const total = roundBills.length;
-    const paidCount = eligibleBills.length;
-    const unpaidCount = excludedBills.length;
+    const total = eligibleCandidates.length + excludedCandidates.length;
+    const paidCount = eligibleCandidates.length;
+    const unpaidCount = excludedCandidates.length;
     const isFullyPaid = total > 0 && paidCount === total;
     const percentage = total > 0 ? Math.round((paidCount / total) * 100) : 0;
     return { total, paidCount, unpaidCount, isFullyPaid, percentage };
-  }, [roundBills, eligibleBills, excludedBills]);
+  }, [eligibleCandidates, excludedCandidates]);
 
   // Riwayat Pengocokan (putaran yang sudah drawn)
   const drawnRounds = useMemo(() => {
@@ -171,6 +226,18 @@ export default function ArisanDraw() {
       .filter((r) => r.status === 'drawn')
       .sort((a, b) => (b.round_number || 0) - (a.round_number || 0));
   }, [rounds]);
+
+  // Helper mencari slot label pemenang dari snapshot
+  const getWinnerSlotLabel = (r) => {
+    if (!r) return '-';
+    if (Array.isArray(r.eligible_snapshot)) {
+      const found = r.eligible_snapshot.find(
+        (p) => p && p.member_id === r.winner_member_id
+      );
+      if (found?.slot_label) return found.slot_label;
+    }
+    return '-';
+  };
 
   // Handler Jalankan Pengocokan dengan Konfirmasi dan Animasi Shuffling
   const handleStartDraw = async () => {
@@ -186,7 +253,7 @@ export default function ArisanDraw() {
       return;
     }
 
-    if (eligibleBills.length === 0) {
+    if (eligibleCandidates.length === 0) {
       toast.error('Belum ada peserta yang setorannya lunas untuk putaran ini.');
       return;
     }
@@ -198,10 +265,10 @@ export default function ArisanDraw() {
     setWinnerCelebration(null);
 
     // Animasi Shuffling Peserta dari daftar peserta lunas
-    const poolForShuffle = eligibleBills.length > 0
-      ? eligibleBills.map((b) => ({
-          full_name: b.member?.full_name || b.metadata?.member_name || 'Peserta',
-          unit: { name: b.unit?.name || b.metadata?.slot_label || 'Peserta Arisan' },
+    const poolForShuffle = eligibleCandidates.length > 0
+      ? eligibleCandidates.map((c) => ({
+          full_name: c.member?.full_name || c.full_name || 'Peserta',
+          unit: { name: c.slot?.label || '-' },
         }))
       : candidates;
 
@@ -269,28 +336,32 @@ export default function ArisanDraw() {
 
     const slotLabel =
       (isJustDrawn ? winnerCelebration.slot_label : null) ||
-      r.slot_label ||
-      r.winner?.unit?.name ||
-      '';
+      getWinnerSlotLabel(r);
 
     const totalPrize =
       (isJustDrawn ? winnerCelebration.total_prize : null) ??
-      r.pool_amount ??
+      r.total_pool_amount ??
       0;
 
-    const drawnAt = r.drawn_at || (isJustDrawn ? new Date().toISOString() : null);
+    const drawnAt = (isJustDrawn && winnerCelebration?.drawn_at) ? winnerCelebration.drawn_at : r.drawn_at;
     const operatorName = r.operator?.full_name || (isJustDrawn ? 'Pengurus' : 'Pengurus');
 
     const eligible =
       r.eligible_snapshot ||
       (isCurrentSelected
-        ? eligibleBills.map((b) => b.member?.full_name || b.metadata?.member_name || 'Peserta')
+        ? eligibleCandidates.map((c) => ({
+            full_name: c.member?.full_name || c.full_name || 'Peserta',
+            slot_label: c.slot?.label || '-',
+          }))
         : []);
 
     const excluded =
       r.excluded_snapshot ||
       (isCurrentSelected
-        ? excludedBills.map((b) => b.member?.full_name || b.metadata?.member_name || 'Peserta')
+        ? excludedCandidates.map((c) => ({
+            full_name: c.member?.full_name || c.full_name || 'Peserta',
+            slot_label: c.slot?.label || '-',
+          }))
         : []);
 
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -302,7 +373,7 @@ export default function ArisanDraw() {
       drawnAt,
       operatorName,
       winnerName,
-      slotLabel,
+      slotLabel: slotLabel !== '-' ? slotLabel : '',
       totalPrize,
       eligible,
       excluded,
@@ -547,7 +618,7 @@ export default function ArisanDraw() {
                       </div>
 
                       <h2 className="text-2xl sm:text-4xl font-extrabold font-display text-slate-900">
-                        {formatRupiah(selectedRound.pool_amount || 0)}
+                        {formatRupiah(selectedRound.total_pool_amount || 0)}
                       </h2>
                       <p className="text-xs text-slate-600">
                         Total hadiah uang tunai yang akan diterima oleh pemenang putaran ini.
@@ -557,7 +628,7 @@ export default function ArisanDraw() {
                         <div className="flex items-center gap-1.5">
                           <AiOutlineTeam className="text-purple-600" />
                           <span>Peserta Setoran Lunas: </span>
-                          <strong className="text-slate-900 font-bold">{eligibleBills.length} Anggota</strong>
+                          <strong className="text-slate-900 font-bold">{eligibleCandidates.length} Anggota</strong>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <AiOutlineClockCircle className="text-amber-600" />
@@ -602,7 +673,7 @@ export default function ArisanDraw() {
                               {selectedRound.winner?.full_name || winnerCelebration?.winner_name || 'Pemenang Arisan'}
                             </h3>
                             <p className="text-xs text-slate-600 mt-0.5 font-medium">
-                              {selectedRound.slot_label || selectedRound.winner?.unit?.name || winnerCelebration?.slot_label || 'Slot Peserta'}
+                              {(winnerCelebration && winnerCelebration.round_id === selectedRound.id ? winnerCelebration.slot_label : null) || getWinnerSlotLabel(selectedRound)}
                             </p>
                           </div>
 
@@ -610,13 +681,13 @@ export default function ArisanDraw() {
                             <div className="flex justify-between text-slate-600">
                               <span>Total Hadiah:</span>
                               <strong className="text-amber-800 font-extrabold">
-                                {formatRupiah(selectedRound.pool_amount || winnerCelebration?.total_prize || 0)}
+                                {formatRupiah(selectedRound.total_pool_amount || winnerCelebration?.total_prize || 0)}
                               </strong>
                             </div>
                             <div className="flex justify-between text-slate-600">
                               <span>Waktu Kocok:</span>
                               <span className="font-medium text-slate-900">
-                                {formatDateTimeWib(selectedRound.drawn_at || new Date().toISOString())}
+                                {formatDateTimeWib((winnerCelebration && winnerCelebration.round_id === selectedRound.id ? winnerCelebration.drawn_at : null) || selectedRound.drawn_at)}
                               </span>
                             </div>
                             <div className="flex justify-between text-slate-600">
@@ -628,7 +699,7 @@ export default function ArisanDraw() {
                             <div className="flex justify-between text-slate-600">
                               <span>Peserta Ikut / Tidak:</span>
                               <span className="font-semibold text-slate-900">
-                                {selectedRound.eligible_snapshot?.length ?? (winnerCelebration?.eligible_count ?? eligibleBills.length)} ikut / {selectedRound.excluded_snapshot?.length ?? (winnerCelebration?.excluded_count ?? excludedBills.length)} tidak
+                                {selectedRound.eligible_snapshot?.length ?? (winnerCelebration?.eligible_count ?? eligibleCandidates.length)} ikut / {selectedRound.excluded_snapshot?.length ?? (winnerCelebration?.excluded_count ?? excludedCandidates.length)} tidak
                               </span>
                             </div>
                           </div>
@@ -657,7 +728,7 @@ export default function ArisanDraw() {
                       ) : (
                         /* Tampilan Tombol Jalankan Undian (Status belum drawn) */
                         <div className="text-center space-y-3 min-w-[260px]">
-                          {eligibleBills.length >= 1 ? (
+                          {eligibleCandidates.length >= 1 ? (
                             <>
                               <button
                                 type="button"
@@ -669,7 +740,7 @@ export default function ArisanDraw() {
                                 <span>Jalankan Kocok Sekarang</span>
                               </button>
                               <p className="text-[11px] text-emerald-700 font-semibold">
-                                ✓ {eligibleBills.length} peserta setoran lunas berhak ikut kocok.
+                                ✓ {eligibleCandidates.length} peserta setoran lunas berhak ikut kocok.
                               </p>
                               <p className="text-[10px] text-slate-500">
                                 Pemenang ditentukan acak oleh server
@@ -687,7 +758,7 @@ export default function ArisanDraw() {
                             </div>
                           )}
 
-                          {!canDraw && eligibleBills.length >= 1 && (
+                          {!canDraw && eligibleCandidates.length >= 1 && (
                             <p className="text-[10px] text-slate-500">
                               * Tombol hanya dapat ditekan oleh Pengurus/Admin Arisan.
                             </p>
@@ -709,22 +780,22 @@ export default function ArisanDraw() {
                           <span>Ikut kocok (setoran lunas)</span>
                         </h4>
                         <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                          {eligibleBills.length} Peserta
+                          {eligibleCandidates.length} Peserta
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 mb-3">
                         Peserta yang setorannya sudah lunas dan berhak masuk ke undian putaran ini.
                       </p>
 
-                      {eligibleBills.length === 0 ? (
+                      {eligibleCandidates.length === 0 ? (
                         <div className="p-6 text-center bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-500 italic">
                           Belum ada peserta yang setorannya lunas untuk putaran ini.
                         </div>
                       ) : (
                         <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                          {eligibleBills.map((b, idx) => (
+                          {eligibleCandidates.map((c, idx) => (
                             <div
-                              key={b.id || idx}
+                              key={c.id || c.member_id || idx}
                               className="p-2.5 bg-emerald-50/40 rounded-xl border border-emerald-100 flex items-center justify-between text-xs"
                             >
                               <div className="flex items-center gap-2.5">
@@ -733,10 +804,10 @@ export default function ArisanDraw() {
                                 </span>
                                 <div>
                                   <span className="font-bold text-slate-900 block">
-                                    {b.member?.full_name || b.metadata?.member_name || b.member_id}
+                                    {c.member?.full_name || c.full_name || 'Peserta'}
                                   </span>
                                   <span className="text-[10px] text-slate-500">
-                                    {b.metadata?.slot_label || b.unit?.name || 'Peserta'}
+                                    {c.slot?.label || '-'}
                                   </span>
                                 </div>
                               </div>
@@ -757,42 +828,46 @@ export default function ArisanDraw() {
                           <span>Tidak ikut (belum lunas)</span>
                         </h4>
                         <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                          {excludedBills.length} Peserta
+                          {excludedCandidates.length} Peserta
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 mb-3">
                         Peserta yang belum melunasi setoran iuran dan dikecualikan dari kocokan putaran ini.
                       </p>
 
-                      {excludedBills.length === 0 ? (
+                      {excludedCandidates.length === 0 ? (
                         <div className="p-6 text-center bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-500 italic">
                           Semua peserta telah lunas setoran!
                         </div>
                       ) : (
                         <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                          {excludedBills.map((b, idx) => (
-                            <div
-                              key={b.id || idx}
-                              className="p-2.5 bg-rose-50/40 rounded-xl border border-rose-100 flex items-center justify-between text-xs"
-                            >
-                              <div className="flex items-center gap-2.5">
-                                <span className="w-5 h-5 rounded-md bg-rose-100 text-rose-800 flex items-center justify-center text-[10px] font-bold">
-                                  {idx + 1}
-                                </span>
-                                <div>
-                                  <span className="font-bold text-slate-900 block">
-                                    {b.member?.full_name || b.metadata?.member_name || b.member_id}
+                          {excludedCandidates.map((c, idx) => {
+                            const mid = c.member_id || c.member?.id || c.id;
+                            const st = billStatusByMemberId.get(mid);
+                            return (
+                              <div
+                                key={c.id || c.member_id || idx}
+                                className="p-2.5 bg-rose-50/40 rounded-xl border border-rose-100 flex items-center justify-between text-xs"
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <span className="w-5 h-5 rounded-md bg-rose-100 text-rose-800 flex items-center justify-center text-[10px] font-bold">
+                                    {idx + 1}
                                   </span>
-                                  <span className="text-[10px] text-slate-500">
-                                    {b.metadata?.slot_label || b.unit?.name || 'Peserta'}
-                                  </span>
+                                  <div>
+                                    <span className="font-bold text-slate-900 block">
+                                      {c.member?.full_name || c.full_name || 'Peserta'}
+                                    </span>
+                                    <span className="text-[10px] text-slate-500">
+                                      {c.slot?.label || '-'}
+                                    </span>
+                                  </div>
                                 </div>
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">
+                                  {st === 'pending_verification' ? 'Menunggu Verifikasi' : 'Belum Lunas'}
+                                </span>
                               </div>
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">
-                                {b.status === 'pending_verification' ? 'Menunggu Verifikasi' : 'Belum Lunas'}
-                              </span>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -865,14 +940,14 @@ export default function ArisanDraw() {
                       <div className="flex items-center justify-between mb-4">
                         <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                           <AiOutlineTeam className="text-purple-600" />
-                          <span>Kandidat Undian ({candidates.length})</span>
+                          <span>Kandidat Undian ({activeCandidates.length})</span>
                         </h4>
                         <span className="text-[11px] text-slate-500">
                           Peserta yang belum pernah menang
                         </span>
                       </div>
 
-                      {candidates.length === 0 ? (
+                      {activeCandidates.length === 0 ? (
                         <div className="p-8 text-center bg-slate-50 rounded-xl border border-slate-200 space-y-3 shadow-xs">
                           <span className="text-3xl block">🎉</span>
                           <div>
@@ -895,7 +970,7 @@ export default function ArisanDraw() {
                         </div>
                       ) : (
                         <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                          {candidates.map((cand, idx) => (
+                          {activeCandidates.map((cand, idx) => (
                             <div
                               key={cand.id}
                               className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between shadow-xs"
@@ -905,9 +980,9 @@ export default function ArisanDraw() {
                                   {idx + 1}
                                 </div>
                                 <div>
-                                  <h5 className="text-xs font-bold text-slate-900">{cand.full_name}</h5>
+                                  <h5 className="text-xs font-bold text-slate-900">{cand.member?.full_name || cand.full_name || 'Peserta'}</h5>
                                   <span className="text-[10px] text-slate-500">
-                                    {cand.unit?.name || 'Peserta Arisan'}
+                                    {cand.slot?.label || '-'}
                                   </span>
                                 </div>
                               </div>
@@ -969,7 +1044,7 @@ export default function ArisanDraw() {
 
                               <div className="text-right">
                                 <span className="text-xs font-extrabold text-amber-800 block">
-                                  {formatRupiah(r.pool_amount || 0)}
+                                  {formatRupiah(r.total_pool_amount || 0)}
                                 </span>
                                 <span className="text-[10px] text-slate-500">
                                   {r.drawn_at ? formatDateTimeWib(r.drawn_at) : '-'}
@@ -1047,9 +1122,9 @@ export default function ArisanDraw() {
                               {hasWon ? '🏆' : idx + 1}
                             </div>
                             <div>
-                              <h5 className="text-xs font-bold text-slate-900">{member.full_name}</h5>
+                              <h5 className="text-xs font-bold text-slate-900">{member.member?.full_name || member.full_name || 'Peserta'}</h5>
                               <span className="text-[10px] text-slate-500 block">
-                                {member.unit?.name || 'Peserta Arisan'}
+                                {member.slot?.label || '-'}
                               </span>
                             </div>
                           </div>
@@ -1124,10 +1199,10 @@ export default function ArisanDraw() {
                                 </div>
                                 <div className="text-xs text-slate-600 mt-1 space-y-0.5">
                                   <p>
-                                    Pemenang: <strong className="text-slate-900 font-bold">{r.winner?.full_name || 'Pemenang Arisan'}</strong> ({r.slot_label || r.winner?.unit?.name || 'Peserta'})
+                                    Pemenang: <strong className="text-slate-900 font-bold">{r.winner?.full_name || 'Pemenang Arisan'}</strong> ({getWinnerSlotLabel(r)})
                                   </p>
                                   <p>
-                                    Hadiah: <strong className="text-amber-800 font-extrabold">{formatRupiah(r.pool_amount || 0)}</strong>
+                                    Hadiah: <strong className="text-amber-800 font-extrabold">{formatRupiah(r.total_pool_amount || 0)}</strong>
                                     {' • '}
                                     Waktu: <span className="font-medium text-slate-700">{formatDateTimeWib(r.drawn_at)}</span>
                                     {' • '}
@@ -1245,7 +1320,7 @@ export default function ArisanDraw() {
                   {winnerCelebration.winner_name}
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  {winnerCelebration.slot_label || winnerCelebration.winner_phone || 'Peserta Terpilih'}
+                  {winnerCelebration.slot_label || getWinnerSlotLabel(selectedRound) || 'Peserta Terpilih'}
                 </p>
               </div>
 
@@ -1264,15 +1339,17 @@ export default function ArisanDraw() {
               <div className="p-3 bg-white rounded-xl border border-slate-200 text-xs text-slate-600 text-left space-y-1">
                 <div className="flex justify-between">
                   <span>Waktu Kocok:</span>
-                  <span className="font-semibold text-slate-900">{formatDateTimeWib(new Date().toISOString())}</span>
+                  <span className="font-semibold text-slate-900">
+                    {formatDateTimeWib(winnerCelebration.drawn_at || selectedRound?.drawn_at)}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Peserta Setoran Lunas:</span>
-                  <span className="font-semibold text-slate-900">{winnerCelebration.eligible_count ?? eligibleBills.length} orang</span>
+                  <span className="font-semibold text-slate-900">{winnerCelebration.eligible_count ?? eligibleCandidates.length} orang</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Peserta Belum Lunas:</span>
-                  <span className="font-semibold text-slate-900">{winnerCelebration.excluded_count ?? excludedBills.length} orang</span>
+                  <span className="font-semibold text-slate-900">{winnerCelebration.excluded_count ?? excludedCandidates.length} orang</span>
                 </div>
               </div>
 

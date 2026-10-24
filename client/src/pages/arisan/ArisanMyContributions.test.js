@@ -26,18 +26,21 @@ const mockRounds = [
     round_number: 1,
     period: 'Oktober 2026',
     status: 'drawn',
-    pool_amount: 500000,
+    total_pool_amount: 500000,
     drawn_at: '2026-10-15T10:00:00Z',
-    winner_name: 'Ibu Siti',
-    winner: { full_name: 'Ibu Siti', unit: { name: 'Slot 2' } },
-    slot_label: 'Slot 2',
+    winner_member_id: 'mem-siti',
+    winner: { full_name: 'Ibu Siti' },
+    eligible_snapshot: [
+      { member_id: 'mem-siti', full_name: 'Ibu Siti', slot_label: 'Slot 2' },
+    ],
+    excluded_snapshot: [],
   },
   {
     id: 'round-2',
     round_number: 2,
     period: 'November 2026',
     status: 'collecting',
-    pool_amount: 500000,
+    total_pool_amount: 500000,
   },
 ];
 

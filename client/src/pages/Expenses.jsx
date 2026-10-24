@@ -89,6 +89,7 @@ export default function Expenses() {
   const [eventAccess, setEventAccess] = useState(null);
   const [eventOptions, setEventOptions] = useState([]);
   const [tenantPrograms, setTenantPrograms] = useState([]);
+  const [programsLoaded, setProgramsLoaded] = useState(false);
   const isStaff = hasMinRole(role, 'pengurus');
   const canEditGeneral = isBendaharaOrAbove(role);
   const manageableEventIds = useMemo(() => new Set(
@@ -132,22 +133,53 @@ export default function Expenses() {
     return EXPENSE_CATEGORIES;
   }, [activeTenantId, template?.expenseCategories]);
 
+  // Load daftar acara secara mandiri tanpa menunggu fetchExpenses (F.5)
+  const loadPrograms = useCallback(async () => {
+    if (!activeTenantId) {
+      setTenantPrograms([]);
+      setProgramsLoaded(true);
+      return;
+    }
+    try {
+      const progs = await fetchPrograms(activeTenantId);
+      setTenantPrograms(Array.isArray(progs) ? progs : []);
+    } catch {
+      setTenantPrograms([]);
+    } finally {
+      setProgramsLoaded(true);
+    }
+  }, [activeTenantId]);
+
+  useEffect(() => {
+    loadPrograms();
+  }, [loadPrograms]);
+
   // Handle URL query ?program=<id>&new=1 (mode tenant)
   useEffect(() => {
     if (activeTenantId && queryNew === '1' && canWrite) {
+      if (!programsLoaded) return;
+
       if (queryProgramId) {
         const targetProg = tenantPrograms.find((p) => String(p.id) === String(queryProgramId));
-        if (targetProg) {
-          const accessState = getProgramAccessState(targetProg, { tenantType: activeTenant?.type });
-          if (!accessState.writable) {
-            toast.error('Acara belum aktif atau masa aktifnya habis. Transaksi acara ini hanya bisa dilihat.');
-            setSearchParams((prev) => {
-              const next = new URLSearchParams(prev);
-              next.delete('new');
-              return next;
-            }, { replace: true });
-            return;
-          }
+        if (!targetProg) {
+          toast.error('Acara tidak ditemukan atau tidak bisa dipilih.');
+          setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('new');
+            return next;
+          }, { replace: true });
+          return;
+        }
+
+        const accessState = getProgramAccessState(targetProg, { tenantType: activeTenant?.type });
+        if (!accessState.writable) {
+          toast.error('Acara belum aktif atau masa aktifnya habis. Transaksi acara ini hanya bisa dilihat.');
+          setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('new');
+            return next;
+          }, { replace: true });
+          return;
         }
         setInitialProgramForForm(queryProgramId);
       }
@@ -158,7 +190,7 @@ export default function Expenses() {
         return next;
       }, { replace: true });
     }
-  }, [activeTenantId, queryNew, queryProgramId, canWrite, tenantPrograms, activeTenant?.type, setSearchParams, toast]);
+  }, [activeTenantId, queryNew, queryProgramId, canWrite, tenantPrograms, programsLoaded, activeTenant?.type, setSearchParams, toast]);
 
   const loadExpenses = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -177,19 +209,6 @@ export default function Expenses() {
       const data = await fetchExpenses(token, { tenantId: activeTenantId });
       if (requestIdRef.current !== currentRequestId) return;
       setExpenses(Array.isArray(data) ? data : []);
-
-      if (activeTenantId) {
-        try {
-          const progs = await fetchPrograms(activeTenantId);
-          if (requestIdRef.current === currentRequestId) {
-            setTenantPrograms(Array.isArray(progs) ? progs : []);
-          }
-        } catch {
-          if (requestIdRef.current === currentRequestId) {
-            setTenantPrograms([]);
-          }
-        }
-      }
 
       if (!activeTenantId) {
         try {
@@ -388,7 +407,7 @@ export default function Expenses() {
       toast.success('Pengeluaran berhasil dihapus.');
       loadExpenses();
     } catch (err) {
-      toast.error('Gagal menghapus pengeluaran.');
+      toast.error(err.message || 'Gagal menghapus pengeluaran.');
     } finally {
       setIsLoading(false);
     }
@@ -1045,10 +1064,11 @@ function ExpenseFormModal({
         {tenantId && tenantPrograms.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 rounded-xl bg-slate-50 border border-slate-200">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label htmlFor="expense-program-select" className="block text-xs font-semibold text-slate-700 mb-1">
                 Acara <span className="text-slate-400 font-normal">(opsional)</span>
               </label>
               <select
+                id="expense-program-select"
                 value={form.program_id}
                 onChange={(e) => {
                   const newPid = e.target.value;

@@ -20,6 +20,8 @@ import {
   getProgramAccessState,
   formatProgramAccessLabel,
 } from '../../services/tenantOperationalService';
+import { formatRupiah } from '../../services/dataHelpers';
+import { PANITIA_PRICING } from '../../config/panitiaPricing';
 
 const ACCESS_STATE_BADGE_CLASSES = {
   active: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
@@ -58,9 +60,11 @@ export default function SubscriptionStatus() {
   const [usedUnitsCount, setUsedUnitsCount] = useState(0);
   const [activeProgramsCount, setActiveProgramsCount] = useState(0);
   const [panitiaPrograms, setPanitiaPrograms] = useState([]);
+  const [panitiaProgramsError, setPanitiaProgramsError] = useState(null);
 
   const fetchSubscriptionDetails = async () => {
     setLoading(true);
+    setPanitiaProgramsError(null);
 
     if (isDemo) {
       // Mock data untuk mode demo
@@ -84,6 +88,7 @@ export default function SubscriptionStatus() {
         } catch (_e) {
           setPanitiaPrograms([]);
           setActiveProgramsCount('–');
+          setPanitiaProgramsError('Gagal memuat acara.');
         }
       }
       setPaymentsHistory([
@@ -157,6 +162,7 @@ export default function SubscriptionStatus() {
         } catch (_e) {
           setPanitiaPrograms([]);
           setActiveProgramsCount('–');
+          setPanitiaProgramsError('Gagal memuat acara.');
         }
       } else {
         const { count: unitCount } = await supabase
@@ -355,7 +361,18 @@ export default function SubscriptionStatus() {
                   </div>
 
                   <div className="divide-y divide-slate-100 max-h-56 overflow-y-auto pr-1">
-                    {panitiaPrograms.length === 0 ? (
+                    {panitiaProgramsError ? (
+                      <div className="py-4 text-center space-y-2">
+                        <p className="text-xs text-rose-600 font-medium">Gagal memuat acara.</p>
+                        <button
+                          type="button"
+                          onClick={fetchSubscriptionDetails}
+                          className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
+                        >
+                          Coba lagi
+                        </button>
+                      </div>
+                    ) : panitiaPrograms.length === 0 ? (
                       <p className="text-xs text-slate-500 py-3 text-center">Belum ada acara yang dibuat.</p>
                     ) : (
                       panitiaPrograms.map((p) => {
@@ -377,7 +394,7 @@ export default function SubscriptionStatus() {
 
                   <div className="flex justify-between items-center pt-2 border-t border-slate-100">
                     <span className="text-[11px] text-slate-500">
-                      Rp25.000 / 12 bulan per acara
+                      {formatRupiah(PANITIA_PRICING.pricePerProgram)} / {PANITIA_PRICING.periodMonths} bulan per acara
                     </span>
                     <button
                       type="button"
@@ -458,7 +475,9 @@ export default function SubscriptionStatus() {
                     <AiOutlineFileText className="text-3xl mx-auto mb-2 text-slate-300" />
                     <p className="text-xs font-medium text-slate-600">Belum ada riwayat pembayaran langganan</p>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      Layanan Anda saat ini masih aktif menggunakan paket masa percobaan (trial).
+                      {currentTenant?.type === 'panitia'
+                        ? 'Belum ada transaksi pembayaran paket atau perpanjangan acara.'
+                        : 'Layanan Anda saat ini masih aktif menggunakan paket masa percobaan (trial).'}
                     </p>
                   </div>
                 ) : (

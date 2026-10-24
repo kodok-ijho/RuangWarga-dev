@@ -349,26 +349,7 @@ export async function fetchMyArisanBills(tenantId, memberId) {
   if (!tenantId || !memberId) return [];
 
   if (IS_DEMO || String(tenantId).startsWith('demo-')) {
-    return [
-      {
-        id: 'demo-my-arisan-bill-1',
-        tenant_id: tenantId,
-        member_id: memberId,
-        amount: 300000,
-        status: 'unpaid',
-        period: 'Putaran 2 - November 2026',
-        due_date: '2026-11-10',
-        metadata: {
-          type: 'arisan_contribution',
-          round_id: 'demo-round-2',
-          round_number: 2,
-          period_label: 'Putaran 2 - November 2026',
-        },
-        round_number: 2,
-        round_label: 'Putaran 2 - November 2026',
-        latestPayment: null,
-        payments: null,
-      },
+    const demoBills = [
       {
         id: 'demo-my-arisan-bill-2',
         tenant_id: tenantId,
@@ -388,7 +369,59 @@ export async function fetchMyArisanBills(tenantId, memberId) {
         latestPayment: { id: 'demo-pay-arisan-1', status: 'approved', method: 'transfer' },
         payments: { id: 'demo-pay-arisan-1', status: 'approved', method: 'transfer' },
       },
+      {
+        id: 'demo-my-arisan-bill-1',
+        tenant_id: tenantId,
+        member_id: memberId,
+        amount: 300000,
+        status: 'unpaid',
+        period: 'Putaran 3 - Desember 2026',
+        due_date: '2026-12-10',
+        metadata: {
+          type: 'arisan_contribution',
+          round_id: 'demo-round-3',
+          round_number: 3,
+          period_label: 'Putaran 3 - Desember 2026',
+        },
+        round_number: 3,
+        round_label: 'Putaran 3 - Desember 2026',
+        latestPayment: null,
+        payments: null,
+      },
+      {
+        id: 'demo-my-arisan-bill-0',
+        tenant_id: tenantId,
+        member_id: memberId,
+        amount: 300000,
+        status: 'unpaid',
+        period: 'Putaran 2 - November 2026',
+        due_date: '2026-11-10',
+        metadata: {
+          type: 'arisan_contribution',
+          round_id: 'demo-round-2',
+          round_number: 2,
+          period_label: 'Putaran 2 - November 2026',
+        },
+        round_number: 2,
+        round_label: 'Putaran 2 - November 2026',
+        latestPayment: null,
+        payments: null,
+      },
     ];
+
+    const statusPriority = {
+      unpaid: 1,
+      pending_verification: 2,
+      paid: 3,
+      cancelled: 4,
+    };
+
+    return demoBills.sort((a, b) => {
+      const pA = statusPriority[a.status] || 99;
+      const pB = statusPriority[b.status] || 99;
+      if (pA !== pB) return pA - pB;
+      return String(a.due_date || a.created_at || '').localeCompare(String(b.due_date || b.created_at || ''));
+    });
   }
 
   const { data, error } = await supabase
@@ -457,7 +490,7 @@ export async function fetchMyArisanBills(tenantId, memberId) {
     const pA = statusPriority[a.status] || 99;
     const pB = statusPriority[b.status] || 99;
     if (pA !== pB) return pA - pB;
-    return String(b.due_date || b.created_at || '').localeCompare(String(a.due_date || a.created_at || ''));
+    return String(a.due_date || a.created_at || '').localeCompare(String(b.due_date || b.created_at || ''));
   });
 }
 
@@ -529,14 +562,14 @@ export async function fetchArisanCandidates(tenantId) {
         id: 'demo-cand-1',
         member_id: 'demo-mem-1',
         has_won: false,
-        member: { full_name: 'Pak Budi', phone: '08123456780' },
+        member: { full_name: 'Pak Budi', phone: '08123456780', status: 'approved' },
         slot: { label: 'Slot #01' },
       },
       {
         id: 'demo-cand-2',
         member_id: 'demo-mem-2',
         has_won: false,
-        member: { full_name: 'Ibu Siti', phone: '08123456781' },
+        member: { full_name: 'Ibu Siti', phone: '08123456781', status: 'approved' },
         slot: { label: 'Slot #02' },
       },
     ];

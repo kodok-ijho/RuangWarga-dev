@@ -60,7 +60,7 @@ describe('PANITIA-1F.1: ChoosePlan Page for Panitia', () => {
     );
 
     // Menampilkan model penetapan harga Rp25.000 dan gratis 1 bulan
-    expect(screen.getAllByText(/Rp25\.000/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Rp\s*25\.000/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/gratis 1 bulan/i).length).toBeGreaterThan(0);
 
     // Kalkulator blok tidak tampil

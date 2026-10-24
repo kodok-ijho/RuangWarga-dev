@@ -117,6 +117,22 @@ describe('PANITIA-3.3: programDocuments service', () => {
         'Format file tidak didukung. Gunakan PDF, Word, Excel, PowerPoint, JPG, PNG, atau WebP.'
       );
     });
+
+    it('menolak nama file lebih dari 200 karakter tanpa memanggil uploadTenantFile', async () => {
+      const uploadSpy = vi.spyOn(fileStorageService, 'uploadTenantFile');
+      const longFileName = 'A'.repeat(197) + '.pdf'; // 201 karakter
+      const file = new File(['dummy'], longFileName, { type: 'application/pdf' });
+
+      await expect(
+        uploadProgramDocument(tenantId, programId, {
+          docType: 'proposal',
+          title: 'Proposal Acara',
+          file,
+        })
+      ).rejects.toThrow('Nama file terlalu panjang (maks. 200 karakter)');
+
+      expect(uploadSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe('Alur demo unggah -> daftar -> hapus', () => {
@@ -164,6 +180,31 @@ describe('PANITIA-3.3: programDocuments service', () => {
       const docsAfter = await fetchProgramDocuments(tenantId, programId);
       expect(docsAfter.length).toBe(1);
       expect(docsAfter[0].id).toBe(doc2.id);
+    });
+
+    it('deleteProgramDocument melempar error bila dokumen tidak ada di demo store (0 baris)', async () => {
+      await expect(
+        deleteProgramDocument(tenantId, 'non-existent-doc-id')
+      ).rejects.toThrow('Dokumen tidak ditemukan atau gagal dihapus.');
+    });
+
+    it('deleteProgramDocument melempar error bila 0 baris terhapus di Supabase', async () => {
+      const mockFrom = vi.spyOn(supabase, 'from').mockReturnValue({
+        delete: () => ({
+          eq: () => ({
+            eq: () => ({
+              select: async () => ({ data: [], error: null }),
+            }),
+          }),
+        }),
+      });
+
+      const realTenantId = '11111111-1111-1111-1111-111111111111';
+      await expect(
+        deleteProgramDocument(realTenantId, 'non-existent-doc-id')
+      ).rejects.toThrow('Dokumen tidak ditemukan atau gagal dihapus.');
+
+      mockFrom.mockRestore();
     });
   });
 

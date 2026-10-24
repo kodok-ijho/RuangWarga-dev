@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import { formatDateWIB } from '../utils/date';
+import { fetchTenantListings } from '../services/publicListingService';
 import { useAuth } from '../hooks/useAuth';
 import { useTenant } from '../hooks/useTenant';
 import { useTenantAccess } from '../hooks/useTenantAccess';
@@ -11,6 +13,7 @@ import Placeholder from '../components/Placeholder';
 import QrisCheckoutModal from '../components/QrisCheckoutModal';
 import CreateBillingModal from '../components/CreateBillingModal';
 import CheckoutRoomModal from '../components/CheckoutRoomModal';
+import RoomListingAction from '../components/RoomListingAction';
 import { EmptyState, SkeletonTable, SearchInput, Pagination } from '../components/ui';
 import {
   MONTHS_SHORT,
@@ -65,6 +68,7 @@ import {
   fetchTenantMembers,
   isLegacyQrisEnabled,
   getTenantBankAccount,
+  fetchKosContracts,
 } from '../services/tenantOperationalService';
 import { compressImage } from '../utils/imageCompressor';
 import { AiOutlineDownload } from 'react-icons/ai';
@@ -291,7 +295,63 @@ export default function PaymentMatrix() {
   }, [activeTenantId, profile?.id, profile?.email, session?.user?.id, session?.user?.email]);
 
   const myUnitId = IS_DEMO ? (profile?.unit_id || null) : resolvedMyUnitId;
+  const navigate = useNavigate();
+  const isKos = activeTenant?.type === 'kos';
+  const [kosContracts, setKosContracts] = useState([]);
+  const [tenantListings, setTenantListings] = useState([]);
+  const [billingModalUnitId, setBillingModalUnitId] = useState('');
+  const [billingModalMemberId, setBillingModalMemberId] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
+
+  const loadKosExtraData = useCallback(async () => {
+    if (!activeTenantId || activeTenant?.type !== 'kos') {
+      setKosContracts([]);
+      setTenantListings([]);
+      return;
+    }
+    try {
+      const [contractsRes, listingsRes] = await Promise.all([
+        fetchKosContracts(activeTenantId).catch(() => []),
+        fetchTenantListings(activeTenantId).catch(() => []),
+      ]);
+      setKosContracts(contractsRes || []);
+      setTenantListings(listingsRes || []);
+    } catch (_err) {
+      // ignore
+    }
+  }, [activeTenantId, activeTenant?.type]);
+
+  useEffect(() => {
+    loadKosExtraData();
+  }, [loadKosExtraData, refreshKey]);
+
+  const activeContractsByUnitId = useMemo(() => {
+    const map = new Map();
+    (kosContracts || []).forEach((c) => {
+      if (c && c.status === 'active' && c.unit_id != null) {
+        map.set(String(c.unit_id), c);
+      }
+    });
+    return map;
+  }, [kosContracts]);
+
+  const listingsByUnitId = useMemo(() => {
+    const map = new Map();
+    (tenantListings || []).forEach((lst) => {
+      if (lst && lst.unit_id != null) {
+        map.set(String(lst.unit_id), lst);
+      }
+    });
+    return map;
+  }, [tenantListings]);
+
+  const canGenerateBilling = Boolean(
+    tenantAccess.canGenerateBilling || isStaff || canWrite
+  );
+  const canPostListing = Boolean(
+    isStaff || canWrite || (tenantAccess.permissions && tenantAccess.permissions.includes('post_listing'))
+  );
+
   const [isCreateBillingOpen, setIsCreateBillingOpen] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [checkoutUnitId, setCheckoutUnitId] = useState(null);
@@ -1403,21 +1463,90 @@ export default function PaymentMatrix() {
                                 </span>
                               )}
                             </p>
-                            <p
-                              className="text-[10px] leading-tight text-slate-500 max-w-[180px] break-words mt-0.5"
-                              title={residentNames.join(' / ')}
-                            >
-                              {residentNames.length > 0 ? residentNames.join(' / ') : `— Belum Ada ${template.memberLabel} —`}
-                            </p>
-                            {row.unit.is_occupied || row.unit.status === 'occupied' ? (
-                              <span className="mt-0.5 inline-flex items-center rounded px-1.5 py-0.5 text-[8px] font-bold leading-none bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                {template.occupiedUnitLabel}
-                              </span>
-                            ) : (
-                              <span className="mt-0.5 inline-flex items-center rounded px-1.5 py-0.5 text-[8px] font-bold leading-none bg-amber-100 text-amber-800 border border-amber-300">
-                                {template.emptyUnitLabel}
-                              </span>
-                            )}
+                            {(() => {
+                              const activeContract = isKos ? activeContractsByUnitId.get(String(row.unit.id)) : null;
+                              const tenantDisplayName = isKos && activeContract
+                                ? (activeContract.member?.full_name || activeContract.tenant_name || 'Penyewa Terdaftar')
+                                : residentNames.length > 0
+                                ? residentNames.join(' / ')
+                                : `— Belum Ada ${template.memberLabel} —`;
+
+                              return (
+                                <>
+                                  <p
+                                    className="text-[10px] leading-tight text-slate-500 max-w-[180px] break-words mt-0.5"
+                                    title={tenantDisplayName}
+                                  >
+                                    {tenantDisplayName}
+                                  </p>
+
+                                  {isKos ? (
+                                    <div className="mt-1 space-y-1">
+                                      {activeContract ? (
+                                        <div className="flex items-center gap-1 flex-wrap">
+                                          <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[8px] font-bold leading-none bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                            Terisi
+                                          </span>
+                                          {!activeContract.end_date ? (
+                                            <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[8px] font-semibold leading-none bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                              Bulanan
+                                            </span>
+                                          ) : (
+                                            <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[8px] font-semibold leading-none bg-blue-50 text-blue-800 border border-blue-200">
+                                              s.d. {formatDateWIB(activeContract.end_date)}
+                                            </span>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <div className="space-y-1">
+                                          <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[8px] font-bold leading-none bg-amber-100 text-amber-800 border border-amber-300">
+                                            Kamar Kosong
+                                          </span>
+                                          {(canGenerateBilling || canPostListing) && (
+                                            <div className="flex items-center gap-1 pt-0.5 flex-wrap">
+                                              {canGenerateBilling && (
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setBillingModalUnitId(String(row.unit.id));
+                                                    setBillingModalMemberId(row.unit.metadata?.previous_tenant_member_id || '');
+                                                    setIsCreateBillingOpen(true);
+                                                  }}
+                                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-forest-800 hover:bg-forest-700 text-gold-300 transition-colors shadow-2xs"
+                                                  title="Buat Kontrak Sewa untuk Kamar ini"
+                                                >
+                                                  Buat Kontrak
+                                                </button>
+                                              )}
+                                              {canPostListing && (
+                                                <RoomListingAction
+                                                  unitId={row.unit.id}
+                                                  tenantId={activeTenantId}
+                                                  listing={listingsByUnitId.get(String(row.unit.id))}
+                                                  canPostListing={canPostListing}
+                                                  compact={true}
+                                                />
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    row.unit.is_occupied || row.unit.status === 'occupied' ? (
+                                      <span className="mt-0.5 inline-flex items-center rounded px-1.5 py-0.5 text-[8px] font-bold leading-none bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                        {template.occupiedUnitLabel}
+                                      </span>
+                                    ) : (
+                                      <span className="mt-0.5 inline-flex items-center rounded px-1.5 py-0.5 text-[8px] font-bold leading-none bg-amber-100 text-amber-800 border border-amber-300">
+                                        {template.emptyUnitLabel}
+                                      </span>
+                                    )
+                                  )}
+                                </>
+                              );
+                            })()}
                             {showWaReminder && (
                               <div className="mt-1">
                                 <a
@@ -1683,10 +1812,19 @@ export default function PaymentMatrix() {
       {isCreateBillingOpen && (
         <CreateBillingModal
           open={isCreateBillingOpen}
-          onClose={() => setIsCreateBillingOpen(false)}
+          onClose={() => {
+            setIsCreateBillingOpen(false);
+            setBillingModalUnitId('');
+            setBillingModalMemberId('');
+          }}
           tenantId={activeTenantId}
           tenantType={activeTenant?.type || 'rt_rw'}
-          onSuccess={() => loadMatrix({ silent: true })}
+          initialUnitId={billingModalUnitId}
+          initialMemberId={billingModalMemberId}
+          onSuccess={() => {
+            loadMatrix({ silent: true });
+            loadKosExtraData();
+          }}
         />
       )}
 
@@ -1732,6 +1870,11 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
   // Sel non-interaktif (warga lihat unit lain): view-only, tidak bisa diklik
   const isViewOnly = !canInteract;
 
+  const leasePeriodText = (bill.service_start && bill.service_end)
+    ? ` · Masa Sewa: ${formatDateWIB(bill.service_start)} – ${formatDateWIB(bill.service_end)}`
+    : '';
+  const dueDateText = bill.due_date ? ` · Jatuh Tempo: ${formatDateWIB(bill.due_date)}` : '';
+
   // Sel TRANSAKSI MENGGANTUNG / PERLU PERBAIKAN
   if (isHanging) {
     if (isStaff) {
@@ -1739,7 +1882,7 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
         <span
           onClick={onClick}
           className="block h-12 rounded bg-amber-100 border-2 border-dashed border-amber-500 hover:bg-amber-200 text-amber-900 flex flex-col items-center justify-center px-0.5 cursor-pointer transition-colors shadow-sm"
-          title={`Transaksi Menggantung / Perlu Perbaikan (${formatRupiah(bill.amount)}) · Klik untuk perbaiki atau batalkan`}
+          title={`Transaksi Menggantung / Perlu Perbaikan (${formatRupiah(bill.amount)})${leasePeriodText}${dueDateText} · Klik untuk perbaiki atau batalkan`}
         >
           <span className="text-[9px] font-bold leading-none">{formatShort(bill.amount)}</span>
           <span className="text-[8px] leading-none mt-0.5 font-bold text-amber-800">
@@ -1752,7 +1895,7 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
       <span
         onClick={canInteract ? onClick : undefined}
         className={`block h-12 rounded bg-amber-50 border border-amber-300 text-amber-800 flex flex-col items-center justify-center px-0.5 ${canInteract ? 'cursor-pointer hover:bg-amber-100' : ''}`}
-        title={`Pembayaran sedang diproses / menggantung (${formatRupiah(bill.amount)})`}
+        title={`Pembayaran sedang diproses / menggantung (${formatRupiah(bill.amount)})${leasePeriodText}${dueDateText}`}
       >
         <span className="text-[9px] font-bold leading-none">{formatShort(bill.amount)}</span>
         <span className="text-[8px] leading-none mt-0.5 font-medium">
@@ -1780,7 +1923,7 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
       <span
         onClick={onClick}
         className={`block h-12 rounded-xl ${bgClass} flex flex-col items-center justify-center px-0.5 cursor-pointer transition-colors shadow-2xs`}
-        title={`${billStatusLabel(status)} ${formatRupiah(bill.amount)}${payment ? ' · ' + formatDate(payment.paid_at) : ''}`}
+        title={`${billStatusLabel(status)} ${formatRupiah(bill.amount)}${leasePeriodText}${dueDateText}${payment ? ' · ' + formatDate(payment.paid_at) : ''}`}
       >
         <span className="text-[9px] font-bold leading-none">{formatShort(bill.amount)}</span>
         <span className="text-[8px] leading-none mt-0.5 font-semibold">
@@ -1799,7 +1942,7 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
       <span
         onClick={onClick}
         className={`block h-12 rounded-xl ${bgClass} flex flex-col items-center justify-center px-0.5 cursor-pointer transition-colors`}
-        title={`${billStatusLabel(status)} — klik untuk bayar ulang`}
+        title={`${billStatusLabel(status)} ${formatRupiah(bill.amount)}${leasePeriodText}${dueDateText} — klik untuk bayar ulang`}
       >
         <span className="text-[9px] font-bold leading-none">{formatShort(bill.amount)}</span>
         <span className="text-[8px] leading-none mt-0.5 font-medium">
@@ -1820,7 +1963,7 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
     return (
       <span
         className={`block h-12 rounded-xl border flex flex-col items-center justify-center ${viewClass}`}
-        title={isOverdue ? 'Terlambat' : isPending ? 'Belum bayar' : ''}
+        title={`${isOverdue ? 'Terlambat' : isPending ? 'Belum bayar' : ''} ${formatRupiah(bill.amount)}${leasePeriodText}${dueDateText}`.trim()}
       >
         <span className="text-[8px] mt-0.5 leading-none opacity-60">{formatShort(bill.amount)}</span>
       </span>
@@ -1834,7 +1977,7 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
     return (
       <span
         className="block h-12 rounded-xl border border-slate-200 bg-slate-50 flex flex-col items-center justify-center cursor-not-allowed"
-        title="Selesaikan dulu transaksi unit aktif, atau kosongkan seleksi sebelum memilih unit lain."
+        title={`Selesaikan dulu transaksi unit aktif, atau kosongkan seleksi sebelum memilih unit lain.${leasePeriodText}${dueDateText}`}
       >
         <span className="text-[10px] leading-none text-slate-400">🔒</span>
         <span className="text-[8px] mt-0.5 leading-none text-slate-400">
@@ -1859,11 +2002,7 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
     <span
       onClick={onClick}
       className={`block h-12 rounded-xl border transition-all flex flex-col items-center justify-center px-0.5 ${classes}`}
-      title={
-        isStaff
-          ? 'Klik untuk pilih (catat tunai/transfer)'
-          : 'Klik untuk pilih'
-      }
+      title={`${isSelected ? '✓ Terpilih: ' : ''}${billStatusLabel(status)} ${formatRupiah(bill.amount)}${leasePeriodText}${dueDateText}`}
     >
       {isSelected ? (
         <span className="text-base leading-none">✓</span>

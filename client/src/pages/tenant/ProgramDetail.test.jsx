@@ -524,6 +524,95 @@ describe('PANITIA-1.7: ProgramDetail Page', () => {
       expect(href).toContain(encodeURIComponent('Pentas Seni Tahunan 2026'));
       expect(href).toContain(encodeURIComponent('50.000'));
     });
+
+    it('F.3: tombol WA tersembunyi untuk anggota biasa tanpa izin tagihan/kas/verifikasi', async () => {
+      mockTenantAccess = {
+        canManagePrograms: false,
+        canManageBudget: false,
+        canRecordIncome: false,
+        canManageExpenses: false,
+        canViewReports: false,
+        canGenerateBilling: false,
+        canRecordCash: false,
+        canVerifyPayments: false,
+      };
+
+      renderProgramDetail();
+      await screen.findByText('Pentas Seni Tahunan 2026');
+
+      const duesTabBtn = screen.getByRole('button', { name: /^Iuran/i });
+      fireEvent.click(duesTabBtn);
+
+      await screen.findByText('Budi Santoso');
+      expect(screen.queryByRole('link', { name: /Ingatkan via WA/i })).toBeNull();
+    });
+
+    it('2F.4: nomor HP anggota hanya tampil untuk pengurus (canGenerateBilling || canRecordCash || canVerifyPayments)', async () => {
+      // 1. Kasus anggota biasa tanpa izin tagihan/kas/verifikasi -> nomor HP tidak tampil
+      mockTenantAccess = {
+        canManagePrograms: false,
+        canManageBudget: false,
+        canRecordIncome: false,
+        canManageExpenses: false,
+        canViewReports: false,
+        canGenerateBilling: false,
+        canRecordCash: false,
+        canVerifyPayments: false,
+      };
+
+      const { unmount } = renderProgramDetail();
+      await screen.findByText('Pentas Seni Tahunan 2026');
+
+      const duesTabBtn = screen.getByRole('button', { name: /^Iuran/i });
+      fireEvent.click(duesTabBtn);
+
+      await screen.findByText('Budi Santoso');
+      expect(screen.queryByText('081234567890')).toBeNull();
+      expect(screen.queryByText('089876543210')).toBeNull();
+
+      unmount();
+
+      // 2. Kasus bendahara dengan izin -> nomor HP tampil
+      mockTenantAccess = {
+        canManagePrograms: true,
+        canManageBudget: true,
+        canRecordIncome: true,
+        canManageExpenses: true,
+        canViewReports: true,
+        canGenerateBilling: true,
+        canRecordCash: true,
+        canVerifyPayments: true,
+      };
+
+      renderProgramDetail();
+      await screen.findByText('Pentas Seni Tahunan 2026');
+
+      const duesTabBtnStaff = screen.getByRole('button', { name: /^Iuran/i });
+      fireEvent.click(duesTabBtnStaff);
+
+      expect(await screen.findByText('081234567890')).toBeTruthy();
+      expect(screen.getByText('089876543210')).toBeTruthy();
+    });
+
+    it('F.3: dues gagal memuat -> pemasukan tetap tampil dan alert iuran muncul', async () => {
+      tenantOperationalService.fetchProgramTransactions.mockResolvedValueOnce({
+        incomes: mockTransactions.incomes,
+        expenses: mockTransactions.expenses,
+        dues: [],
+        duesError: true,
+      });
+
+      renderProgramDetail();
+      await screen.findByText('Pentas Seni Tahunan 2026');
+
+      const txTabBtn = screen.getByRole('button', { name: /Daftar Transaksi/i });
+      fireEvent.click(txTabBtn);
+      expect(await screen.findByText('Pencairan sponsorship termin 1')).toBeTruthy();
+
+      const duesTabBtn = screen.getByRole('button', { name: /^Iuran/i });
+      fireEvent.click(duesTabBtn);
+      expect(await screen.findByText(/Data iuran gagal dimuat/i)).toBeTruthy();
+    });
   });
 
   describe('PANITIA-3.4: Tab Dokumen', () => {
@@ -612,6 +701,29 @@ describe('PANITIA-1.7: ProgramDetail Page', () => {
         canVerifyPayments: true,
       };
     });
+
+    it('F.4: tombol Buka dokumen membuka tab kosong sinkron lalu assign href', async () => {
+      const mockWin = { location: { href: '' }, opener: 'test', close: vi.fn() };
+      const openSpy = vi.spyOn(window, 'open').mockReturnValue(mockWin);
+      tenantOperationalService.getProgramDocumentUrl.mockResolvedValueOnce('https://r2.ruangwarga.test/mock-url.pdf');
+
+      renderProgramDetail();
+      await screen.findByText('Pentas Seni Tahunan 2026');
+
+      const docTabBtn = screen.getByRole('button', { name: /^Dokumen/i });
+      fireEvent.click(docTabBtn);
+
+      const bukaButtons = await screen.findAllByRole('button', { name: /Buka/i });
+      fireEvent.click(bukaButtons[0]);
+
+      expect(openSpy).toHaveBeenCalledWith('', '_blank');
+      await waitFor(() => {
+        expect(mockWin.location.href).toBe('https://r2.ruangwarga.test/mock-url.pdf');
+        expect(mockWin.opener).toBeNull();
+      });
+
+      openSpy.mockRestore();
+    });
   });
 
   describe('HARGA.3: Penguncian transaksi berdasarkan masa aktif acara', () => {
@@ -680,9 +792,9 @@ describe('PANITIA-1.7: ProgramDetail Page', () => {
 
       const panel = screen.getByTestId('program-access-panel');
       expect(panel).toBeTruthy();
-      expect(panel.textContent).toContain('Rp25.000 / 12 bulan');
+      expect(panel.textContent).toMatch(/Rp\s*25\.000 \/ 12 bulan/);
       expect(panel.textContent).toContain('Gratis sampai');
-      expect(panel.textContent).toContain('Setelah itu aktifkan Rp25.000 / 12 bulan');
+      expect(panel.textContent).toMatch(/Setelah itu aktifkan Rp\s*25\.000 \/ 12 bulan/);
 
       const btn = screen.getByRole('button', { name: /Aktifkan \/ Perpanjang/i });
       expect(btn.disabled).toBe(true);

@@ -14,6 +14,7 @@ import {
   AiOutlineReload,
   AiOutlineCheckCircle,
   AiOutlineFileText,
+  AiOutlineWarning,
 } from 'react-icons/ai';
 import { useTenant } from '../../context/TenantContext';
 import { useTenantAccess } from '../../hooks/useTenantAccess';
@@ -48,6 +49,8 @@ import {
 } from '../../services/tenantOperationalService';
 import { buildProgramDuesReminderMessage, buildWaLink } from '../../utils/waReminder';
 import { formatRupiah, formatDate } from '../../services/dataHelpers';
+import { PANITIA_PRICING } from '../../config/panitiaPricing';
+import { getLocalDateString, formatDateWIB } from '../../utils/date';
 import { STATUS_BADGE_CLASSES, ACCESS_STATE_BADGE_CLASSES } from './Programs';
 import MemberBillPayModal from '../../components/payments/MemberBillPayModal';
 
@@ -508,7 +511,7 @@ export default function ProgramDetail() {
       .filter((m) => !activeDueMemberIds.has(m.id))
       .map((m) => m.id);
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const defaultDueDate = program?.starts_on && program.starts_on >= today
       ? program.starts_on
       : today;
@@ -615,16 +618,28 @@ export default function ProgramDetail() {
     }
   };
 
-  // --- Handlers Dokumen Acara (PANITIA-3.4) ---
+  // --- Handlers Dokumen Acara (PANITIA-3.4 / F.4) ---
   const handleOpenDocument = async (doc) => {
+    const w = typeof window !== 'undefined' ? window.open('', '_blank') : null;
     try {
       const url = await getProgramDocumentUrl(doc.file_path);
       if (url) {
-        window.open(url, '_blank', 'noopener,noreferrer');
+        if (w) {
+          w.opener = null;
+          w.location.href = url;
+        } else if (typeof window !== 'undefined') {
+          window.location.assign(url);
+        }
       } else {
+        if (w) {
+          try { w.close(); } catch {}
+        }
         toast.error('Gagal membuka dokumen.');
       }
     } catch (err) {
+      if (w) {
+        try { w.close(); } catch {}
+      }
       toast.error(err.message || 'Gagal membuka dokumen.');
     }
   };
@@ -986,20 +1001,20 @@ export default function ProgramDetail() {
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-300">
               {programAccess.state === 'free_trial' ? (
-                `Gratis sampai ${programAccess.until ? formatDate(programAccess.until) : '-'}. Setelah itu aktifkan Rp25.000 / 12 bulan.`
+                `Gratis sampai ${programAccess.until ? formatDateWIB(programAccess.until) : '-'}. Setelah itu aktifkan ${formatRupiah(PANITIA_PRICING.pricePerProgram)} / ${PANITIA_PRICING.periodMonths} bulan.`
               ) : programAccess.state === 'active' ? (
-                `Aktif sampai ${programAccess.until ? formatDate(programAccess.until) : '-'}. Tarif perpanjangan Rp25.000 / 12 bulan.`
+                `Aktif sampai ${programAccess.until ? formatDateWIB(programAccess.until) : '-'}. Tarif perpanjangan ${formatRupiah(PANITIA_PRICING.pricePerProgram)} / ${PANITIA_PRICING.periodMonths} bulan.`
               ) : programAccess.state === 'expired' ? (
-                `Masa aktif habis sejak ${programAccess.until ? formatDate(programAccess.until) : '-'}. Aktifkan kembali Rp25.000 / 12 bulan.`
+                `Masa aktif habis sejak ${programAccess.until ? formatDateWIB(programAccess.until) : '-'}. Aktifkan kembali ${formatRupiah(PANITIA_PRICING.pricePerProgram)} / ${PANITIA_PRICING.periodMonths} bulan.`
               ) : (
-                `Belum aktif. Tarif aktivasi Rp25.000 / 12 bulan.`
+                `Belum aktif. Tarif aktivasi ${formatRupiah(PANITIA_PRICING.pricePerProgram)} / ${PANITIA_PRICING.periodMonths} bulan.`
               )}
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 shrink-0">
             <span className="text-xs font-mono font-semibold text-slate-700 dark:text-slate-300">
-              Rp25.000 / 12 bulan
+              {formatRupiah(PANITIA_PRICING.pricePerProgram)} / {PANITIA_PRICING.periodMonths} bulan
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -1609,6 +1624,14 @@ export default function ProgramDetail() {
           )}
         </div>
 
+        {/* Peringatan jika data iuran gagal dimuat */}
+        {transactions?.duesError && (
+          <div data-testid="dues-error-alert" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
+            <AiOutlineWarning className="shrink-0 text-amber-600 text-base" />
+            <span>Data iuran gagal dimuat</span>
+          </div>
+        )}
+
         {/* Info Rekening Penerima */}
         {!tenantBankAccount ? (
           <div data-testid="missing-bank-alert" className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-950/30 dark:border-amber-900 dark:text-amber-300 flex items-center justify-between gap-4 text-xs sm:text-sm print:hidden">
@@ -1643,7 +1666,7 @@ export default function ProgramDetail() {
               Anggota Ditagih
             </span>
             <span className="text-lg font-bold text-slate-900 dark:text-white">
-              {summary.dues?.count || duesList.length} orang
+              {summary.dues?.count ?? 0} orang
             </span>
           </div>
           <div className="pv-card p-3.5 border border-slate-200 dark:border-slate-800">
@@ -1718,7 +1741,7 @@ export default function ProgramDetail() {
                       <tr key={due.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                         <td className="py-3 px-4 font-medium text-slate-900 dark:text-white">
                           <div>{memberName}</div>
-                          {due.member?.phone && (
+                          {due.member?.phone && (canGenerateBilling || canRecordCash || canVerifyPayments) && (
                             <div className="text-xs text-slate-400">{due.member.phone}</div>
                           )}
                         </td>
@@ -1763,7 +1786,7 @@ export default function ProgramDetail() {
                                 Catat Tunai
                               </button>
                             )}
-                            {due.status === 'unpaid' && (
+                            {due.status === 'unpaid' && (canGenerateBilling || canRecordCash || canVerifyPayments) && (
                               isProgramWritable ? (
                                 <a
                                   href={waUrl}
@@ -1897,7 +1920,7 @@ export default function ProgramDetail() {
                             <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500 mt-2">
                               <span>{formatFileSize(doc.file_size)}</span>
                               <span>•</span>
-                              <span>{formatDate(doc.created_at)}</span>
+                              <span>{formatDateWIB(doc.created_at)}</span>
                             </div>
                           </div>
                         </div>
@@ -2600,7 +2623,7 @@ export default function ProgramDetail() {
               id="doc-file"
               data-testid="doc-file-input"
               type="file"
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.webp"
+              accept=".pdf,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.webp"
               onChange={(e) => {
                 const file = e.target.files?.[0] || null;
                 setDocFormData((prev) => ({ ...prev, file }));

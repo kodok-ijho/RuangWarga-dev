@@ -1,6 +1,6 @@
 # PANITIA-ARISAN-1F — Perbaikan susulan PANITIA-2, PANITIA-3, PANITIA-HARGA, ARISAN-1
 
-Status: ⏳ **Menunggu persetujuan user.** Seluruhnya frontend: tidak ada migration dan tidak ada perubahan Edge Function.
+Status: ✅ **Disetujui user 2026-10-22**, selesai dan direview (`PANITIA-ARISAN-1F-review.md`). Seluruhnya frontend: tidak ada migration dan tidak ada perubahan Edge Function.
 
 Dasar: `PANITIA-2-review.md`, `PANITIA-3-review.md`, `PANITIA-HARGA-review.md`, dan `ARISAN-1-review.md`. Bug berat sudah diperbaiki Claude. Batch ini berisi temuan menengah dan ringan.
 

@@ -19,6 +19,8 @@ import {
   calculateSubscriptionBill,
   DEFAULT_PERIOD_DISCOUNTS,
 } from '../../utils/billingCalculator';
+import { formatRupiah } from '../../services/dataHelpers';
+import { PANITIA_PRICING } from '../../config/panitiaPricing';
 
 export default function ChoosePlan() {
   const navigate = useNavigate();
@@ -153,20 +155,20 @@ export default function ChoosePlan() {
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
                 <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
                   <span className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs">1</span>
-                  <span>Acara Pertama Gratis 1 Bulan</span>
+                  <span>Acara Pertama Gratis {PANITIA_PRICING.freeTrialMonths} Bulan</span>
                 </div>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Setiap organisasi kepanitiaan baru mendapatkan acara pertama gratis 1 bulan untuk mencoba seluruh modul (RAB, Iuran, Transaksi, LPJ, dan Dokumen).
+                  Setiap organisasi kepanitiaan baru mendapatkan acara pertama gratis {PANITIA_PRICING.freeTrialMonths} bulan untuk mencoba seluruh modul (RAB, Iuran, Transaksi, LPJ, dan Dokumen).
                 </p>
               </div>
 
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
                 <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
                   <span className="w-6 h-6 rounded-lg bg-forest-100 text-forest-700 flex items-center justify-center text-xs">2</span>
-                  <span>Rp25.000 Per Acara / 12 Bulan</span>
+                  <span>{formatRupiah(PANITIA_PRICING.pricePerProgram)} Per Acara / {PANITIA_PRICING.periodMonths} Bulan</span>
                 </div>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Tarif tetap hemat Rp25.000 per acara untuk masa aktif 12 bulan. Berlaku untuk acara baru maupun perpanjangan acara.
+                  Tarif tetap hemat {formatRupiah(PANITIA_PRICING.pricePerProgram)} per acara untuk masa aktif {PANITIA_PRICING.periodMonths} bulan. Berlaku untuk acara baru maupun perpanjangan acara.
                 </p>
               </div>
 
@@ -176,7 +178,7 @@ export default function ChoosePlan() {
                   <span>Acara Lewat Masa Menjadi Baca-Saja</span>
                 </div>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Setelah 12 bulan (atau setelah masa gratis berakhir), acara yang belum diperpanjang menjadi baca-saja. Semua data tersimpan aman dan laporan/LPJ tetap dapat diunduh.
+                  Setelah {PANITIA_PRICING.periodMonths} bulan (atau setelah masa gratis berakhir), acara yang belum diperpanjang menjadi baca-saja. Semua data tersimpan aman dan laporan/LPJ tetap dapat diunduh.
                 </p>
               </div>
 

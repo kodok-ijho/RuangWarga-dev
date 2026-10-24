@@ -69,9 +69,6 @@ const mockAuth = {
   session: { access_token: 'fake-token' },
 };
 
-let currentTenantAccess = { ...mockTenantAccessState };
-let currentAuth = { ...mockAuth };
-
 const mockTenantTemplate = {
   name: 'Kompleks RT/RW',
   unitLabel: 'Rumah',
@@ -81,6 +78,11 @@ const mockTenantTemplate = {
   emptyUnitLabel: 'Kosong',
   icon: '🏡',
 };
+
+let currentTenantAccess = { ...mockTenantAccessState };
+let currentAuth = { ...mockAuth };
+let currentTenantState = { ...mockTenantState };
+let currentTenantTemplate = { ...mockTenantTemplate };
 
 const mockToast = {
   success: vi.fn(),
@@ -98,7 +100,7 @@ vi.mock('../hooks/useAuth', () => ({
 }));
 
 vi.mock('../hooks/useTenant', () => ({
-  useTenant: () => mockTenantState,
+  useTenant: () => currentTenantState,
 }));
 
 vi.mock('../hooks/useTenantAccess', () => ({
@@ -106,7 +108,7 @@ vi.mock('../hooks/useTenantAccess', () => ({
 }));
 
 vi.mock('../hooks/useTenantTemplate', () => ({
-  useTenantTemplate: () => mockTenantTemplate,
+  useTenantTemplate: () => currentTenantTemplate,
 }));
 
 vi.mock('../hooks/useToast', () => ({
@@ -182,12 +184,17 @@ const sampleMatrixRows = [
   },
 ];
 
+vi.mock('../services/publicListingService', () => ({
+  fetchTenantListings: vi.fn(() => Promise.resolve([])),
+}));
+
 vi.mock('../services/tenantOperationalService', async () => {
   const actual = await vi.importActual('../services/tenantOperationalService');
   return {
     ...actual,
     fetchTenantBillMatrix: vi.fn(() => Promise.resolve(sampleMatrixRows)),
     fetchTenantMembers: vi.fn(() => Promise.resolve([])),
+    fetchKosContracts: vi.fn(() => Promise.resolve([])),
     getTenantBankAccount: vi.fn(() => ({
       bank_name: 'BCA',
       account_number: '1234567890',
@@ -213,6 +220,8 @@ describe('PaymentMatrix Tenant Mode (RTRW-1.3 / RTRW-1F.1)', () => {
     vi.clearAllMocks();
     currentTenantAccess = { ...mockTenantAccessState };
     currentAuth = { ...mockAuth };
+    currentTenantState = { ...mockTenantState };
+    currentTenantTemplate = { ...mockTenantTemplate };
   });
 
   afterEach(() => {
@@ -437,6 +446,189 @@ describe('PaymentMatrix Tenant Mode (RTRW-1.3 / RTRW-1F.1)', () => {
           name: /Ingatkan tagihan via WhatsApp untuk Rumah A\/02/i,
         })
       ).toBeNull();
+    });
+  });
+
+  describe('KOS-2.5: Integrasi Kontrak dan Tawaran Iklan di Matriks Kos', () => {
+    const kosMatrixRows = [
+      {
+        unit: {
+          id: 101,
+          label: 'Kamar 101',
+          status: 'occupied',
+        },
+        resident: null,
+        residents: [],
+        cells: [
+          {
+            period: '2026-10',
+            status: 'unpaid',
+            bill: {
+              id: 'bill-dhani-1',
+              period: '2026-10',
+              status: 'unpaid',
+              amount: 1500000,
+              service_start: '2026-10-19',
+              service_end: '2026-11-18',
+              due_date: '2026-10-29',
+            },
+          },
+        ],
+      },
+      {
+        unit: {
+          id: 102,
+          label: 'Kamar 102',
+          status: 'vacant',
+        },
+        resident: null,
+        residents: [],
+        cells: [
+          {
+            period: '2026-10',
+            status: 'none',
+            bill: null,
+          },
+        ],
+      },
+      {
+        unit: {
+          id: 103,
+          label: 'Kamar 103',
+          status: 'vacant',
+          metadata: {
+            previous_tenant_member_id: 'mem-alumni-3',
+          },
+        },
+        resident: null,
+        residents: [],
+        cells: [
+          {
+            period: '2026-10',
+            status: 'none',
+            bill: null,
+          },
+        ],
+      },
+    ];
+
+    const kosContracts = [
+      {
+        id: 'c-101',
+        unit_id: 101,
+        status: 'active',
+        tenant_name: 'Dhani Mahasiswa',
+        rent_price: 1500000,
+        start_date: '2026-10-19',
+        end_date: null, // Bulanan
+      },
+      {
+        id: 'c-103',
+        unit_id: 103,
+        status: 'ended', // Sudah checkout
+        tenant_name: 'Alumni Kos',
+        rent_price: 1500000,
+        start_date: '2026-01-01',
+        end_date: '2026-06-30',
+      },
+    ];
+
+    const kosListings = [
+      {
+        id: 'lst-102',
+        unit_id: 102,
+        status: 'active',
+        title: 'Kamar 102 Nyaman AC',
+      },
+    ];
+
+    beforeEach(async () => {
+      currentTenantState = {
+        activeTenant: { id: 'tenant-kos-1', name: 'Kos Harmoni', type: 'kos' },
+        activeTenantId: 'tenant-kos-1',
+        userTenants: [],
+        switchTenant: vi.fn(),
+        subscriptionStatus: 'active',
+        isPlatformAdmin: false,
+        isOwner: true,
+        userRole: 'admin',
+        hasPermission: () => true,
+      };
+
+      currentTenantTemplate = {
+        name: 'Kos-kosan',
+        unitLabel: 'Kamar',
+        billLabel: 'Sewa',
+        memberLabel: 'Penyewa',
+        occupiedUnitLabel: 'Terisi',
+        emptyUnitLabel: 'Kosong',
+        icon: '🛏️',
+      };
+
+      currentTenantAccess = {
+        ...mockTenantAccessState,
+        isStaff: true,
+        canWrite: true,
+        canGenerateBilling: true,
+      };
+
+      const dataService = await import('../services/dataService');
+      dataService.fetchBillMatrix.mockResolvedValue(kosMatrixRows);
+
+      const opService = await import('../services/tenantOperationalService');
+      opService.fetchKosContracts.mockResolvedValue(kosContracts);
+
+      const listService = await import('../services/publicListingService');
+      listService.fetchTenantListings.mockResolvedValue(kosListings);
+    });
+
+    it('kamar dengan kontrak aktif: nama penyewa dari kontrak, badge Bulanan, tooltip memuat masa sewa & jatuh tempo', async () => {
+      render(
+        <MemoryRouter initialEntries={['/t/tenant-kos-1/payment-matrix']}>
+          <PaymentMatrix />
+        </MemoryRouter>
+      );
+
+      // Kamar 101 harus menampilkan nama penyewa dari kontrak
+      expect(await screen.findByText('Kamar 101')).toBeTruthy();
+      expect(await screen.findByText('Dhani Mahasiswa')).toBeTruthy();
+      expect(await screen.findByText('Bulanan')).toBeTruthy();
+
+      // Tooltip sel tagihan memuat masa sewa dan jatuh tempo
+      const cellElement = screen.getByTitle(/Masa Sewa: 19 Okt 2026 – 18 Nov 2026/i);
+      expect(cellElement).toBeTruthy();
+      expect(cellElement.getAttribute('title')).toContain('Jatuh Tempo: 29 Okt 2026');
+    });
+
+    it('kamar kosong dengan iklan aktif: tampil Kamar Kosong, Buat Kontrak, dan badge Diiklankan', async () => {
+      render(
+        <MemoryRouter initialEntries={['/t/tenant-kos-1/payment-matrix']}>
+          <PaymentMatrix />
+        </MemoryRouter>
+      );
+
+      expect(await screen.findByText('Kamar 102')).toBeTruthy();
+      // Ada label Kamar Kosong
+      const emptyBadge = await screen.findAllByText('Kamar Kosong');
+      expect(emptyBadge.length).toBeGreaterThanOrEqual(1);
+
+      // Ada badge Diiklankan untuk Kamar 102
+      expect(await screen.findByRole('button', { name: /Diiklankan/i })).toBeTruthy();
+      // Ada tombol Buat Kontrak
+      const contractBtns = await screen.findAllByRole('button', { name: /Buat Kontrak/i });
+      expect(contractBtns.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('kamar dengan kontrak berakhir (ended) dan tanpa iklan: tampil Kamar Kosong, Buat Kontrak, dan tombol Iklankan', async () => {
+      render(
+        <MemoryRouter initialEntries={['/t/tenant-kos-1/payment-matrix']}>
+          <PaymentMatrix />
+        </MemoryRouter>
+      );
+
+      expect(await screen.findByText('Kamar 103')).toBeTruthy();
+      // Tombol Iklankan muncul untuk Kamar 103 (bukan Diiklankan)
+      expect(await screen.findByRole('button', { name: /^Iklankan$/i })).toBeTruthy();
     });
   });
 });

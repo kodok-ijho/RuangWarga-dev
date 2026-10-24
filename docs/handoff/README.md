@@ -52,6 +52,8 @@ Folder ini adalah satu-satunya jalur serah-terima tugas di repo ini.
 
 ## File di folder ini
 
+Rencana induk, kondisi terkini, dan roadmap ada di `PLAN.md` (root repo). Mulai dari sana.
+
 - `<BATCH>.md` — batch tugas (aktif: lihat paling baru).
 - `<BATCH>-report.md` — laporan executor.
 - `BACKLOG.md` — rencana batch berikutnya (belum untuk dikerjakan).

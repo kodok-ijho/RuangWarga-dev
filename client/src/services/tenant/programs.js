@@ -9,7 +9,7 @@ import { fetchTenantIncomes } from './incomes';
 import { fetchTenantExpenses } from './finance';
 import { summarizeProgramDues, getDemoProgramDues, fetchProgramDues } from './programDues';
 import { PANITIA_PRICING } from '../../config/panitiaPricing';
-import { formatDate } from '../dataHelpers';
+import { formatDateWIB } from '../../utils/date';
 
 export { PANITIA_PRICING };
 
@@ -94,7 +94,13 @@ let demoBudgetItemsStore = [
   },
 ];
 
-export function resetDemoProgramsStore(initialPrograms = null, initialBudgetItems = null) {
+let demoFreeTrialClaimedTenants = new Set(['demo-tenant-panitia']);
+
+export function resetDemoProgramsStore(
+  initialPrograms = null,
+  initialBudgetItems = null,
+  initialClaimedTenants = null
+) {
   if (initialPrograms) {
     demoProgramsStore = [...initialPrograms];
   } else {
@@ -104,6 +110,13 @@ export function resetDemoProgramsStore(initialPrograms = null, initialBudgetItem
     demoBudgetItemsStore = [...initialBudgetItems];
   } else {
     demoBudgetItemsStore = [];
+  }
+  if (Array.isArray(initialClaimedTenants)) {
+    demoFreeTrialClaimedTenants = new Set(initialClaimedTenants);
+  } else if (!initialPrograms) {
+    demoFreeTrialClaimedTenants = new Set();
+  } else {
+    demoFreeTrialClaimedTenants = new Set(['demo-tenant-panitia']);
   }
 }
 
@@ -130,7 +143,7 @@ export function countActivePrograms(programs = []) {
  * @returns {{ state: 'unlimited'|'free_trial'|'active'|'expired'|'inactive', until: string|null, writable: boolean }}
  */
 export function getProgramAccessState(program, { tenantType, now = new Date() } = {}) {
-  if (tenantType && tenantType !== 'panitia') {
+  if (tenantType !== 'panitia') {
     return {
       state: 'unlimited',
       until: null,
@@ -194,11 +207,11 @@ export function formatProgramAccessLabel(stateObj) {
 
   switch (state) {
     case 'free_trial':
-      return `Gratis sampai ${formatDate(until)}`;
+      return `Gratis sampai ${formatDateWIB(until)}`;
     case 'active':
-      return `Aktif sampai ${formatDate(until)}`;
+      return `Aktif sampai ${formatDateWIB(until)}`;
     case 'expired':
-      return until ? `Masa aktif habis ${formatDate(until)}` : 'Masa aktif habis';
+      return until ? `Masa aktif habis ${formatDateWIB(until)}` : 'Masa aktif habis';
     case 'inactive':
       return 'Belum aktif';
     case 'unlimited':
@@ -709,12 +722,14 @@ export async function createProgram(
 
   const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
   if (isDemoOrMock) {
-    const existing = demoProgramsStore.filter((p) => p.tenant_id === tenantId);
-    const isFirst = existing.length === 0;
-    const accessUntil = isFirst
-      ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-      : null;
-    const isFreeTrial = isFirst;
+    const alreadyClaimed = demoFreeTrialClaimedTenants.has(tenantId);
+    let isFreeTrial = false;
+    let accessUntil = null;
+    if (!alreadyClaimed) {
+      demoFreeTrialClaimedTenants.add(tenantId);
+      isFreeTrial = true;
+      accessUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    }
 
     const newProg = {
       id: `prog-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -1189,18 +1204,29 @@ export async function deleteBudgetItem(tenantId, budgetItemId) {
  */
 export async function fetchProgramTransactions(tenantId, programId) {
   if (!tenantId || !programId) {
-    return { incomes: [], expenses: [], dues: [] };
+    return { incomes: [], expenses: [], dues: [], duesError: false };
   }
 
-  const [incomes, expenses, dues] = await Promise.all([
+  let dues = [];
+  let duesError = false;
+
+  const [incomes, expenses] = await Promise.all([
     fetchTenantIncomes(tenantId, { programId }),
     fetchTenantExpenses(tenantId, { programId }),
-    fetchProgramDues(tenantId, programId),
   ]);
+
+  try {
+    dues = await fetchProgramDues(tenantId, programId);
+  } catch (err) {
+    console.error('[programs] fetchProgramDues error:', err);
+    dues = [];
+    duesError = true;
+  }
 
   return {
     incomes: incomes || [],
     expenses: expenses || [],
     dues: dues || [],
+    duesError,
   };
 }

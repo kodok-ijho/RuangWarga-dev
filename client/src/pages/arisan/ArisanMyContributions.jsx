@@ -157,7 +157,7 @@ export default function ArisanMyContributions() {
             </div>
 
             <Link
-              to={`/t/${tenantId}/arisan/draw?roundId=${lastDrawnRound.id}`}
+              to={`/t/${tenantId}/arisan/draw?roundId=${lastDrawnRound.id}&tab=history`}
               className="text-xs font-bold text-amber-800 hover:text-amber-950 inline-flex items-center gap-1 transition-colors"
             >
               <span>Riwayat Transparan</span>
@@ -175,13 +175,17 @@ export default function ArisanMyContributions() {
             <div>
               <span className="text-slate-500 block text-[11px]">Slot</span>
               <span className="font-semibold text-slate-800 truncate block">
-                {lastDrawnRound.slot_label || lastDrawnRound.winner?.unit?.name || '-'}
+                {Array.isArray(lastDrawnRound.eligible_snapshot)
+                  ? lastDrawnRound.eligible_snapshot.find(
+                      (p) => p && (p.member_id === lastDrawnRound.winner_member_id || p.id === lastDrawnRound.winner_member_id)
+                    )?.slot_label || '-'
+                  : '-'}
               </span>
             </div>
             <div>
               <span className="text-slate-500 block text-[11px]">Total Hadiah</span>
               <span className="font-extrabold text-amber-700 block">
-                {formatRupiah(lastDrawnRound.pool_amount || 0)}
+                {formatRupiah(lastDrawnRound.total_pool_amount || 0)}
               </span>
             </div>
             <div>

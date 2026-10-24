@@ -99,7 +99,7 @@ describe('PANITIA-3.5: ProgramLpj Page', () => {
         program_id: 'prog-1',
         budget_item_id: 'b-2',
         amount: 1200000,
-        recipient: 'Catering Berkah',
+        category: 'Konsumsi',
         description: 'Snack rapat dan makan siang',
         date: '2026-11-05',
         receipt_file_path: 'tenants/tenant-panitia-1/expenses/exp-1-nota.jpg',
@@ -178,7 +178,7 @@ describe('PANITIA-3.5: ProgramLpj Page', () => {
 
     // 5. Rincian Pengeluaran
     const sec5 = screen.getByTestId('lpj-section-5');
-    expect(within(sec5).getByText('Catering Berkah')).toBeTruthy();
+    expect(within(sec5).getByText('Konsumsi')).toBeTruthy();
     expect(within(sec5).getByText('Snack rapat dan makan siang')).toBeTruthy();
     expect(within(sec5).getByText('nota ✓')).toBeTruthy();
 
@@ -245,5 +245,75 @@ describe('PANITIA-3.5: ProgramLpj Page', () => {
     expect(within(sec8).getByText(/Bandung, 25 November 2026/i)).toBeTruthy();
     expect(within(sec8).getByText('Dr. Ahmad Faiz, M.Sc')).toBeTruthy();
     expect(within(sec8).getByText('Siti Rahmawati, S.E')).toBeTruthy();
+  });
+
+  it('F.4: kota bawaan pengesahan kosong string bila tenant tidak memiliki city', async () => {
+    mockTenant = {
+      id: 'tenant-panitia-1',
+      name: 'Panitia Dies Natalis 2026',
+      city: '',
+    };
+
+    renderProgramLpj();
+    await screen.findByText('Laporan Pertanggungjawaban (LPJ)');
+
+    const cityInput = screen.getByLabelText(/^Kota$/i);
+    expect(cityInput.value).toBe('');
+  });
+
+  describe('2F.1: Penanganan Galat Transaksi/Iuran di LPJ', () => {
+    it('duesError: true → banner tampil dan tombol cetak nonaktif', async () => {
+      tenantOperationalService.fetchProgramTransactions.mockResolvedValue({
+        incomes: mockTransactions.incomes,
+        expenses: mockTransactions.expenses,
+        dues: [],
+        duesError: true,
+      });
+
+      renderProgramLpj();
+      await screen.findByText('Laporan Pertanggungjawaban (LPJ)');
+
+      // Banner tampil
+      const banner = await screen.findByTestId('lpj-transactions-error-banner');
+      expect(banner).toBeTruthy();
+      expect(banner.textContent).toContain(
+        'Data transaksi/iuran gagal dimuat. Angka di LPJ ini belum lengkap. Muat ulang sebelum mencetak.'
+      );
+      expect(within(banner).getByRole('button', { name: /Coba lagi/i })).toBeTruthy();
+
+      // Tombol Cetak nonaktif
+      const printBtn = screen.getByRole('button', { name: /Cetak LPJ \(A4\)/i });
+      expect(printBtn.disabled).toBe(true);
+    });
+
+    it('gagal total → banner tampil dan tombol cetak nonaktif', async () => {
+      tenantOperationalService.fetchProgramTransactions.mockRejectedValue(
+        new Error('Network error saat memuat transaksi acara')
+      );
+
+      renderProgramLpj();
+      await screen.findByText('Laporan Pertanggungjawaban (LPJ)');
+
+      const banner = await screen.findByTestId('lpj-transactions-error-banner');
+      expect(banner).toBeTruthy();
+      expect(banner.textContent).toContain(
+        'Data transaksi/iuran gagal dimuat. Angka di LPJ ini belum lengkap. Muat ulang sebelum mencetak.'
+      );
+
+      const printBtn = screen.getByRole('button', { name: /Cetak LPJ \(A4\)/i });
+      expect(printBtn.disabled).toBe(true);
+    });
+
+    it('data normal → tombol cetak aktif dan banner tidak tampil', async () => {
+      tenantOperationalService.fetchProgramTransactions.mockResolvedValue(mockTransactions);
+
+      renderProgramLpj();
+      await screen.findByText('Laporan Pertanggungjawaban (LPJ)');
+
+      expect(screen.queryByTestId('lpj-transactions-error-banner')).toBeNull();
+
+      const printBtn = screen.getByRole('button', { name: /Cetak LPJ \(A4\)/i });
+      expect(printBtn.disabled).toBe(false);
+    });
   });
 });
