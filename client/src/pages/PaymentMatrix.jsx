@@ -13,6 +13,7 @@ import Placeholder from '../components/Placeholder';
 import QrisCheckoutModal from '../components/QrisCheckoutModal';
 import CreateBillingModal from '../components/CreateBillingModal';
 import CheckoutRoomModal from '../components/CheckoutRoomModal';
+import RoomListingAction from '../components/RoomListingAction';
 import { EmptyState, SkeletonTable, SearchInput, Pagination } from '../components/ui';
 import {
   MONTHS_SHORT,
@@ -1518,52 +1519,15 @@ export default function PaymentMatrix() {
                                                   Buat Kontrak
                                                 </button>
                                               )}
-                                              {canPostListing && (() => {
-                                                const rListing = listingsByUnitId.get(String(row.unit.id));
-                                                if (rListing?.status === 'active') {
-                                                  return (
-                                                    <button
-                                                      type="button"
-                                                      onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        navigate(`/t/${activeTenantId}/listings`);
-                                                      }}
-                                                      className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300 transition-colors"
-                                                      title="Kamar ini sedang diiklankan. Klik untuk melihat di Iklan Saya."
-                                                    >
-                                                      Diiklankan
-                                                    </button>
-                                                  );
-                                                }
-                                                if (rListing?.status === 'pending_payment') {
-                                                  return (
-                                                    <button
-                                                      type="button"
-                                                      onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        navigate(`/t/${activeTenantId}/listings`);
-                                                      }}
-                                                      className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 transition-colors"
-                                                      title="Menunggu pembayaran aktivasi iklan. Klik untuk menyelesaikan di Iklan Saya."
-                                                    >
-                                                      Menunggu bayar iklan
-                                                    </button>
-                                                  );
-                                                }
-                                                return (
-                                                  <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      navigate(`/t/${activeTenantId}/listings/post?unitId=${row.unit.id}`);
-                                                    }}
-                                                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-gold-400 hover:bg-gold-500 text-forest-900 transition-colors shadow-2xs"
-                                                    title="Iklankan kamar kosong ini ke direktori publik"
-                                                  >
-                                                    Iklankan
-                                                  </button>
-                                                );
-                                              })()}
+                                              {canPostListing && (
+                                                <RoomListingAction
+                                                  unitId={row.unit.id}
+                                                  tenantId={activeTenantId}
+                                                  listing={listingsByUnitId.get(String(row.unit.id))}
+                                                  canPostListing={canPostListing}
+                                                  compact={true}
+                                                />
+                                              )}
                                             </div>
                                           )}
                                         </div>

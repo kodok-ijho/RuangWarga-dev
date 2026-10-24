@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Modal from './Modal';
 import { useToast } from '../hooks/useToast';
 import {
@@ -16,6 +17,7 @@ export default function CheckoutRoomModal({
   onSuccess,
   initialUnitId = null,
 }) {
+  const navigate = useNavigate();
   const toast = useToast();
   const [units, setUnits] = useState([]);
   const [isLoadingUnits, setIsLoadingUnits] = useState(false);
@@ -28,6 +30,13 @@ export default function CheckoutRoomModal({
   const [reason, setReason] = useState('');
   const [cancelFutureBills, setCancelFutureBills] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [checkoutOffer, setCheckoutOffer] = useState(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setCheckoutOffer(null);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen || !tenantId) return;
@@ -151,13 +160,67 @@ export default function CheckoutRoomModal({
         `Checkout ${res.unit_label || roomLabel} berhasil. Status kamar kini Kosong (Vacant).`
       );
       if (onSuccess) onSuccess(res);
-      onClose();
+      setCheckoutOffer({
+        unitId: Number(selectedUnitId),
+        unitLabel: res.unit_label || roomLabel,
+      });
     } catch (err) {
       toast.error(err.message || 'Gagal memproses checkout kamar.');
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (checkoutOffer) {
+    return (
+      <Modal
+        isOpen={isOpen}
+        onClose={() => {
+          setCheckoutOffer(null);
+          onClose();
+        }}
+        title="📢 Iklankan Kamar Kosong"
+      >
+        <div className="space-y-4 text-xs py-1" data-testid="checkout-post-ad-offer">
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-center space-y-2">
+            <div className="text-3xl">📢</div>
+            <h4 className="font-bold text-slate-900 text-sm">
+              Kamar {checkoutOffer.unitLabel} sekarang kosong. Iklankan sekarang?
+            </h4>
+            <p className="text-[11px] text-slate-600 max-w-sm mx-auto leading-relaxed">
+              Kamar ini siap disewakan kembali. Iklankan ke katalog publik RuangWarga agar calon penyewa baru dapat segera menemukan kamar ini.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={() => {
+                setCheckoutOffer(null);
+                onClose();
+              }}
+              className="pv-btn-secondary px-4 py-2 text-xs font-semibold"
+            >
+              Nanti
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const targetUnitId = checkoutOffer.unitId;
+                setCheckoutOffer(null);
+                onClose();
+                navigate(`/t/${tenantId}/listings/post?unitId=${targetUnitId}`);
+              }}
+              className="pv-btn bg-gold-500 hover:bg-gold-600 text-forest-950 font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-colors"
+            >
+              <span>📢</span>
+              <span>Iklankan</span>
+            </button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="🚪 Checkout Kamar &amp; Selesai Sewa">

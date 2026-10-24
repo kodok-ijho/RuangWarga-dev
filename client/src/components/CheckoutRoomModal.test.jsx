@@ -5,6 +5,15 @@ import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/re
 import CheckoutRoomModal from './CheckoutRoomModal';
 import * as tenantOps from '../services/tenantOperationalService';
 
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
 const mockToast = {
   error: vi.fn(),
   success: vi.fn(),
@@ -27,7 +36,7 @@ vi.mock('../services/tenantOperationalService', async (importOriginal) => {
   };
 });
 
-describe('CheckoutRoomModal (KOS-2.6)', () => {
+describe('CheckoutRoomModal (KOS-2.6 & KOS-2.6b)', () => {
   const tenantId = 'demo-tenant-kos';
   const mockUnits = [
     {
@@ -88,7 +97,7 @@ describe('CheckoutRoomModal (KOS-2.6)', () => {
     cleanup();
   });
 
-  it('merender info kontrak aktif dan peringatan tunggakan tagihan belum lunas', async () => {
+  it('merender info kontrak aktif dan peringatan tunggakan tagihan belum lunas (KOS-2.6)', async () => {
     render(
       <CheckoutRoomModal
         isOpen={true}
@@ -142,7 +151,7 @@ describe('CheckoutRoomModal (KOS-2.6)', () => {
     expect(screen.queryByTestId('unpaid-bills-warning')).toBeNull();
   });
 
-  it('memproses checkout kamar tanpa window.confirm dan memanggil onSuccess', async () => {
+  it('memproses checkout kamar dan menampilkan tawaran iklan pasca checkout (KOS-2.6b)', async () => {
     const handleSuccess = vi.fn();
     const handleClose = vi.fn();
 
@@ -172,7 +181,46 @@ describe('CheckoutRoomModal (KOS-2.6)', () => {
         })
       );
       expect(handleSuccess).toHaveBeenCalled();
-      expect(handleClose).toHaveBeenCalled();
     });
+
+    // Verifikasi tawaran iklan muncul di modal
+    expect(await screen.findByTestId('checkout-post-ad-offer')).toBeTruthy();
+    expect(
+      screen.getByText(/Kamar Kamar 101 sekarang kosong\. Iklankan sekarang\?/i)
+    ).toBeTruthy();
+
+    // Klik tombol Iklankan
+    const adBtn = screen.getByRole('button', { name: /Iklankan/i });
+    fireEvent.click(adBtn);
+
+    expect(mockNavigate).toHaveBeenCalledWith(`/t/${tenantId}/listings/post?unitId=101`);
+    expect(handleClose).toHaveBeenCalled();
+  });
+
+  it('menutup modal saat tombol Nanti pada tawaran iklan diklik (KOS-2.6b)', async () => {
+    const handleClose = vi.fn();
+
+    render(
+      <CheckoutRoomModal
+        isOpen={true}
+        onClose={handleClose}
+        tenantId={tenantId}
+        initialUnitId={101}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Dhani Mahasiswa').length).toBeGreaterThan(0);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Konfirmasi Checkout/i }));
+
+    expect(await screen.findByTestId('checkout-post-ad-offer')).toBeTruthy();
+
+    const nantiBtn = screen.getByRole('button', { name: /Nanti/i });
+    fireEvent.click(nantiBtn);
+
+    expect(handleClose).toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });
