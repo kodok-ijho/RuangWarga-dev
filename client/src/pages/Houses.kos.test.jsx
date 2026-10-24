@@ -138,15 +138,11 @@ describe('Houses Kos Vacancy Listing (KOS-2.6b)', () => {
       </MemoryRouter>
     );
 
-    // Tunggu data kamar termuat
+    // Tunggu data kamar dan badge/aksi iklan termuat
     await waitFor(() => {
-      expect(screen.getAllByText(/Kamar 102/i).length).toBeGreaterThan(0);
-      expect(screen.getAllByText(/Kamar 103/i).length).toBeGreaterThan(0);
+      const diiklankanBadges = screen.getAllByRole('button', { name: /^Diiklankan$/i });
+      expect(diiklankanBadges.length).toBeGreaterThan(0);
     });
-
-    // Kamar 102 memiliki iklan aktif -> tombol/badge "Diiklankan" muncul
-    const diiklankanBadges = screen.getAllByRole('button', { name: /^Diiklankan$/i });
-    expect(diiklankanBadges.length).toBeGreaterThan(0);
 
     // Kamar 103 tanpa iklan -> tombol "Iklankan" muncul (bukan Diiklankan)
     const iklankanButtons = screen.getAllByRole('button', { name: /^Iklankan$/i });

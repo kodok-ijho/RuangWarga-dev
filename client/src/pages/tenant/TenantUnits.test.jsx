@@ -108,6 +108,7 @@ vi.mock('../../services/tenantOperationalService', async () => {
     deleteTenantUnit: vi.fn(),
     importTenantUnitsCSV: vi.fn(),
     fetchTenantMembers: vi.fn(),
+    fetchKosContracts: vi.fn().mockResolvedValue([]),
   };
 });
 
@@ -380,7 +381,7 @@ describe('TenantUnits Page (RTRW-2.3)', () => {
       ]);
       vi.spyOn(tenantOperationalService, 'fetchTenantMembers').mockResolvedValue([]);
 
-      renderTenantUnits();
+      renderTenantUnits('tenant-kos-1');
 
       await waitFor(() => {
         expect(screen.getAllByText('Kamar 101').length).toBeGreaterThan(0);

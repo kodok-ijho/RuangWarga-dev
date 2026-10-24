@@ -819,15 +819,103 @@ export async function assignRoomContract(tenantId, {
     if (diffMonths > 0) months = diffMonths;
   }
 
-  return createKosContract(tenantId, {
+  const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
+
+  if (isDemoOrMock) {
+    const res = await createKosContract(tenantId, {
+      unitId,
+      memberId,
+      tenantName,
+      startDate: contractStart,
+      months,
+      rentPrice,
+      notes,
+    });
+
+    return {
+      ...res,
+      unitId: res?.unit_id || unitId,
+      memberId: res?.member_id || memberId,
+      contractStart: res?.start_date || contractStart,
+      contractEnd: res?.end_date || contractEnd,
+      bill: {
+        unit_id: res?.unit_id || unitId,
+        member_id: res?.member_id || memberId,
+        amount: Number(res?.rent_price || rentPrice || 0),
+        contract_start: res?.start_date || contractStart,
+        contract_end: res?.end_date || contractEnd,
+        metadata: { billing_type: 'rent', notes: notes || 'Kontrak sewa kamar' },
+      },
+    };
+  }
+
+  // Non-demo (KOS-2.8): Hapus update langsung status: 'occupied' dari browser.
+  // Hanya simpan metadata kontrak sewa dan pastikan izin update unit valid.
+  const { data: currentUnit, error: fetchErr } = await supabase
+    .from('tenant_units')
+    .select('metadata')
+    .eq('tenant_id', tenantId)
+    .eq('id', unitId)
+    .single();
+
+  if (fetchErr) {
+    // eslint-disable-next-line no-console
+    console.error('[assignRoomContract] fetch unit error:', fetchErr);
+    throw new Error(fetchErr.message || 'Kamar tidak ditemukan untuk tenant ini.');
+  }
+
+  const currentMeta = currentUnit?.metadata || {};
+  const updatedMeta = {
+    ...currentMeta,
+    contract_start: contractStart,
+    contract_end: contractEnd,
+    tenant_member_id: memberId || null,
+    rent_price: Number(rentPrice || currentMeta.default_rent_price || 0),
+    notes: notes || '',
+  };
+
+  const { data: updatedUnits, error: updateErr } = await supabase
+    .from('tenant_units')
+    .update({
+      metadata: updatedMeta,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('tenant_id', tenantId)
+    .eq('id', unitId)
+    .select();
+
+  if (updateErr) {
+    // eslint-disable-next-line no-console
+    console.error('[assignRoomContract] update unit error:', updateErr);
+    throw new Error(updateErr.message || 'Gagal memperbarui data kamar.');
+  }
+
+  if (!updatedUnits || updatedUnits.length === 0) {
+    throw new Error('Gagal mengaktifkan kontrak: Anda tidak punya izin mengubah kamar.');
+  }
+
+  const period = contractStart.slice(0, 7);
+  const bill = await createTenantBillingItem(tenantId, {
+    unit_id: unitId,
+    member_id: memberId || null,
+    period,
+    amount: Number(rentPrice || 0),
+    due_date: dueDate || contractStart,
+    contract_start: contractStart,
+    contract_end: contractEnd,
+    metadata: {
+      billing_type: 'rent',
+      notes: notes || 'Kontrak sewa kamar',
+    },
+  });
+
+  return {
     unitId,
     memberId,
-    tenantName,
-    startDate: contractStart,
-    months,
-    rentPrice,
-    notes,
-  });
+    contractStart,
+    contractEnd,
+    bill,
+  };
 }
 
 /**
