@@ -305,11 +305,50 @@ export async function generateTenantBillingItems(tenantId, { period, dry_run = f
 /**
  * Mengambil daftar billing_items milik tenant (dengan filter period, status, unitId)
  */
+const demoBillingItemsMap = new Map();
+
+function getInitialDemoBillingItems(tenantId) {
+  if (demoBillingItemsMap.has(tenantId)) {
+    return demoBillingItemsMap.get(tenantId);
+  }
+  const initial = [
+    {
+      id: 'demo-bill-1',
+      tenant_id: tenantId,
+      unit_id: 1,
+      member_id: 'demo-mem-1',
+      period: '2026-10',
+      amount: 1500000,
+      late_fee: 0,
+      due_date: '2026-10-29',
+      status: 'unpaid',
+      contract_start: '2026-10-19',
+      contract_end: null,
+      metadata: {
+        bill_type: 'rent',
+        service_start: '2026-10-19',
+        service_end: '2026-11-18',
+        notes: 'Tagihan sewa Oktober 2026',
+      },
+      tenant_units: { id: 1, label: 'Kamar 101' },
+      tenant_members: { id: 'demo-mem-1', full_name: 'Dhani Mahasiswa', phone: '08123456789' },
+    },
+  ];
+  demoBillingItemsMap.set(tenantId, initial);
+  return initial;
+}
+
 export async function fetchTenantBillingItems(tenantId, { period, status, unitId } = {}) {
   if (!tenantId) return [];
 
   if (IS_DEMO || String(tenantId).startsWith('demo-')) {
-    return [];
+    let list = [...getInitialDemoBillingItems(tenantId)];
+    if (unitId !== undefined && unitId !== null) {
+      list = list.filter((b) => Number(b.unit_id) === Number(unitId));
+    }
+    if (period) list = list.filter((b) => b.period === period);
+    if (status) list = list.filter((b) => b.status === status);
+    return list;
   }
 
   let query = supabase
@@ -390,10 +429,13 @@ export async function createTenantBillingItem(tenantId, payload = {}) {
 
   const isDemoOrMock = IS_DEMO || String(tenantId).startsWith('demo-');
   if (isDemoOrMock) {
-    return {
-      id: `mock-bill-${Date.now()}`,
+    const list = getInitialDemoBillingItems(tenantId);
+    const newBill = {
+      id: `mock-bill-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       ...row,
     };
+    list.unshift(newBill);
+    return newBill;
   }
 
   const { data, error } = await supabase
@@ -517,6 +559,7 @@ function getInitialDemoContracts(tenantId) {
 
 export function resetDemoKosContractsStore() {
   demoKosContractsMap.clear();
+  demoBillingItemsMap.clear();
 }
 
 /**
@@ -920,13 +963,39 @@ export async function checkoutKosRoom(tenantId, {
       delete targetUnit.metadata.notes;
     }
 
+    // Akhiri kontrak aktif kamar di demo store
+    const contracts = getInitialDemoContracts(tenantId);
+    const activeContract = contracts.find(
+      (c) => c.unit_id === Number(unitId) && c.status === 'active'
+    );
+    if (activeContract) {
+      activeContract.status = 'ended';
+      activeContract.end_date = checkoutDate;
+      activeContract.ended_at = new Date().toISOString();
+      activeContract.end_reason = reason || 'Checkout penyewa';
+    }
+
+    let cancelledFutureBills = 0;
+    if (cancelFutureBills) {
+      const bills = getInitialDemoBillingItems(tenantId);
+      bills.forEach((b) => {
+        if (Number(b.unit_id) === Number(unitId) && b.status !== 'paid' && b.status !== 'cancelled') {
+          const sStart = b.metadata?.service_start || b.contract_start || b.period;
+          if (sStart && sStart > checkoutDate) {
+            b.status = 'cancelled';
+            cancelledFutureBills += 1;
+          }
+        }
+      });
+    }
+
     return {
       success: true,
       unit_id: Number(unitId),
       unit_label: targetUnit?.label || `Kamar ${unitId}`,
       status: 'vacant',
       checkout_date: checkoutDate,
-      cancelled_future_bills: 0,
+      cancelled_future_bills: cancelledFutureBills,
     };
   }
 
