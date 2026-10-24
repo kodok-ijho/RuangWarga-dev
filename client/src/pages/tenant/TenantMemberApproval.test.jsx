@@ -51,7 +51,7 @@ describe('TenantMemberApproval (GATE-1F)', () => {
     vi.clearAllMocks();
 
     mockTenantState = {
-      activeTenant: { id: 'tenant-123', name: 'Kompleks RT 01' },
+      activeTenant: { id: 'tenant-123', name: 'Kompleks RT 01', type: 'rt_rw' },
       activeTenantId: 'tenant-123',
       subscriptionStatus: 'trial',
       isOwner: true,
@@ -89,13 +89,13 @@ describe('TenantMemberApproval (GATE-1F)', () => {
     );
   };
 
-  it('a. klik "Setujui" → modal konfirmasi persetujuan tampil (tanpa error)', async () => {
+  it('a. klik "Setujui" pada RT/RW → modal konfirmasi persetujuan tampil (tanpa error)', async () => {
     renderComponent();
 
     const memberName = await screen.findByText('Budi Santoso');
     expect(memberName).toBeTruthy();
 
-    const approveBtn = screen.getByRole('button', { name: /setujui/i });
+    const approveBtn = screen.getByRole('button', { name: /^setujui$/i });
     fireEvent.click(approveBtn);
 
     const modalTitle = await screen.findByText('Konfirmasi Persetujuan Warga');
@@ -103,13 +103,13 @@ describe('TenantMemberApproval (GATE-1F)', () => {
     expect(screen.getByText(/Tetapkan nomor rumah dan peran untuk/i)).toBeTruthy();
   });
 
-  it('b. konfirmasi di modal → approveTenantMember dipanggil dengan id anggota', async () => {
+  it('b. konfirmasi di modal RT/RW → approveTenantMember dipanggil dengan id anggota', async () => {
     renderComponent();
 
     const memberName = await screen.findByText('Budi Santoso');
     expect(memberName).toBeTruthy();
 
-    const approveBtn = screen.getByRole('button', { name: /setujui/i });
+    const approveBtn = screen.getByRole('button', { name: /^setujui$/i });
     fireEvent.click(approveBtn);
 
     const modalTitle = await screen.findByText('Konfirmasi Persetujuan Warga');
@@ -152,7 +152,7 @@ describe('TenantMemberApproval (GATE-1F)', () => {
     const memberName = await screen.findByText('Budi Santoso');
     expect(memberName).toBeTruthy();
 
-    const approveBtn = screen.getByRole('button', { name: /setujui/i });
+    const approveBtn = screen.getByRole('button', { name: /^setujui$/i });
     fireEvent.click(approveBtn);
 
     expect(screen.queryByText('Konfirmasi Persetujuan Warga')).toBeNull();
@@ -162,5 +162,154 @@ describe('TenantMemberApproval (GATE-1F)', () => {
     fireEvent.click(rejectBtn);
 
     expect(tenantOperationalService.rejectTenantMember).not.toHaveBeenCalled();
+  });
+});
+
+describe('TenantMemberApproval Khusus Kos (KOS-2.7)', () => {
+  const kosTenantId = 'tenant-kos-1';
+  const mockPendingKosApplicant = {
+    id: 'applicant-1',
+    full_name: 'Dhani Mahasiswa',
+    occupancy_status: 'tenant',
+    unit_id: 101,
+    tenant_units: { id: 101, label: 'Kamar 101' },
+    phone: '081234567890',
+    created_at: '2026-10-24T00:00:00.000Z',
+  };
+
+  const mockKosUnits = [
+    {
+      id: 101,
+      label: 'Kamar 101',
+      status: 'vacant',
+      metadata: { rent_price: 1500000 },
+    },
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    mockTenantState = {
+      activeTenant: { id: kosTenantId, name: 'Kos Melati Harmoni', type: 'kos' },
+      activeTenantId: kosTenantId,
+      subscriptionStatus: 'active',
+      isOwner: true,
+      isTenantAdmin: true,
+      userRole: 'admin',
+      switchTenant: vi.fn(),
+      hasPermission: vi.fn(() => true),
+    };
+
+    vi.spyOn(tenantOperationalService, 'fetchPendingTenantMembers').mockResolvedValue([
+      mockPendingKosApplicant,
+    ]);
+    vi.spyOn(tenantOperationalService, 'fetchTenantUnits').mockResolvedValue(mockKosUnits);
+    vi.spyOn(tenantOperationalService, 'fetchTenantMembers').mockResolvedValue([]);
+    vi.spyOn(tenantOperationalService, 'fetchTenantDetails').mockResolvedValue({
+      id: kosTenantId,
+      settings: { rent_grace_days: 10, default_rent_price: 1500000 },
+    });
+    vi.spyOn(tenantOperationalService, 'fetchActiveContractByUnit').mockResolvedValue(null);
+    vi.spyOn(tenantOperationalService, 'createKosContract').mockResolvedValue({
+      id: 'contract-new-1',
+      unit_id: 101,
+      rent_price: 1500000,
+    });
+    vi.spyOn(tenantOperationalService, 'approveTenantMember').mockResolvedValue({
+      success: true,
+    });
+  });
+
+  const renderKosComponent = () => {
+    return render(
+      <MemoryRouter initialEntries={[`/t/${kosTenantId}/approval`]}>
+        <Routes>
+          <Route path="/t/:tenantId/approval" element={<TenantMemberApproval />} />
+        </Routes>
+      </MemoryRouter>
+    );
+  };
+
+  it('alur 1: pendaftar memilih kamar menampilkan "Setujui & Buat Kontrak" dan "Setujui tanpa kamar"', async () => {
+    renderKosComponent();
+
+    expect(await screen.findByText('Dhani Mahasiswa')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Setujui & Buat Kontrak/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Setujui tanpa kamar/i })).toBeTruthy();
+  });
+
+  it('alur 2: klik "Setujui & Buat Kontrak" membuka form kontrak terkunci dan menyetujui berurutan saat disimpan', async () => {
+    renderKosComponent();
+
+    const btnWithContract = await screen.findByRole('button', { name: /Setujui & Buat Kontrak/i });
+    fireEvent.click(btnWithContract);
+
+    // Form modal kontrak sewa terbuka
+    expect(await screen.findByText('Buat Kontrak Sewa')).toBeTruthy();
+    expect(screen.getByText(/Kamar Pendaftar \(Terkunci\)/i)).toBeTruthy();
+    expect(screen.getAllByText(/Pendaftar \(Terkunci\)/i).length).toBeGreaterThan(0);
+
+    // Simpan kontrak
+    const submitBtn = screen.getByRole('button', { name: /Simpan Kontrak/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      // Pastikan createKosContract dipanggil dengan data pendaftar & kamar
+      expect(tenantOperationalService.createKosContract).toHaveBeenCalledWith(
+        kosTenantId,
+        expect.objectContaining({
+          unitId: 101,
+          memberId: 'applicant-1',
+        })
+      );
+      // Pastikan approveTenantMember dipanggil setelah kontrak sukses
+      expect(tenantOperationalService.approveTenantMember).toHaveBeenCalledWith(
+        'applicant-1',
+        expect.objectContaining({
+          unitId: 101,
+          role: 'anggota',
+        })
+      );
+    });
+  });
+
+  it('alur 3: bila pembuatan kontrak gagal, jangan approve anggota', async () => {
+    tenantOperationalService.createKosContract.mockRejectedValueOnce(
+      new Error('Kamar sudah memiliki kontrak sewa aktif')
+    );
+
+    renderKosComponent();
+
+    const btnWithContract = await screen.findByRole('button', { name: /Setujui & Buat Kontrak/i });
+    fireEvent.click(btnWithContract);
+
+    expect(await screen.findByText('Buat Kontrak Sewa')).toBeTruthy();
+
+    const submitBtn = screen.getByRole('button', { name: /Simpan Kontrak/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(tenantOperationalService.createKosContract).toHaveBeenCalled();
+      // approveTenantMember TIDAK boleh dipanggil karena kontrak gagal
+      expect(tenantOperationalService.approveTenantMember).not.toHaveBeenCalled();
+    });
+  });
+
+  it('alur 4: klik "Setujui tanpa kamar" langsung menyetujui tanpa mengaitkan ke kamar', async () => {
+    renderKosComponent();
+
+    const btnWithoutRoom = await screen.findByRole('button', { name: /Setujui tanpa kamar/i });
+    fireEvent.click(btnWithoutRoom);
+
+    await waitFor(() => {
+      expect(tenantOperationalService.approveTenantMember).toHaveBeenCalledWith(
+        'applicant-1',
+        expect.objectContaining({
+          unitId: null,
+          role: 'anggota',
+        })
+      );
+      expect(tenantOperationalService.createKosContract).not.toHaveBeenCalled();
+    });
   });
 });

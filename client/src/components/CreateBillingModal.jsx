@@ -30,6 +30,9 @@ export default function CreateBillingModal({
   tenantType = 'rt_rw',
   initialUnitId = '',
   initialMemberId = '',
+  initialTenantName = '',
+  lockUnitAndMember = false,
+  onSaveContract = null,
   onSuccess,
 }) {
   const toast = useToast();
@@ -42,8 +45,8 @@ export default function CreateBillingModal({
 
   // Form states umum
   const [unitId, setUnitId] = useState(initialUnitId);
-  const [memberId, setMemberId] = useState('');
-  const [tenantName, setTenantName] = useState('');
+  const [memberId, setMemberId] = useState(initialMemberId);
+  const [tenantName, setTenantName] = useState(initialTenantName);
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -150,14 +153,19 @@ export default function CreateBillingModal({
       setTenantName(matchedName || 'Penyewa Terdaftar');
     } else {
       setIsRoomOccupied(false);
-      const prevMemberId = initialMemberId || found.metadata?.previous_tenant_member_id || '';
-      if (prevMemberId) {
-        setMemberId(prevMemberId);
-        const m = memberList.find((x) => String(x.id) === String(prevMemberId));
-        setTenantName(m?.full_name || '');
+      if (lockUnitAndMember) {
+        setMemberId(initialMemberId || '');
+        setTenantName(initialTenantName || '');
       } else {
-        setMemberId('');
-        setTenantName('');
+        const prevMemberId = initialMemberId || found.metadata?.previous_tenant_member_id || '';
+        if (prevMemberId) {
+          setMemberId(prevMemberId);
+          const m = memberList.find((x) => String(x.id) === String(prevMemberId));
+          setTenantName(m?.full_name || initialTenantName || '');
+        } else {
+          setMemberId('');
+          setTenantName('');
+        }
       }
       setMemberSelectMode('member');
     }
@@ -217,7 +225,7 @@ export default function CreateBillingModal({
 
       setIsSubmitting(true);
       try {
-        await createKosContract(tenantId, {
+        const contractRes = await createKosContract(tenantId, {
           unitId: Number(unitId),
           memberId: memberId || null,
           tenantName: tenantName?.trim() || null,
@@ -228,8 +236,12 @@ export default function CreateBillingModal({
           notes: notes?.trim() || null,
         });
 
+        if (onSaveContract) {
+          await onSaveContract(contractRes);
+        }
+
         toast.success('Kontrak sewa berhasil dibuat dan tagihan periode pertama telah terbit!');
-        if (onSuccess) onSuccess();
+        if (onSuccess) onSuccess(contractRes);
         onClose();
       } catch (err) {
         toast.error(err.message || 'Gagal menyimpan kontrak sewa.');
@@ -292,20 +304,31 @@ export default function CreateBillingModal({
                 <AiOutlineHome className="text-sm text-forest-600" />
                 <span>Pilih {isKos ? 'Kamar' : 'Rumah / Kavling'} <span className="text-rose-500">*</span></span>
               </label>
-              <select
-                id="billing-unit-select"
-                value={unitId}
-                onChange={(e) => handleUnitChange(e.target.value)}
-                required
-                className="pv-input text-xs w-full bg-white border border-forest-300 rounded-xl px-3 py-2"
-              >
-                <option value="">-- Pilih {isKos ? 'Kamar' : 'Unit'} --</option>
-                {units.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.label} {u.status === 'vacant' ? '(Kosong / Siap Huni)' : u.status === 'occupied' ? '(Terisi)' : ''}
-                  </option>
-                ))}
-              </select>
+              {lockUnitAndMember ? (
+                <div className="p-2.5 bg-slate-100 border border-slate-300 rounded-xl flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-800">
+                    {units.find((u) => String(u.id) === String(unitId))?.label || `Kamar #${unitId}`}
+                  </span>
+                  <span className="text-[10px] font-bold text-forest-800 bg-forest-50 border border-forest-200 px-2 py-0.5 rounded-md">
+                    Kamar Pendaftar (Terkunci)
+                  </span>
+                </div>
+              ) : (
+                <select
+                  id="billing-unit-select"
+                  value={unitId}
+                  onChange={(e) => handleUnitChange(e.target.value)}
+                  required
+                  className="pv-input text-xs w-full bg-white border border-forest-300 rounded-xl px-3 py-2"
+                >
+                  <option value="">-- Pilih {isKos ? 'Kamar' : 'Unit'} --</option>
+                  {units.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.label} {u.status === 'vacant' ? '(Kosong / Siap Huni)' : u.status === 'occupied' ? '(Terisi)' : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* Form Khusus Kos: Penyewa & Kontrak */}
@@ -318,14 +341,27 @@ export default function CreateBillingModal({
                       <AiOutlineUser className="text-sm text-forest-600" />
                       <span>Penyewa Kamar <span className="text-rose-500">*</span></span>
                     </span>
-                    {isRoomOccupied && (
+                    {(isRoomOccupied || lockUnitAndMember) && (
                       <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                        Kamar Terisi (Terkunci)
+                        {lockUnitAndMember ? 'Pendaftar (Terkunci)' : 'Kamar Terisi (Terkunci)'}
                       </span>
                     )}
                   </label>
 
-                  {isRoomOccupied ? (
+                  {lockUnitAndMember ? (
+                    <div>
+                      <input
+                        type="text"
+                        readOnly
+                        aria-label="Nama Penyewa Terdaftar"
+                        value={tenantName || initialTenantName || 'Pendaftar Kos'}
+                        className="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-700 font-semibold cursor-not-allowed"
+                      />
+                      <p className="text-[10px] text-slate-500 mt-1">
+                        Penyewa terkunci pada nama pendaftar yang sedang diproses.
+                      </p>
+                    </div>
+                  ) : isRoomOccupied ? (
                     <div>
                       <input
                         type="text"

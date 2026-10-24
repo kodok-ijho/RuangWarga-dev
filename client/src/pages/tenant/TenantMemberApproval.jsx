@@ -22,6 +22,7 @@ import {
   fetchTenantRoles,
 } from '../../services/tenantOperationalService';
 import SubscriptionGateButton from '../../components/SubscriptionGateButton';
+import CreateBillingModal from '../../components/CreateBillingModal';
 
 export default function TenantMemberApproval() {
   const { tenantId } = useParams();
@@ -35,13 +36,16 @@ export default function TenantMemberApproval() {
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
 
-  // Modal approve state
+  // Modal approve state (Umum / Non-kos)
   const [selectedMember, setSelectedMember] = useState(null);
   const [selectedRole, setSelectedRole] = useState('anggota');
   const [selectedRoleId, setSelectedRoleId] = useState('');
   const [selectedUnitId, setSelectedUnitId] = useState('');
   const [selectedOccupancy, setSelectedOccupancy] = useState('owner_occupied');
   const [approvalSuccess, setApprovalSuccess] = useState(null);
+
+  // Modal approve khusus kos (KOS-2.7: Setujui & Buat Kontrak)
+  const [contractApprovalMember, setContractApprovalMember] = useState(null);
 
   // Sinkronkan activeTenantId
   useEffect(() => {
@@ -86,6 +90,34 @@ export default function TenantMemberApproval() {
       setSelectedRoleId(defaultRole?.id || '');
       setSelectedUnitId(member.unit_id ? String(member.unit_id) : '');
       setSelectedOccupancy(member.occupancy_status || 'owner_occupied');
+    });
+  };
+
+  const handleOpenKosContractApproval = (member) => {
+    guardAction(() => {
+      setContractApprovalMember(member);
+    });
+  };
+
+  const handleApproveWithoutRoom = (member) => {
+    guardAction(async () => {
+      setProcessingId(member.id);
+      try {
+        await approveTenantMember(member.id, {
+          role: 'anggota',
+          tenantRoleId: null,
+          unitId: null,
+          occupancyStatus: 'tenant',
+        });
+        toast.success(`Pendaftaran ${member.full_name} berhasil disetujui tanpa kamar.`);
+        await loadData();
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('[TenantMemberApproval] approve error:', err);
+        toast.error(err.message || 'Gagal menyetujui permohonan.');
+      } finally {
+        setProcessingId(null);
+      }
     });
   };
 
@@ -239,15 +271,47 @@ export default function TenantMemberApproval() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <SubscriptionGateButton
-                        onClick={() => openApproveModal(m)}
-                        disabled={isProcessing}
-                        className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 text-xs font-bold transition-colors shadow-xs disabled:opacity-50"
-                      >
-                        <AiOutlineCheck />
-                        <span>Setujui</span>
-                      </SubscriptionGateButton>
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                      {activeTenant?.type === 'kos' ? (
+                        m.unit_id ? (
+                          <>
+                            <SubscriptionGateButton
+                              onClick={() => handleOpenKosContractApproval(m)}
+                              disabled={isProcessing}
+                              className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 text-xs font-bold transition-colors shadow-xs disabled:opacity-50"
+                            >
+                              <AiOutlineCheck />
+                              <span>Setujui &amp; Buat Kontrak</span>
+                            </SubscriptionGateButton>
+
+                            <SubscriptionGateButton
+                              onClick={() => handleApproveWithoutRoom(m)}
+                              disabled={isProcessing}
+                              className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs font-semibold transition-colors disabled:opacity-50 shadow-xs"
+                            >
+                              <span>Setujui tanpa kamar</span>
+                            </SubscriptionGateButton>
+                          </>
+                        ) : (
+                          <SubscriptionGateButton
+                            onClick={() => handleApproveWithoutRoom(m)}
+                            disabled={isProcessing}
+                            className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 text-xs font-bold transition-colors shadow-xs disabled:opacity-50"
+                          >
+                            <AiOutlineCheck />
+                            <span>Setujui</span>
+                          </SubscriptionGateButton>
+                        )
+                      ) : (
+                        <SubscriptionGateButton
+                          onClick={() => openApproveModal(m)}
+                          disabled={isProcessing}
+                          className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-forest-800 hover:bg-forest-900 text-gold-400 text-xs font-bold transition-colors shadow-xs disabled:opacity-50"
+                        >
+                          <AiOutlineCheck />
+                          <span>Setujui</span>
+                        </SubscriptionGateButton>
+                      )}
 
                       <SubscriptionGateButton
                         onClick={() => handleReject(m)}
@@ -400,6 +464,33 @@ export default function TenantMemberApproval() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Modal Buat Kontrak Sewa Khusus Kos (KOS-2.7) */}
+        {contractApprovalMember && (
+          <CreateBillingModal
+            open={Boolean(contractApprovalMember)}
+            onClose={() => setContractApprovalMember(null)}
+            tenantId={tenantId}
+            tenantType="kos"
+            initialUnitId={contractApprovalMember.unit_id}
+            initialMemberId={contractApprovalMember.id}
+            initialTenantName={contractApprovalMember.full_name}
+            lockUnitAndMember={true}
+            onSaveContract={async () => {
+              await approveTenantMember(contractApprovalMember.id, {
+                role: 'anggota',
+                tenantRoleId: null,
+                unitId: Number(contractApprovalMember.unit_id),
+                occupancyStatus: 'tenant',
+              });
+            }}
+            onSuccess={async () => {
+              toast.success(`Pendaftaran ${contractApprovalMember.full_name} disetujui dan kontrak sewa aktif!`);
+              setContractApprovalMember(null);
+              await loadData();
+            }}
+          />
         )}
       </div>
     </div>
