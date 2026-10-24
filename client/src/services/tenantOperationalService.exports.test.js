@@ -18,10 +18,12 @@ const EXPECTED_EXPORTS = [
   "calculateBillingPreview",
   "cancelProgramDues",
   "checkoutKosRoom",
+  "computeRentPeriods",
   "countActivePrograms",
   "countOccupiedUnits",
   "createArisanRound",
   "createBudgetItem",
+  "createKosContract",
   "createProgram",
   "createProgramDues",
   "createTenantAnnouncement",
@@ -42,12 +44,14 @@ const EXPECTED_EXPORTS = [
   "deleteTenantUnit",
   "drawArisanWinner",
   "enrollArisanParticipants",
+  "fetchActiveContractByUnit",
   "fetchArisanCandidates",
   "fetchArisanParticipants",
   "fetchArisanRoundBills",
   "fetchArisanRounds",
   "fetchBillingAutoRuns",
   "fetchBudgetItems",
+  "fetchKosContracts",
   "fetchMyArisanBills",
   "fetchMyJoinRequests",
   "fetchMyProgramDues",
@@ -102,6 +106,7 @@ const EXPECTED_EXPORTS = [
   "removeTenantMember",
   "requestJoinTenant",
   "resetDemoIncomesStore",
+  "resetDemoKosContractsStore",
   "resetDemoProgramDocumentsStore",
   "resetDemoProgramDuesStore",
   "resetDemoProgramsStore",
@@ -135,9 +140,9 @@ const EXPECTED_EXPORTS = [
 ];
 
 describe('tenantOperationalService Exports Guard (DEBT-1.4)', () => {
-  it('harus mengekspor 130 fungsi/konstanta yang sama persis', () => {
+  it('harus mengekspor 135 fungsi/konstanta yang sama persis', () => {
     const exportsList = Object.keys(tenantOperationalService).sort();
     expect(exportsList).toEqual(EXPECTED_EXPORTS);
-    expect(exportsList.length).toBe(130);
+    expect(exportsList.length).toBe(135);
   });
 });
