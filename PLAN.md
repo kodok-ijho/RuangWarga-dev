@@ -30,7 +30,7 @@ Terakhir diperbarui: 2026-10-23 (Claude, orchestrator).
 | Test SQL (matrix RLS/RPC) | `supabase/tests/*.sql`, untuk SQL Editor |
 | Skema database | `supabase/migrations/` (urut nama), `supabase/schema.sql` (lama) |
 
-`README.md` di root masih README Portal Warga Palm Village (v1.4.x) dan **tertinggal dari kode**. Kode adalah sumber kebenaran, lalu `BACKLOG.md`, lalu dokumen batch terbaru.
+`README.md` di root dan dokumen Portal Warga lain (`docs/*.docx`, `docs/production/`) adalah milik Portal Warga Palm Village. **Abaikan** (keputusan user 2026-10-24: fokus hanya RuangWarga). Urutan sumber kebenaran: kode, lalu `BACKLOG.md`, lalu dokumen batch terbaru.
 
 ## 3. Arsitektur dan lingkungan
 - **Frontend:** `client/` (React 18, Vite 5, Tailwind dengan class `pv-*`, React Query, PWA). Ada mode demo (`VITE_DEMO_MODE`, store memori) dan mode Supabase. Hosting di Vercel.
@@ -47,15 +47,22 @@ Terakhir diperbarui: 2026-10-23 (Claude, orchestrator).
 
 ## 4. Kondisi saat ini (2026-10-23)
 - **Git:** branch kerja `claude/ruangwarga-remote-2-disconnect-m4oku0`. `main` = hasil yang sudah direview.
-- **Migration di dev:** semua file `supabase/migrations/` sampai `202610220004_arisan_transparent_draw.sql` sudah terpasang. Riwayat ada di `supabase_migrations.schema_migrations`.
+- **Migration di dev:**
+  - semua file `supabase/migrations/` sampai `202610220004_arisan_transparent_draw.sql` sudah terpasang. Riwayat ada di `supabase_migrations.schema_migrations`;
+  - **belum** terpasang: `202610240001_kos_contracts.sql` dan `202610240002_kos_contract_billing.sql` (KOS-2). Keduanya menunggu review dan dry-run Claude.
 - **Edge Function di dev:**
   - ter-deploy: `storage-upload` (v5) dan `storage-sign-url` (v4), keduanya `verify_jwt` aktif;
   - **belum** di-deploy: `create-subscription-payment`, `verify-subscription-payment`, `create-listing-payment`, `verify-listing-payment`, `check-listing-expirations`, `auto-generate-kos-bills`.
-- **Batch terakhir:** PANITIA-ARISAN-1F ✅. **PANITIA-ARISAN-2F** (perapian kecil) sedang dikerjakan executor; Claude mereview setelahnya.
+- **Batch terakhir:**
+  - PANITIA-ARISAN-1F ✅;
+  - **PANITIA-ARISAN-2F** sudah dikerjakan executor dan menunggu review Claude;
+  - **KOS-2** (kontrak sewa master, tagihan per tanggal masuk) sudah dikerjakan executor (`KOS-2-report.md`) dan menunggu review Claude serta penerapan migration;
+  - **LIST-UI-1** (akses iklan kamar dan katalog kos) menunggu persetujuan user.
+- **Dua sesi Claude** pernah berjalan bersamaan: satu untuk Kepanitiaan/Arisan, satu untuk KOS-2/LIST-UI-1. Sebelum menulis BACKLOG atau menerapkan migration, selalu `git fetch` dan cek riwayat terbaru.
 - **Merchant DOKU platform sudah disetujui** (user, 2026-10-22). Langkah penyiapan ada di § 7.
 
 ## 5. Roadmap berikutnya (urut)
-1. **PANITIA-ARISAN-2F:** review, lalu push ke `main`.
+1. **Review PANITIA-ARISAN-2F dan KOS-2** (KOS-2 termasuk dry-run dan penerapan 2 migration ke dev), lalu push ke `main`. **LIST-UI-1** dikerjakan setelah disetujui user.
 2. **Penyiapan DOKU** (§ 7), dikerjakan user, lalu Claude men-deploy fungsi pembayaran ke dev.
 3. **PAY-3** (perlu persetujuan user; menyentuh pembayaran):
    - **satu** URL notifikasi DOKU yang meneruskan berdasarkan awalan referensi: `SUB-` langganan, `LST-` iklan, nanti acara. DOKU umumnya menyimpan satu URL notifikasi QRIS per merchant, sedangkan kode sekarang punya dua penerima terpisah;
