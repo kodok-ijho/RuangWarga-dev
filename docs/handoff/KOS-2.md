@@ -1,42 +1,59 @@
-# KOS-2 — Penyewa otomatis per kamar & tagihan sewa bulanan berulang
+# KOS-2 — Kontrak sewa master & tagihan bulanan berulang per tanggal masuk
 
-Status: ⏳ **Menunggu persetujuan user** (menyentuh fungsi tagihan di database → wajib disetujui sebelum 2.3 dikerjakan).
+Status: ✅ **Arah disetujui user 2026-10-24**: kontrak master di tabel baru, periode sewa mengikuti tanggal masuk. Migration (2.1, 2.2) hanya ditulis executor; Claude yang dry-run dan menerapkannya ke Supabase dev setelah review.
 
 Dasar: uji user di ruangwarga-dev 2026-10-23, tenant "Kos Melati Harmoni", halaman `/t/:id/payment-matrix` → tombol **Kontrak & Tagihan Kamar**.
 
 ## Temuan
-1. Memilih kamar berstatus "(Terisi)" tidak mengisi penyewa. Dropdown tetap "-- Belum Terdaftar / Mandiri --".
-   - `components/CreateBillingModal.jsx` → `handleUnitChange()` dan `loadOptions()` hanya mengisi harga & tanggal kontrak, tidak pernah `setMemberId`.
-   - Datanya sudah ada: `tenant_units.metadata.tenant_member_id` (diisi `202610210005_kos_room_occupancy_on_approval.sql`), atau `tenant_members.unit_id` + `status = 'approved'`.
-2. Form memaksa isi **Mulai Kontrak** dan **Selesai Kontrak**.
-   - Penyebab di database: `auto_generate_kos_billing()` (definisi terakhir di `202610080001_harden_definer_function_grants.sql`) **melewati kamar yang tidak punya `contract_start` DAN `contract_end`**. Jadi tanpa tanggal akhir, tagihan otomatis tidak pernah terbit.
-3. Teks tombol tampil `Simpan Tagihan &amp; Kontrak` (entity HTML di dalam string JSX).
+1. Memilih kamar "(Terisi)" tidak mengisi penyewa. `components/CreateBillingModal.jsx` → `handleUnitChange()`/`loadOptions()` tidak pernah `setMemberId`, padahal `tenant_units.metadata.tenant_member_id` sudah ada.
+2. Kontrak hanya tersimpan di `tenant_units.metadata` (`contract_start`/`contract_end`). Tidak ada riwayat kontrak, harga per penyewa, atau periode sewa.
+3. `auto_generate_kos_billing()` (definisi terakhir di `202610080001_harden_definer_function_grants.sql`) melewati kamar tanpa `contract_end`, dan hanya jalan sebulan sekali (`billing_issue_day`). Periode selalu bulan kalender, bukan tanggal masuk penyewa.
+4. `assignRoomContract` (`services/tenant/billing.js`) menulis `tenant_units` dan `billing_items` langsung dari browser, tidak atomik.
+5. Teks tombol tampil `Simpan Tagihan &amp; Kontrak`.
 
-## Pola acuan: PortalWarga (IPL)
-Penghuni tertaut ke unit, matriks menampilkan semua unit × 12 bulan dari data unit + penghuni, nominal dari pengaturan. Admin tidak membuat tagihan per bulan. Kos meniru ini: **kontrak = langganan bulanan terbuka**, berhenti hanya saat **Checkout Kamar**.
+## Model baru: kontrak master
+Satu **kontrak** = satu penyewa × satu kamar, berisi harga, tanggal masuk, dan tanggal akhir (opsional). Tagihan bulanan diturunkan dari kontrak.
 
-## Keputusan (default usulan Claude — user boleh ubah sebelum mulai)
-- K1. Kontrak kos default **bulanan tanpa tanggal akhir**. Yang wajib diisi hanya **Tanggal Masuk** (default hari ini). Tanggal akhir opsional (untuk kontrak tetap, mis. 6/12 bulan).
-- K2. Tagihan bulan masuk diterbitkan saat kontrak dibuat (perilaku `assignRoomContract` sekarang), nominal penuh — **tanpa prorata**.
-- K3. Bulan berikutnya diterbitkan oleh cron yang sudah ada (BILL-AUTO-1) selama kamar `occupied` dan `contract_end` kosong atau ≥ periode.
-- K4. Tagihan berhenti saat **Checkout Kamar** (RPC `checkout_kos_room` sudah menghapus `contract_start/contract_end/tenant_member_id`). Tidak ada tombol "hentikan" baru.
-- K5. Tanggal jatuh tempo bulanan = `settings.billing_due_day` / `due_day` (perilaku sekarang).
+Contoh (dari user): **Dhani**, kamar 2, masuk **19 Okt 2026**, tenggat bayar 10 hari.
+
+| Periode (label) | Masa sewa | Tagihan terbit | Jatuh tempo |
+|---|---|---|---|
+| 2026-10 | 19 Okt – 18 Nov 2026 | 19 Okt | 29 Okt |
+| 2026-11 | 19 Nov – 18 Des 2026 | 19 Nov | 29 Nov |
+| 2026-12 | 19 Des 2026 – 18 Jan 2027 | 19 Des | 29 Des |
+
+Rumus periode ke-n (n = 0, 1, 2, …), dihitung **selalu dari `start_date`** (bukan berantai), supaya tanggal 29–31 tidak bergeser permanen:
+- `service_start = start_date + n bulan` (Postgres otomatis clamp: 31 Jan + 1 bulan = 28 Feb, + 2 bulan = 31 Mar)
+- `service_end = start_date + (n+1) bulan − 1 hari`
+- `period = to_char(service_start, 'YYYY-MM')` → kolom matriks
+- `due_date = service_start + grace_days`
+
+## Keputusan
+- K1. Kontrak default **bulanan berjalan terus** (`end_date` NULL). Kontrak tetap dipilih sebagai **jumlah bulan** (mis. 6/12), sehingga `end_date = start_date + N bulan − 1 hari` dan selalu selaras dengan periode. Tidak ada prorata.
+- K2. Tagihan periode pertama dibuat **saat kontrak disimpan**. Periode berikutnya terbit otomatis **pada hari `service_start`** (H-0).
+- K3. **Tenggat bayar** = `tenants.settings.rent_grace_days`, default **10** hari. Bisa diubah per kontrak (`grace_days`).
+- K4. Tagihan berhenti saat **Checkout Kamar**: kontrak menjadi `ended`, `end_date` = tanggal checkout. Tagihan periode yang sudah terbit tetap ada (tidak dibatalkan atau di-refund otomatis). Tidak ada periode baru yang dimulai setelah `end_date`.
+- K5. Perubahan harga sewa berlaku **mulai periode berikutnya** yang belum terbit. Tagihan yang sudah terbit tidak berubah.
+- K6. Penagihan kontrak berjalan **setiap hari** untuk semua kontrak aktif, tidak bergantung pada `billing_issue_day`. Tenant `read_only`/`suspended` dilewati. Toggle `auto_billing_enabled` tetap mengatur IPL RT/RW, bukan kontrak kos: kontrak itu sendiri adalah persetujuan penagihan.
+- K7. Persetujuan anggota baru **tidak** membuat kontrak otomatis. Matriks menampilkan "Belum ada kontrak" dan tombol **Buat Kontrak**.
 
 ## Task
 | Task | Isi | Kriteria selesai |
 |---|---|---|
-| KOS-2.1 (frontend) | `components/CreateBillingModal.jsx`: (a) saat kamar dipilih atau `initialUnitId` dimuat, isi `memberId` dari `unit.metadata.tenant_member_id`; bila kosong, cari di `members` yang `unit_id` = kamar itu. (b) Kamar `occupied` dengan penyewa tertaut → tampilkan nama penyewa **read-only** (bukan dropdown) + teks kecil "Penyewa terdaftar di kamar ini". (c) Kamar `vacant` → dropdown hanya berisi anggota approved yang **belum** punya kamar. (d) Perbaiki teks tombol jadi `Simpan Tagihan & Kontrak`. | Test vitest baru: pilih kamar terisi → nama penyewa tampil otomatis; pilih kamar kosong → dropdown aktif. |
-| KOS-2.2 (frontend) | Masih di `CreateBillingModal.jsx` (+ `assignRoomContract` di `services/tenantOperationalService.js` / `services/tenant/billing.js` bila perlu): blok kontrak diganti **"Mulai Sewa"** (wajib, default hari ini) + pilihan **Durasi**: `Bulanan (berjalan terus)` [default] / `Tetap sampai tanggal…` (baru di sini input tanggal akhir muncul). Validasi tanggal akhir hanya jika durasi tetap. Kirim `contractEnd: null` untuk bulanan. Keterangan: "Tagihan terbit otomatis tiap bulan sampai kamar di-checkout." | Build & test lulus; kontrak bulanan tersimpan tanpa `contract_end`. |
-| KOS-2.3 (migration — **butuh persetujuan user**) | Migration baru `supabase/migrations/2026102X0001_kos_open_ended_contract.sql`: `CREATE OR REPLACE FUNCTION public.auto_generate_kos_billing` — salin definisi terakhir **utuh**, ubah HANYA syarat kontrak menjadi: `contract_start` wajib, `contract_end` boleh NULL (NULL = berjalan terus). Pertahankan guard otorisasi, cek `read_only`, idempotensi, `SECURITY DEFINER`, `search_path`, dan grant/revoke persis seperti sekarang. Sertakan test SQL di `supabase/tests/`: kamar tanpa `contract_end` ditagih; kamar dengan `contract_end` < periode tidak ditagih; jalankan 2× → tidak ganda; kamar `vacant` tidak ditagih. | File migration + test ditulis. **Jangan dijalankan ke Supabase** — Claude yang dry-run & terapkan ke dev. |
-| KOS-2.4 (frontend) | Matriks Sewa (`pages/PaymentMatrix.jsx`): baris kamar menampilkan nama penyewa dari kamar (bukan "— Belum Ada Penyewa —" bila sudah tertaut), dan badge kecil **"Bulanan"** / **"s.d. <tanggal>"**. Jangan ubah logika pembayaran/verifikasi. | Test render matriks dengan kamar terisi & kosong. |
+| KOS-2.1 (migration schema) | File baru `supabase/migrations/202610240001_kos_contracts.sql`: (a) tabel `public.kos_contracts`: `id`, `tenant_id` FK, `unit_id` FK `tenant_units`, `member_id` FK `tenant_members` NULL, `tenant_name` text (wajib bila `member_id` NULL), `rent_price numeric(12,2) >= 0`, `start_date date`, `end_date date NULL` (CHECK `end_date >= start_date`), `grace_days int` default 10 (0–28), `status` (`active`/`ended`/`cancelled`), `ended_at`, `end_reason`, `notes`, `created_by`, `created_at`, `updated_at`. (b) Unique parsial: **satu kontrak `active` per `unit_id`**. (c) Kolom baru di `billing_items`: `contract_id uuid` FK `kos_contracts` NULL, `service_start date`, `service_end date`. Unique parsial `(contract_id, service_start) WHERE status <> 'cancelled'`. (d) RLS `kos_contracts`: baca = pemegang izin billing yang sama dengan `billing_items` (tiru policy-nya) + penyewa membaca kontraknya sendiri; tulis hanya lewat RPC (REVOKE INSERT/UPDATE/DELETE dari `anon`/`authenticated`). (e) Backfill: setiap kamar `occupied` yang punya `metadata.contract_start` → satu kontrak `active` (harga dari `rent_price`/`default_rent_price`, `end_date` dari `contract_end`). Idempoten. | File + test SQL di `supabase/tests/kos_contracts.sql`. **Jangan dijalankan ke Supabase.** |
+| KOS-2.2 (migration fungsi) | File baru `supabase/migrations/202610240002_kos_contract_billing.sql`, semua `SECURITY DEFINER`, `search_path` tetap, grant/revoke seperti fungsi billing yang ada: (a) `create_kos_contract(p_tenant_id, p_unit_id, p_member_id, p_tenant_name, p_rent_price, p_start_date, p_months int NULL, p_grace_days int NULL, p_notes)`: cek `has_permission(..., 'generate_billing')`, tolak bila kamar sudah punya kontrak aktif, insert kontrak, set kamar `occupied` + `metadata.tenant_member_id` (kompatibilitas), terbitkan tagihan periode pertama. Atomik. (b) `generate_kos_contract_bills(p_today date default WIB hari ini, p_tenant_id uuid NULL)`: untuk tiap kontrak aktif, terbitkan **semua periode yang `service_start <= p_today` dan belum ada tagihannya** (mengejar ketertinggalan), berhenti di `end_date`. Isi `period`, `service_start`, `service_end`, `due_date`, `amount = rent_price`, `member_id`, `contract_id`, `metadata.bill_type = 'rent'`, `metadata.auto_generated = true`. Idempoten. (c) `auto_generate_kos_billing(p_period, p_tenant_id)`: pertahankan signature, isinya mendelegasikan ke (b) supaya pemanggil lama tetap jalan. (d) `checkout_kos_room`: tambah langkah mengakhiri kontrak aktif kamar itu (`status = 'ended'`, `end_date`, `ended_at`). Logika lama tetap. (e) `run_auto_billing`: tambah pemanggilan (b) setiap hari untuk semua tenant `kos`, terpisah dari blok IPL yang berbasis `billing_issue_day`. Test SQL: contoh Dhani (19 Okt → due 29 Okt; 19 Nov → due 29 Nov), anchor 31 Jan (28 Feb, 31 Mar), dijalankan 2× tidak ganda, mengejar 3 bulan tertinggal, kontrak `ended` berhenti, kontrak 6 bulan berhenti di bulan ke-6, tenant `read_only` dilewati, user tanpa izin ditolak. | File + test. **Jangan dijalankan ke Supabase.** |
+| KOS-2.3 (service) | `services/tenant/billing.js`: `createKosContract()` memanggil RPC `create_kos_contract` (ganti tulis-langsung di `assignRoomContract`; ekspor lama boleh tetap sebagai pembungkus), `fetchKosContracts(tenantId)`, `fetchActiveContractByUnit(tenantId, unitId)`. Helper murni `computeRentPeriods(startDate, graceDays, count)` dengan rumus di atas (dipakai UI & demo). Mode demo di `mockData`. | Test unit `computeRentPeriods` (contoh Dhani, 31 Jan, akhir tahun) + test service demo. |
+| KOS-2.4 (form kontrak) | `components/CreateBillingModal.jsx` untuk kos menjadi **"Buat Kontrak Sewa"**: (a) pilih kamar → penyewa terisi otomatis dari kontrak aktif atau `metadata.tenant_member_id`. Kamar terisi = nama penyewa **read-only**. Kamar kosong = dropdown anggota approved yang belum punya kamar, atau input nama penyewa manual. (b) Harga terisi dari `default_rent_price` (boleh diubah). (c) **Tanggal masuk** (default hari ini). (d) Durasi: `Bulanan (berjalan terus)` [default] / `Tetap N bulan`. (e) Tenggat bayar (default dari pengaturan). (f) **Pratinjau 3 periode pertama** (masa sewa + jatuh tempo) memakai `computeRentPeriods`. (g) Perbaiki teks tombol jadi `Simpan Kontrak`. Tagihan non-sewa (deposit/denda) tetap lewat form tagihan manual yang ada. | Test: pilih kamar terisi → penyewa otomatis; pratinjau Dhani benar; kontrak bulanan terkirim tanpa `end_date`. |
+| KOS-2.5 (matriks) | `pages/PaymentMatrix.jsx` (kos saja): nama penyewa dari kontrak aktif, badge **"Bulanan"** / **"s.d. <tanggal>"**, sel menampilkan/tooltip masa sewa & jatuh tempo (`service_start`–`service_end`). Kamar tanpa kontrak: "Belum ada kontrak" + tombol **Buat Kontrak** (buka modal 2.4 dengan kamar terpilih). Jangan ubah logika pembayaran/verifikasi. | Test render: kamar dengan kontrak, tanpa kontrak, kontrak berakhir. |
+| KOS-2.6 (checkout) | `components/CheckoutRoomModal.jsx`: tampilkan kontrak yang akan diakhiri, tanggal checkout (default hari ini), dan daftar tagihan yang belum lunas sebagai peringatan (tidak memblokir). | Test render peringatan tunggakan. |
 
-Urutan: 2.1 → 2.2 → 2.4 → 2.3.
+Urutan: 2.1 → 2.2 → 2.3 → 2.4 → 2.5 → 2.6. Frontend dikerjakan dan dites dengan mode demo; uji Supabase dilakukan setelah Claude menerapkan migration ke dev.
 
 ## Aturan executor
 - **Branch: `claude/ruangwarga-remote-2-disconnect-m4oku0`.** `git pull --ff-only` dulu. Satu task = satu commit (sebut ID task), push setelah setiap commit. Jangan push ke `main`.
 - Ikuti `docs/handoff/README.md` dan `AGENT.md`. Path relatif ke `client/src/` kecuali disebut lain.
 - Setelah tiap task: `cd client && npx vitest run && npm run build`.
-- Dukung mode demo (mockData) dan Supabase. Ikuti konvensi `pv-*`, palet forest/gold, React Query, cek RBAC, isolasi per tenant.
-- 🚫 Jangan mengubah `services/dataService.js`, `services/apiClient.js`, `api/`, `legacy-backend/`, `.env*`, n8n, atau migration lama. Jangan menjalankan SQL ke Supabase.
+- Dukung mode demo (mockData) dan Supabase. Ikuti konvensi `pv-*`, palet forest/gold, React Query, cek RBAC, isolasi per tenant. Tanggal memakai zona WIB.
+- 🚫 Jangan mengubah `services/dataService.js`, `services/apiClient.js`, `api/`, `legacy-backend/`, `.env*`, n8n, Edge Function pembayaran, atau migration lama (fungsi lama diubah lewat `CREATE OR REPLACE` di migration baru). Jangan menjalankan SQL ke Supabase. Jangan install package baru.
 - Keputusan tidak jelas → tulis di `questions.md`, lewati, lanjut task lain.
 - Tulis `docs/handoff/KOS-2-report.md` di akhir.
