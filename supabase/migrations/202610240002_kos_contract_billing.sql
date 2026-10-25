@@ -37,6 +37,7 @@ DECLARE
   v_period TEXT;
   v_due_date DATE;
   v_tenant_display_name TEXT;
+  v_today DATE := (now() AT TIME ZONE 'Asia/Jakarta')::date;
 BEGIN
   -- 1. Otorisasi (SEC-1.1): Harus service_role, platform admin, owner, atau punya izin generate_billing
   IF NOT (
@@ -46,6 +47,13 @@ BEGIN
     OR public.has_permission(p_tenant_id, 'generate_billing')
   ) THEN
     RAISE EXCEPTION 'Akses ditolak' USING ERRCODE = '42501';
+  END IF;
+
+  -- 1b. Validasi Rentang Tanggal Mulai (K9): Mencegah salah ketik tahun
+  IF p_start_date IS NULL
+     OR p_start_date < (v_today - interval '12 month')::date
+     OR p_start_date > (v_today + interval '3 month')::date THEN
+    RAISE EXCEPTION 'Tanggal mulai sewa tidak valid: tidak boleh lebih dari 12 bulan ke belakang atau 3 bulan ke depan';
   END IF;
 
   -- 2. Validasi Tenant & Status Langganan
@@ -379,7 +387,29 @@ AS $$
 DECLARE
   v_res JSONB;
 BEGIN
-  -- Mendelegasikan ke generate_kos_contract_bills per aturan KOS-2
+  -- 1. Validasi format periode 'YYYY-MM' (K2)
+  IF p_period IS NULL OR p_period !~ '^\d{4}-\d{2}$' THEN
+    RAISE EXCEPTION 'Format periode tidak valid. Gunakan format YYYY-MM';
+  END IF;
+
+  -- 2. Guard otorisasi (SEC-1.1 & K2)
+  IF auth.role() <> 'service_role' THEN
+    IF p_tenant_id IS NULL THEN
+      IF NOT public.is_platform_admin() THEN
+        RAISE EXCEPTION 'Akses ditolak: Operasi multi-tenant hanya untuk platform admin' USING ERRCODE = '42501';
+      END IF;
+    ELSE
+      IF NOT (
+        public.is_platform_admin()
+        OR public.is_tenant_owner(p_tenant_id)
+        OR public.has_permission(p_tenant_id, 'generate_billing')
+      ) THEN
+        RAISE EXCEPTION 'Akses ditolak' USING ERRCODE = '42501';
+      END IF;
+    END IF;
+  END IF;
+
+  -- 3. Mendelegasikan ke generate_kos_contract_bills per aturan KOS-2
   v_res := public.generate_kos_contract_bills(
     (now() AT TIME ZONE 'Asia/Jakarta')::date,
     p_tenant_id
@@ -435,7 +465,7 @@ BEGIN
   -- 1. Akhiri Kontrak Sewa Aktif di Kamar Ini
   UPDATE public.kos_contracts
   SET status = 'ended',
-      end_date = LEAST(COALESCE(end_date, v_checkout_dt), v_checkout_dt),
+      end_date = GREATEST(start_date, LEAST(COALESCE(end_date, v_checkout_dt), v_checkout_dt)),
       ended_at = now(),
       end_reason = COALESCE(p_reason, 'checkout')
   WHERE unit_id = p_unit_id AND status = 'active';
@@ -615,21 +645,23 @@ BEGIN
       v_error := SQLERRM;
     END;
 
-    INSERT INTO public.billing_auto_runs (
-      tenant_id,
-      period,
-      run_at,
-      created_count,
-      skipped_count,
-      error
-    ) VALUES (
-      v_tenant.id,
-      v_period,
-      clock_timestamp(),
-      v_created,
-      v_skipped,
-      v_error
-    );
+    IF v_created > 0 OR v_error IS NOT NULL THEN
+      INSERT INTO public.billing_auto_runs (
+        tenant_id,
+        period,
+        run_at,
+        created_count,
+        skipped_count,
+        error
+      ) VALUES (
+        v_tenant.id,
+        v_period,
+        clock_timestamp(),
+        v_created,
+        v_skipped,
+        v_error
+      );
+    END IF;
 
     v_processed_count := v_processed_count + 1;
   END LOOP;
@@ -645,8 +677,8 @@ $$;
 REVOKE ALL ON FUNCTION public.create_kos_contract(UUID, BIGINT, UUID, TEXT, NUMERIC, DATE, INT, INT, TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.create_kos_contract(UUID, BIGINT, UUID, TEXT, NUMERIC, DATE, INT, INT, TEXT) TO authenticated, service_role;
 
-REVOKE ALL ON FUNCTION public.generate_kos_contract_bills(DATE, UUID) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.generate_kos_contract_bills(DATE, UUID) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public.generate_kos_contract_bills(DATE, UUID) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.generate_kos_contract_bills(DATE, UUID) TO service_role;
 
 REVOKE ALL ON FUNCTION public.auto_generate_kos_billing(TEXT, UUID) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.auto_generate_kos_billing(TEXT, UUID) TO authenticated, service_role;

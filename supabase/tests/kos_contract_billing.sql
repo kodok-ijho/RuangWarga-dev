@@ -1,6 +1,6 @@
--- Test Suite: Kos Contract Billing & Recurring Cycle (Task KOS-2.2)
+-- Test Suite: Kos Contract Billing & Recurring Cycle (Task KOS-2.2 & KOS-2F.1)
 -- Date: 2026-10-24
--- Ref: docs/handoff/KOS-2.md § KOS-2.2
+-- Ref: docs/handoff/KOS-2.md § KOS-2.2 & docs/handoff/KOS-2F.md § 2F.1
 --
 -- File ini memvalidasi aturan penagihan berkala:
 -- 1. create_kos_contract: otorisasi ditolak untuk user tanpa hak akses generate_billing
@@ -12,6 +12,12 @@
 -- 7. Kontrak 'ended' (checkout): penagihan berhenti, tidak ada periode baru setelah end_date
 -- 8. Kontrak durasi tetap N bulan (mis. 6 bulan) berhenti di bulan ke-6
 -- 9. Tenant dengan status langganan read_only dilewati dari penagihan otomatis
+-- 10. generate_kos_contract_bills: ditolak untuk role authenticated (K1)
+-- 11. auto_generate_kos_billing: ditolak untuk warga biasa & tenant lain (K2)
+-- 12. auto_generate_kos_billing: tenant_id NULL ditolak untuk non-platform admin (K2)
+-- 13. run_auto_billing: run kedua di hari yang sama tanpa tagihan baru tidak menambah billing_auto_runs (K4)
+-- 14. checkout_kos_room: checkout sebelum start_date menghasilkan end_date = start_date (K7)
+-- 15. create_kos_contract: menolak start_date 13 bulan lalu atau 4 bulan ke depan (K9)
 
 BEGIN;
 
@@ -32,13 +38,20 @@ DECLARE
   v_room_budi_id    BIGINT;
   v_room_jan_id     BIGINT;
   v_room_ro_id      BIGINT;
+  v_room_checkout_id BIGINT;
   v_dhani_contract  JSONB;
   v_budi_contract   JSONB;
   v_jan_contract    JSONB;
+  v_checkout_contract JSONB;
+  v_checkout_rec    RECORD;
   v_bill_rec        RECORD;
   v_bill_count      INT;
   v_gen_res         JSONB;
   v_err_caught      BOOLEAN;
+  v_sqlstate        TEXT;
+  v_errmsg          TEXT;
+  v_runs_before     INT;
+  v_runs_after      INT;
 BEGIN
   RAISE NOTICE '============================================================';
   RAISE NOTICE 'MEMULAI TEST SUITE: KOS CONTRACT BILLING (KOS-2.2)';
@@ -311,8 +324,223 @@ BEGIN
   END IF;
   RAISE NOTICE '-> OK: Tenant read_only dilewati dari penagihan otomatis.';
 
+  -- ----------------------------------------------------------------------------
+  -- UJI 10: generate_kos_contract_bills ditolak untuk role authenticated (K1)
+  -- ----------------------------------------------------------------------------
+  RAISE NOTICE '[UJI 10] Menguji execute privilege generate_kos_contract_bills ditolak untuk authenticated...';
+  PERFORM set_config('request.jwt.claims', jsonb_build_object('sub', v_owner_kos, 'role', 'authenticated')::text, true);
+  EXECUTE 'SET LOCAL ROLE authenticated';
+
+  v_err_caught := false;
+  BEGIN
+    PERFORM public.generate_kos_contract_bills('2026-10-25'::date, v_tenant_kos);
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS v_sqlstate = RETURNED_SQLSTATE;
+    IF v_sqlstate = '42501' THEN
+      v_err_caught := true;
+    END IF;
+  END;
+
+  EXECUTE 'SET LOCAL ROLE postgres';
+  PERFORM set_config('role', 'postgres', true);
+
+  IF NOT v_err_caught THEN
+    RAISE EXCEPTION 'Uji 10 GAGAL: authenticated diizinkan memanggil generate_kos_contract_bills!';
+  END IF;
+  RAISE NOTICE '-> OK: generate_kos_contract_bills ditolak untuk role authenticated (42501).';
+
+  -- ----------------------------------------------------------------------------
+  -- UJI 11: auto_generate_kos_billing ditolak untuk warga biasa & tenant lain (K2)
+  -- ----------------------------------------------------------------------------
+  RAISE NOTICE '[UJI 11] Menguji otorisasi pemanggil auto_generate_kos_billing...';
+
+  -- 11a. Warga biasa di tenant terkait (v_user_dhani)
+  PERFORM set_config('request.jwt.claims', jsonb_build_object('sub', v_user_dhani, 'role', 'authenticated')::text, true);
+
+  v_err_caught := false;
+  BEGIN
+    PERFORM public.auto_generate_kos_billing('2026-10', v_tenant_kos);
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS v_sqlstate = RETURNED_SQLSTATE;
+    IF v_sqlstate = '42501' THEN
+      v_err_caught := true;
+    END IF;
+  END;
+
+  IF NOT v_err_caught THEN
+    RAISE EXCEPTION 'Uji 11a GAGAL: Warga biasa diizinkan memanggil auto_generate_kos_billing!';
+  END IF;
+
+  -- 11b. Pengguna di luar tenant (v_user_unauth)
+  PERFORM set_config('request.jwt.claims', jsonb_build_object('sub', v_user_unauth, 'role', 'authenticated')::text, true);
+
+  v_err_caught := false;
+  BEGIN
+    PERFORM public.auto_generate_kos_billing('2026-10', v_tenant_kos);
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS v_sqlstate = RETURNED_SQLSTATE;
+    IF v_sqlstate = '42501' THEN
+      v_err_caught := true;
+    END IF;
+  END;
+
+  IF NOT v_err_caught THEN
+    RAISE EXCEPTION 'Uji 11b GAGAL: Pengguna tenant lain diizinkan memanggil auto_generate_kos_billing!';
+  END IF;
+  RAISE NOTICE '-> OK: auto_generate_kos_billing ditolak untuk warga biasa dan tenant lain (42501).';
+
+  -- ----------------------------------------------------------------------------
+  -- UJI 12: auto_generate_kos_billing(periode, NULL) oleh owner bukan platform admin (K2)
+  -- ----------------------------------------------------------------------------
+  RAISE NOTICE '[UJI 12] Menguji auto_generate_kos_billing(periode, NULL) oleh owner bukan platform admin...';
+  PERFORM set_config('request.jwt.claims', jsonb_build_object('sub', v_owner_kos, 'role', 'authenticated')::text, true);
+
+  v_err_caught := false;
+  BEGIN
+    PERFORM public.auto_generate_kos_billing('2026-10', NULL);
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS v_sqlstate = RETURNED_SQLSTATE;
+    IF v_sqlstate = '42501' THEN
+      v_err_caught := true;
+    END IF;
+  END;
+
+  IF NOT v_err_caught THEN
+    RAISE EXCEPTION 'Uji 12 GAGAL: auto_generate_kos_billing(NULL) diizinkan untuk non-platform admin!';
+  END IF;
+
+  -- Format periode tidak sesuai regex '^\d{4}-\d{2}$'
+  v_err_caught := false;
+  BEGIN
+    PERFORM public.auto_generate_kos_billing('2026-1', v_tenant_kos);
+  EXCEPTION WHEN OTHERS THEN
+    v_err_caught := true;
+  END;
+
+  IF NOT v_err_caught THEN
+    RAISE EXCEPTION 'Uji 12 format GAGAL: Format periode salah tidak ditolak!';
+  END IF;
+  RAISE NOTICE '-> OK: auto_generate_kos_billing(NULL) ditolak (42501) dan format periode divalidasi.';
+
+  -- ----------------------------------------------------------------------------
+  -- UJI 13: run_auto_billing run kedua tanpa tagihan baru tidak menambah billing_auto_runs (K4)
+  -- ----------------------------------------------------------------------------
+  RAISE NOTICE '[UJI 13] Menguji run_auto_billing tidak menulis billing_auto_runs bila v_created = 0...';
+  -- Mode service_role
+  PERFORM set_config('request.jwt.claims', jsonb_build_object('role', 'service_role')::text, true);
+
+  -- Pastikan run pada tanggal ini (2026-11-20) sudah dieksekusi sekali
+  PERFORM public.run_auto_billing('2026-11-20'::date);
+  SELECT count(*) INTO v_runs_before FROM public.billing_auto_runs WHERE tenant_id = v_tenant_kos;
+
+  -- Run kedua pada hari yang sama: semua kontrak kos sudah ditagih, sehingga v_created = 0
+  PERFORM public.run_auto_billing('2026-11-20'::date);
+  SELECT count(*) INTO v_runs_after FROM public.billing_auto_runs WHERE tenant_id = v_tenant_kos;
+
+  IF v_runs_after <> v_runs_before THEN
+    RAISE EXCEPTION 'Uji 13 GAGAL: run_auto_billing kedua menambah baris billing_auto_runs saat v_created = 0! (before: %, after: %)', v_runs_before, v_runs_after;
+  END IF;
+  RAISE NOTICE '-> OK: run_auto_billing kedua tanpa tagihan baru tidak menambah baris billing_auto_runs.';
+
+  -- ----------------------------------------------------------------------------
+  -- UJI 14: checkout dengan tanggal sebelum start_date -> sukses, end_date = start_date (K7)
+  -- ----------------------------------------------------------------------------
+  RAISE NOTICE '[UJI 14] Menguji checkout dengan tanggal sebelum start_date...';
+  -- Buat unit baru untuk pengetesan checkout dini
+  INSERT INTO public.tenant_units (tenant_id, label, status, metadata)
+  VALUES (v_tenant_kos, 'Kamar Checkout Dini', 'vacant', '{}'::jsonb)
+  RETURNING id INTO v_room_checkout_id;
+
+  -- Jalankan sebagai owner kos
+  PERFORM set_config('request.jwt.claims', jsonb_build_object('sub', v_owner_kos, 'role', 'authenticated')::text, true);
+
+  v_checkout_contract := public.create_kos_contract(
+    v_tenant_kos,
+    v_room_checkout_id,
+    NULL,
+    'Penyewa Dini',
+    1000000,
+    '2026-10-20'::date,
+    NULL,
+    10
+  );
+
+  -- Lakukan checkout dengan tanggal 2026-10-15 (lebih awal dari start_date 2026-10-20)
+  PERFORM public.checkout_kos_room(
+    v_tenant_kos,
+    v_room_checkout_id,
+    '2026-10-15'::date,
+    'Checkout sebelum tanggal mulai sewa',
+    true
+  );
+
+  SELECT status, end_date INTO v_checkout_rec
+  FROM public.kos_contracts
+  WHERE id = (v_checkout_contract->>'contract_id')::uuid;
+
+  IF v_checkout_rec.status <> 'ended' THEN
+    RAISE EXCEPTION 'Uji 14 GAGAL: status kontrak bukan ended!';
+  END IF;
+  IF v_checkout_rec.end_date <> '2026-10-20'::date THEN
+    RAISE EXCEPTION 'Uji 14 GAGAL: end_date bukan start_date (2026-10-20), aktual: %', v_checkout_rec.end_date;
+  END IF;
+  RAISE NOTICE '-> OK: Checkout sebelum start_date sukses dan end_date terkunci di start_date (2026-10-20).';
+
+  -- ----------------------------------------------------------------------------
+  -- UJI 15: create_kos_contract menolak start_date 13 bulan lalu atau 4 bulan ke depan (K9)
+  -- ----------------------------------------------------------------------------
+  RAISE NOTICE '[UJI 15] Menguji create_kos_contract menolak start_date di luar rentang wajar...';
+  -- 15a: 13 bulan lalu
+  v_err_caught := false;
+  BEGIN
+    PERFORM public.create_kos_contract(
+      v_tenant_kos,
+      v_room_checkout_id,
+      NULL,
+      'Penyewa 13 Bulan Lalu',
+      1000000,
+      ((now() AT TIME ZONE 'Asia/Jakarta')::date - interval '13 month')::date,
+      NULL,
+      10
+    );
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS v_errmsg = MESSAGE_TEXT;
+    IF v_errmsg LIKE '%12 bulan ke belakang%' THEN
+      v_err_caught := true;
+    END IF;
+  END;
+
+  IF NOT v_err_caught THEN
+    RAISE EXCEPTION 'Uji 15a GAGAL: create_kos_contract dengan start_date 13 bulan lalu tidak ditolak!';
+  END IF;
+
+  -- 15b: 4 bulan ke depan
+  v_err_caught := false;
+  BEGIN
+    PERFORM public.create_kos_contract(
+      v_tenant_kos,
+      v_room_checkout_id,
+      NULL,
+      'Penyewa 4 Bulan Depan',
+      1000000,
+      ((now() AT TIME ZONE 'Asia/Jakarta')::date + interval '4 month')::date,
+      NULL,
+      10
+    );
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS v_errmsg = MESSAGE_TEXT;
+    IF v_errmsg LIKE '%3 bulan ke depan%' THEN
+      v_err_caught := true;
+    END IF;
+  END;
+
+  IF NOT v_err_caught THEN
+    RAISE EXCEPTION 'Uji 15b GAGAL: create_kos_contract dengan start_date 4 bulan ke depan tidak ditolak!';
+  END IF;
+  RAISE NOTICE '-> OK: create_kos_contract menolak start_date 13 bulan lalu dan 4 bulan ke depan.';
+
   RAISE NOTICE '============================================================';
-  RAISE NOTICE 'SELURUH UJI KOS-2.2 BERHASIL (100%% LULUS)';
+  RAISE NOTICE 'SELURUH UJI KOS-2.2 & KOS-2F.1 BERHASIL (100%% LULUS)';
   RAISE NOTICE '============================================================';
 END $$;
 
