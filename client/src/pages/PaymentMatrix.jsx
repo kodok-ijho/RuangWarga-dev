@@ -713,8 +713,11 @@ export default function PaymentMatrix() {
   const filteredMatrix = useMemo(() => {
     const q = matrixSearch.trim().toLowerCase();
     return (matrix || []).filter((row) => {
-      if (matrixFilterOccupancy === 'occupied' && !row.unit?.is_occupied && row.unit?.status !== 'occupied') return false;
-      if (matrixFilterOccupancy === 'vacant' && (row.unit?.is_occupied || row.unit?.status === 'occupied')) return false;
+      const isOccupied = isKos
+        ? (row.unit?.status === 'occupied' || activeContractsByUnitId.has(String(row.unit?.id)) || Boolean(row.unit?.is_occupied))
+        : Boolean(row.unit?.is_occupied || row.unit?.status === 'occupied');
+      if (matrixFilterOccupancy === 'occupied' && !isOccupied) return false;
+      if (matrixFilterOccupancy === 'vacant' && isOccupied) return false;
       if (!q) return true;
 
       const unitLabel = (row.unit?.label || `Blok ${row.unit?.block}/${row.unit?.unit_number}`).toLowerCase();
@@ -727,7 +730,7 @@ export default function PaymentMatrix() {
 
       return unitLabel.includes(q) || residentNames.some((name) => name.includes(q));
     });
-  }, [matrix, matrixSearch, matrixFilterOccupancy]);
+  }, [matrix, matrixSearch, matrixFilterOccupancy, isKos, activeContractsByUnitId]);
 
   const totalMatrixPages = Math.max(1, Math.ceil(filteredMatrix.length / matrixPageSize));
   const paginatedMatrix = useMemo(() => {
@@ -1465,8 +1468,13 @@ export default function PaymentMatrix() {
                             </p>
                             {(() => {
                               const activeContract = isKos ? activeContractsByUnitId.get(String(row.unit.id)) : null;
-                              const tenantDisplayName = isKos && activeContract
-                                ? (activeContract.member?.full_name || activeContract.tenant_name || 'Penyewa Terdaftar')
+                              const isOccupiedKos = isKos && (row.unit.status === 'occupied' || Boolean(activeContract));
+                              const tenantDisplayName = isKos
+                                ? (activeContract
+                                    ? (activeContract.member?.full_name || activeContract.tenant_name || 'Penyewa Terdaftar')
+                                    : (isOccupiedKos
+                                        ? (residentNames.length > 0 ? residentNames.join(' / ') : 'Penyewa Terdaftar')
+                                        : `— Belum Ada ${template.memberLabel} —`))
                                 : residentNames.length > 0
                                 ? residentNames.join(' / ')
                                 : `— Belum Ada ${template.memberLabel} —`;
@@ -1482,12 +1490,12 @@ export default function PaymentMatrix() {
 
                                   {isKos ? (
                                     <div className="mt-1 space-y-1">
-                                      {activeContract ? (
+                                      {isOccupiedKos ? (
                                         <div className="flex items-center gap-1 flex-wrap">
                                           <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[8px] font-bold leading-none bg-emerald-100 text-emerald-800 border border-emerald-300">
                                             Terisi
                                           </span>
-                                          {!activeContract.end_date ? (
+                                          {activeContract && (!activeContract.end_date ? (
                                             <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[8px] font-semibold leading-none bg-emerald-50 text-emerald-800 border border-emerald-200">
                                               Bulanan
                                             </span>
@@ -1495,7 +1503,7 @@ export default function PaymentMatrix() {
                                             <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[8px] font-semibold leading-none bg-blue-50 text-blue-800 border border-blue-200">
                                               s.d. {formatDateWIB(activeContract.end_date)}
                                             </span>
-                                          )}
+                                          ))}
                                         </div>
                                       ) : (
                                         <div className="space-y-1">

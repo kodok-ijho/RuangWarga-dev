@@ -749,21 +749,20 @@ export function countOccupiedUnits(units = [], members = [], tenantType = 'rt_rw
   const nonInactiveUnits = safeUnits.filter((u) => u.status !== 'inactive');
 
   if (tenantType === 'kos') {
-    // KOS-2.8: Status terisi untuk kos diturunkan HANYA dari kontrak aktif
-    let activeContractUnitIds = null;
-    if (safeContracts) {
-      activeContractUnitIds = new Set(
-        safeContracts
-          .filter((c) => c.status === 'active' && c.unit_id != null)
-          .map((c) => String(c.unit_id))
-      );
-    }
+    // KOS-2F.3 (K5): status terisi dibaca dari u.status === 'occupied' (disinkron database oleh trigger).
+    // Data kontrak hanya MENAMBAH informasi bila kamar punya kontrak aktif di daftar.
+    // Daftar kontrak kosong ([]) atau gagal fetch tidak boleh membuat semua kamar terhitung kosong.
+    const activeContractUnitIds = safeContracts
+      ? new Set(
+          safeContracts
+            .filter((c) => c && c.status === 'active' && c.unit_id != null)
+            .map((c) => String(c.unit_id))
+        )
+      : null;
 
     const occupied = nonInactiveUnits.filter((u) => {
-      if (activeContractUnitIds) {
-        return activeContractUnitIds.has(String(u.id));
-      }
-      return Boolean(u.has_active_contract || u.active_contract || u.status === 'occupied');
+      const hasContractInList = activeContractUnitIds ? activeContractUnitIds.has(String(u.id)) : false;
+      return u.status === 'occupied' || hasContractInList || Boolean(u.has_active_contract || u.active_contract);
     }).length;
 
     const vacant = Math.max(0, nonInactiveUnits.length - occupied);

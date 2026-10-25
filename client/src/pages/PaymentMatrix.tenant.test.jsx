@@ -630,5 +630,26 @@ describe('PaymentMatrix Tenant Mode (RTRW-1.3 / RTRW-1F.1)', () => {
       // Tombol Iklankan muncul untuk Kamar 103 (bukan Diiklankan)
       expect(await screen.findByRole('button', { name: /^Iklankan$/i })).toBeTruthy();
     });
+
+    it('KOS-2F.3 (K5): fetch kontrak kosong ([]) tetap menampilkan kamar occupied sebagai Terisi (bukan Kamar Kosong)', async () => {
+      const opService = await import('../services/tenantOperationalService');
+      opService.fetchKosContracts.mockResolvedValue([]);
+
+      render(
+        <MemoryRouter initialEntries={['/t/tenant-kos-1/payment-matrix']}>
+          <PaymentMatrix />
+        </MemoryRouter>
+      );
+
+      // Kamar 101 berstatus occupied di unit: harus ada badge Terisi, bukan Kamar Kosong
+      expect(await screen.findByText('Kamar 101')).toBeTruthy();
+      const terisiBadges = await screen.findAllByText('Terisi');
+      expect(terisiBadges.length).toBeGreaterThanOrEqual(1);
+
+      // Kamar 102 tetap Kamar Kosong karena status unit vacant
+      expect(await screen.findByText('Kamar 102')).toBeTruthy();
+      const emptyBadges = await screen.findAllByText('Kamar Kosong');
+      expect(emptyBadges.length).toBeGreaterThanOrEqual(1);
+    });
   });
 });

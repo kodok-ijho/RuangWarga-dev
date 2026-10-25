@@ -504,93 +504,73 @@ describe('tenantOperationalService - Unit Tests', () => {
       ).rejects.toThrow('Tanggal selesai kontrak harus lebih besar dari tanggal mulai kontrak.');
     });
 
-    it('VERT-1.6: assignRoomContract melempar error dan TIDAK membuat billing_item bila update unit mengembalikan error', async () => {
+    it('KOS-2F.3 (K8): assignRoomContract di mode Supabase mendelegasikan ke RPC create_kos_contract tanpa menulis langsung ke tenant_units atau billing_items', async () => {
       const TENANT_ID = '00000000-0000-0000-0000-000000000001';
       const UNIT_ID = 101;
 
-      const billingInsertSpy = vi.fn();
-      const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
-        if (table === 'tenant_units') {
-          return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                eq: vi.fn().mockReturnValue({
-                  single: vi.fn().mockResolvedValue({
-                    data: { metadata: { default_rent_price: 1500000 } },
-                    error: null,
-                  }),
-                }),
-              }),
-            }),
-            update: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                eq: vi.fn().mockReturnValue({
-                  select: vi.fn().mockResolvedValue({
-                    data: null,
-                    error: { message: 'Database update constraint error' },
-                  }),
-                }),
-              }),
-            }),
-          };
-        }
-        if (table === 'billing_items') {
-          return {
-            insert: billingInsertSpy,
-          };
-        }
-        return {};
+      const fromSpy = vi.spyOn(supabase, 'from');
+      const rpcSpy = vi.spyOn(supabase, 'rpc').mockResolvedValue({
+        data: {
+          success: true,
+          contract_id: 'c-101',
+          bill_id: 'b-101',
+          unit_id: UNIT_ID,
+          member_id: 'mem-101',
+          tenant_name: 'Penyewa 101',
+          rent_price: 1500000,
+          start_date: '2026-11-01',
+          end_date: '2027-04-30',
+          grace_days: 10,
+        },
+        error: null,
       });
 
-      await expect(
-        assignRoomContract(TENANT_ID, {
-          unitId: UNIT_ID,
-          contractStart: '2026-11-01',
-          contractEnd: '2027-04-30',
-          rentPrice: 1500000,
-        })
-      ).rejects.toThrow('Database update constraint error');
+      const contract = await assignRoomContract(TENANT_ID, {
+        unitId: UNIT_ID,
+        memberId: 'mem-101',
+        tenantName: 'Penyewa 101',
+        contractStart: '2026-11-01',
+        contractEnd: '2027-04-30',
+        rentPrice: 1500000,
+        notes: 'Sewa 6 bulan via assignRoomContract',
+      });
 
-      expect(billingInsertSpy).not.toHaveBeenCalled();
+      expect(rpcSpy).toHaveBeenCalledWith('create_kos_contract', {
+        p_tenant_id: TENANT_ID,
+        p_unit_id: UNIT_ID,
+        p_member_id: 'mem-101',
+        p_tenant_name: 'Penyewa 101',
+        p_rent_price: 1500000,
+        p_start_date: '2026-11-01',
+        p_months: 6,
+        p_grace_days: 10,
+        p_notes: 'Sewa 6 bulan via assignRoomContract',
+      });
+
+      // Pastikan tidak ada query langsung ke tenant_units atau billing_items
+      expect(fromSpy).not.toHaveBeenCalled();
+
+      // Mempertahankan struktur return backward-compatible
+      expect(contract).toBeDefined();
+      expect(contract.unitId).toBe(UNIT_ID);
+      expect(contract.contractStart).toBe('2026-11-01');
+      expect(contract.contractEnd).toBe('2027-04-30');
+      expect(contract.bill).toBeDefined();
+      expect(contract.bill.id).toBe('b-101');
+      expect(contract.bill.amount).toBe(1500000);
+
       fromSpy.mockRestore();
+      rpcSpy.mockRestore();
     });
 
-    it('VERT-1.6: assignRoomContract melempar error izin dan TIDAK membuat billing_item bila update unit mengembalikan 0 baris (RLS menolak)', async () => {
+    it('KOS-2F.3 (K8): assignRoomContract melempar error dan TIDAK memanggil table API bila RPC create_kos_contract gagal', async () => {
       const TENANT_ID = '00000000-0000-0000-0000-000000000001';
       const UNIT_ID = 101;
 
-      const billingInsertSpy = vi.fn();
-      const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
-        if (table === 'tenant_units') {
-          return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                eq: vi.fn().mockReturnValue({
-                  single: vi.fn().mockResolvedValue({
-                    data: { metadata: { default_rent_price: 1500000 } },
-                    error: null,
-                  }),
-                }),
-              }),
-            }),
-            update: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                eq: vi.fn().mockReturnValue({
-                  select: vi.fn().mockResolvedValue({
-                    data: [], // 0 baris
-                    error: null,
-                  }),
-                }),
-              }),
-            }),
-          };
-        }
-        if (table === 'billing_items') {
-          return {
-            insert: billingInsertSpy,
-          };
-        }
-        return {};
+      const fromSpy = vi.spyOn(supabase, 'from');
+      const rpcSpy = vi.spyOn(supabase, 'rpc').mockResolvedValue({
+        data: null,
+        error: { message: 'Kamar sudah memiliki kontrak sewa aktif.' },
       });
 
       await expect(
@@ -600,10 +580,12 @@ describe('tenantOperationalService - Unit Tests', () => {
           contractEnd: '2027-04-30',
           rentPrice: 1500000,
         })
-      ).rejects.toThrow('Gagal mengaktifkan kontrak: Anda tidak punya izin mengubah kamar.');
+      ).rejects.toThrow('Kamar sudah memiliki kontrak sewa aktif.');
 
-      expect(billingInsertSpy).not.toHaveBeenCalled();
+      expect(fromSpy).not.toHaveBeenCalled();
+
       fromSpy.mockRestore();
+      rpcSpy.mockRestore();
     });
 
     it('calculateBillingPreview khusus kos: melewati kamar vacant dan kamar tanpa kontrak aktif', () => {

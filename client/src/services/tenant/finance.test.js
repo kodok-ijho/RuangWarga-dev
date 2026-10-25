@@ -57,6 +57,22 @@ describe('countOccupiedUnits (KOS-1F.5, KOS-2.8)', () => {
     });
   });
 
+  it('KOS-2F.3 (K5): kontrak [] + kamar occupied -> terhitung terisi; kamar vacant tanpa kontrak -> kosong', () => {
+    const units = [
+      { id: '1', status: 'occupied' },
+      { id: '2', status: 'vacant' },
+    ];
+    const members = [];
+    const contracts = [];
+
+    const result = countOccupiedUnits(units, members, 'kos', contracts);
+    expect(result).toEqual({
+      total: 2,
+      occupied: 1,
+      vacant: 1,
+    });
+  });
+
   it('vertikal kelas: anggota approved di unit vacant tetap dihitung terisi (aturan kelas tidak berubah)', () => {
     const units = [
       { id: '1', status: 'vacant' },
