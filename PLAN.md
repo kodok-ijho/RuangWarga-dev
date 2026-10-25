@@ -52,7 +52,7 @@ Terakhir diperbarui: 2026-10-23 (Claude, orchestrator).
   - **belum** terpasang: `202610240001_kos_contracts.sql` dan `202610240002_kos_contract_billing.sql` (KOS-2). Keduanya menunggu review dan dry-run Claude.
 - **Edge Function di dev:**
   - ter-deploy: `storage-upload` (v5) dan `storage-sign-url` (v4), keduanya `verify_jwt` aktif;
-  - **belum** di-deploy: `create-subscription-payment`, `verify-subscription-payment`, `create-listing-payment`, `verify-listing-payment`, `check-listing-expirations`, `auto-generate-kos-bills`.
+  - **belum** di-deploy: `create-subscription-payment`, `verify-subscription-payment`, `create-listing-payment`, `verify-listing-payment`, `check-listing-expirations`. (`auto-generate-kos-bills` dihapus 2026-10-25: tagihan kos harian sudah lewat pg_cron `ruangwarga-auto-billing` → `run_auto_billing()`.)
 - **Batch terakhir:**
   - PANITIA-ARISAN-1F ✅;
   - **PANITIA-ARISAN-2F** ✅ (`PANITIA-ARISAN-2F-review.md`);
@@ -63,7 +63,7 @@ Terakhir diperbarui: 2026-10-23 (Claude, orchestrator).
 - **Merchant DOKU platform sudah disetujui** (user, 2026-10-22). Langkah penyiapan ada di § 7.
 
 ## 5. Roadmap berikutnya (urut)
-1. **Push** batch PANITIA-ARISAN-2F + KOS-2F + KOS-3 ke `main` (menunggu izin user). Edge Function `auto-generate-kos-bills` belum di-deploy. **LIST-UI-1** dikerjakan setelah disetujui user.
+1. Batch PANITIA-ARISAN-2F + KOS-2F + KOS-3 ✅ sudah di `main` (2026-10-25). **LIST-UI-1** dikerjakan setelah disetujui user.
 2. **Penyiapan DOKU** (§ 7), dikerjakan user, lalu Claude men-deploy fungsi pembayaran ke dev.
 3. **PAY-3** (perlu persetujuan user; menyentuh pembayaran):
    - **satu** URL notifikasi DOKU yang meneruskan berdasarkan awalan referensi: `SUB-` langganan, `LST-` iklan, nanti acara. DOKU umumnya menyimpan satu URL notifikasi QRIS per merchant, sedangkan kode sekarang punya dua penerima terpisah;
