@@ -1,6 +1,6 @@
 # KOS-3 — Siklus tagihan prorata (opsional per kontrak)
 
-Status: **disetujui user 2026-10-25** ("langsung kerjakan"). Menyentuh tagihan dan schema; migration baru diterapkan ke dev setelah dry-run lolos.
+Status: **selesai** (disetujui user 2026-10-25). Migration terpasang di dev sebagai `20261025095605 kos_contract_prorata`.
 
 ## Requirement (keputusan user)
 - **Default tetap "ikut tanggal masuk"** (`billing_cycle = 'start_date'`, perilaku KOS-2 sekarang): tagihan tiap tanggal masuk, anchor dari `start_date`, clamp akhir bulan.
@@ -41,3 +41,9 @@ Contoh: masuk 19 Okt 2026, Rp1.500.000, prorata → Okt 19–31 = 13/31 → Rp62
 
 ## Setelah executor (Claude)
 Review, dry-run migration + test di dev (BEGIN … ROLLBACK), terapkan ke dev, catat riwayat, cek bahwa kontrak yang ada tetap `'start_date'`.
+
+## Hasil (Claude, 2026-10-25)
+- 3.1 `8a1c046`, 3.2 `d654562`, perbaikan pratinjau durasi tetap prorata oleh Claude.
+- Dry-run di dev: migration + `kos_contract_prorata.sql` + test KOS-2 (regresi) → `DRYRUN_OK`. Vitest 98 file 1287/1287 (UTC dan Asia/Jakarta), lint dan build bersih.
+- Pasca-terap: kontrak unit 73 dan 52 tetap `start_date`; hanya satu `create_kos_contract` (10 argumen).
+- Data dev: kamar dihuni tanpa kontrak (Toro, Kamar VIP, Kos Melati Harmoni, unit 52) dibuatkan kontrak mulai 2026-10-21, Rp1.200.000, bulanan (permintaan user).
