@@ -13,6 +13,7 @@ import Modal from './Modal';
 import { useToast } from '../hooks/useToast';
 import { formatRupiah } from '../services/dataHelpers';
 import { getLocalDateString, formatDateWIB } from '../utils/date';
+import { calculateKosProrata, formatProrataPreview } from '../utils/prorata';
 import {
   fetchTenantUnits,
   fetchTenantMembers,
@@ -62,6 +63,7 @@ export default function CreateBillingModal({
   const [durationType, setDurationType] = useState('monthly'); // 'monthly' | 'fixed'
   const [durationMonths, setDurationMonths] = useState('12');
   const [graceDays, setGraceDays] = useState(10);
+  const [billingCycle, setBillingCycle] = useState('start_date'); // 'start_date' | 'month_start_prorata'
 
   // Muat opsi kamar, anggota, dan pengaturan tenant saat modal dibuka
   useEffect(() => {
@@ -180,14 +182,27 @@ export default function CreateBillingModal({
     return members.filter((m) => m.status === 'approved' && (!m.unit_id || String(m.unit_id) === String(unitId)));
   }, [members, unitId]);
 
+  // Kalkulasi tagihan prorata untuk kos (KOS-3.2)
+  const prorataInfo = useMemo(() => {
+    if (!isKos || !startDate || !amount) return null;
+    return calculateKosProrata(startDate, Number(amount), billingCycle);
+  }, [isKos, startDate, amount, billingCycle]);
+
+  // Pratinjau teks nominal prorata jika opsi prorata dipilih dan tanggal bukan tgl 1
+  const prorataPreview = useMemo(() => {
+    if (!isKos || billingCycle !== 'month_start_prorata') return null;
+    if (!prorataInfo || !prorataInfo.isProrata) return null;
+    return formatProrataPreview(startDate, prorataInfo.amount);
+  }, [isKos, billingCycle, prorataInfo, startDate]);
+
   // Pratinjau 3 periode pertama untuk sewa kos
   const previewPeriods = useMemo(() => {
     if (!isKos || !startDate) return [];
     const maxEnd = (durationType === 'fixed' && Number(durationMonths) > 0)
-      ? computeRentPeriods(startDate, graceDays, Number(durationMonths))[Number(durationMonths) - 1]?.service_end || null
+      ? computeRentPeriods(startDate, graceDays, Number(durationMonths), null, billingCycle)[Number(durationMonths) - 1]?.service_end || null
       : null;
-    return computeRentPeriods(startDate, graceDays, 3, maxEnd);
-  }, [isKos, startDate, graceDays, durationType, durationMonths]);
+    return computeRentPeriods(startDate, graceDays, 3, maxEnd, billingCycle);
+  }, [isKos, startDate, graceDays, durationType, durationMonths, billingCycle]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -234,6 +249,7 @@ export default function CreateBillingModal({
           months: monthsVal,
           graceDays: Number(graceDays || 10),
           notes: notes?.trim() || null,
+          billingCycle,
         });
 
         if (onSaveContract) {
@@ -536,6 +552,86 @@ export default function CreateBillingModal({
                       <span className="text-xs text-emerald-700">hari setelah tanggal masuk / masa sewa dimulai</span>
                     </div>
                   </div>
+
+                  {/* Pilihan Siklus Tagihan (KOS-3.2) */}
+                  <div className="sm:col-span-2 pt-2 border-t border-emerald-200/60">
+                    <label className="block text-[11px] font-bold text-emerald-900 mb-1.5 flex items-center gap-1">
+                      <AiOutlineCalendar />
+                      <span>Siklus Tagihan</span>
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div
+                        role="radio"
+                        aria-checked={billingCycle === 'start_date'}
+                        tabIndex={0}
+                        onClick={() => setBillingCycle('start_date')}
+                        onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') setBillingCycle('start_date'); }}
+                        className={`flex items-start gap-2.5 p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                          billingCycle === 'start_date'
+                            ? 'bg-white border-forest-600 shadow-2xs text-forest-950 font-medium'
+                            : 'bg-emerald-50/40 border-emerald-200 hover:bg-white text-slate-700'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="kosBillingCycle"
+                          value="start_date"
+                          checked={billingCycle === 'start_date'}
+                          onChange={() => setBillingCycle('start_date')}
+                          className="mt-0.5 text-forest-700 focus:ring-forest-600 cursor-pointer"
+                        />
+                        <div>
+                          <div className="font-bold text-forest-900">Ikut tanggal masuk</div>
+                          <div className="text-[10px] text-slate-500 leading-normal">
+                            Tagihan jatuh tempo berulang setiap tanggal masuk kamar
+                          </div>
+                        </div>
+                      </div>
+
+                      <div
+                        role="radio"
+                        aria-checked={billingCycle === 'month_start_prorata'}
+                        tabIndex={0}
+                        onClick={() => setBillingCycle('month_start_prorata')}
+                        onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') setBillingCycle('month_start_prorata'); }}
+                        className={`flex items-start gap-2.5 p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                          billingCycle === 'month_start_prorata'
+                            ? 'bg-white border-forest-600 shadow-2xs text-forest-950 font-medium'
+                            : 'bg-emerald-50/40 border-emerald-200 hover:bg-white text-slate-700'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="kosBillingCycle"
+                          value="month_start_prorata"
+                          checked={billingCycle === 'month_start_prorata'}
+                          onChange={() => setBillingCycle('month_start_prorata')}
+                          className="mt-0.5 text-forest-700 focus:ring-forest-600 cursor-pointer"
+                        />
+                        <div>
+                          <div className="font-bold text-forest-900">Awal bulan (bulan pertama prorata)</div>
+                          <div className="text-[10px] text-slate-500 leading-normal">
+                            Tagihan per tanggal 1, periode pertama dihitung prorata
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Pratinjau Prorata saat dipilih dan tanggal masuk bukan tanggal 1 */}
+                    {prorataPreview && (
+                      <div
+                        data-testid="prorata-preview-badge"
+                        className="mt-2.5 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between shadow-2xs"
+                      >
+                        <span className="text-[11px] font-medium text-amber-800">
+                          Pratinjau Tagihan Bulan Pertama:
+                        </span>
+                        <span className="font-bold text-forest-900">
+                          {prorataPreview}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Pratinjau 3 Periode Pertama (KOS-2.4 f) */}
@@ -556,15 +652,29 @@ export default function CreateBillingModal({
                             <span className="text-slate-500 text-[11px]">
                               ({formatDateWIB(p.service_start)} – {formatDateWIB(p.service_end)})
                             </span>
+                            {p.is_prorata && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                Prorata
+                              </span>
+                            )}
                           </div>
-                          <div className="text-[11px] text-slate-600 sm:text-right">
-                            Jatuh tempo: <span className="font-semibold text-rose-700">{formatDateWIB(p.due_date)}</span>
+                          <div className="text-[11px] text-slate-600 sm:text-right flex items-center sm:justify-end gap-2">
+                            {amount && (
+                              <span className="font-bold text-emerald-700">
+                                {formatRupiah(p.is_prorata ? prorataInfo?.amount : Number(amount))}
+                              </span>
+                            )}
+                            <span>
+                              Jatuh tempo: <span className="font-semibold text-rose-700">{formatDateWIB(p.due_date)}</span>
+                            </span>
                           </div>
                         </div>
                       ))}
                     </div>
                     <p className="text-[10px] text-slate-500 leading-relaxed italic">
-                      Tagihan periode pertama akan langsung dibuat. Periode berikutnya terbit otomatis setiap tanggal masuk kamar.
+                      {billingCycle === 'month_start_prorata'
+                        ? 'Tagihan periode pertama dihitung prorata s.d. akhir bulan. Periode berikutnya terbit setiap tanggal 1.'
+                        : 'Tagihan periode pertama akan langsung dibuat. Periode berikutnya terbit otomatis setiap tanggal masuk kamar.'}
                     </p>
                   </div>
                 )}

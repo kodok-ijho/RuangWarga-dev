@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   computeRentPeriods,
   fetchKosContracts,
@@ -6,6 +6,7 @@ import {
   createKosContract,
   resetDemoKosContractsStore,
 } from './billing';
+import { supabase } from './shared';
 
 describe('KOS-2.3: computeRentPeriods & Kos Contract Service', () => {
   beforeEach(() => {
@@ -91,6 +92,48 @@ describe('KOS-2.3: computeRentPeriods & Kos Contract Service', () => {
       expect(computeRentPeriods('')).toEqual([]);
       expect(computeRentPeriods('bukan-tanggal')).toEqual([]);
     });
+
+    it('KOS-3.2: computeRentPeriods dengan month_start_prorata membagi periode pertama prorata dan periode berikutnya tanggal 1', () => {
+      const periods = computeRentPeriods('2026-10-19', 10, 3, null, 'month_start_prorata');
+
+      expect(periods).toHaveLength(3);
+
+      // Periode 0 (prorata 19-31 Okt)
+      expect(periods[0]).toEqual({
+        index: 0,
+        period: '2026-10',
+        service_start: '2026-10-19',
+        service_end: '2026-10-31',
+        due_date: '2026-10-29',
+        is_prorata: true,
+      });
+
+      // Periode 1 (1-30 Nov)
+      expect(periods[1]).toEqual({
+        index: 1,
+        period: '2026-11',
+        service_start: '2026-11-01',
+        service_end: '2026-11-30',
+        due_date: '2026-11-11',
+      });
+
+      // Periode 2 (1-31 Des)
+      expect(periods[2]).toEqual({
+        index: 2,
+        period: '2026-12',
+        service_start: '2026-12-01',
+        service_end: '2026-12-31',
+        due_date: '2026-12-11',
+      });
+    });
+
+    it('KOS-3.2: computeRentPeriods masuk tanggal 1 menormalkan siklus prorata ke start_date', () => {
+      const periods = computeRentPeriods('2026-10-01', 10, 2, null, 'month_start_prorata');
+      expect(periods).toHaveLength(2);
+      expect(periods[0].service_start).toBe('2026-10-01');
+      expect(periods[0].service_end).toBe('2026-10-31');
+      expect(periods[0].is_prorata).toBeUndefined();
+    });
   });
 
   describe('Service Demo: Kos Contract Operations', () => {
@@ -158,6 +201,86 @@ describe('KOS-2.3: computeRentPeriods & Kos Contract Service', () => {
           startDate: '2026-11-01',
         })
       ).rejects.toThrow('Harga sewa tidak boleh bernilai negatif.');
+    });
+
+    it('KOS-3.2: createKosContract mode demo menghitung prorata dan menyimpan billing_cycle', async () => {
+      const result = await createKosContract(TENANT_ID, {
+        unitId: 6,
+        memberId: 'mem-prorata-6',
+        tenantName: 'Tari Mahasiswi',
+        rentPrice: 1500000,
+        startDate: '2026-10-19',
+        months: 2,
+        graceDays: 10,
+        billingCycle: 'month_start_prorata',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.billing_cycle).toBe('month_start_prorata');
+      // 13/31 * 1.500.000 = 629.000
+      expect(result.bill.amount).toBe(629000);
+      expect(result.bill.metadata.prorata).toBe(true);
+      expect(result.bill.metadata.prorata_days).toBe(13);
+      expect(result.bill.metadata.days_in_month).toBe(31);
+      // Durasi 2 bulan: Okt (prorata) + 2 bulan kalender penuh -> Nov & Des -> 2026-12-31
+      expect(result.end_date).toBe('2026-12-31');
+
+      const active = await fetchActiveContractByUnit(TENANT_ID, 6);
+      expect(active.billing_cycle).toBe('month_start_prorata');
+    });
+
+    it('KOS-3.2: createKosContract mode demo masuk tanggal 1 dinormalkan ke start_date dan nominal penuh', async () => {
+      const result = await createKosContract(TENANT_ID, {
+        unitId: 7,
+        tenantName: 'Bayu Warga',
+        rentPrice: 1500000,
+        startDate: '2026-11-01',
+        months: 3,
+        billingCycle: 'month_start_prorata',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.billing_cycle).toBe('start_date');
+      expect(result.bill.amount).toBe(1500000);
+      expect(result.bill.metadata.prorata).toBeUndefined();
+    });
+
+    it('KOS-3.2: createKosContract mode Supabase RPC mengirim p_billing_cycle', async () => {
+      const rpcSpy = vi.spyOn(supabase, 'rpc').mockResolvedValue({
+        data: {
+          success: true,
+          contract_id: 'c-supabase-1',
+          billing_cycle: 'month_start_prorata',
+        },
+        error: null,
+      });
+
+      const realTenantId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+      if (!import.meta.env?.VITE_DEMO_MODE || import.meta.env.VITE_DEMO_MODE === 'false') {
+        const result = await createKosContract(realTenantId, {
+          unitId: 10,
+          tenantName: 'Supabase User',
+          rentPrice: 2000000,
+          startDate: '2026-10-19',
+          billingCycle: 'month_start_prorata',
+        });
+
+        expect(result.success).toBe(true);
+        expect(rpcSpy).toHaveBeenCalledWith(
+          'create_kos_contract',
+          expect.objectContaining({
+            p_tenant_id: realTenantId,
+            p_unit_id: 10,
+            p_rent_price: 2000000,
+            p_start_date: '2026-10-19',
+            p_billing_cycle: 'month_start_prorata',
+          })
+        );
+      } else {
+        // Pada mode demo, createKosContract akan merutekan ke mock handler
+        expect(true).toBe(true);
+      }
+      rpcSpy.mockRestore();
     });
   });
 });

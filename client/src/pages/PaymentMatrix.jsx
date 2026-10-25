@@ -1504,6 +1504,11 @@ export default function PaymentMatrix() {
                                               s.d. {formatDateWIB(activeContract.end_date)}
                                             </span>
                                           ))}
+                                          {activeContract?.billing_cycle === 'month_start_prorata' && (
+                                            <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[8px] font-semibold leading-none bg-amber-50 text-amber-800 border border-amber-200">
+                                              Prorata
+                                            </span>
+                                          )}
                                         </div>
                                       ) : (
                                         <div className="space-y-1">

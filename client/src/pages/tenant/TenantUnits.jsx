@@ -20,6 +20,7 @@ import { useTenantTemplate } from '../../hooks/useTenantTemplate';
 import { useToast } from '../../hooks/useToast';
 import { useSubscriptionGate } from '../../hooks/useSubscriptionGate';
 import { formatRupiah } from '../../services/dataHelpers';
+import { formatDateWIB } from '../../utils/date';
 import { KOS_FACILITIES } from '../../config/kosFacilities';
 import {
   fetchTenantUnits,
@@ -598,9 +599,25 @@ export default function TenantUnits() {
                             </span>
                             {tenantType === 'kos' && (
                               activeContract ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                                  Kontrak Aktif
-                                </span>
+                                <>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                    Kontrak Aktif
+                                  </span>
+                                  {!activeContract.end_date ? (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                      Bulanan
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">
+                                      s.d. {formatDateWIB(activeContract.end_date)}
+                                    </span>
+                                  )}
+                                  {activeContract.billing_cycle === 'month_start_prorata' && (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                                      Prorata
+                                    </span>
+                                  )}
+                                </>
                               ) : (u.status === 'occupied' && !u.metadata?.contract_start) ? (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
                                   Belum ada kontrak
@@ -751,9 +768,25 @@ export default function TenantUnits() {
                       </span>
                       {tenantType === 'kos' && (
                         activeContract ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                            Kontrak Aktif
-                          </span>
+                          <>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              Kontrak Aktif
+                            </span>
+                            {!activeContract.end_date ? (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                Bulanan
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">
+                                s.d. {formatDateWIB(activeContract.end_date)}
+                              </span>
+                            )}
+                            {activeContract.billing_cycle === 'month_start_prorata' && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                                Prorata
+                              </span>
+                            )}
+                          </>
                         ) : (u.status === 'occupied' && !u.metadata?.contract_start) ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
                             Belum ada kontrak

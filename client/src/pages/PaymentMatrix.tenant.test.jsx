@@ -600,6 +600,32 @@ describe('PaymentMatrix Tenant Mode (RTRW-1.3 / RTRW-1F.1)', () => {
       expect(cellElement.getAttribute('title')).toContain('Jatuh Tempo: 29 Okt 2026');
     });
 
+    it('KOS-3.2: kamar dengan kontrak prorata menampilkan badge Prorata di samping badge Bulanan', async () => {
+      const opService = await import('../services/tenantOperationalService');
+      opService.fetchKosContracts.mockResolvedValueOnce([
+        {
+          id: 'c-101-prorata',
+          unit_id: 101,
+          status: 'active',
+          tenant_name: 'Dhani Mahasiswa',
+          rent_price: 1500000,
+          start_date: '2026-10-19',
+          end_date: null,
+          billing_cycle: 'month_start_prorata',
+        },
+      ]);
+
+      render(
+        <MemoryRouter initialEntries={['/t/tenant-kos-1/payment-matrix']}>
+          <PaymentMatrix />
+        </MemoryRouter>
+      );
+
+      expect(await screen.findByText('Kamar 101')).toBeTruthy();
+      expect(await screen.findByText('Bulanan')).toBeTruthy();
+      expect(await screen.findByText('Prorata')).toBeTruthy();
+    });
+
     it('kamar kosong dengan iklan aktif: tampil Kamar Kosong, Buat Kontrak, dan badge Diiklankan', async () => {
       render(
         <MemoryRouter initialEntries={['/t/tenant-kos-1/payment-matrix']}>

@@ -392,4 +392,48 @@ describe('TenantUnits Page (RTRW-2.3)', () => {
       expect(badgeList.length).toBe(2);
     });
   });
+
+  describe('KOS-3.2: Badge Prorata pada Kontrak Kos', () => {
+    it('menampilkan badge "Prorata" di samping "Bulanan" untuk kamar dengan kontrak month_start_prorata', async () => {
+      mockTenantContext = {
+        activeTenant: { id: 'tenant-kos-1', name: 'Kos Melati', type: 'kos' },
+        activeTenantId: 'tenant-kos-1',
+        isOwner: true,
+        hasPermission: () => true,
+      };
+
+      vi.spyOn(tenantOperationalService, 'fetchTenantUnits').mockResolvedValue([
+        {
+          id: 201,
+          tenant_id: 'tenant-kos-1',
+          label: 'Kamar 201',
+          status: 'occupied',
+          metadata: {},
+        },
+      ]);
+      vi.spyOn(tenantOperationalService, 'fetchTenantMembers').mockResolvedValue([]);
+      vi.spyOn(tenantOperationalService, 'fetchKosContracts').mockResolvedValue([
+        {
+          id: 'c-201',
+          unit_id: 201,
+          status: 'active',
+          tenant_name: 'Penyewa Prorata',
+          start_date: '2026-10-19',
+          end_date: null,
+          billing_cycle: 'month_start_prorata',
+        },
+      ]);
+
+      renderTenantUnits('tenant-kos-1');
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Kamar 201').length).toBeGreaterThan(0);
+      });
+
+      // Muncul badge Kontrak Aktif, Bulanan, dan Prorata
+      expect(screen.getAllByText('Kontrak Aktif').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Bulanan').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Prorata').length).toBeGreaterThan(0);
+    });
+  });
 });

@@ -6,6 +6,7 @@
 import { supabase, IS_DEMO } from './shared';
 import { fetchTenantDetails } from './settings';
 import { fetchTenantUnits } from './members';
+import { calculateKosProrata } from '../../utils/prorata';
 
 /**
  * Pure calculation helper untuk menyusun preview tagihan bulanan
@@ -478,7 +479,7 @@ export async function createTenantBillingItem(tenantId, payload = {}) {
  * @param {string|null} [maxEndDate=null] - Batas akhir sewa jika ada (YYYY-MM-DD)
  * @returns {Array<{ index: number, period: string, service_start: string, service_end: string, due_date: string }>}
  */
-export function computeRentPeriods(startDate, graceDays = 10, count = 3, maxEndDate = null) {
+export function computeRentPeriods(startDate, graceDays = 10, count = 3, maxEndDate = null, billingCycle = 'start_date') {
   if (!startDate) return [];
   const parts = String(startDate).slice(0, 10).split('-').map(Number);
   if (parts.length < 3 || Number.isNaN(parts[0]) || Number.isNaN(parts[1]) || Number.isNaN(parts[2])) {
@@ -486,43 +487,99 @@ export function computeRentPeriods(startDate, graceDays = 10, count = 3, maxEndD
   }
   const [startYear, startMonth, startDay] = parts;
   const periods = [];
+  const isMonthStartProrata = billingCycle === 'month_start_prorata' && startDay > 1;
 
   for (let n = 0; n < count; n += 1) {
-    const totalMonths = (startYear * 12 + (startMonth - 1)) + n;
-    const yearN = Math.floor(totalMonths / 12);
-    const monthN = (totalMonths % 12) + 1;
-    const daysInMonth = new Date(Date.UTC(yearN, monthN, 0)).getUTCDate();
-    const dayN = Math.min(startDay, daysInMonth);
-    const serviceStart = `${yearN}-${String(monthN).padStart(2, '0')}-${String(dayN).padStart(2, '0')}`;
+    if (isMonthStartProrata) {
+      if (n === 0) {
+        const serviceStart = startDate;
+        if (maxEndDate && serviceStart > maxEndDate) {
+          break;
+        }
 
-    if (maxEndDate && serviceStart > maxEndDate) {
-      break;
+        const daysInMonth = new Date(Date.UTC(startYear, startMonth, 0)).getUTCDate();
+        let serviceEnd = `${startYear}-${String(startMonth).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+        if (maxEndDate && serviceEnd > maxEndDate) {
+          serviceEnd = maxEndDate;
+        }
+
+        const dueDateObj = new Date(Date.UTC(startYear, startMonth - 1, startDay + Number(graceDays || 0)));
+        const dueDate = dueDateObj.toISOString().slice(0, 10);
+        const period = `${startYear}-${String(startMonth).padStart(2, '0')}`;
+
+        periods.push({
+          index: 0,
+          period,
+          service_start: serviceStart,
+          service_end: serviceEnd,
+          due_date: dueDate,
+          is_prorata: true,
+        });
+      } else {
+        const totalMonths = (startYear * 12 + (startMonth - 1)) + n;
+        const yearN = Math.floor(totalMonths / 12);
+        const monthN = (totalMonths % 12) + 1;
+        const serviceStart = `${yearN}-${String(monthN).padStart(2, '0')}-01`;
+
+        if (maxEndDate && serviceStart > maxEndDate) {
+          break;
+        }
+
+        const daysInMonthN = new Date(Date.UTC(yearN, monthN, 0)).getUTCDate();
+        let serviceEnd = `${yearN}-${String(monthN).padStart(2, '0')}-${String(daysInMonthN).padStart(2, '0')}`;
+        if (maxEndDate && serviceEnd > maxEndDate) {
+          serviceEnd = maxEndDate;
+        }
+
+        const dueDateObj = new Date(Date.UTC(yearN, monthN - 1, 1 + Number(graceDays || 0)));
+        const dueDate = dueDateObj.toISOString().slice(0, 10);
+        const period = `${yearN}-${String(monthN).padStart(2, '0')}`;
+
+        periods.push({
+          index: n,
+          period,
+          service_start: serviceStart,
+          service_end: serviceEnd,
+          due_date: dueDate,
+        });
+      }
+    } else {
+      const totalMonths = (startYear * 12 + (startMonth - 1)) + n;
+      const yearN = Math.floor(totalMonths / 12);
+      const monthN = (totalMonths % 12) + 1;
+      const daysInMonth = new Date(Date.UTC(yearN, monthN, 0)).getUTCDate();
+      const dayN = Math.min(startDay, daysInMonth);
+      const serviceStart = `${yearN}-${String(monthN).padStart(2, '0')}-${String(dayN).padStart(2, '0')}`;
+
+      if (maxEndDate && serviceStart > maxEndDate) {
+        break;
+      }
+
+      const totalMonthsNext = totalMonths + 1;
+      const yearNext = Math.floor(totalMonthsNext / 12);
+      const monthNext = (totalMonthsNext % 12) + 1;
+      const daysInNextMonth = new Date(Date.UTC(yearNext, monthNext, 0)).getUTCDate();
+      const dayNext = Math.min(startDay, daysInNextMonth);
+      const nextStartUtc = Date.UTC(yearNext, monthNext - 1, dayNext);
+      const prevDay = new Date(nextStartUtc - 24 * 60 * 60 * 1000);
+      let serviceEnd = prevDay.toISOString().slice(0, 10);
+
+      if (maxEndDate && serviceEnd > maxEndDate) {
+        serviceEnd = maxEndDate;
+      }
+
+      const dueDateObj = new Date(Date.UTC(yearN, monthN - 1, dayN + Number(graceDays || 0)));
+      const dueDate = dueDateObj.toISOString().slice(0, 10);
+      const period = `${yearN}-${String(monthN).padStart(2, '0')}`;
+
+      periods.push({
+        index: n,
+        period,
+        service_start: serviceStart,
+        service_end: serviceEnd,
+        due_date: dueDate,
+      });
     }
-
-    const totalMonthsNext = totalMonths + 1;
-    const yearNext = Math.floor(totalMonthsNext / 12);
-    const monthNext = (totalMonthsNext % 12) + 1;
-    const daysInNextMonth = new Date(Date.UTC(yearNext, monthNext, 0)).getUTCDate();
-    const dayNext = Math.min(startDay, daysInNextMonth);
-    const nextStartUtc = Date.UTC(yearNext, monthNext - 1, dayNext);
-    const prevDay = new Date(nextStartUtc - 24 * 60 * 60 * 1000);
-    let serviceEnd = prevDay.toISOString().slice(0, 10);
-
-    if (maxEndDate && serviceEnd > maxEndDate) {
-      serviceEnd = maxEndDate;
-    }
-
-    const dueDateObj = new Date(Date.UTC(yearN, monthN - 1, dayN + Number(graceDays || 0)));
-    const dueDate = dueDateObj.toISOString().slice(0, 10);
-    const period = `${yearN}-${String(monthN).padStart(2, '0')}`;
-
-    periods.push({
-      index: n,
-      period,
-      service_start: serviceStart,
-      service_end: serviceEnd,
-      due_date: dueDate,
-    });
   }
 
   return periods;
@@ -546,6 +603,7 @@ function getInitialDemoContracts(tenantId) {
       start_date: '2026-10-19',
       end_date: null,
       grace_days: 10,
+      billing_cycle: 'start_date',
       status: 'active',
       notes: 'Kontrak sewa mahasiswa',
       created_at: '2026-10-19T00:00:00Z',
@@ -574,6 +632,7 @@ async function createDemoKosContract(tenantId, {
   months = null,
   graceDays = 10,
   notes = null,
+  billingCycle = 'start_date',
 }) {
   const contracts = getInitialDemoContracts(tenantId);
   const numericUnitId = Number(unitId);
@@ -596,7 +655,10 @@ async function createDemoKosContract(tenantId, {
     }
   }
 
-  const periods = computeRentPeriods(startDate, graceDays, 1);
+  const prorataInfo = calculateKosProrata(startDate, rentPrice, billingCycle);
+  const finalBillingCycle = prorataInfo.billingCycle;
+
+  const periods = computeRentPeriods(startDate, graceDays, 1, null, finalBillingCycle);
   const firstPeriod = periods[0] || {
     period: startDate.slice(0, 7),
     service_start: startDate,
@@ -606,9 +668,19 @@ async function createDemoKosContract(tenantId, {
 
   let endDate = null;
   if (months && Number(months) > 0) {
-    const allPeriods = computeRentPeriods(startDate, graceDays, Number(months));
-    const lastP = allPeriods[allPeriods.length - 1];
-    endDate = lastP ? lastP.service_end : null;
+    if (finalBillingCycle === 'month_start_prorata') {
+      // Durasi tetap p_months = N: bulan pertama prorata + N bulan kalender penuh;
+      // end_date = hari terakhir bulan ke-N setelah bulan masuk
+      const parts = String(startDate).slice(0, 10).split('-').map(Number);
+      const startYear = parts[0];
+      const startMonth = parts[1];
+      const endUtc = new Date(Date.UTC(startYear, (startMonth - 1) + Number(months) + 1, 0));
+      endDate = endUtc.toISOString().slice(0, 10);
+    } else {
+      const allPeriods = computeRentPeriods(startDate, graceDays, Number(months), null, finalBillingCycle);
+      const lastP = allPeriods[allPeriods.length - 1];
+      endDate = lastP ? lastP.service_end : null;
+    }
   }
 
   const contractId = `demo-contract-${Date.now()}`;
@@ -622,6 +694,7 @@ async function createDemoKosContract(tenantId, {
     start_date: startDate,
     end_date: endDate,
     grace_days: Number(graceDays || 10),
+    billing_cycle: finalBillingCycle,
     status: 'active',
     notes: notes || null,
     created_at: new Date().toISOString(),
@@ -632,24 +705,34 @@ async function createDemoKosContract(tenantId, {
   contracts.unshift(newContract);
   demoKosContractsMap.set(tenantId, contracts);
 
+  const billAmount = prorataInfo.isProrata ? prorataInfo.amount : Number(rentPrice || 0);
+  const billMetadata = {
+    bill_type: 'rent',
+    billing_type: 'rent',
+    auto_generated: false,
+    contract_id: contractId,
+    service_start: firstPeriod.service_start,
+    service_end: firstPeriod.service_end,
+    notes: notes || (prorataInfo.isProrata
+      ? 'Tagihan sewa periode pertama (kontrak baru prorata)'
+      : 'Tagihan sewa periode pertama (kontrak baru)'),
+  };
+  if (prorataInfo.isProrata) {
+    billMetadata.prorata = true;
+    billMetadata.prorata_days = prorataInfo.prorataDays;
+    billMetadata.days_in_month = prorataInfo.daysInMonth;
+  }
+
   // Buat tagihan periode pertama di billing_items
   const bill = await createTenantBillingItem(tenantId, {
     unit_id: numericUnitId,
     member_id: memberId || null,
     period: firstPeriod.period,
-    amount: Number(rentPrice || 0),
+    amount: billAmount,
     due_date: firstPeriod.due_date,
     contract_start: startDate,
     contract_end: endDate,
-    metadata: {
-      bill_type: 'rent',
-      billing_type: 'rent',
-      auto_generated: false,
-      contract_id: contractId,
-      service_start: firstPeriod.service_start,
-      service_end: firstPeriod.service_end,
-      notes: notes || 'Tagihan sewa periode pertama (kontrak baru)',
-    },
+    metadata: billMetadata,
   });
 
   return {
@@ -663,6 +746,7 @@ async function createDemoKosContract(tenantId, {
     start_date: startDate,
     end_date: endDate,
     grace_days: newContract.grace_days,
+    billing_cycle: finalBillingCycle,
     contract: newContract,
     bill,
   };
@@ -672,7 +756,7 @@ async function createDemoKosContract(tenantId, {
  * Membuat kontrak sewa kos master dan menerbitkan tagihan periode pertama (KOS-2)
  *
  * @param {string} tenantId - UUID tenant kos
- * @param {object} params - { unitId, memberId, tenantName, rentPrice, startDate, months, graceDays, notes }
+ * @param {object} params - { unitId, memberId, tenantName, rentPrice, startDate, months, graceDays, notes, billingCycle }
  */
 export async function createKosContract(tenantId, {
   unitId,
@@ -683,6 +767,7 @@ export async function createKosContract(tenantId, {
   months = null,
   graceDays = 10,
   notes = null,
+  billingCycle = 'start_date',
 } = {}) {
   if (!tenantId) throw new Error('Tenant ID wajib disertakan.');
   if (!unitId) throw new Error('Kamar (unitId) wajib dipilih.');
@@ -702,6 +787,7 @@ export async function createKosContract(tenantId, {
       months,
       graceDays,
       notes,
+      billingCycle,
     });
   }
 
@@ -715,6 +801,7 @@ export async function createKosContract(tenantId, {
     p_months: months ? Number(months) : null,
     p_grace_days: graceDays !== undefined && graceDays !== null ? Number(graceDays) : null,
     p_notes: notes || null,
+    p_billing_cycle: billingCycle || 'start_date',
   });
 
   if (error) {
@@ -801,6 +888,7 @@ export async function assignRoomContract(tenantId, {
   rentPrice,
   dueDate,
   notes,
+  billingCycle = 'start_date',
 } = {}) {
   if (!tenantId) throw new Error('Tenant ID wajib disertakan.');
   if (!unitId) throw new Error('Kamar (unitId) wajib dipilih.');
@@ -827,6 +915,7 @@ export async function assignRoomContract(tenantId, {
     months,
     rentPrice: rentPrice !== undefined && rentPrice !== null ? Number(rentPrice) : 0,
     notes: notes || null,
+    billingCycle,
   });
 
   const finalUnitId = (res?.unit_id != null && !Number.isNaN(res.unit_id)) ? res.unit_id : unitId;

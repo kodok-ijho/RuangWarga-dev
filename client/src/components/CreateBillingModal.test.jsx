@@ -194,4 +194,85 @@ describe('KOS-2.4: CreateBillingModal (Form Kontrak Sewa Kos)', () => {
     expect(handleSuccess).toHaveBeenCalled();
     expect(handleClose).toHaveBeenCalled();
   });
+
+  it('KOS-3.2: pilihan siklus tagihan default "Ikut tanggal masuk", beralih ke prorata menampilkan pratinjau nominal', async () => {
+    render(
+      <CreateBillingModal
+        open={true}
+        onClose={vi.fn()}
+        tenantId={mockTenantId}
+        tenantType="kos"
+        initialUnitId="1" // Kamar 101: 1.500.000
+      />
+    );
+
+    await screen.findByText('Buat Kontrak Sewa');
+
+    // Default siklus terpilih adalah "Ikut tanggal masuk"
+    const radioDefault = screen.getByDisplayValue('start_date');
+    expect(radioDefault.checked).toBe(true);
+    expect(screen.queryByTestId('prorata-preview-badge')).toBeNull();
+
+    // Set tanggal masuk ke 19 Okt 2026
+    const startDateInput = screen.getByLabelText(/Tanggal Masuk/i);
+    fireEvent.change(startDateInput, { target: { value: '2026-10-19' } });
+
+    // Pilih opsi "Awal bulan (bulan pertama prorata)"
+    const radioProrata = screen.getByDisplayValue('month_start_prorata');
+    fireEvent.click(radioProrata);
+    expect(radioProrata.checked).toBe(true);
+
+    // Pratinjau tagihan pertama prorata muncul: 19–31 Okt, nominal Rp629.000
+    const prorataBadge = await screen.findByTestId('prorata-preview-badge');
+    expect(prorataBadge).toBeTruthy();
+    expect(prorataBadge.textContent).toContain('Okt 19–31');
+    expect(prorataBadge.textContent).toMatch(/629\.000/);
+
+    // Jika tanggal diubah ke tanggal 1, pratinjau prorata tidak muncul
+    fireEvent.change(startDateInput, { target: { value: '2026-10-01' } });
+    expect(screen.queryByTestId('prorata-preview-badge')).toBeNull();
+  });
+
+  it('KOS-3.2: submit form dengan siklus prorata meneruskan billingCycle = "month_start_prorata"', async () => {
+    const handleSuccess = vi.fn();
+    const handleClose = vi.fn();
+
+    render(
+      <CreateBillingModal
+        open={true}
+        onClose={handleClose}
+        tenantId={mockTenantId}
+        tenantType="kos"
+        initialUnitId="2"
+        onSuccess={handleSuccess}
+      />
+    );
+
+    await screen.findByText('Buat Kontrak Sewa');
+
+    const memberSelect = screen.getByTestId('kos-member-select');
+    fireEvent.change(memberSelect, { target: { value: 'mem-calon-2' } });
+
+    const startDateInput = screen.getByLabelText(/Tanggal Masuk/i);
+    fireEvent.change(startDateInput, { target: { value: '2026-10-19' } });
+
+    // Pilih prorata
+    const radioProrata = screen.getByDisplayValue('month_start_prorata');
+    fireEvent.click(radioProrata);
+
+    const submitBtn = screen.getByRole('button', { name: /Simpan Kontrak/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(tenantOperationalService.createKosContract).toHaveBeenCalledWith(
+        mockTenantId,
+        expect.objectContaining({
+          unitId: 2,
+          memberId: 'mem-calon-2',
+          startDate: '2026-10-19',
+          billingCycle: 'month_start_prorata',
+        })
+      );
+    });
+  });
 });
