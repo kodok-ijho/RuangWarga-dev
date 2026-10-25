@@ -18,6 +18,7 @@ import {
   fetchPublicListings,
   fetchPublicListingById,
   resolveListingFacilities,
+  filterAndSortRoomListings,
 } from './publicListingService';
 
 describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () => {
@@ -675,6 +676,250 @@ describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () =>
       const firstKos = kosListings[0];
       expect(Array.isArray(firstKos.facilities)).toBe(true);
       expect(firstKos.facilities.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('LIST-UI-1.3: filterAndSortRoomListings (Logika Filter & Urutan Katalog Kos)', () => {
+    const sampleKosListings = [
+      {
+        id: 'kos-1',
+        title: 'Kamar 101 - Kos Flamboyan Putra AC Dekat UGM',
+        category: 'Putra',
+        price: 850000,
+        facilities: ['AC', 'Kasur & Bantal', 'WiFi Internet'],
+        location_hint: 'Sleman, Pogung',
+        is_featured: false,
+        created_at: '2026-10-01T10:00:00Z',
+      },
+      {
+        id: 'kos-2',
+        title: 'Kamar 202 - Kos Cantika Putri Eksklusif',
+        category: 'Putri',
+        price: 1500000,
+        facilities: ['AC', 'Kamar Mandi Dalam', 'WiFi Internet', 'Water Heater'],
+        location_hint: 'Sleman, Seturan',
+        is_featured: true,
+        created_at: '2026-10-05T12:00:00Z',
+      },
+      {
+        id: 'kos-3',
+        title: 'Kamar 303 - Paviliun Campur Mewah Luas',
+        category: 'Campur',
+        price: 2500000,
+        facilities: ['AC', 'Kamar Mandi Dalam', 'Kasur & Bantal', 'Lemari Pakaian', 'WiFi Internet', 'Dapur Bersama'],
+        location_hint: 'Kota Yogyakarta, Gejayan',
+        is_featured: false,
+        created_at: '2026-10-10T08:00:00Z',
+      },
+      {
+        id: 'kos-4',
+        title: 'Kamar 404 - Kos Sederhana Putra Non AC',
+        category: 'Putra',
+        price: 600000,
+        facilities: ['Kasur & Bantal', 'Lemari Pakaian'],
+        location_hint: 'Bantul, Sewon',
+        is_featured: false,
+        created_at: '2026-10-08T14:00:00Z',
+      },
+      {
+        id: 'kos-5',
+        title: 'Kamar 505 - Kos Putri Melati Kamar Mandi Dalam',
+        category: 'Putri',
+        price: 1800000,
+        // Belum ada property facilities, akan di-resolve dari title & description
+        description: 'Fasilitas kamar mandi dalam, ac dingin, dan wifi internet lancar',
+        location_hint: 'Sleman, Depok',
+        is_featured: false,
+        created_at: '2026-10-12T09:00:00Z',
+      },
+      {
+        id: 'kos-6',
+        title: 'Kamar 606 - Kos Hubungi Pengelola',
+        category: 'Campur',
+        price: null,
+        facilities: ['WiFi Internet'],
+        location_hint: 'Kota Yogyakarta',
+        is_featured: false,
+        created_at: '2026-10-02T09:00:00Z',
+      },
+    ];
+
+    // 1. FILTER TIPE (Putra / Putri / Campur)
+    describe('Filter Tipe (category: Putra / Putri / Campur)', () => {
+      it('menyaring hanya kamar Putra ketika category "Putra" dipilih', () => {
+        const result = filterAndSortRoomListings(sampleKosListings, { category: 'Putra' });
+        expect(result.length).toBe(2);
+        expect(result.map((r) => r.id)).toEqual(expect.arrayContaining(['kos-1', 'kos-4']));
+        expect(result.every((r) => r.category === 'Putra')).toBe(true);
+      });
+
+      it('menyaring hanya kamar Putri ketika category "Putri" dipilih (case-insensitive)', () => {
+        const result = filterAndSortRoomListings(sampleKosListings, { category: 'putri' });
+        expect(result.length).toBe(2);
+        expect(result.map((r) => r.id)).toEqual(expect.arrayContaining(['kos-2', 'kos-5']));
+        expect(result.every((r) => r.category === 'Putri')).toBe(true);
+      });
+
+      it('menyaring hanya kamar Campur ketika category "Campur" dipilih', () => {
+        const result = filterAndSortRoomListings(sampleKosListings, { category: 'Campur' });
+        expect(result.length).toBe(2);
+        expect(result.map((r) => r.id)).toEqual(expect.arrayContaining(['kos-3', 'kos-6']));
+        expect(result.every((r) => r.category === 'Campur')).toBe(true);
+      });
+
+      it('mengembalikan seluruh listing ketika category "all" atau tidak diset', () => {
+        const resultAll = filterAndSortRoomListings(sampleKosListings, { category: 'all' });
+        expect(resultAll.length).toBe(sampleKosListings.length);
+
+        const resultEmpty = filterAndSortRoomListings(sampleKosListings, {});
+        expect(resultEmpty.length).toBe(sampleKosListings.length);
+      });
+    });
+
+    // 2. FILTER RENTANG HARGA (< 1 jt, 1-2 jt, > 2 jt)
+    describe('Filter Rentang Harga (preset: < 1 jt, 1-2 jt, > 2 jt)', () => {
+      it('menyaring kamar dengan harga < 1 jt (< Rp 1.000.000)', () => {
+        const result = filterAndSortRoomListings(sampleKosListings, { priceRange: 'under1m' });
+        expect(result.length).toBe(2);
+        expect(result.map((r) => r.id)).toEqual(expect.arrayContaining(['kos-1', 'kos-4']));
+        expect(result.every((r) => r.price < 1000000)).toBe(true);
+
+        // Alias preset '< 1 jt'
+        const resultAlias = filterAndSortRoomListings(sampleKosListings, { priceRange: '< 1 jt' });
+        expect(resultAlias.length).toBe(2);
+      });
+
+      it('menyaring kamar dengan harga 1-2 jt (Rp 1.000.000 - Rp 2.000.000)', () => {
+        const result = filterAndSortRoomListings(sampleKosListings, { priceRange: '1m-2m' });
+        expect(result.length).toBe(2);
+        expect(result.map((r) => r.id)).toEqual(expect.arrayContaining(['kos-2', 'kos-5']));
+        expect(result.every((r) => r.price >= 1000000 && r.price <= 2000000)).toBe(true);
+
+        // Alias preset '1-2 jt'
+        const resultAlias = filterAndSortRoomListings(sampleKosListings, { priceRange: '1-2 jt' });
+        expect(resultAlias.length).toBe(2);
+      });
+
+      it('menyaring kamar dengan harga > 2 jt (> Rp 2.000.000)', () => {
+        const result = filterAndSortRoomListings(sampleKosListings, { priceRange: 'above2m' });
+        expect(result.length).toBe(1);
+        expect(result[0].id).toBe('kos-3');
+        expect(result[0].price).toBe(2500000);
+
+        // Alias preset '> 2 jt'
+        const resultAlias = filterAndSortRoomListings(sampleKosListings, { priceRange: '> 2 jt' });
+        expect(resultAlias.length).toBe(1);
+      });
+
+      it('mengabaikan kamar tanpa harga (null) ketika filter harga aktif', () => {
+        const resultUnder1m = filterAndSortRoomListings(sampleKosListings, { priceRange: 'under1m' });
+        expect(resultUnder1m.some((r) => r.id === 'kos-6')).toBe(false);
+
+        const resultAbove2m = filterAndSortRoomListings(sampleKosListings, { priceRange: 'above2m' });
+        expect(resultAbove2m.some((r) => r.id === 'kos-6')).toBe(false);
+      });
+    });
+
+    // 3. FILTER FASILITAS (Multi-pilih & pencocokan dengan resolveListingFacilities)
+    describe('Filter Fasilitas (multi-pilih dari kosFacilities)', () => {
+      it('menyaring kamar yang memiliki fasilitas tertentu (mis. AC)', () => {
+        const result = filterAndSortRoomListings(sampleKosListings, { facilities: ['AC'] });
+        // kos-1, kos-2, kos-3, dan kos-5 (via description extraction)
+        expect(result.length).toBe(4);
+        expect(result.map((r) => r.id)).toEqual(expect.arrayContaining(['kos-1', 'kos-2', 'kos-3', 'kos-5']));
+      });
+
+      it('menyaring kamar dengan multi-pilih fasilitas (kondisi AND: harus memiliki semua yang dipilih)', () => {
+        const result = filterAndSortRoomListings(sampleKosListings, {
+          facilities: ['AC', 'Kamar Mandi Dalam'],
+        });
+        // kos-2, kos-3, dan kos-5 memiliki AC DAN Kamar Mandi Dalam
+        expect(result.length).toBe(3);
+        expect(result.map((r) => r.id)).toEqual(expect.arrayContaining(['kos-2', 'kos-3', 'kos-5']));
+        expect(result.some((r) => r.id === 'kos-1')).toBe(false); // kos-1 tidak punya Kamar Mandi Dalam
+      });
+
+      it('mendukung format facilities berupa string comma-separated dari URL query params', () => {
+        const result = filterAndSortRoomListings(sampleKosListings, {
+          facilities: 'AC, Water Heater',
+        });
+        expect(result.length).toBe(1);
+        expect(result[0].id).toBe('kos-2');
+      });
+
+      it('mengembalikan array kosong jika tidak ada kamar yang memenuhi seluruh fasilitas yang dipilih', () => {
+        const result = filterAndSortRoomListings(sampleKosListings, {
+          facilities: ['Dapur Bersama', 'Water Heater'],
+        });
+        expect(result.length).toBe(0);
+      });
+    });
+
+    // 4. PENGURUTAN (Termurah / Termahal / Terbaru)
+    describe('Pengurutan Listing (Termurah / Termahal / Terbaru)', () => {
+      it('mengurutkan berdasarkan "Termurah" (harga terendah ke tertinggi)', () => {
+        const result = filterAndSortRoomListings(sampleKosListings, { sortBy: 'termurah' });
+        const prices = result.map((r) => r.price).filter((p) => p !== null);
+        for (let i = 0; i < prices.length - 1; i++) {
+          expect(prices[i]).toBeLessThanOrEqual(prices[i + 1]);
+        }
+        expect(result[0].id).toBe('kos-4'); // 600.000
+        expect(result[1].id).toBe('kos-1'); // 850.000
+        // Item dengan harga null diletakkan paling akhir
+        expect(result[result.length - 1].id).toBe('kos-6');
+      });
+
+      it('mengurutkan berdasarkan "Termahal" (harga tertinggi ke terendah)', () => {
+        const result = filterAndSortRoomListings(sampleKosListings, { sortBy: 'termahal' });
+        const prices = result.map((r) => r.price).filter((p) => p !== null);
+        for (let i = 0; i < prices.length - 1; i++) {
+          expect(prices[i]).toBeGreaterThanOrEqual(prices[i + 1]);
+        }
+        expect(result[0].id).toBe('kos-3'); // 2.500.000
+        expect(result[1].id).toBe('kos-5'); // 1.800.000
+        // Item dengan harga null diletakkan paling akhir
+        expect(result[result.length - 1].id).toBe('kos-6');
+      });
+
+      it('mengurutkan berdasarkan "Terbaru" (default: is_featured diutamakan, lalu created_at terbaru)', () => {
+        const result = filterAndSortRoomListings(sampleKosListings, { sortBy: 'terbaru' });
+        // kos-2 adalah is_featured: true, sehingga berada di urutan teratas
+        expect(result[0].id).toBe('kos-2');
+        expect(result[0].is_featured).toBe(true);
+
+        // Setelah featured, listing non-featured diurutkan dari created_at terbaru: kos-5 (12 Okt), kos-3 (10 Okt), kos-4 (8 Okt)
+        expect(result[1].id).toBe('kos-5');
+        expect(result[2].id).toBe('kos-3');
+        expect(result[3].id).toBe('kos-4');
+      });
+    });
+
+    // 5. KOMBINASI FILTER & FUNGSI MURNI
+    describe('Kombinasi Filter & Immutability', () => {
+      it('menggabungkan filter Tipe, Harga, Fasilitas, dan Pencarian', () => {
+        const result = filterAndSortRoomListings(sampleKosListings, {
+          category: 'Putri',
+          priceRange: '1m-2m',
+          facilities: ['Kamar Mandi Dalam'],
+          query: 'Seturan',
+        });
+
+        expect(result.length).toBe(1);
+        expect(result[0].id).toBe('kos-2');
+        expect(result[0].title).toContain('Cantika Putri');
+      });
+
+      it('merupakan fungsi murni (pure function) yang tidak memutasi array input', () => {
+        const originalCopy = JSON.parse(JSON.stringify(sampleKosListings));
+        filterAndSortRoomListings(sampleKosListings, { sortBy: 'termurah' });
+        expect(sampleKosListings).toEqual(originalCopy);
+      });
+
+      it('menangani input array kosong atau null secara aman', () => {
+        expect(filterAndSortRoomListings([], { category: 'Putra' })).toEqual([]);
+        expect(filterAndSortRoomListings(null, {})).toEqual([]);
+        expect(filterAndSortRoomListings(undefined, {})).toEqual([]);
+      });
     });
   });
 });

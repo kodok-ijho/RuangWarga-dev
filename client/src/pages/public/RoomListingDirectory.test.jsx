@@ -24,11 +24,11 @@ function createTestQueryClient() {
   });
 }
 
-function renderWithProviders(ui) {
+function renderWithProviders(ui, { initialEntries = ['/'] } = {}) {
   const queryClient = createTestQueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>{ui}</MemoryRouter>
+      <MemoryRouter initialEntries={initialEntries}>{ui}</MemoryRouter>
     </QueryClientProvider>
   );
 }
@@ -370,6 +370,138 @@ describe('RoomListingDirectory & RoomListingCard (LIST-UI-1.2)', () => {
 
       const defaultIcon = getFacilityIcon('Fasilitas Unik Lainnya');
       expect(defaultIcon).toBeDefined();
+    });
+  });
+
+  // 8. LIST-UI-1.3: QUERY STRING URL (useSearchParams), FILTER CHIPS & URUTAN
+  describe('LIST-UI-1.3: Sinkronisasi Query String URL & Filter Chips', () => {
+    const mockDirectoryListings = [
+      {
+        id: 'kos-katalog-1',
+        title: 'Kamar Putri Melati AC UGM',
+        category: 'Putri',
+        price: 1500000,
+        location_hint: 'Sleman, Pogung',
+        facilities: ['AC', 'WiFi Internet', 'Kamar Mandi Dalam'],
+        is_featured: true,
+        created_at: '2026-10-10T10:00:00Z',
+      },
+      {
+        id: 'kos-katalog-2',
+        title: 'Kamar Putra Murah Non AC',
+        category: 'Putra',
+        price: 750000,
+        location_hint: 'Bantul',
+        facilities: ['Kasur & Bantal', 'Lemari Pakaian'],
+        is_featured: false,
+        created_at: '2026-10-05T08:00:00Z',
+      },
+      {
+        id: 'kos-katalog-3',
+        title: 'Kamar Campur Gejayan Deluxe',
+        category: 'Campur',
+        price: 2400000,
+        location_hint: 'Gejayan',
+        facilities: ['AC', 'WiFi Internet', 'Water Heater'],
+        is_featured: false,
+        created_at: '2026-10-12T11:00:00Z',
+      },
+    ];
+
+    it('membaca query string URL dan mengaktifkan chip Tipe, Harga, Fasilitas, dan Sort yang sesuai', async () => {
+      vi.spyOn(publicListingService, 'fetchPublicListings').mockResolvedValue(mockDirectoryListings);
+
+      // Render dengan query string lengkap di URL
+      renderWithProviders(<RoomListingDirectory />, {
+        initialEntries: [
+          '/listing/kos?category=Putri&price=1m-2m&facilities=AC,WiFi+Internet&sort=termurah&featured=true',
+        ],
+      });
+
+      // Tunggu hingga data termuat dan kartu kamar kos tampil
+      await waitFor(() => {
+        expect(screen.getAllByTestId('room-listing-card')).toHaveLength(1);
+      });
+
+      // 1. Chip Tipe Putri aktif
+      const chipPutri = screen.getByTestId('filter-type-putri');
+      expect(chipPutri.className).toContain('bg-forest-800');
+      expect(chipPutri.className).toContain('text-gold-300');
+
+      // 2. Chip Harga 1-2 Juta aktif
+      const chipHarga = screen.getByTestId('filter-price-1m-2m');
+      expect(chipHarga.className).toContain('bg-forest-800');
+
+      // 3. Chip Fasilitas AC dan WiFi Internet aktif
+      const chipAc = screen.getByTestId('filter-facility-AC');
+      expect(chipAc.className).toContain('bg-forest-800');
+      const chipWifi = screen.getByTestId('filter-facility-WiFi Internet');
+      expect(chipWifi.className).toContain('bg-forest-800');
+
+      // 4. Dropdown Sort memiliki value 'termurah'
+      const sortSelect = screen.getByTestId('sort-select');
+      expect(sortSelect.value).toBe('termurah');
+
+      // 5. Toggle Unggulan aktif
+      const featuredBtn = screen.getByTestId('filter-featured-toggle');
+      expect(featuredBtn.className).toContain('border-amber-400');
+
+      // 6. Hasil yang tampil hanya kos-katalog-1
+      const cards = screen.getAllByTestId('room-listing-card');
+      expect(cards).toHaveLength(1);
+      expect(screen.getByText('Kamar Putri Melati AC UGM')).toBeTruthy();
+      expect(screen.getByTestId('results-count').textContent).toContain('1 kamar');
+
+      // 7. Tombol Reset Filter terlihat di header
+      expect(screen.getByTestId('btn-reset-filters')).toBeTruthy();
+    });
+
+    it('mengklik tombol Reset Filter membersihkan semua filter aktif', async () => {
+      vi.spyOn(publicListingService, 'fetchPublicListings').mockResolvedValue(mockDirectoryListings);
+
+      renderWithProviders(<RoomListingDirectory />, {
+        initialEntries: ['/listing/kos?category=Putri'],
+      });
+
+      // Tunggu hingga data termuat dan kartu tampil (hanya kos Putri yang tampil, 1 kamar)
+      await waitFor(() => {
+        expect(screen.getAllByTestId('room-listing-card')).toHaveLength(1);
+      });
+
+      expect(screen.getByTestId('btn-reset-filters')).toBeTruthy();
+
+      // Klik reset
+      fireEvent.click(screen.getByTestId('btn-reset-filters'));
+
+      await waitFor(() => {
+        // Setelah reset, semua 3 kamar tampil kembali
+        expect(screen.getAllByTestId('room-listing-card')).toHaveLength(3);
+      });
+
+      // Tombol Reset Filter tidak lagi tampil
+      expect(screen.queryByTestId('btn-reset-filters')).toBeNull();
+    });
+
+    it('mengklik chip tipe mengupdate filter hasil kamar kos', async () => {
+      vi.spyOn(publicListingService, 'fetchPublicListings').mockResolvedValue(mockDirectoryListings);
+
+      renderWithProviders(<RoomListingDirectory />, {
+        initialEntries: ['/listing/kos'],
+      });
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId('room-listing-card')).toHaveLength(3);
+      });
+
+      // Klik chip Putra
+      const chipPutra = screen.getByTestId('filter-type-putra');
+      fireEvent.click(chipPutra);
+
+      await waitFor(() => {
+        const cards = screen.getAllByTestId('room-listing-card');
+        expect(cards).toHaveLength(1);
+        expect(screen.getByText('Kamar Putra Murah Non AC')).toBeTruthy();
+      });
     });
   });
 });

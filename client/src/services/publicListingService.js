@@ -155,6 +155,158 @@ export function resolveListingFacilities(listing, unitMetadata = null) {
 }
 
 /**
+ * Menyaring dan mengurutkan daftar listing kamar kos publik (LIST-UI-1.3)
+ * Fungsi murni tanpa efek samping untuk digunakan di katalog direktori maupun pengujian unit.
+ *
+ * @param {Array<Object>} listings - Daftar listing kamar kos
+ * @param {Object} [filters={}] - Objek filter dan urutan
+ * @param {string} [filters.category] - Filter tipe: 'Putra' | 'Putri' | 'Campur' | 'all'
+ * @param {string} [filters.roomType] - Alias untuk filters.category
+ * @param {string} [filters.priceRange] - Preset harga: '< 1 jt' | 'under1m' | '1-2 jt' | '1m-2m' | '> 2 jt' | 'above2m' | 'all'
+ * @param {Array<string>|string} [filters.facilities] - Fasilitas yang harus dimiliki (multi-pilih, mencocokkan dengan resolveListingFacilities)
+ * @param {'terbaru'|'termurah'|'termahal'|'newest'|'cheapest'|'expensive'} [filters.sortBy='terbaru'] - Opsi pengurutan
+ * @param {string} [filters.query] - Kata kunci pencarian (judul, deskripsi, lokasi, fasilitas)
+ * @param {boolean} [filters.featuredOnly=false] - Khusus listing berstatus is_featured
+ * @returns {Array<Object>}
+ */
+export function filterAndSortRoomListings(listings = [], filters = {}) {
+  if (!Array.isArray(listings)) return [];
+
+  const {
+    category,
+    roomType,
+    priceRange,
+    facilities = [],
+    sortBy = 'terbaru',
+    query = '',
+    featuredOnly = false,
+  } = filters;
+
+  const targetCategory = category || roomType;
+  const selectedFacilities = Array.isArray(facilities)
+    ? facilities.filter(Boolean)
+    : typeof facilities === 'string' && facilities.trim()
+    ? facilities.split(',').map((f) => f.trim()).filter(Boolean)
+    : [];
+
+  // 1. PENYARINGAN (FILTER)
+  const filtered = listings.filter((item) => {
+    if (!item) return false;
+
+    // Filter Unggulan
+    if (featuredOnly && !item.is_featured) {
+      return false;
+    }
+
+    // Filter Tipe (Putra / Putri / Campur dari category)
+    if (targetCategory && targetCategory !== 'all') {
+      const itemCat = String(item.category || '').toLowerCase().trim();
+      if (itemCat !== String(targetCategory).toLowerCase().trim()) {
+        return false;
+      }
+    }
+
+    // Filter Rentang Harga (preset: < 1 jt, 1-2 jt, > 2 jt)
+    if (priceRange && priceRange !== 'all') {
+      const price = Number(item.price);
+      if (isNaN(price) || item.price === null || item.price === undefined) {
+        return false;
+      }
+
+      const pRangeNormalized = String(priceRange).toLowerCase().replace(/\s+/g, '');
+      if (
+        pRangeNormalized === 'under1m' ||
+        pRangeNormalized === '<1jt' ||
+        pRangeNormalized === '<1juta' ||
+        pRangeNormalized === 'under_1m'
+      ) {
+        if (price >= 1000000) return false;
+      } else if (
+        pRangeNormalized === '1m-2m' ||
+        pRangeNormalized === '1-2jt' ||
+        pRangeNormalized === '1-2juta'
+      ) {
+        if (price < 1000000 || price > 2000000) return false;
+      } else if (
+        pRangeNormalized === 'above2m' ||
+        pRangeNormalized === '>2jt' ||
+        pRangeNormalized === '>2juta' ||
+        pRangeNormalized === 'above_2m'
+      ) {
+        if (price <= 2000000) return false;
+      }
+    }
+
+    // Filter Fasilitas (multi-pilih: harus memiliki seluruh fasilitas yang dipilih)
+    if (selectedFacilities.length > 0) {
+      const itemFacs = (
+        Array.isArray(item.facilities) && item.facilities.length > 0
+          ? item.facilities
+          : resolveListingFacilities(item)
+      ).map((f) => String(f).toLowerCase().trim());
+
+      const hasAllSelectedFacilities = selectedFacilities.every((fac) =>
+        itemFacs.includes(String(fac).toLowerCase().trim())
+      );
+
+      if (!hasAllSelectedFacilities) {
+        return false;
+      }
+    }
+
+    // Filter Kata Kunci Pencarian (query)
+    if (query && query.trim() !== '') {
+      const q = query.toLowerCase().trim();
+      const matchTitle = item.title?.toLowerCase().includes(q);
+      const matchDesc = item.description?.toLowerCase().includes(q);
+      const matchLoc = item.location_hint?.toLowerCase().includes(q);
+      const itemFacs = Array.isArray(item.facilities)
+        ? item.facilities
+        : resolveListingFacilities(item);
+      const matchFacilities = itemFacs.some((f) => String(f).toLowerCase().includes(q));
+
+      if (!matchTitle && !matchDesc && !matchLoc && !matchFacilities) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  // 2. PENGURUTAN (SORT)
+  return [...filtered].sort((a, b) => {
+    const sortNormalized = String(sortBy || 'terbaru').toLowerCase().trim();
+
+    if (sortNormalized === 'termurah' || sortNormalized === 'cheapest' || sortNormalized === 'price_asc') {
+      const priceA = a.price !== null && a.price !== undefined && !isNaN(Number(a.price)) ? Number(a.price) : Infinity;
+      const priceB = b.price !== null && b.price !== undefined && !isNaN(Number(b.price)) ? Number(b.price) : Infinity;
+      if (priceA !== priceB) {
+        return priceA - priceB;
+      }
+      if (a.is_featured && !b.is_featured) return -1;
+      if (!a.is_featured && b.is_featured) return 1;
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+    }
+
+    if (sortNormalized === 'termahal' || sortNormalized === 'expensive' || sortNormalized === 'price_desc') {
+      const priceA = a.price !== null && a.price !== undefined && !isNaN(Number(a.price)) ? Number(a.price) : -Infinity;
+      const priceB = b.price !== null && b.price !== undefined && !isNaN(Number(b.price)) ? Number(b.price) : -Infinity;
+      if (priceA !== priceB) {
+        return priceB - priceA;
+      }
+      if (a.is_featured && !b.is_featured) return -1;
+      if (!a.is_featured && b.is_featured) return 1;
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+    }
+
+    // Default: 'terbaru' / 'newest'
+    if (a.is_featured && !b.is_featured) return -1;
+    if (!a.is_featured && b.is_featured) return 1;
+    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+  });
+}
+
+/**
  * Memperkaya daftar listing dengan fasilitas kamar dari metadata unit atau deskripsi
  *
  * @param {Array<Object>} items
