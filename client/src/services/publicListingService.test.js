@@ -19,6 +19,8 @@ import {
   fetchPublicListingById,
   resolveListingFacilities,
   filterAndSortRoomListings,
+  normalizePhoneNumber,
+  buildListingWhatsAppUrl,
 } from './publicListingService';
 
 describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () => {
@@ -919,6 +921,95 @@ describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () =>
         expect(filterAndSortRoomListings([], { category: 'Putra' })).toEqual([]);
         expect(filterAndSortRoomListings(null, {})).toEqual([]);
         expect(filterAndSortRoomListings(undefined, {})).toEqual([]);
+      });
+    });
+  });
+
+  // LIST-UI-1.4: Helper WhatsApp & Normalisasi Nomor Telepon
+  describe('LIST-UI-1.4: Helper WhatsApp & Normalisasi Nomor Kontak', () => {
+    describe('normalizePhoneNumber', () => {
+      it('menormalisasi format lokal 08xx menjadi 628xx', () => {
+        expect(normalizePhoneNumber('081234567890')).toBe('6281234567890');
+        expect(normalizePhoneNumber('08987654321')).toBe('628987654321');
+      });
+
+      it('menormalisasi format +62 menjadi 62', () => {
+        expect(normalizePhoneNumber('+6281234567890')).toBe('6281234567890');
+        expect(normalizePhoneNumber('+6285712345678')).toBe('6285712345678');
+      });
+
+      it('membuang spasi, tanda hubung (-), titik, dan tanda kurung', () => {
+        expect(normalizePhoneNumber('0812-3456-7890')).toBe('6281234567890');
+        expect(normalizePhoneNumber('+62 812 3456 7890')).toBe('6281234567890');
+        expect(normalizePhoneNumber('+62-812-3456-7890')).toBe('6281234567890');
+        expect(normalizePhoneNumber('(0812) 3456.7890')).toBe('6281234567890');
+      });
+
+      it('mempertahankan format yang sudah diawali 62', () => {
+        expect(normalizePhoneNumber('6281234567890')).toBe('6281234567890');
+      });
+
+      it('menambahkan prefix 62 jika diawali digit 8 (mis. 81234567890)', () => {
+        expect(normalizePhoneNumber('81234567890')).toBe('6281234567890');
+      });
+
+      it('mengembalikan null untuk nomor kosong, null, undefined, atau tidak valid', () => {
+        expect(normalizePhoneNumber('')).toBeNull();
+        expect(normalizePhoneNumber(null)).toBeNull();
+        expect(normalizePhoneNumber(undefined)).toBeNull();
+        expect(normalizePhoneNumber('abcde')).toBeNull();
+        expect(normalizePhoneNumber('123')).toBeNull(); // terlalu pendek
+        expect(normalizePhoneNumber('08')).toBeNull(); // terlalu pendek
+      });
+    });
+
+    describe('buildListingWhatsAppUrl', () => {
+      it('menghasilkan URL WhatsApp yang valid dengan pesan ter-encode', () => {
+        const listing = {
+          title: 'Kamar 101 - Kos Melati Harmoni',
+          price: 1500000,
+          contact_phone: '081234567890',
+        };
+
+        const url = buildListingWhatsAppUrl(listing, 'Kos Melati Harmoni');
+        expect(url).toBeDefined();
+        expect(url).toContain('https://wa.me/6281234567890?text=');
+
+        // Pesan yang diharapkan: 'Halo, saya tertarik dengan iklan "Kamar 101 - Kos Melati Harmoni" (Rp1.500.000/bulan) di RuangWarga. Apakah masih tersedia?'
+        const expectedMessage =
+          'Halo, saya tertarik dengan iklan "Kamar 101 - Kos Melati Harmoni" (Rp1.500.000/bulan) di RuangWarga. Apakah masih tersedia?';
+        expect(url).toBe(`https://wa.me/6281234567890?text=${encodeURIComponent(expectedMessage)}`);
+      });
+
+      it('bekerja dengan nomor yang memiliki format +62, spasi, dan tanda hubung', () => {
+        const listing = {
+          title: 'Kamar A2 Putri',
+          price: 900000,
+          contact_phone: '+62 813-9876-5432',
+        };
+
+        const url = buildListingWhatsAppUrl(listing);
+        expect(url).toContain('https://wa.me/6281398765432?text=');
+        expect(url).toContain(encodeURIComponent('Kamar A2 Putri'));
+        expect(url).toContain(encodeURIComponent('Rp900.000/bulan'));
+      });
+
+      it('memformat harga 0 jika listing tidak memiliki harga yang valid', () => {
+        const listing = {
+          title: 'Kamar Tanpa Harga',
+          price: null,
+          contact_phone: '08122334455',
+        };
+
+        const url = buildListingWhatsAppUrl(listing);
+        expect(url).toContain(encodeURIComponent('(Rp0/bulan)'));
+      });
+
+      it('mengembalikan null jika nomor kontak tidak ada atau tidak valid', () => {
+        expect(buildListingWhatsAppUrl(null)).toBeNull();
+        expect(buildListingWhatsAppUrl({})).toBeNull();
+        expect(buildListingWhatsAppUrl({ contact_phone: '' })).toBeNull();
+        expect(buildListingWhatsAppUrl({ contact_phone: 'tidak-ada-nomor' })).toBeNull();
       });
     });
   });

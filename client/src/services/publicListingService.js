@@ -155,6 +155,70 @@ export function resolveListingFacilities(listing, unitMetadata = null) {
 }
 
 /**
+ * Normalisasi nomor telepon kontak ke format internasional Indonesia (62...) (LIST-UI-1.4)
+ * - 08xx -> 628xx
+ * - +62 -> 62
+ * - Membuang karakter spasi, tanda hubung (-), titik, dan tanda kurung.
+ * - Mengembalikan null jika nomor kosong atau tidak valid.
+ *
+ * @param {string} phone
+ * @returns {string|null}
+ */
+export function normalizePhoneNumber(phone) {
+  if (!phone || typeof phone !== 'string') return null;
+
+  // Hapus spasi, strip/tanda hubung, tanda kurung, titik
+  let cleaned = phone.trim().replace(/[\s\-().]/g, '');
+  if (cleaned.startsWith('+')) {
+    cleaned = cleaned.slice(1);
+  }
+
+  // Hapus semua karakter non-digit yang mungkin tersisa
+  cleaned = cleaned.replace(/\D/g, '');
+
+  if (!cleaned) return null;
+
+  if (cleaned.startsWith('0')) {
+    cleaned = '62' + cleaned.slice(1);
+  } else if (cleaned.startsWith('8')) {
+    cleaned = '62' + cleaned;
+  }
+
+  // Validasi nomor WhatsApp: harus berawalan '62' dan memiliki panjang wajar (9 - 16 digit)
+  if (!cleaned.startsWith('62') || cleaned.length < 9 || cleaned.length > 16) {
+    return null;
+  }
+
+  return cleaned;
+}
+
+/**
+ * Membuat tautan WhatsApp murni untuk menghubungi pengelola iklan kamar kos (LIST-UI-1.4)
+ *
+ * @param {Object} listing - Data listing kamar kos
+ * @param {string} [tenantName=''] - Nama tenant/kos (opsional)
+ * @returns {string|null} - URL https://wa.me/<nomor>?text=<pesan> atau null jika nomor kontak tidak valid
+ */
+export function buildListingWhatsAppUrl(listing, tenantName = '') {
+  if (!listing || !listing.contact_phone) return null;
+
+  const cleanNumber = normalizePhoneNumber(listing.contact_phone);
+  if (!cleanNumber) return null;
+
+  const title = listing.title ? String(listing.title).trim() : 'Kamar Kos';
+  const rawPrice = listing.price;
+  const formattedPrice =
+    rawPrice !== null && rawPrice !== undefined && !isNaN(Number(rawPrice))
+      ? new Intl.NumberFormat('id-ID').format(Number(rawPrice))
+      : '0';
+
+  // Format pesan: 'Halo, saya tertarik dengan iklan "<judul>" (Rp<harga>/bulan) di RuangWarga. Apakah masih tersedia?'
+  const message = `Halo, saya tertarik dengan iklan "${title}" (Rp${formattedPrice}/bulan) di RuangWarga. Apakah masih tersedia?`;
+
+  return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}`;
+}
+
+/**
  * Menyaring dan mengurutkan daftar listing kamar kos publik (LIST-UI-1.3)
  * Fungsi murni tanpa efek samping untuk digunakan di katalog direktori maupun pengujian unit.
  *
@@ -422,7 +486,11 @@ export async function fetchPublicListingById(id) {
     const found = listings.find((l) => String(l.id) === String(id));
     if (!found) return null;
     const enriched = await enrichListingsWithFacilities([found]);
-    return enriched[0] || null;
+    const item = enriched[0] || null;
+    if (item && !item.tenant_name && item.tenant_id === 'demo-tenant-kos') {
+      item.tenant_name = 'Kos Melati Harmoni';
+    }
+    return item;
   }
 
   const { data, error } = await supabase
