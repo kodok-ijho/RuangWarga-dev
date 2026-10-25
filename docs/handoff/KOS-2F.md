@@ -1,6 +1,6 @@
 # KOS-2F — Perbaikan setelah review KOS-2
 
-Status: **menunggu persetujuan user** (menyentuh tagihan, RLS, dan fungsi database).
+Status: **selesai** (disetujui user; migration terpasang di dev 2026-10-25).
 Dasar: `KOS-2-review.md` (K1–K8). Migration `202610240001` dan `202610240002` **belum terpasang di mana pun**, jadi diperbaiki langsung di file yang sama, tanpa file migration baru.
 
 ## Aturan executor

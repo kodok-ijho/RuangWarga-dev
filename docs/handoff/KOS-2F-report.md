@@ -32,3 +32,8 @@ Diterima. Dry-run kedua migration + kedua file test di dev (BEGIN … ROLLBACK) 
 - `tests/kos_contract_billing.sql`: enum `past_due` tidak ada → `read_only`; Uji 1 menangkap `insufficient_privilege` (42501); Uji 5 menghitung baris setelah run pertama.
 
 Simulasi pada data dev (ROLLBACK): unit 73 INDI KOS mendapat kontrak aktif 2026-10-01 s.d. 2026-10-30, tagihan `2026-10` tertaut, generator 0 terbit / 1 dilewati, 0 periode ganda. Migration belum diterapkan; menunggu persetujuan user.
+
+## Penerapan ke dev (2026-10-25, disetujui user)
+- `202610240001` → riwayat `20261025084106 kos_contracts`; `202610240002` → `20261025084111 kos_contract_billing`.
+- Cek pasca-terap: unit 73 `occupied` dengan kontrak aktif 2026-10-01 s.d. 2026-10-30; tagihan `2026-10` tertaut (`service_start` 2026-10-01, `service_end` 2026-10-30); 0 periode ganda; `generate_kos_contract_bills` tidak bisa dieksekusi `authenticated`; `auto_generate_kos_billing` tetap bisa; trigger guard `BEFORE INSERT OR UPDATE OF status`.
+- User menyetujui metode siklus "ikut tanggal masuk" (anchor dari `start_date`, clamp akhir bulan).

@@ -55,14 +55,14 @@ Terakhir diperbarui: 2026-10-23 (Claude, orchestrator).
   - **belum** di-deploy: `create-subscription-payment`, `verify-subscription-payment`, `create-listing-payment`, `verify-listing-payment`, `check-listing-expirations`, `auto-generate-kos-bills`.
 - **Batch terakhir:**
   - PANITIA-ARISAN-1F ✅;
-  - **PANITIA-ARISAN-2F** sudah dikerjakan executor dan menunggu review Claude;
-  - **KOS-2** (kontrak sewa master, tagihan per tanggal masuk) sudah dikerjakan executor (`KOS-2-report.md`) dan menunggu review Claude serta penerapan migration;
+  - **PANITIA-ARISAN-2F** ✅ (`PANITIA-ARISAN-2F-review.md`);
+  - **KOS-2 + KOS-2F** ✅ (kontrak sewa master, tagihan per tanggal masuk; `KOS-2F-report.md`). Kedua migration terpasang di dev 2026-10-25 (`20261025084106`, `20261025084111`). Metode siklus "ikut tanggal masuk" disetujui user;
   - **LIST-UI-1** (akses iklan kamar dan katalog kos) menunggu persetujuan user.
 - **Dua sesi Claude** pernah berjalan bersamaan: satu untuk Kepanitiaan/Arisan, satu untuk KOS-2/LIST-UI-1. Sebelum menulis BACKLOG atau menerapkan migration, selalu `git fetch` dan cek riwayat terbaru.
 - **Merchant DOKU platform sudah disetujui** (user, 2026-10-22). Langkah penyiapan ada di § 7.
 
 ## 5. Roadmap berikutnya (urut)
-1. **Review PANITIA-ARISAN-2F dan KOS-2** (KOS-2 termasuk dry-run dan penerapan 2 migration ke dev), lalu push ke `main`. **LIST-UI-1** dikerjakan setelah disetujui user.
+1. **Push** batch PANITIA-ARISAN-2F + KOS-2F ke `main` (menunggu izin user). Edge Function `auto-generate-kos-bills` belum di-deploy. **LIST-UI-1** dikerjakan setelah disetujui user.
 2. **Penyiapan DOKU** (§ 7), dikerjakan user, lalu Claude men-deploy fungsi pembayaran ke dev.
 3. **PAY-3** (perlu persetujuan user; menyentuh pembayaran):
    - **satu** URL notifikasi DOKU yang meneruskan berdasarkan awalan referensi: `SUB-` langganan, `LST-` iklan, nanti acara. DOKU umumnya menyimpan satu URL notifikasi QRIS per merchant, sedangkan kode sekarang punya dua penerima terpisah;
