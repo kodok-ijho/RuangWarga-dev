@@ -1,6 +1,6 @@
 # WALLET-1 — Dompet RuangWarga
 
-Status: ⏳ **Rancangan, menunggu persetujuan user.** Menyentuh pembayaran platform dan schema; wajib persetujuan sebelum dikerjakan. Bergantung pada DOKU platform aktif (§ 7 `PLAN.md`, PAY-3).
+Status: ✅ **Rancangan dan 4 keputusan disetujui user 2026-10-25.** Task rinci ditulis saat DOKU platform siap. Bergantung pada DOKU platform aktif (§ 7 `PLAN.md`, PAY-3).
 
 Dasar: keputusan user 2026-10-25 — "Pisahkan saldo DOKU dengan dompet RuangWarga. RuangWarga mesti punya dompet untuk perpanjang subscribe atau pasang iklan."
 

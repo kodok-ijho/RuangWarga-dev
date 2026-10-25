@@ -1,6 +1,6 @@
 # LIST-UI-1 — Akses iklan kamar & tampilan katalog kos ala marketplace
 
-Status: ⏳ **Menunggu persetujuan user.** Frontend saja: tidak ada perubahan schema, pembayaran iklan (PAY-1.7), atau status listing.
+Status: ✅ **Disetujui user 2026-10-25** (termasuk tombol WhatsApp ke `contact_phone`). Frontend saja: tidak ada perubahan schema, pembayaran iklan (PAY-1.7), atau status listing.
 
 Dasar: pertanyaan user 2026-10-23 "di mana link untuk mengiklankan kamar kosong?" dan permintaan tampilan seperti mamikos.com.
 
@@ -28,9 +28,9 @@ Urutan: 1.1 → 1.2 → 1.3 → 1.4 → 1.5.
 Catatan: fasilitas per iklan — bila tidak ada kolomnya, baca dari `tenant_units.metadata` kamar terkait (`unit_id`) lewat service. **Jangan menambah kolom/migration**; jika ternyata perlu, tulis di `questions.md`.
 
 ## Aturan executor
-- **Branch: `claude/ruangwarga-remote-2-disconnect-m4oku0`.** `git pull --ff-only` dulu. Satu task = satu commit (sebut ID task), push setelah setiap commit. Jangan push ke `main`.
+- **Branch: `claude/ruangwarga-remote-2-disconnect-m4oku0`.** Satu task = satu commit (sebut ID task). **Jangan push** (Claude yang push setelah review dan izin user).
 - Ikuti `docs/handoff/README.md` dan `AGENT.md`. Path relatif ke `client/src/` kecuali disebut lain.
-- Setelah tiap task: `cd client && npx vitest run && npm run build`.
+- Setelah tiap task: `cd client && npm run lint && npm run build && VITE_DEMO_MODE=false npx vitest run` (lolos di `TZ=UTC` dan `TZ=Asia/Jakarta`).
 - Dukung mode demo (mockData) dan Supabase. Ikuti konvensi `pv-*`, palet forest/gold, React Query, RBAC, isolasi per tenant. Lapisan `/listing` tetap netral "RuangWarga" (tanpa branding tenant).
 - 🚫 Jangan mengubah `services/dataService.js`, `services/apiClient.js`, `api/`, `legacy-backend/`, `.env*`, n8n, Edge Function pembayaran, atau migration. Jangan menjalankan SQL ke Supabase. Jangan install package baru.
 - Keputusan tidak jelas → tulis di `questions.md`, lewati, lanjut task lain.
