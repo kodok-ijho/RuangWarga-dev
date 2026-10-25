@@ -476,7 +476,7 @@ BEGIN
       v_member_id := (v_unit.metadata->>'tenant_member_id')::UUID;
     EXCEPTION WHEN OTHERS THEN
       v_member_id := NULL;
-    END IF;
+    END;
   END IF;
 
   IF v_member_id IS NULL THEN

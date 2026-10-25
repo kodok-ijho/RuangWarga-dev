@@ -77,7 +77,7 @@ BEGIN
 
   -- Set tenant_readonly menjadi status expired/past_due (read_only)
   UPDATE public.tenant_subscriptions
-  SET status = 'past_due'
+  SET status = 'read_only'
   WHERE tenant_id = v_tenant_readonly;
 
   SELECT id INTO v_role_kos_id FROM public.tenant_roles WHERE tenant_id = v_tenant_kos AND is_base_role = true LIMIT 1;
@@ -121,7 +121,7 @@ BEGIN
     PERFORM public.create_kos_contract(
       v_tenant_kos, v_room_dhani_id, v_member_dhani_id, 'Dhani', 1500000, '2026-10-19'::date, NULL, 10
     );
-  EXCEPTION WHEN raise_exception THEN
+  EXCEPTION WHEN raise_exception OR insufficient_privilege THEN
     v_err_caught := true;
   END;
 
@@ -223,9 +223,8 @@ BEGIN
   -- UJI 5: Idempoten (dijalankan 2x tidak ganda)
   -- ----------------------------------------------------------------------------
   RAISE NOTICE '[UJI 5] Menguji idempoten generator...';
-  SELECT count(*) INTO v_bill_count FROM public.billing_items;
-
   PERFORM public.generate_kos_contract_bills('2026-11-19'::date, v_tenant_kos);
+  SELECT count(*) INTO v_bill_count FROM public.billing_items;
   PERFORM public.generate_kos_contract_bills('2026-11-19'::date, v_tenant_kos);
 
   IF (SELECT count(*) FROM public.billing_items) <> v_bill_count THEN

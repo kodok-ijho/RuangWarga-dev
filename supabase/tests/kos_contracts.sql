@@ -207,8 +207,10 @@ BEGIN
   -- ----------------------------------------------------------------------------
   RAISE NOTICE '[UJI 6] Menguji approval anggota baru di Kamar 02...';
   -- Buat member baru berstatus pending
+  INSERT INTO auth.users (id, email, aud, role)
+  VALUES ('00000000-0000-4000-8000-0000000000c6', 'calon_k2@test.invalid', 'authenticated', 'authenticated');
   INSERT INTO public.tenant_members (tenant_id, user_id, full_name, status, is_owner, unit_id, tenant_role_id)
-  VALUES (v_tenant_kos, gen_random_uuid(), 'Calon Penghuni Baru', 'pending', false, v_room_2_id, v_role_kos_id);
+  VALUES (v_tenant_kos, '00000000-0000-4000-8000-0000000000c6', 'Calon Penghuni Baru', 'pending', false, v_room_2_id, v_role_kos_id);
 
   -- Setujui anggota
   UPDATE public.tenant_members

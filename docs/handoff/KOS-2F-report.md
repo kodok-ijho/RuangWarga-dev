@@ -24,3 +24,11 @@ Branch `claude/ruangwarga-remote-2-disconnect-m4oku0`. Tidak ada SQL yang dijala
 - `npm run lint`: bersih. `npm run build`: sukses.
 - `VITE_DEMO_MODE=false npx vitest run`: 97 file, 1267/1267 lolos di `TZ=UTC` dan `TZ=Asia/Jakarta`.
 - Test SQL belum dijalankan; menunggu dry-run Claude di dev (BEGIN … ROLLBACK).
+
+## Review Claude dan dry-run dev (2026-10-25)
+Diterima. Dry-run kedua migration + kedua file test di dev (BEGIN … ROLLBACK) berakhir `DRYRUN_OK` setelah 4 perbaikan kecil oleh Claude. Semuanya cacat bawaan KOS-2 yang baru terlihat karena SQL belum pernah dijalankan:
+- `202610240002` `checkout_kos_room`: blok `BEGIN … EXCEPTION` ditutup `END IF;` (syntax error) → `END;`.
+- `tests/kos_contracts.sql` Uji 6: `user_id` acak melanggar FK `auth.users` → fixture user ditambahkan.
+- `tests/kos_contract_billing.sql`: enum `past_due` tidak ada → `read_only`; Uji 1 menangkap `insufficient_privilege` (42501); Uji 5 menghitung baris setelah run pertama.
+
+Simulasi pada data dev (ROLLBACK): unit 73 INDI KOS mendapat kontrak aktif 2026-10-01 s.d. 2026-10-30, tagihan `2026-10` tertaut, generator 0 terbit / 1 dilewati, 0 periode ganda. Migration belum diterapkan; menunggu persetujuan user.
