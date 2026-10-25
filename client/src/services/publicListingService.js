@@ -7,6 +7,7 @@
 
 import { supabase } from './supabaseClient';
 import { calculateQrisFee } from './dokuProtocol';
+import { KOS_FACILITIES } from '../config/kosFacilities';
 
 /**
  * Memeriksa apakah sebuah listing memenuhi syarat untuk dilihat oleh publik (termasuk anonim)
@@ -106,6 +107,107 @@ function isSupabaseConfigured() {
 }
 
 /**
+ * Menyelesaikan daftar fasilitas kamar untuk sebuah listing.
+ * Bila iklan tidak punya kolom fasilitas, dibaca dari tenant_units.metadata
+ * kamar terkait lewat service, atau ekstraksi fasilitas standar kos dari teks (KOS_FACILITIES).
+ *
+ * @param {Object} listing
+ * @param {Object} [unitMetadata=null]
+ * @returns {Array<string>}
+ */
+export function resolveListingFacilities(listing, unitMetadata = null) {
+  if (!listing) return [];
+
+  // 1. Jika sudah ada kolom / property facilities berupa array
+  if (Array.isArray(listing.facilities) && listing.facilities.length > 0) {
+    return listing.facilities;
+  }
+
+  // 2. Jika ada fasilitas di metadata kamar terkait (tenant_units.metadata)
+  if (Array.isArray(unitMetadata?.facilities) && unitMetadata.facilities.length > 0) {
+    return unitMetadata.facilities;
+  }
+
+  // 3. Fallback: Ekstraksi fasilitas yang cocok dengan KOS_FACILITIES dari judul & deskripsi
+  const text = `${listing.title || ''} ${listing.description || ''}`;
+  if (!text.trim()) return [];
+
+  const detected = [];
+  const patterns = [
+    { name: 'AC', regex: /\b(ac|air conditioner|pendingin ruangan)\b/i },
+    { name: 'Kamar Mandi Dalam', regex: /\b(kamar mandi dalam|km dalam|en-suite|ensuite)\b/i },
+    { name: 'Kasur & Bantal', regex: /\b(kasur|springbed|spring bed|bantal|tempat tidur|bed)\b/i },
+    { name: 'Lemari Pakaian', regex: /\b(lemari|wardrobe|almari)\b/i },
+    { name: 'Meja Belajar', regex: /\b(meja belajar|meja kerja|meja|kursi)\b/i },
+    { name: 'WiFi Internet', regex: /\b(wifi|wi-fi|internet|hotspot)\b/i },
+    { name: 'Water Heater', regex: /\b(water heater|pemanas air|air panas)\b/i },
+    { name: 'Dapur Bersama', regex: /\b(dapur bersama|dapur|kitchen)\b/i },
+    { name: 'Listrik Token Mandiri', regex: /\b(listrik token|token listrik|meteran sendiri)\b/i },
+  ];
+
+  for (const { name, regex } of patterns) {
+    if (KOS_FACILITIES.includes(name) && regex.test(text) && !detected.includes(name)) {
+      detected.push(name);
+    }
+  }
+
+  return detected;
+}
+
+/**
+ * Memperkaya daftar listing dengan fasilitas kamar dari metadata unit atau deskripsi
+ *
+ * @param {Array<Object>} items
+ * @returns {Promise<Array<Object>>}
+ */
+async function enrichListingsWithFacilities(items) {
+  if (!Array.isArray(items) || items.length === 0) return [];
+
+  const unitIds = items
+    .filter((item) => !Array.isArray(item.facilities) && item.unit_id)
+    .map((item) => item.unit_id);
+
+  const unitsMetadataMap = {};
+
+  if (unitIds.length > 0) {
+    if (isSupabaseConfigured()) {
+      try {
+        const { data: unitsData } = await supabase
+          .from('tenant_units')
+          .select('id, metadata')
+          .in('id', unitIds);
+        if (Array.isArray(unitsData)) {
+          unitsData.forEach((u) => {
+            if (u && u.id) unitsMetadataMap[u.id] = u.metadata;
+          });
+        }
+      } catch (_err) {
+        // Fallback gracefully jika ada limitasi RLS
+      }
+    } else {
+      try {
+        const { mockUnits } = await import('./mockData');
+        if (Array.isArray(mockUnits)) {
+          mockUnits.forEach((u) => {
+            if (u && u.id) unitsMetadataMap[u.id] = u.metadata || {};
+          });
+        }
+      } catch (_e) {
+        // Abaikan jika mock data tidak terload
+      }
+    }
+  }
+
+  return items.map((item) => {
+    const unitMeta = item.unit_id ? unitsMetadataMap[item.unit_id] : null;
+    return {
+      ...item,
+      facilities: resolveListingFacilities(item, unitMeta),
+    };
+  });
+}
+
+/**
  * Fetch katalog listing publik dari Supabase (bebas diakses tanpa login)
  * 
  * @param {Object} [filters={}]
@@ -126,7 +228,7 @@ export async function fetchPublicListings(filters = {}) {
       if (!a.is_featured && b.is_featured) return 1;
       return new Date(b.created_at || 0) - new Date(a.created_at || 0);
     });
-    return result;
+    return enrichListingsWithFacilities(result);
   }
 
   let query = supabase
@@ -150,7 +252,7 @@ export async function fetchPublicListings(filters = {}) {
     throw new Error(`Gagal memuat listing publik: ${error.message}`);
   }
 
-  return data || [];
+  return enrichListingsWithFacilities(data || []);
 }
 
 /**
@@ -166,7 +268,9 @@ export async function fetchPublicListingById(id) {
   if (!isSupabaseConfigured() || isDemo || String(id).startsWith('mock-') || String(id).startsWith('listing-')) {
     const listings = await getInMemoryListings();
     const found = listings.find((l) => String(l.id) === String(id));
-    return found || null;
+    if (!found) return null;
+    const enriched = await enrichListingsWithFacilities([found]);
+    return enriched[0] || null;
   }
 
   const { data, error } = await supabase
@@ -181,7 +285,8 @@ export async function fetchPublicListingById(id) {
     return null;
   }
 
-  return data;
+  const enriched = await enrichListingsWithFacilities([data]);
+  return enriched[0] || null;
 }
 
 /**

@@ -17,6 +17,7 @@ import {
   fetchListingPaymentStatus,
   fetchPublicListings,
   fetchPublicListingById,
+  resolveListingFacilities,
 } from './publicListingService';
 
 describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () => {
@@ -629,6 +630,51 @@ describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () =>
       // Mengembalikan null jika id kosong atau tidak ada
       expect(await fetchPublicListingById('')).toBeNull();
       expect(await fetchPublicListingById('non-existent-id-999')).toBeNull();
+    });
+
+    it('LIST-UI-1.2: resolveListingFacilities memprioritaskan properti facilities, unit metadata, lalu ekstraksi deskripsi', () => {
+      // 1. Prioritas 1: properti facilities
+      const listingWithFacilities = {
+        title: 'Kamar Kos Biasa',
+        facilities: ['AC', 'WiFi Internet'],
+      };
+      expect(resolveListingFacilities(listingWithFacilities)).toEqual(['AC', 'WiFi Internet']);
+
+      // 2. Prioritas 2: metadata kamar terkait (unit_id)
+      const listingNoFacilities = {
+        title: 'Kamar Kos Melati 102',
+        unit_id: 102,
+      };
+      const unitMetadata = {
+        facilities: ['Kamar Mandi Dalam', 'Kasur & Bantal', 'Lemari Pakaian'],
+      };
+      expect(resolveListingFacilities(listingNoFacilities, unitMetadata)).toEqual([
+        'Kamar Mandi Dalam',
+        'Kasur & Bantal',
+        'Lemari Pakaian',
+      ]);
+
+      // 3. Prioritas 3: fallback ekstraksi cerdas dari judul & deskripsi
+      const listingExtract = {
+        title: 'Kamar Kos Cozy AC',
+        description: 'Fasilitas kamar mandi dalam, kasur springbed, lemari pakaian, water heater, dan WiFi kencang.',
+      };
+      const extracted = resolveListingFacilities(listingExtract);
+      expect(extracted).toContain('AC');
+      expect(extracted).toContain('Kamar Mandi Dalam');
+      expect(extracted).toContain('Kasur & Bantal');
+      expect(extracted).toContain('Lemari Pakaian');
+      expect(extracted).toContain('Water Heater');
+      expect(extracted).toContain('WiFi Internet');
+    });
+
+    it('LIST-UI-1.2: fetchPublicListings mengembalikan data listing kamar kos yang diperkaya fasilitas', async () => {
+      const kosListings = await fetchPublicListings({ type: 'room_vacancy' });
+      expect(kosListings).toBeDefined();
+      expect(kosListings.length).toBeGreaterThan(0);
+      const firstKos = kosListings[0];
+      expect(Array.isArray(firstKos.facilities)).toBe(true);
+      expect(firstKos.facilities.length).toBeGreaterThan(0);
     });
   });
 });
