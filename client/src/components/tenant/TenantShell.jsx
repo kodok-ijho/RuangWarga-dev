@@ -18,6 +18,7 @@ import {
   AiOutlineSafetyCertificate,
   AiOutlinePlusCircle,
   AiOutlineNotification,
+  AiOutlineShop,
 } from 'react-icons/ai';
 import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../hooks/useTenant';
@@ -87,6 +88,7 @@ export default function TenantShell() {
   const hasUnits = features.hasUnits !== false;
 
   const canManageUnits = Boolean((isOwner || (hasPermission && hasPermission('manage_settings'))) && hasUnits);
+  const canPostListing = Boolean(isKos && (isOwner || activeTenant?.is_owner || hasPermission?.('post_listing')));
 
   const secondLink = hasPrograms
     ? {
@@ -108,6 +110,9 @@ export default function TenantShell() {
       : []),
     ...(canManageUnits
       ? [{ to: `${tenantBase}/units`, label: template.unitLabel || 'Unit', icon: AiOutlineHome }]
+      : []),
+    ...(canPostListing
+      ? [{ to: `${tenantBase}/listings`, label: 'Iklan', icon: AiOutlineShop }]
       : []),
     { to: `${tenantBase}/residents`, label: template.memberLabel || 'Anggota', icon: AiOutlineTeam },
     { to: `${tenantBase}/announcements`, label: 'Pengumuman', icon: AiOutlineNotification },

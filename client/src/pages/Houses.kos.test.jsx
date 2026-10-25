@@ -24,6 +24,8 @@ const mockAuth = {
 const mockTenantState = {
   activeTenantId: 'tenant-kos-1',
   activeTenant: mockTenant,
+  isOwner: true,
+  hasPermission: (perm) => true,
 };
 
 const mockTemplate = {
@@ -128,6 +130,11 @@ describe('Houses Kos Vacancy Listing (KOS-2.6b)', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockTenant.type = 'kos';
+    mockAuth.role = 'admin';
+    mockTenantState.isOwner = true;
+    mockTenantState.hasPermission = () => true;
+    mockTenantState.activeTenant = mockTenant;
     dataService.fetchUnits.mockResolvedValue(sampleKosUnits);
     dataService.fetchIPLSchemas.mockResolvedValue([]);
     dataService.fetchResidents.mockResolvedValue([]);
@@ -152,6 +159,81 @@ describe('Houses Kos Vacancy Listing (KOS-2.6b)', () => {
     await waitFor(() => {
       const diiklankanBadges = screen.getAllByRole('button', { name: /^Diiklankan$/i });
       expect(diiklankanBadges.length).toBeGreaterThan(0);
+      const iklankanButtons = screen.getAllByRole('button', { name: /^Iklankan$/i });
+      expect(iklankanButtons.length).toBeGreaterThan(0);
+    });
+  });
+
+  it('tombol "Iklankan" hanya muncul di kamar kosong (status !== occupied), kamar occupied tidak memiliki tombol iklan', async () => {
+    render(
+      <MemoryRouter>
+        <Houses />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Kamar 101/101').length).toBeGreaterThan(0);
+    });
+
+    // Kamar 101 adalah kamar occupied -> tidak boleh punya tombol Iklankan atau Diiklankan
+    // Kamar 103 adalah kamar vacant tanpa listing -> punya tombol Iklankan
+    const iklankanButtons = screen.getAllByRole('button', { name: /^Iklankan$/i });
+    expect(iklankanButtons.length).toBeGreaterThan(0);
+
+    // Hanya ada 1 kamar kosong tanpa listing (Kamar 103), sehingga tombol Iklankan desktop + mobile = 2
+    expect(iklankanButtons.length).toBe(2);
+  });
+
+  it('tombol "Iklankan" TIDAK tampil untuk penyewa biasa (tanpa izin post_listing dan bukan owner)', async () => {
+    mockTenantState.isOwner = false;
+    mockTenantState.hasPermission = () => false;
+    mockAuth.role = 'warga';
+
+    render(
+      <MemoryRouter>
+        <Houses />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Kamar 101/101').length).toBeGreaterThan(0);
+    });
+
+    const iklankanButtons = screen.queryAllByRole('button', { name: /^Iklankan$/i });
+    expect(iklankanButtons.length).toBe(0);
+  });
+
+  it('tombol "Iklankan" TIDAK tampil untuk tenant tipe RT/RW', async () => {
+    mockTenant.type = 'rt_rw';
+    mockTenantState.isOwner = true;
+    mockTenantState.hasPermission = () => true;
+
+    render(
+      <MemoryRouter>
+        <Houses />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Kamar 101/101').length).toBeGreaterThan(0);
+    });
+
+    const iklankanButtons = screen.queryAllByRole('button', { name: /^Iklankan$/i });
+    expect(iklankanButtons.length).toBe(0);
+  });
+
+  it('tombol "Iklankan" tampil untuk staf kos dengan izin post_listing', async () => {
+    mockTenantState.isOwner = false;
+    mockTenantState.hasPermission = (p) => p === 'post_listing';
+    mockAuth.role = 'anggota';
+
+    render(
+      <MemoryRouter>
+        <Houses />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
       const iklankanButtons = screen.getAllByRole('button', { name: /^Iklankan$/i });
       expect(iklankanButtons.length).toBeGreaterThan(0);
     });

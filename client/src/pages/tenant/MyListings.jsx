@@ -56,6 +56,7 @@ export default function MyListings() {
 
   const { activeTenant, activeTenantId, tenantType, isTenantAdmin } = useTenant();
   const tenantId = routeTenantId || activeTenantId || activeTenant?.id;
+  const isKos = tenantType === 'kos' || activeTenant?.type === 'kos';
 
   const { isReadOnly, canTransact, tooltip, redirectToRenewal } = useSubscriptionGate({
     actionName: 'Memperpanjang postingan iklan',
@@ -276,10 +277,12 @@ export default function MyListings() {
             <AiOutlineArrowLeft className="text-lg" /> Dashboard Tenant
           </button>
           <h1 className="mt-2 font-serif text-2xl font-bold text-forest-900 sm:text-3xl">
-            Kelola Iklan &amp; Listing Publik
+            {isKos ? 'Iklan Saya' : 'Kelola Iklan & Listing Publik'}
           </h1>
           <p className="mt-1 text-sm text-forest-600">
-            Pantau status tayang kamar kos dan etalase UMKM warga yang dipublikasikan ke katalog umum.
+            {isKos
+              ? 'Pantau status tayang kamar kos Anda yang dipublikasikan ke katalog umum.'
+              : 'Pantau status tayang kamar kos dan etalase UMKM warga yang dipublikasikan ke katalog umum.'}
           </p>
         </div>
 
@@ -288,7 +291,7 @@ export default function MyListings() {
             to={`/t/${tenantId}/listings/post`}
             className="pv-btn-primary flex items-center gap-2 text-sm font-semibold shadow-sm"
           >
-            <AiOutlinePlus className="text-base" /> Pasang Iklan Baru
+            <AiOutlinePlus className="text-base" /> {isKos ? 'Pasang Iklan Kamar' : 'Pasang Iklan Baru'}
           </Link>
         </div>
       </div>
@@ -420,7 +423,7 @@ export default function MyListings() {
                 to={`/t/${tenantId}/listings/post`}
                 className="pv-btn-primary inline-flex items-center gap-2 text-xs font-semibold"
               >
-                <AiOutlinePlus /> Pasang Iklan Pertama
+                <AiOutlinePlus /> {isKos ? 'Pasang Iklan Kamar' : 'Pasang Iklan Pertama'}
               </Link>
             </div>
           )}

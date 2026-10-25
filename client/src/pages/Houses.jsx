@@ -60,7 +60,7 @@ const EMPTY_FORM = {
 
 export default function Houses() {
   const { role, session, isReadOnly } = useAuth();
-  const { activeTenantId, activeTenant } = useTenant();
+  const { activeTenantId, activeTenant, isOwner, hasPermission } = useTenant();
   const template = useTenantTemplate();
   const isRtRw = !activeTenant?.type || activeTenant?.type === 'rt_rw';
   const sitePlanUrl = activeTenant?.settings?.site_plan_url || (activeTenant?.slug === 'palm-village' ? '/tenants/palm-village/Mapsite%20Palm%20Village.png' : null);
@@ -74,6 +74,12 @@ export default function Houses() {
   // Unit master data is an Admin capability. Staff can inspect it, but the
   // live /units/upsert workflow correctly rejects non-admin mutations.
   const canWrite = canManageHouses(role, isReadOnly);
+  const canPostListing = Boolean(
+    isOwner ||
+    activeTenant?.is_owner ||
+    hasPermission?.('post_listing') ||
+    (hasPermission === undefined && isOwner === undefined && canWrite)
+  );
 
   // Data states
   const [units, setUnits] = useState([]);
@@ -742,12 +748,12 @@ export default function Houses() {
                           >
                             {unit.is_occupied ? template.occupiedUnitLabel : template.emptyUnitLabel}
                           </span>
-                          {!unit.is_occupied && activeTenant?.type === 'kos' && (
+                          {!unit.is_occupied && unit.status !== 'occupied' && activeTenant?.type === 'kos' && canPostListing && (
                             <RoomListingAction
                               unitId={unit.id}
                               tenantId={activeTenant.id}
                               listing={listingsByUnitId.get(String(unit.id))}
-                              canPostListing={canWrite}
+                              canPostListing={canPostListing}
                               compact={true}
                             />
                           )}
@@ -825,12 +831,12 @@ export default function Houses() {
                       >
                         {unit.is_occupied ? template.occupiedUnitLabel : template.emptyUnitLabel}
                       </span>
-                      {!unit.is_occupied && activeTenant?.type === 'kos' && (
+                      {!unit.is_occupied && unit.status !== 'occupied' && activeTenant?.type === 'kos' && canPostListing && (
                         <RoomListingAction
                           unitId={unit.id}
                           tenantId={activeTenant.id}
                           listing={listingsByUnitId.get(String(unit.id))}
-                          canPostListing={canWrite}
+                          canPostListing={canPostListing}
                           compact={true}
                         />
                       )}
@@ -926,6 +932,7 @@ export default function Houses() {
           }}
           onDelete={() => canWrite && handleDelete(selectedUnit)}
           canWrite={canWrite}
+          canPostListing={canPostListing}
         />
       )}
 
@@ -965,7 +972,7 @@ function StatCard({ label, value, tone }) {
   );
 }
 
-function UnitDetailModal({ unit, getUnitOwner, getUnitOccupant, profiles, iplSchemas, token, role, template, activeTenant, listing, onClose, onEdit, onDelete, canWrite }) {
+function UnitDetailModal({ unit, getUnitOwner, getUnitOccupant, profiles, iplSchemas, token, role, template, activeTenant, listing, onClose, onEdit, onDelete, canWrite, canPostListing }) {
   const owner = getUnitOwner(unit.id);
   const occupant = getUnitOccupant(unit.id);
   const relatedProfiles = profiles.filter((profile) => profile.unit_id === unit.id);
@@ -1030,13 +1037,13 @@ function UnitDetailModal({ unit, getUnitOwner, getUnitOccupant, profiles, iplSch
         {unit.notes && <InfoRow label="Catatan" value={unit.notes} />}
       </div>
 
-      {!unit.is_occupied && activeTenant?.type === 'kos' && canWrite && (
+      {!unit.is_occupied && unit.status !== 'occupied' && activeTenant?.type === 'kos' && canPostListing && (
         <div className="mt-4">
           <RoomListingAction
             unitId={unit.id}
             tenantId={activeTenant.id}
             listing={listing}
-            canPostListing={canWrite}
+            canPostListing={canPostListing}
             compact={false}
             className="w-full justify-center py-2"
           />

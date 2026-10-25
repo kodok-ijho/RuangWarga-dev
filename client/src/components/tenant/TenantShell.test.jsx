@@ -46,6 +46,20 @@ vi.mock('../../hooks/useTenantTemplate', () => ({
         },
       };
     }
+    if (mockTenantState.activeTenant?.type === 'kos') {
+      return {
+        name: 'Kos-kosan',
+        unitLabel: 'Kamar',
+        billLabel: 'Sewa',
+        memberLabel: 'Penyewa',
+        eventsLabel: 'Acara',
+        icon: '🏢',
+        features: {
+          hasUnits: true,
+          hasPrograms: false,
+        },
+      };
+    }
     return {
       name: 'Kompleks RT/RW',
       unitLabel: 'Rumah',
@@ -418,6 +432,90 @@ describe('TenantShell Navigation (RTRW-1.2)', () => {
 
       expect(rtrwHtml).not.toContain('href="/t/t-rtrw-1/arisan/my"');
       expect(rtrwHtml).not.toContain('Setoran Saya');
+    });
+
+    describe('LIST-UI-1.1: Menu Iklan Tenant Kos', () => {
+      it('menu "Iklan" tampil untuk owner kos', () => {
+        mockTenantState.activeTenant = {
+          id: 't-kos-1',
+          name: 'Kos Harmoni',
+          type: 'kos',
+          settings: {},
+        };
+        mockTenantState.activeTenantId = 't-kos-1';
+        mockTenantState.isOwner = true;
+        mockTenantState.hasPermission = () => true;
+
+        const html = renderToString(
+          <MemoryRouter initialEntries={['/t/t-kos-1/dashboard']}>
+            <TenantShell />
+          </MemoryRouter>
+        );
+
+        expect(html).toContain('href="/t/t-kos-1/listings"');
+        expect(html).toContain('Iklan');
+      });
+
+      it('menu "Iklan" tampil untuk staf kos dengan izin post_listing', () => {
+        mockTenantState.activeTenant = {
+          id: 't-kos-1',
+          name: 'Kos Harmoni',
+          type: 'kos',
+          settings: {},
+        };
+        mockTenantState.activeTenantId = 't-kos-1';
+        mockTenantState.isOwner = false;
+        mockTenantState.hasPermission = (key) => key === 'post_listing';
+
+        const html = renderToString(
+          <MemoryRouter initialEntries={['/t/t-kos-1/dashboard']}>
+            <TenantShell />
+          </MemoryRouter>
+        );
+
+        expect(html).toContain('href="/t/t-kos-1/listings"');
+        expect(html).toContain('Iklan');
+      });
+
+      it('menu "Iklan" TIDAK tampil untuk penyewa biasa (tanpa izin post_listing dan bukan owner)', () => {
+        mockTenantState.activeTenant = {
+          id: 't-kos-1',
+          name: 'Kos Harmoni',
+          type: 'kos',
+          settings: {},
+        };
+        mockTenantState.activeTenantId = 't-kos-1';
+        mockTenantState.isOwner = false;
+        mockTenantState.hasPermission = () => false;
+
+        const html = renderToString(
+          <MemoryRouter initialEntries={['/t/t-kos-1/dashboard']}>
+            <TenantShell />
+          </MemoryRouter>
+        );
+
+        expect(html).not.toContain('href="/t/t-kos-1/listings"');
+      });
+
+      it('menu "Iklan" TIDAK tampil untuk tenant RT/RW meskipun owner', () => {
+        mockTenantState.activeTenant = {
+          id: 't-rtrw-1',
+          name: 'Palm Village RT 05',
+          type: 'rt_rw',
+          settings: {},
+        };
+        mockTenantState.activeTenantId = 't-rtrw-1';
+        mockTenantState.isOwner = true;
+        mockTenantState.hasPermission = () => true;
+
+        const html = renderToString(
+          <MemoryRouter initialEntries={['/t/t-rtrw-1/dashboard']}>
+            <TenantShell />
+          </MemoryRouter>
+        );
+
+        expect(html).not.toContain('href="/t/t-rtrw-1/listings"');
+      });
     });
   });
 });
