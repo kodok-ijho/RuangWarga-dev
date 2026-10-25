@@ -159,7 +159,7 @@ REVOKE ALL ON FUNCTION public.sync_kos_room_on_contract_change() FROM PUBLIC, an
 
 
 -- ==============================================================================
--- 4. TRIGGER PENJAGA INTEGRITAS STATUS KAMAR (BEFORE UPDATE ON TENANT_UNITS)
+-- 4. TRIGGER PENJAGA INTEGRITAS STATUS KAMAR (BEFORE INSERT OR UPDATE ON TENANT_UNITS)
 -- ==============================================================================
 CREATE OR REPLACE FUNCTION public.guard_kos_room_status_change()
 RETURNS trigger
@@ -181,24 +181,31 @@ BEGIN
       RETURN NEW;
     END IF;
 
-    SELECT EXISTS (
-      SELECT 1 FROM public.kos_contracts
-      WHERE unit_id = NEW.id AND status = 'active'
-    ) INTO v_has_active_contract;
-
-    -- Aturan 1: Kamar inactive tidak boleh memiliki kontrak aktif
-    IF NEW.status = 'inactive' AND v_has_active_contract THEN
-      RAISE EXCEPTION 'Kamar tidak dapat dinonaktifkan karena masih memiliki kontrak aktif.';
-    END IF;
-
-    -- Aturan 2: Status occupied harus sesuai kontrak aktif
-    IF OLD.status IS DISTINCT FROM NEW.status THEN
-      IF NEW.status = 'occupied' AND NOT v_has_active_contract THEN
+    IF TG_OP = 'INSERT' THEN
+      -- Aturan K6: INSERT kamar kos berstatus occupied langsung ditolak
+      IF NEW.status = 'occupied' THEN
         RAISE EXCEPTION 'Status kamar kos hanya dapat menjadi terisi (occupied) melalui kontrak aktif.';
       END IF;
+    ELSIF TG_OP = 'UPDATE' THEN
+      SELECT EXISTS (
+        SELECT 1 FROM public.kos_contracts
+        WHERE unit_id = NEW.id AND status = 'active'
+      ) INTO v_has_active_contract;
 
-      IF OLD.status = 'occupied' AND NEW.status = 'vacant' AND v_has_active_contract THEN
-        RAISE EXCEPTION 'Status kamar kos tidak dapat diubah menjadi kosong (vacant) selama masih memiliki kontrak aktif.';
+      -- Aturan 1: Kamar inactive tidak boleh memiliki kontrak aktif
+      IF NEW.status = 'inactive' AND v_has_active_contract THEN
+        RAISE EXCEPTION 'Kamar tidak dapat dinonaktifkan karena masih memiliki kontrak aktif.';
+      END IF;
+
+      -- Aturan 2: Status occupied harus sesuai kontrak aktif
+      IF OLD.status IS DISTINCT FROM NEW.status THEN
+        IF NEW.status = 'occupied' AND NOT v_has_active_contract THEN
+          RAISE EXCEPTION 'Status kamar kos hanya dapat menjadi terisi (occupied) melalui kontrak aktif.';
+        END IF;
+
+        IF OLD.status = 'occupied' AND NEW.status = 'vacant' AND v_has_active_contract THEN
+          RAISE EXCEPTION 'Status kamar kos tidak dapat diubah menjadi kosong (vacant) selama masih memiliki kontrak aktif.';
+        END IF;
       END IF;
     END IF;
   END IF;
@@ -209,7 +216,7 @@ $$;
 
 DROP TRIGGER IF EXISTS trg_guard_kos_room_status_change ON public.tenant_units;
 CREATE TRIGGER trg_guard_kos_room_status_change
-BEFORE UPDATE OF status ON public.tenant_units
+BEFORE INSERT OR UPDATE OF status ON public.tenant_units
 FOR EACH ROW EXECUTE FUNCTION public.guard_kos_room_status_change();
 
 REVOKE ALL ON FUNCTION public.guard_kos_room_status_change() FROM PUBLIC, anon, authenticated;
@@ -322,6 +329,54 @@ BEGIN
     AND NOT EXISTS (
       SELECT 1 FROM public.kos_contracts c WHERE c.unit_id = u.id AND c.status = 'active'
     );
+
+  -- 7.1b Tautkan tagihan model lama ke kontrak hasil backfill (KOS-2F.2 / K3)
+  WITH contract_periods AS (
+    SELECT
+      c.id AS contract_id,
+      c.unit_id,
+      (c.start_date + (s.n * interval '1 month'))::date AS service_start,
+      CASE
+        WHEN c.end_date IS NOT NULL AND (c.start_date + ((s.n + 1) * interval '1 month') - interval '1 day')::date > c.end_date
+        THEN c.end_date
+        ELSE (c.start_date + ((s.n + 1) * interval '1 month') - interval '1 day')::date
+      END AS service_end,
+      to_char((c.start_date + (s.n * interval '1 month'))::date, 'YYYY-MM') AS period
+    FROM public.kos_contracts c
+    CROSS JOIN LATERAL generate_series(
+      0,
+      GREATEST(
+        0,
+        (EXTRACT(YEAR FROM age((now() AT TIME ZONE 'Asia/Jakarta')::date, c.start_date)) * 12
+         + EXTRACT(MONTH FROM age((now() AT TIME ZONE 'Asia/Jakarta')::date, c.start_date)) + 2)::int
+      )
+    ) AS s(n)
+    WHERE c.notes = 'Backfill dari metadata unit KOS-2.1'
+      AND (c.start_date + (s.n * interval '1 month'))::date <= (now() AT TIME ZONE 'Asia/Jakarta')::date
+      AND (c.end_date IS NULL OR (c.start_date + (s.n * interval '1 month'))::date <= c.end_date)
+  ),
+  matched_bills AS (
+    SELECT DISTINCT ON (cp.contract_id, cp.service_start)
+      b.id AS bill_id,
+      cp.contract_id,
+      cp.service_start,
+      cp.service_end
+    FROM contract_periods cp
+    JOIN public.billing_items b ON b.unit_id = cp.unit_id
+      AND b.contract_id IS NULL
+      AND b.status <> 'cancelled'
+      AND (b.metadata->>'bill_type' IS NULL OR b.metadata->>'bill_type' = 'rent')
+      AND (b.metadata->>'billing_type' IS NULL OR b.metadata->>'billing_type' = 'rent')
+      AND b.period = cp.period
+    ORDER BY cp.contract_id, cp.service_start, b.created_at ASC, b.id ASC
+  )
+  UPDATE public.billing_items b
+  SET contract_id = mb.contract_id,
+      service_start = mb.service_start,
+      service_end = mb.service_end,
+      updated_at = now()
+  FROM matched_bills mb
+  WHERE b.id = mb.bill_id;
 
   -- 7.2 Kamar occupied TANPA contract_start -> jadikan vacant, simpan previous_tenant_member_id
   UPDATE public.tenant_units u
