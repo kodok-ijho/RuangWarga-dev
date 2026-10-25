@@ -198,8 +198,10 @@ export default function CreateBillingModal({
   // Pratinjau 3 periode pertama untuk sewa kos
   const previewPeriods = useMemo(() => {
     if (!isKos || !startDate) return [];
+    // Prorata (masuk > tgl 1): bulan pertama prorata + N bulan penuh, sama dengan create_kos_contract
+    const fixedCount = Number(durationMonths) + (billingCycle === 'month_start_prorata' && Number(String(startDate).slice(8, 10)) > 1 ? 1 : 0);
     const maxEnd = (durationType === 'fixed' && Number(durationMonths) > 0)
-      ? computeRentPeriods(startDate, graceDays, Number(durationMonths), null, billingCycle)[Number(durationMonths) - 1]?.service_end || null
+      ? computeRentPeriods(startDate, graceDays, fixedCount, null, billingCycle)[fixedCount - 1]?.service_end || null
       : null;
     return computeRentPeriods(startDate, graceDays, 3, maxEnd, billingCycle);
   }, [isKos, startDate, graceDays, durationType, durationMonths, billingCycle]);
