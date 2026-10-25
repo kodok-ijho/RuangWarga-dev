@@ -74,13 +74,16 @@ export default function PostListing() {
   const [selectedUnitId, setSelectedUnitId] = useState(prefilledUnitId || '');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState(effectiveTenantType === 'kos' ? 'Putra/Putri' : 'Kuliner & Makanan');
+  const [category, setCategory] = useState(effectiveTenantType === 'kos' ? 'Campur' : 'Kuliner & Makanan');
   const [price, setPrice] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [locationHint, setLocationHint] = useState('');
   const [photoUrl, setPhotoUrl] = useState('');
   const [photos, setPhotos] = useState([]);
   const [isFeatured, setIsFeatured] = useState(false);
+
+  // Ref untuk melacak prefill kamar agar tidak menimpa editan manual user (LIST-UI-1.5)
+  const lastPrefilledUnitRef = React.useRef(null);
 
   // Modal Checkout / Konfirmasi Bayar
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
@@ -105,6 +108,15 @@ export default function PostListing() {
         setUnits(unitsData || []);
         setPricingList(pricingData || []);
 
+        // Isolasi tenant: verifikasi unitId dari URL milik tenant aktif (LIST-UI-1.5)
+        if (prefilledUnitId) {
+          const matchingUnit = (unitsData || []).find((u) => String(u.id) === String(prefilledUnitId));
+          if (!matchingUnit) {
+            toast.error('Kamar yang dipilih tidak ditemukan atau bukan milik kos ini.');
+            setSelectedUnitId('');
+          }
+        }
+
         // Default kontak phone dari tenant jika ada
         if (details?.contact_phone && !contactPhone) {
           setContactPhone(details.contact_phone);
@@ -126,41 +138,107 @@ export default function PostListing() {
     };
   }, [tenantId]);
 
-  // Handle auto pre-fill untuk unit kamar kos yang vacant (FR-27)
-  const vacantUnits = useMemo(() => {
-    return units.filter((u) => u.status === 'vacant' || !u.is_occupied);
-  }, [units]);
+  // Unit terpilih dan pengecekan status occupied / fasilitas (LIST-UI-1.5)
+  const selectedUnit = useMemo(() => {
+    if (!selectedUnitId) return null;
+    return units.find((u) => String(u.id) === String(selectedUnitId)) || null;
+  }, [units, selectedUnitId]);
 
-  useEffect(() => {
-    if (effectiveTenantType === 'kos' && selectedUnitId) {
-      const selected = units.find((u) => String(u.id) === String(selectedUnitId));
-      if (selected) {
-        const roomLabel = selected.label || `Kamar ${selected.unit_number || selected.id}`;
-        const tenantName = tenantInfo?.name || 'Kos';
-        setTitle(`Sewa ${roomLabel} - ${tenantName}`);
+  const isSelectedUnitOccupied = Boolean(
+    selectedUnit && (selectedUnit.status === 'occupied' || selectedUnit.is_occupied)
+  );
 
-        // Ambil nominal sewa dari metadata kamar atau settings tenant
-        const defaultRent =
-          selected.metadata?.price ||
-          selected.metadata?.rent_price ||
-          tenantInfo?.settings?.default_rent_price ||
-          '';
-        if (defaultRent) {
-          setPrice(String(defaultRent));
-        }
-
-        // Ambil fasilitas dari metadata
-        const facilities = selected.metadata?.facilities;
-        if (Array.isArray(facilities) && facilities.length > 0) {
-          setDescription(
-            `Kamar nyaman dan siap huni dengan fasilitas lengkap: ${facilities.join(', ')}. Lingkungan aman, bersih, dan tenang.`
-          );
-        } else if (!description) {
-          setDescription('Kamar nyaman, bersih, dan strategis dekat dengan akses transportasi.');
-        }
-      }
+  const selectedUnitFacilities = useMemo(() => {
+    if (!selectedUnit?.metadata?.facilities) return [];
+    const raw = selectedUnit.metadata.facilities;
+    if (Array.isArray(raw)) {
+      return raw.map((f) => String(f).trim()).filter(Boolean);
     }
-  }, [selectedUnitId, effectiveTenantType, units, tenantInfo]);
+    if (typeof raw === 'string' && raw.trim()) {
+      return raw.split(',').map((f) => f.trim()).filter(Boolean);
+    }
+    return [];
+  }, [selectedUnit]);
+
+  // Prefill dari kamar kos jika selectedUnitId dipilih / berasal dari ?unitId= (LIST-UI-1.5)
+  // Prefill hanya mengisi nilai awal; pengguna tetap bebas mengubah judul, harga, dan deskripsi.
+  useEffect(() => {
+    if (effectiveTenantType !== 'kos' || !selectedUnit) {
+      return;
+    }
+
+    // Hindari menimpa perubahan manual pengguna jika unit yang dipilih masih sama
+    if (lastPrefilledUnitRef.current === String(selectedUnit.id)) {
+      return;
+    }
+    lastPrefilledUnitRef.current = String(selectedUnit.id);
+
+    // Kamar yang sedang terisi (occupied) tidak boleh dipilih untuk iklan
+    if (isSelectedUnitOccupied) {
+      toast.warning(
+        `Kamar ${selectedUnit.label || selectedUnit.unit_number || selectedUnit.id} sedang terisi (occupied) dan tidak dapat diiklankan.`
+      );
+      return;
+    }
+
+    // 1. Judul: mis. '<label kamar> – <nama kos>'
+    const roomLabel = selectedUnit.label || (selectedUnit.unit_number ? `Kamar ${selectedUnit.unit_number}` : `Kamar ${selectedUnit.id}`);
+    const kosName = tenantInfo?.name || activeTenant?.name || 'Kos';
+    setTitle(`${roomLabel} – ${kosName}`);
+
+    // 2. Harga: dari metadata.default_rent_price (atau rent_price / price)
+    const rentPrice =
+      selectedUnit.metadata?.default_rent_price ??
+      selectedUnit.metadata?.rent_price ??
+      selectedUnit.metadata?.price ??
+      selectedUnit.rent_price ??
+      tenantInfo?.settings?.default_rent_price ??
+      '';
+    if (rentPrice !== '' && rentPrice !== undefined && rentPrice !== null) {
+      setPrice(String(rentPrice));
+    }
+
+    // 3. Tipe/Gender jika tercantum di metadata kamar -> category
+    const roomGender =
+      selectedUnit.metadata?.category ||
+      selectedUnit.metadata?.gender ||
+      selectedUnit.metadata?.type;
+    if (roomGender) {
+      const lower = String(roomGender).toLowerCase();
+      if (lower.includes('putri')) setCategory('Putri');
+      else if (lower.includes('putra')) setCategory('Putra');
+      else if (lower.includes('campur')) setCategory('Campur');
+    }
+
+    // 4. Fasilitas kamar (metadata.facilities) dimasukkan ke deskripsi bila belum ada field fasilitas
+    if (selectedUnitFacilities.length > 0) {
+      const facText = selectedUnitFacilities.join(', ');
+      setDescription((prev) => {
+        if (!prev || !prev.trim() || prev.startsWith('Kamar nyaman') || prev.startsWith('Sewa kamar')) {
+          return `Kamar nyaman dan siap huni dengan fasilitas lengkap: ${facText}. Lingkungan aman, bersih, dan tenang.`;
+        }
+        if (!prev.toLowerCase().includes('fasilitas')) {
+          return `${prev.trim()}\n\nFasilitas: ${facText}.`;
+        }
+        return prev;
+      });
+    } else {
+      setDescription((prev) => {
+        if (!prev || !prev.trim()) {
+          return 'Kamar nyaman, bersih, dan strategis dekat dengan akses transportasi.';
+        }
+        return prev;
+      });
+    }
+  }, [
+    selectedUnit,
+    isSelectedUnitOccupied,
+    effectiveTenantType,
+    tenantInfo?.name,
+    activeTenant?.name,
+    selectedUnitFacilities,
+    toast,
+  ]);
 
   // Kalkulasi harga paket listing terpilih
   const currentPricing = useMemo(() => {
@@ -216,6 +294,12 @@ export default function PostListing() {
       return;
     }
 
+    // Validasi kamar kos occupied (LIST-UI-1.5)
+    if (effectiveTenantType === 'kos' && isSelectedUnitOccupied) {
+      toast.error('Kamar yang sedang terisi (occupied) tidak dapat dipilih untuk iklan.');
+      return;
+    }
+
     if (!title.trim()) {
       toast.error('Judul iklan wajib diisi.');
       return;
@@ -236,8 +320,15 @@ export default function PostListing() {
 
     setSubmitting(true);
     try {
+      const parsedUnitId =
+        effectiveTenantType === 'kos' && selectedUnitId
+          ? !isNaN(Number(selectedUnitId))
+            ? Number(selectedUnitId)
+            : selectedUnitId
+          : null;
+
       const payload = {
-        unit_id: effectiveTenantType === 'kos' && selectedUnitId ? selectedUnitId : null,
+        unit_id: parsedUnitId,
         type: listingType,
         title: title.trim(),
         description: description.trim(),
@@ -350,7 +441,7 @@ export default function PostListing() {
       )}
 
       <form onSubmit={handleOpenCheckout} className="space-y-8">
-        {/* SECTION 1: Pilih Sumber / Unit (Khusus Kos: Prefill Vacant Room - FR-27) */}
+        {/* SECTION 1: Pilih Sumber / Unit (Khusus Kos: Prefill Kamar Kos - LIST-UI-1.5) */}
         {effectiveTenantType === 'kos' && (
           <div className="rounded-2xl border border-forest-100 bg-white p-6 shadow-sm">
             <h2 className="flex items-center gap-2 font-serif text-lg font-bold text-forest-900">
@@ -358,26 +449,79 @@ export default function PostListing() {
               Pilih Kamar Kosong (Prefill Otomatis)
             </h2>
             <p className="mt-1 text-xs text-forest-500">
-              Pilih kamar yang sedang kosong untuk mengisi otomatis judul, harga sewa, dan fasilitas kamar.
+              Pilih kamar yang ingin diiklankan. Data kamar akan mengisi otomatis judul, harga sewa, dan fasilitas kamar.
             </p>
 
             <div className="mt-4">
-              <label className="block text-xs font-semibold uppercase text-forest-700">
-                Kamar Kosong ({vacantUnits.length} kamar tersedia)
+              <label htmlFor="select-unit" className="block text-xs font-semibold uppercase text-forest-700">
+                Kamar Kos ({units.filter((u) => u.status === 'vacant' || !u.is_occupied).length} kamar kosong tersedia)
               </label>
               <select
+                id="select-unit"
+                data-testid="select-unit"
                 value={selectedUnitId}
                 onChange={(e) => setSelectedUnitId(e.target.value)}
                 className="pv-input mt-1.5 w-full text-sm"
               >
                 <option value="">-- Pilih Kamar atau Isi Manual --</option>
-                {vacantUnits.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.label || `Kamar ${u.unit_number || u.id}`} (Kosong)
-                  </option>
-                ))}
+                {units.map((u) => {
+                  const isOcc = u.status === 'occupied' || u.is_occupied;
+                  const label = u.label || (u.unit_number ? `Kamar ${u.unit_number}` : `Kamar ${u.id}`);
+                  return (
+                    <option key={u.id} value={u.id} disabled={isOcc}>
+                      {label} {isOcc ? '(Terisi - Tidak dapat diiklankan)' : '(Kosong)'}
+                    </option>
+                  );
+                })}
               </select>
             </div>
+
+            {/* Peringatan Kamar Sedang Terisi (Occupied) - LIST-UI-1.5 */}
+            {isSelectedUnitOccupied && (
+              <div
+                data-testid="occupied-unit-alert"
+                role="alert"
+                className="mt-4 rounded-xl border border-rose-300 bg-rose-50 p-4 text-rose-900"
+              >
+                <div className="flex items-start gap-3">
+                  <AiOutlineInfoCircle className="mt-0.5 text-xl text-rose-600 flex-shrink-0" />
+                  <div className="text-xs">
+                    <p className="font-bold text-rose-900">
+                      Kamar Sedang Terisi (Occupied)
+                    </p>
+                    <p className="mt-1 text-rose-700">
+                      Kamar {selectedUnit?.label || selectedUnit?.unit_number || selectedUnit?.id} saat ini sedang berpenghuni (status: occupied). Kamar yang sedang terisi tidak dapat dipilih untuk iklan publik. Silakan pilih kamar yang berstatus kosong.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tampilan Fasilitas Kamar Terpilih - LIST-UI-1.5 */}
+            {!isSelectedUnitOccupied && selectedUnit && selectedUnitFacilities.length > 0 && (
+              <div
+                data-testid="unit-facilities-box"
+                className="mt-4 rounded-xl border border-forest-100 bg-forest-50/60 p-4"
+              >
+                <span className="text-xs font-semibold uppercase tracking-wide text-forest-800">
+                  Fasilitas Kamar ({selectedUnitFacilities.length})
+                </span>
+                <div className="mt-2 flex flex-wrap gap-1.5" data-testid="unit-facilities-list">
+                  {selectedUnitFacilities.map((fac, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1 rounded-md border border-forest-200 bg-white px-2.5 py-1 text-xs font-medium text-forest-800 shadow-2xs"
+                    >
+                      <AiOutlineCheckCircle className="text-emerald-600 text-xs" />
+                      {fac}
+                    </span>
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] text-forest-600">
+                  Fasilitas kamar di atas otomatis disertakan ke dalam Deskripsi iklan di bawah.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -394,10 +538,12 @@ export default function PostListing() {
 
           <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold uppercase text-forest-700">
+              <label htmlFor="listing-title" className="block text-xs font-semibold uppercase text-forest-700">
                 Judul Iklan <span className="text-red-500">*</span>
               </label>
               <input
+                id="listing-title"
+                data-testid="input-title"
                 type="text"
                 required
                 value={title}
@@ -412,22 +558,25 @@ export default function PostListing() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase text-forest-700">
+              <label htmlFor="listing-category" className="block text-xs font-semibold uppercase text-forest-700">
                 Kategori
               </label>
               {effectiveTenantType === 'kos' ? (
                 <select
+                  id="listing-category"
+                  data-testid="select-category"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   className="pv-input mt-1.5 w-full text-sm"
                 >
+                  <option value="Campur">Campur</option>
                   <option value="Putra">Khusus Putra</option>
                   <option value="Putri">Khusus Putri</option>
-                  <option value="Campur">Campur</option>
-                  <option value="Pasutri">Pasutri</option>
                 </select>
               ) : (
                 <select
+                  id="listing-category"
+                  data-testid="select-category"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   className="pv-input mt-1.5 w-full text-sm"
@@ -442,7 +591,7 @@ export default function PostListing() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase text-forest-700">
+              <label htmlFor="listing-price" className="block text-xs font-semibold uppercase text-forest-700">
                 Harga {effectiveTenantType === 'kos' ? 'Sewa (per bulan)' : 'Produk / Jasa'}
               </label>
               <div className="relative mt-1.5">
@@ -450,6 +599,8 @@ export default function PostListing() {
                   Rp
                 </span>
                 <input
+                  id="listing-price"
+                  data-testid="input-price"
                   type="number"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
@@ -460,10 +611,12 @@ export default function PostListing() {
             </div>
 
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold uppercase text-forest-700">
+              <label htmlFor="listing-description" className="block text-xs font-semibold uppercase text-forest-700">
                 Deskripsi Lengkap
               </label>
               <textarea
+                id="listing-description"
+                data-testid="input-description"
                 rows={3}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -477,10 +630,12 @@ export default function PostListing() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase text-forest-700">
+              <label htmlFor="listing-contact-phone" className="block text-xs font-semibold uppercase text-forest-700">
                 Nomor WhatsApp / Telepon <span className="text-red-500">*</span>
               </label>
               <input
+                id="listing-contact-phone"
+                data-testid="input-contact-phone"
                 type="text"
                 required
                 value={contactPhone}
@@ -494,10 +649,12 @@ export default function PostListing() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase text-forest-700">
+              <label htmlFor="listing-location-hint" className="block text-xs font-semibold uppercase text-forest-700">
                 Petunjuk Lokasi / Alamat
               </label>
               <input
+                id="listing-location-hint"
+                data-testid="input-location-hint"
                 type="text"
                 value={locationHint}
                 onChange={(e) => setLocationHint(e.target.value)}
@@ -645,8 +802,12 @@ export default function PostListing() {
 
           <button
             type="submit"
-            disabled={!canTransact || submitting}
-            title={tooltip}
+            disabled={!canTransact || submitting || isSelectedUnitOccupied}
+            title={
+              isSelectedUnitOccupied
+                ? 'Kamar sedang terisi dan tidak dapat diiklankan'
+                : tooltip
+            }
             className="pv-btn-primary flex items-center justify-center gap-2 px-8 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? 'Memproses...' : 'Lanjut ke Pembayaran'}
