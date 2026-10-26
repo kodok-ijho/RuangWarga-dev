@@ -143,9 +143,9 @@ describe('PostListing Component (LIST-UI-1.5: Prefill & Occupied Protection)', (
       </MemoryRouter>
     );
 
-    // Tunggu data unit selesai dimuat
+    // Tunggu data unit selesai dimuat dan prefill terisi
     await waitFor(() => {
-      expect(screen.getByLabelText(/Judul Iklan/i)).toBeTruthy();
+      expect(screen.getByLabelText(/Judul Iklan/i).value).toBe('Kamar 102 (Lantai 1) – Kos Harmoni Melati');
     });
 
     const titleInput = screen.getByLabelText(/Judul Iklan/i);
