@@ -379,8 +379,12 @@ export function filterAndSortRoomListings(listings = [], filters = {}) {
 async function enrichListingsWithFacilities(items) {
   if (!Array.isArray(items) || items.length === 0) return [];
 
+  // LIST-AUTO-1.2: pakai listing.facilities bila terisi dan jangan query tenant_units untuk listing yang facilities-nya sudah terisi
   const unitIds = items
-    .filter((item) => !Array.isArray(item.facilities) && item.unit_id)
+    .filter((item) => {
+      const hasFacilities = Array.isArray(item.facilities) && item.facilities.length > 0;
+      return !hasFacilities && Boolean(item.unit_id);
+    })
     .map((item) => item.unit_id);
 
   const unitsMetadataMap = {};
@@ -415,6 +419,9 @@ async function enrichListingsWithFacilities(items) {
   }
 
   return items.map((item) => {
+    if (Array.isArray(item.facilities) && item.facilities.length > 0) {
+      return item;
+    }
     const unitMeta = item.unit_id ? unitsMetadataMap[item.unit_id] : null;
     return {
       ...item,
@@ -610,6 +617,11 @@ export async function createPublicListing(tenantId, payload = {}) {
     photos: Array.isArray(payload.photos) ? payload.photos : [],
     contact_phone: payload.contact_phone.trim(),
     location_hint: payload.location_hint ? payload.location_hint.trim() : null,
+    facilities: Array.isArray(payload.facilities)
+      ? payload.facilities
+      : (typeof payload.facilities === 'string' && payload.facilities.trim()
+          ? payload.facilities.split(',').map((f) => f.trim()).filter(Boolean)
+          : []),
     is_featured: false,
     featured_until: null,
     status: 'pending_payment',
@@ -644,6 +656,7 @@ export async function createPublicListing(tenantId, payload = {}) {
       photos: listingRecord.photos,
       contact_phone: listingRecord.contact_phone,
       location_hint: listingRecord.location_hint,
+      facilities: listingRecord.facilities,
     }])
     .select()
     .single();
@@ -822,6 +835,57 @@ export async function deleteListing(listingId) {
   }
 
   return true;
+}
+
+/**
+ * Menayangkan kembali listing yang berstatus rented_or_sold dengan sisa masa tayang
+ * yang tersimpan (LIST-AUTO-1.2).
+ * Memanggil RPC resume_listing_remaining(p_listing_id UUID)
+ *
+ * @param {string} listingId
+ * @returns {Promise<Object>}
+ */
+export async function resumeListingRemaining(listingId) {
+  if (!listingId) {
+    throw new Error('Listing ID wajib disertakan.');
+  }
+
+  const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_MODE === 'true';
+
+  if (!isSupabaseConfigured() || isDemo || String(listingId).startsWith('listing-') || String(listingId).startsWith('mock-')) {
+    const listings = await getInMemoryListings();
+    const item = listings.find((l) => String(l.id) === String(listingId));
+    if (!item) {
+      throw new Error('Listing tidak ditemukan.');
+    }
+    if (item.status !== 'rented_or_sold' || !item.paused_remaining_seconds || item.paused_remaining_seconds <= 0) {
+      throw new Error('Listing tidak memiliki sisa masa tayang yang tersimpan atau status bukan rented_or_sold');
+    }
+
+    const remainingSec = item.paused_remaining_seconds;
+    const newExpiresAt = new Date(Date.now() + remainingSec * 1000).toISOString();
+    item.status = 'active';
+    item.expires_at = newExpiresAt;
+    item.paused_remaining_seconds = null;
+    item.updated_at = new Date().toISOString();
+
+    return {
+      success: true,
+      listing_id: listingId,
+      status: 'active',
+      expires_at: newExpiresAt,
+    };
+  }
+
+  const { data, error } = await supabase.rpc('resume_listing_remaining', {
+    p_listing_id: listingId,
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Gagal menayangkan kembali iklan.');
+  }
+
+  return data;
 }
 
 /**

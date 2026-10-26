@@ -604,7 +604,7 @@ export async function createTenantUnit(
 export async function updateTenantUnit(
   tenantId,
   unitId,
-  { label, status, occupant, rentPrice, facilities } = {}
+  { label, status, occupant, rentPrice, facilities, autoListingDisabled, metadata } = {}
 ) {
   if (!tenantId || !unitId) {
     throw new Error('Tenant ID dan Unit ID wajib disertakan.');
@@ -662,6 +662,12 @@ export async function updateTenantUnit(
     }
     if (validatedFacilities !== undefined) {
       updatedMetadata.facilities = validatedFacilities;
+    }
+    if (autoListingDisabled !== undefined) {
+      updatedMetadata.auto_listing_disabled = Boolean(autoListingDisabled);
+    }
+    if (metadata && typeof metadata === 'object') {
+      updatedMetadata = { ...updatedMetadata, ...metadata };
     }
 
     const updatedUnit = {
@@ -756,6 +762,16 @@ export async function updateTenantUnit(
 
   if (validatedFacilities !== undefined) {
     updatedMetadata.facilities = validatedFacilities;
+    hasMetadataChange = true;
+  }
+
+  if (autoListingDisabled !== undefined) {
+    updatedMetadata.auto_listing_disabled = Boolean(autoListingDisabled);
+    hasMetadataChange = true;
+  }
+
+  if (metadata && typeof metadata === 'object') {
+    updatedMetadata = { ...updatedMetadata, ...metadata };
     hasMetadataChange = true;
   }
 

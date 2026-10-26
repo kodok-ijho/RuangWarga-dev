@@ -34,7 +34,7 @@ import {
   fetchPayments,
   fetchIPLSchemas,
 } from '../services/dataService';
-import { fetchTenantUnits, fetchTenantMembers } from '../services/tenantOperationalService';
+import { fetchTenantUnits, fetchTenantMembers, updateTenantUnit } from '../services/tenantOperationalService';
 import { fetchTenantListings } from '../services/publicListingService';
 import RoomListingAction from '../components/RoomListingAction';
 import {
@@ -79,6 +79,11 @@ export default function Houses() {
     activeTenant?.is_owner ||
     hasPermission?.('post_listing') ||
     (hasPermission === undefined && isOwner === undefined && canWrite)
+  );
+  const canManageSettings = Boolean(
+    isOwner ||
+    activeTenant?.is_owner ||
+    (hasPermission && hasPermission('manage_settings'))
   );
 
   // Data states
@@ -933,6 +938,11 @@ export default function Houses() {
           onDelete={() => canWrite && handleDelete(selectedUnit)}
           canWrite={canWrite}
           canPostListing={canPostListing}
+          canManageSettings={canManageSettings}
+          onUnitUpdated={(updated) => {
+            setSelectedUnit(updated);
+            setUnits((prev) => prev.map((u) => String(u.id) === String(updated.id) ? { ...u, ...updated } : u));
+          }}
         />
       )}
 
@@ -972,7 +982,26 @@ function StatCard({ label, value, tone }) {
   );
 }
 
-function UnitDetailModal({ unit, getUnitOwner, getUnitOccupant, profiles, iplSchemas, token, role, template, activeTenant, listing, onClose, onEdit, onDelete, canWrite, canPostListing }) {
+function UnitDetailModal({
+  unit,
+  getUnitOwner,
+  getUnitOccupant,
+  profiles,
+  iplSchemas,
+  token,
+  role,
+  template,
+  activeTenant,
+  listing,
+  onClose,
+  onEdit,
+  onDelete,
+  canWrite,
+  canPostListing,
+  canManageSettings,
+  onUnitUpdated,
+}) {
+  const toast = useToast();
   const owner = getUnitOwner(unit.id);
   const occupant = getUnitOccupant(unit.id);
   const relatedProfiles = profiles.filter((profile) => profile.unit_id === unit.id);
@@ -981,6 +1010,51 @@ function UnitDetailModal({ unit, getUnitOwner, getUnitOccupant, profiles, iplSch
 
   const [billsCount, setBillsCount] = useState(0);
   const [loadingBills, setLoadingBills] = useState(true);
+  const [autoListingDisabled, setAutoListingDisabled] = useState(
+    Boolean(unit.metadata?.auto_listing_disabled)
+  );
+  const [isUpdatingAutoListing, setIsUpdatingAutoListing] = useState(false);
+
+  useEffect(() => {
+    setAutoListingDisabled(Boolean(unit.metadata?.auto_listing_disabled));
+  }, [unit]);
+
+  const handleToggleAutoListingDisabled = async (e) => {
+    const nextVal = e.target.checked;
+    if (!canManageSettings) {
+      toast.error('Hanya pemilik atau pengurus dengan izin manage_settings yang dapat mengubah pengaturan ini.');
+      return;
+    }
+    setIsUpdatingAutoListing(true);
+    try {
+      const existingMeta = unit.metadata && typeof unit.metadata === 'object' ? unit.metadata : {};
+      const updatedMetadata = {
+        ...existingMeta,
+        auto_listing_disabled: nextVal,
+      };
+      await updateTenantUnit(activeTenant.id, unit.id, {
+        autoListingDisabled: nextVal,
+        metadata: updatedMetadata,
+      });
+      setAutoListingDisabled(nextVal);
+      const updatedUnit = {
+        ...unit,
+        metadata: updatedMetadata,
+      };
+      if (typeof onUnitUpdated === 'function') {
+        onUnitUpdated(updatedUnit);
+      }
+      toast.success(
+        nextVal
+          ? 'Kamar berhasil dikecualikan dari iklan otomatis.'
+          : 'Pengecualian dicabut. Kamar akan diiklankan otomatis saat kosong.'
+      );
+    } catch (err) {
+      toast.error(err.message || 'Gagal memperbarui pengaturan iklan otomatis kamar.');
+    } finally {
+      setIsUpdatingAutoListing(false);
+    }
+  };
 
   const hasAccess = isBendaharaOrAbove(role);
 
@@ -1036,6 +1110,38 @@ function UnitDetailModal({ unit, getUnitOwner, getUnitOccupant, profiles, iplSch
         />
         {unit.notes && <InfoRow label="Catatan" value={unit.notes} />}
       </div>
+
+      {activeTenant?.type === 'kos' && (
+        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5" data-testid="auto-listing-disabled-box">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <label
+                htmlFor="autoListingDisabledToggle"
+                className={`text-xs font-bold block ${!canManageSettings ? 'text-slate-400 cursor-not-allowed' : 'text-slate-800 cursor-pointer'}`}
+              >
+                Kecualikan dari iklan otomatis
+              </label>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Jangan buat draf atau tayangkan kembali iklan saat kamar ini kosong.
+              </p>
+            </div>
+            <label
+              htmlFor="autoListingDisabledToggle"
+              className={`relative inline-flex items-center select-none shrink-0 ${!canManageSettings || isUpdatingAutoListing ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+            >
+              <input
+                id="autoListingDisabledToggle"
+                type="checkbox"
+                checked={autoListingDisabled}
+                disabled={!canManageSettings || isUpdatingAutoListing}
+                onChange={handleToggleAutoListingDisabled}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed" />
+            </label>
+          </div>
+        </div>
+      )}
 
       {!unit.is_occupied && unit.status !== 'occupied' && activeTenant?.type === 'kos' && canPostListing && (
         <div className="mt-4">

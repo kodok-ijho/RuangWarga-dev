@@ -339,6 +339,7 @@ export default function PostListing() {
         location_hint: locationHint.trim(),
         is_featured: isFeatured,
         duration_days: 30,
+        facilities: selectedUnitFacilities,
       };
 
       const result = await createPublicListing(tenantId, payload);

@@ -21,6 +21,7 @@ import {
   filterAndSortRoomListings,
   normalizePhoneNumber,
   buildListingWhatsAppUrl,
+  resumeListingRemaining,
 } from './publicListingService';
 
 describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () => {
@@ -1011,6 +1012,80 @@ describe('publicListingService - Unit Tests (T10.2: RLS & Public Access)', () =>
         expect(buildListingWhatsAppUrl({ contact_phone: '' })).toBeNull();
         expect(buildListingWhatsAppUrl({ contact_phone: 'tidak-ada-nomor' })).toBeNull();
       });
+    });
+  });
+
+  describe('LIST-AUTO-1.2: resumeListingRemaining & facilities handling', () => {
+    it('resolveListingFacilities mengembalikan facilities jika listing.facilities sudah terisi', () => {
+      const listing = {
+        title: 'Kamar Melati',
+        facilities: ['AC', 'WiFi', 'Kamar Mandi Dalam'],
+      };
+      const result = resolveListingFacilities(listing, { facilities: ['Kipas Angin'] });
+      expect(result).toEqual(['AC', 'WiFi', 'Kamar Mandi Dalam']);
+    });
+
+    it('resumeListingRemaining melempar error bila listingId kosong', async () => {
+      await expect(resumeListingRemaining('')).rejects.toThrow(/Listing ID wajib disertakan/i);
+    });
+
+    it('resumeListingRemaining memanggil RPC resume_listing_remaining pada non-demo', async () => {
+      vi.stubEnv('VITE_DEMO_MODE', 'false');
+      vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co');
+      vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY', 'valid-key-xyz');
+
+      const rpcSpy = vi.spyOn(supabase, 'rpc').mockResolvedValueOnce({
+        data: { success: true, status: 'active', expires_at: '2026-11-25T00:00:00Z' },
+        error: null,
+      });
+
+      const res = await resumeListingRemaining('live-uuid-123');
+      expect(rpcSpy).toHaveBeenCalledWith('resume_listing_remaining', {
+        p_listing_id: 'live-uuid-123',
+      });
+      expect(res.status).toBe('active');
+      vi.unstubAllEnvs();
+    });
+
+    it('resumeListingRemaining melempar pesan error jika RPC supabase mengembalikan error', async () => {
+      vi.stubEnv('VITE_DEMO_MODE', 'false');
+      vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co');
+      vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY', 'valid-key-xyz');
+
+      vi.spyOn(supabase, 'rpc').mockResolvedValueOnce({
+        data: null,
+        error: { message: 'Kamar terkait sedang terisi (occupied)' },
+      });
+
+      await expect(resumeListingRemaining('live-uuid-occupied')).rejects.toThrow(
+        /Kamar terkait sedang terisi/i
+      );
+      vi.unstubAllEnvs();
+    });
+
+    it('resumeListingRemaining pada demo mode mengaktifkan kembali listing dan membersihkan paused_remaining_seconds', async () => {
+      const demoItem = await createPublicListing('demo-tenant-kos', {
+        title: 'Kamar Demo Tersimpan',
+        contact_phone: '081234567890',
+      });
+      demoItem.status = 'rented_or_sold';
+      demoItem.paused_remaining_seconds = 172800; // 2 hari
+
+      const res = await resumeListingRemaining(demoItem.id);
+      expect(res.status).toBe('active');
+      expect(demoItem.status).toBe('active');
+      expect(demoItem.paused_remaining_seconds).toBeNull();
+      expect(new Date(demoItem.expires_at).getTime()).toBeGreaterThan(Date.now());
+    });
+
+    it('createPublicListing menyimpan array facilities', async () => {
+      const item = await createPublicListing('demo-tenant-kos', {
+        title: 'Kamar Baru Fasilitas Lengkap',
+        contact_phone: '081234567890',
+        facilities: ['AC', 'Water Heater'],
+      });
+
+      expect(item.facilities).toEqual(['AC', 'Water Heater']);
     });
   });
 });

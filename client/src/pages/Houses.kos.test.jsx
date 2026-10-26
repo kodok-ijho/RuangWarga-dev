@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Houses from './Houses';
 import * as tenantOps from '../services/tenantOperationalService';
@@ -78,6 +78,7 @@ vi.mock('../services/dataService', () => ({
 vi.mock('../services/tenantOperationalService', () => ({
   fetchTenantUnits: vi.fn(),
   fetchTenantMembers: vi.fn(),
+  updateTenantUnit: vi.fn(),
 }));
 
 vi.mock('../services/publicListingService', () => ({
@@ -236,6 +237,80 @@ describe('Houses Kos Vacancy Listing (KOS-2.6b)', () => {
     await waitFor(() => {
       const iklankanButtons = screen.getAllByRole('button', { name: /^Iklankan$/i });
       expect(iklankanButtons.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Pengecualian Iklan Otomatis Kamar Kos (LIST-AUTO-1.2)', () => {
+    it('menampilkan sakelar "Kecualikan dari iklan otomatis" di modal detail kamar dan memanggil updateTenantUnit saat diubah', async () => {
+      tenantOps.updateTenantUnit.mockResolvedValueOnce({
+        id: 2,
+        metadata: { rent_price: 1500000, auto_listing_disabled: true },
+      });
+
+      render(
+        <MemoryRouter>
+          <Houses />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Kamar 102/102').length).toBeGreaterThan(0);
+      });
+
+      // Klik tombol lihat detail Kamar 102 untuk membuka modal detail
+      const detailBtn = screen.getByRole('button', { name: /Lihat detail.*102/i });
+      fireEvent.click(detailBtn);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('auto-listing-disabled-box')).toBeTruthy();
+      });
+
+      const toggle = document.getElementById('autoListingDisabledToggle');
+      expect(toggle).toBeTruthy();
+      expect(toggle.checked).toBe(false);
+
+      // Ubah status sakelar
+      fireEvent.click(toggle);
+
+      await waitFor(() => {
+        expect(tenantOps.updateTenantUnit).toHaveBeenCalledWith(
+          'tenant-kos-1',
+          2,
+          expect.objectContaining({
+            autoListingDisabled: true,
+            metadata: expect.objectContaining({
+              rent_price: 1500000,
+              auto_listing_disabled: true,
+            }),
+          })
+        );
+      });
+    });
+
+    it('sakelar disabled jika user tidak memiliki izin manage_settings dan bukan owner', async () => {
+      mockTenantState.isOwner = false;
+      mockTenantState.hasPermission = (p) => p !== 'manage_settings';
+      mockAuth.role = 'anggota';
+
+      render(
+        <MemoryRouter>
+          <Houses />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Kamar 102/102').length).toBeGreaterThan(0);
+      });
+
+      const detailBtn = screen.getByRole('button', { name: /Lihat detail.*102/i });
+      fireEvent.click(detailBtn);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('auto-listing-disabled-box')).toBeTruthy();
+      });
+
+      const toggle = document.getElementById('autoListingDisabledToggle');
+      expect(toggle.disabled).toBe(true);
     });
   });
 });

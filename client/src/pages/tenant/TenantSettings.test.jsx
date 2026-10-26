@@ -680,5 +680,121 @@ describe('TenantSettings (RTRW-2.4)', () => {
       expect(callArgs[1].settings.billing_due_day).toBeUndefined();
     });
   });
+
+  describe('Pengaturan Iklan Otomatis Kamar Kos (LIST-AUTO-1.2)', () => {
+    const sampleKosDetails = {
+      id: 'tenant-kos-1',
+      name: 'Kos Harmoni Melati',
+      type: 'kos',
+      address: 'Jl. Melati No. 10',
+      contact_phone: '081234567891',
+      settings: {
+        due_day: 1,
+        billing_due_day: 1,
+        auto_listing_on_vacant: false,
+        listing_contact_phone: '',
+        listing_default_category: 'Campur',
+      },
+    };
+
+    beforeEach(() => {
+      mockTenantContext.tenantType = 'kos';
+      mockTenantContext.activeTenant = { id: 'tenant-kos-1', name: 'Kos Harmoni Melati', type: 'kos' };
+      mockTenantContext.activeTenantId = 'tenant-kos-1';
+      mockTenantContext.isOwner = true;
+      mockTenantContext.hasPermission.mockReturnValue(true);
+      tenantOperationalService.fetchTenantDetails.mockResolvedValue(sampleKosDetails);
+    });
+
+    it('a. merender section iklan otomatis hanya untuk tenant tipe kos', async () => {
+      renderComponent('tenant-kos-1');
+
+      await waitFor(() => {
+        expect(screen.getByTestId('kos-auto-listing-section')).toBeTruthy();
+      });
+
+      expect(screen.getByLabelText(/Nomor WhatsApp Iklan/i)).toBeTruthy();
+      expect(screen.getByLabelText(/Tipe Kamar Default/i)).toBeTruthy();
+      expect(screen.getByLabelText(/Iklankan otomatis saat kamar kosong/i)).toBeTruthy();
+    });
+
+    it('b. sakelar tidak bisa dinyalakan sampai nomor WhatsApp valid (normalizePhoneNumber)', async () => {
+      renderComponent('tenant-kos-1');
+
+      await waitFor(() => {
+        expect(screen.getByTestId('kos-auto-listing-section')).toBeTruthy();
+      });
+
+      const phoneInput = document.getElementById('listingContactPhoneInput');
+      const toggle = document.getElementById('autoListingOnVacantToggle');
+
+      // Saat nomor kosong, toggle harus disabled
+      expect(phoneInput.value).toBe('');
+      expect(toggle.disabled).toBe(true);
+
+      // Masukkan nomor tidak valid (kurang dari panjang minimal)
+      fireEvent.change(phoneInput, { target: { value: '08' } });
+      expect(toggle.disabled).toBe(true);
+
+      // Masukkan nomor valid
+      fireEvent.change(phoneInput, { target: { value: '081234567890' } });
+      expect(toggle.disabled).toBe(false);
+
+      // Sakelar kini bisa dinyalakan
+      fireEvent.click(toggle);
+      expect(toggle.checked).toBe(true);
+    });
+
+    it('c. menyimpan pengaturan iklan otomatis dan menggabungkan ke settings', async () => {
+      renderComponent('tenant-kos-1');
+
+      await waitFor(() => {
+        expect(screen.getByTestId('kos-auto-listing-section')).toBeTruthy();
+      });
+
+      const phoneInput = document.getElementById('listingContactPhoneInput');
+      const categorySelect = document.getElementById('listingDefaultCategorySelect');
+      const toggle = document.getElementById('autoListingOnVacantToggle');
+
+      fireEvent.change(phoneInput, { target: { value: '081234567890' } });
+      fireEvent.change(categorySelect, { target: { value: 'Putri' } });
+      fireEvent.click(toggle);
+
+      const saveBtn = screen.getByRole('button', { name: /Simpan Pengaturan Iklan/i });
+      fireEvent.click(saveBtn);
+
+      await waitFor(() => {
+        expect(tenantOperationalService.updateTenantProfileAndSettings).toHaveBeenCalledWith(
+          'tenant-kos-1',
+          {
+            settings: {
+              auto_listing_on_vacant: true,
+              listing_contact_phone: '081234567890',
+              listing_default_category: 'Putri',
+            },
+          }
+        );
+      });
+    });
+
+    it('d. hanya owner atau pengguna dengan manage_settings yang dapat mengubah pengaturan', async () => {
+      mockTenantContext.isOwner = false;
+      mockTenantContext.hasPermission.mockImplementation((p) => p !== 'manage_settings');
+
+      renderComponent('tenant-kos-1');
+
+      await waitFor(() => {
+        expect(screen.getByTestId('kos-auto-listing-section')).toBeTruthy();
+      });
+
+      const phoneInput = document.getElementById('listingContactPhoneInput');
+      const toggle = document.getElementById('autoListingOnVacantToggle');
+      const saveBtn = screen.getByRole('button', { name: /Simpan Pengaturan Iklan/i });
+
+      expect(phoneInput.disabled).toBe(true);
+      expect(toggle.disabled).toBe(true);
+      expect(saveBtn.disabled).toBe(true);
+    });
+  });
 });
 

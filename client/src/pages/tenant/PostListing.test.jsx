@@ -186,7 +186,7 @@ describe('PostListing Component (LIST-UI-1.5: Prefill & Occupied Protection)', (
     );
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/Judul Iklan/i)).toBeTruthy();
+      expect(screen.getByLabelText(/Judul Iklan/i).value).toBe('Kamar 103 (Lantai 2) – Kos Harmoni Melati');
     });
 
     const titleInput = screen.getByLabelText(/Judul Iklan/i);
@@ -291,6 +291,7 @@ describe('PostListing Component (LIST-UI-1.5: Prefill & Occupied Protection)', (
           title: 'Kamar 102 (Lantai 1) – Kos Harmoni Melati',
           price: 1250000,
           type: 'room_vacancy',
+          facilities: ['AC', 'WiFi', 'Kasur Springbed', 'Meja Belajar'],
         })
       );
     });

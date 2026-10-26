@@ -29,7 +29,9 @@ import {
   getPricingForListing,
   createListingPayment,
   verifyListingPayment,
+  resumeListingRemaining,
 } from '../../services/publicListingService';
+import { useQueryClient } from '@tanstack/react-query';
 import Modal from '../../components/Modal';
 import QrisCheckoutModal from '../../components/QrisCheckoutModal';
 
@@ -61,11 +63,13 @@ export default function MyListings() {
   const { isReadOnly, canTransact, tooltip, redirectToRenewal } = useSubscriptionGate({
     actionName: 'Memperpanjang postingan iklan',
   });
+  const queryClient = useQueryClient();
 
   const [loading, setLoading] = useState(true);
   const [listings, setListings] = useState([]);
   const [pricingList, setPricingList] = useState([]);
   const [activeTab, setActiveTab] = useState('all');
+  const [isResumingId, setIsResumingId] = useState(null);
 
   // Modal State: Perpanjang Iklan
   const [renewTarget, setRenewTarget] = useState(null);
@@ -190,6 +194,27 @@ export default function MyListings() {
       loadData();
     } catch (err) {
       toast.error(err.message || 'Gagal memperbarui status iklan.');
+    }
+  };
+
+  // Handler: Tayangkan Lagi dengan sisa masa tayang (LIST-AUTO-1.2)
+  const handleResumeRemaining = async (item) => {
+    if (!canTransact) {
+      toast.error(tooltip || 'Layanan sedang Read-Only.');
+      return;
+    }
+    setIsResumingId(item.id);
+    try {
+      await resumeListingRemaining(item.id);
+      toast.success('Iklan berhasil ditayangkan kembali dengan sisa masa aktif!');
+      if (queryClient) {
+        queryClient.invalidateQueries();
+      }
+      await loadData();
+    } catch (err) {
+      toast.error(err.message || 'Gagal menayangkan kembali iklan.');
+    } finally {
+      setIsResumingId(null);
     }
   };
 
@@ -450,7 +475,7 @@ export default function MyListings() {
                 <div>
                   {/* Badge Row */}
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="inline-flex items-center gap-1 rounded-md bg-forest-100 px-2.5 py-1 text-[11px] font-semibold text-forest-800">
                         {item.type === 'room_vacancy' ? (
                           <>
@@ -462,6 +487,14 @@ export default function MyListings() {
                           </>
                         )}
                       </span>
+                      {item.auto_created && (
+                        <span
+                          data-testid="badge-auto-created"
+                          className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800 border border-amber-200"
+                        >
+                          Draf otomatis
+                        </span>
+                      )}
                       {item.category && (
                         <span className="rounded-md bg-forest-50 px-2 py-1 text-[11px] font-medium text-forest-600">
                           {item.category}
@@ -488,9 +521,19 @@ export default function MyListings() {
                         </span>
                       )}
                       {isRentedOrSold && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-bold text-blue-800">
-                          <AiOutlineCheckCircle /> {item.type === 'room_vacancy' ? 'Tersewa' : 'Terjual'}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-bold text-blue-800">
+                            <AiOutlineCheckCircle /> {item.type === 'room_vacancy' ? 'Tersewa' : 'Terjual'}
+                          </span>
+                          {item.paused_remaining_seconds > 0 && (
+                            <span
+                              data-testid="badge-paused-remaining"
+                              className="inline-flex items-center gap-1 rounded-full bg-gold-100 px-2.5 py-0.5 text-[11px] font-bold text-gold-900 border border-gold-300"
+                            >
+                              <AiOutlineClockCircle /> Sisa {Math.ceil(item.paused_remaining_seconds / 86400)} hari
+                            </span>
+                          )}
+                        </div>
                       )}
                       {isExpired && !isRentedOrSold && !isPendingPayment && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-[11px] font-bold text-red-800">
@@ -553,6 +596,16 @@ export default function MyListings() {
                       <span className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 font-medium bg-slate-100 text-slate-400 cursor-not-allowed">
                         Belum Aktif
                       </span>
+                    ) : (isRentedOrSold && item.paused_remaining_seconds > 0) ? (
+                      <button
+                        type="button"
+                        onClick={() => handleResumeRemaining(item)}
+                        disabled={!canTransact || isResumingId === item.id}
+                        data-testid="btn-resume-listing"
+                        className="pv-btn-primary inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 font-semibold text-xs shadow-xs transition-colors"
+                      >
+                        <AiOutlineReload /> {isResumingId === item.id ? 'Memproses...' : 'Tayangkan lagi'}
+                      </button>
                     ) : (
                       <button
                         type="button"
@@ -580,7 +633,7 @@ export default function MyListings() {
                     </button>
                   </div>
 
-                  {/* Tombol Aksi Utama: Bayar Sekarang (Pending) vs Perpanjang (Aktif/Expired) */}
+                  {/* Tombol Aksi Utama: Bayar Sekarang (Pending) vs Tayangkan Lagi (Paused) vs Perpanjang (Aktif/Expired) */}
                   {isPendingPayment ? (
                     <button
                       type="button"
@@ -589,6 +642,16 @@ export default function MyListings() {
                       className="inline-flex items-center gap-1 rounded-lg bg-gold-500 px-3 py-1.5 font-bold text-forest-950 shadow-sm hover:bg-gold-400 disabled:opacity-50 transition-colors"
                     >
                       <HiOutlineSparkles /> Bayar Sekarang
+                    </button>
+                  ) : (isRentedOrSold && item.paused_remaining_seconds > 0) ? (
+                    <button
+                      type="button"
+                      onClick={() => handleResumeRemaining(item)}
+                      disabled={!canTransact || isResumingId === item.id}
+                      data-testid="btn-resume-listing-primary"
+                      className="inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-3 py-1.5 font-semibold text-white shadow-sm hover:bg-emerald-800 disabled:opacity-50 transition-colors"
+                    >
+                      <AiOutlineReload /> {isResumingId === item.id ? 'Memproses...' : 'Tayangkan lagi'}
                     </button>
                   ) : (
                     <button

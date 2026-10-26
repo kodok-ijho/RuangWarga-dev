@@ -25,6 +25,7 @@ import {
   fetchTenantSettingsAudit,
   fetchBillingAutoRuns,
 } from '../../services/tenantOperationalService';
+import { normalizePhoneNumber } from '../../services/publicListingService';
 
 export default function TenantSettings() {
   const { tenantId: routeTenantId } = useParams();
@@ -67,6 +68,12 @@ export default function TenantSettings() {
   const [billingIssueDay, setBillingIssueDay] = useState(1);
   const [autoRuns, setAutoRuns] = useState([]);
   const [isLoadingAutoRuns, setIsLoadingAutoRuns] = useState(false);
+
+  // Bagian: Iklan Otomatis Kamar Kos (LIST-AUTO-1.2)
+  const [autoListingOnVacant, setAutoListingOnVacant] = useState(false);
+  const [listingContactPhone, setListingContactPhone] = useState('');
+  const [listingDefaultCategory, setListingDefaultCategory] = useState('Campur');
+  const [isSavingAutoListing, setIsSavingAutoListing] = useState(false);
 
   // Bagian 3: Rekening Penerima
   const [bankName, setBankName] = useState('');
@@ -149,6 +156,9 @@ export default function TenantSettings() {
         }
 
         setAutoBillingEnabled(Boolean(settings.auto_billing_enabled));
+        setAutoListingOnVacant(Boolean(settings.auto_listing_on_vacant));
+        setListingContactPhone(settings.listing_contact_phone || '');
+        setListingDefaultCategory(settings.listing_default_category || 'Campur');
         if (settings.billing_issue_day !== undefined && settings.billing_issue_day !== null) {
           const parsedIssueDay = parseInt(settings.billing_issue_day, 10);
           setBillingIssueDay(!isNaN(parsedIssueDay) && parsedIssueDay >= 1 && parsedIssueDay <= 28 ? parsedIssueDay : 1);
@@ -328,6 +338,38 @@ export default function TenantSettings() {
       toast.error(err.message || 'Gagal menyimpan pengaturan tagihan.');
     } finally {
       setIsSavingBilling(false);
+    }
+  };
+
+  // ── Handler Bagian: Iklan Otomatis Kamar Kos (LIST-AUTO-1.2) ───────────────
+  const isListingPhoneValid = Boolean(normalizePhoneNumber(listingContactPhone));
+
+  const handleSaveAutoListing = async (e) => {
+    if (e) e.preventDefault();
+    if (!canEdit) return;
+
+    if (autoListingOnVacant && !isListingPhoneValid) {
+      toast.error('Nomor WhatsApp iklan wajib diisi dengan benar sebelum iklan otomatis dapat diaktifkan.');
+      return;
+    }
+
+    setIsSavingAutoListing(true);
+    try {
+      await updateTenantProfileAndSettings(tenantId, {
+        settings: {
+          auto_listing_on_vacant: Boolean(autoListingOnVacant),
+          listing_contact_phone: listingContactPhone.trim(),
+          listing_default_category: listingDefaultCategory,
+        },
+      });
+      toast.success('Pengaturan iklan otomatis berhasil disimpan.');
+      if (typeof refreshTenant === 'function') {
+        refreshTenant();
+      }
+    } catch (err) {
+      toast.error(err.message || 'Gagal menyimpan pengaturan iklan otomatis.');
+    } finally {
+      setIsSavingAutoListing(false);
     }
   };
 
@@ -778,6 +820,117 @@ export default function TenantSettings() {
           </div>
         </form>
       </section>
+
+      {/* Bagian: Iklan Otomatis Kamar Kos (LIST-AUTO-1.2) - Khusus Kos */}
+      {effectiveTenantType === 'kos' && (
+        <section className="bg-white rounded-xl border border-slate-200/80 shadow-xs p-5 sm:p-6" data-testid="kos-auto-listing-section">
+          <div className="mb-4">
+            <h2 className="text-base font-bold text-slate-900">Iklan Otomatis Kamar Kos</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Kelola pembuatan draf iklan otomatis saat kamar menjadi kosong dan pemulihan sisa masa tayang.
+            </p>
+          </div>
+
+          <form noValidate onSubmit={handleSaveAutoListing} className="space-y-4">
+            <div>
+              <label htmlFor="listingContactPhoneInput" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Nomor WhatsApp Iklan <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="listingContactPhoneInput"
+                type="text"
+                value={listingContactPhone}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setListingContactPhone(val);
+                  if (autoListingOnVacant && !normalizePhoneNumber(val)) {
+                    setAutoListingOnVacant(false);
+                  }
+                }}
+                placeholder="Contoh: 081234567890"
+                disabled={!canEdit || isSavingAutoListing}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50 font-medium transition"
+              />
+              <p className="mt-1 text-[11px] text-slate-400">
+                Nomor kontak WhatsApp yang akan ditampilkan pada iklan kamar kos (wajib valid untuk mengaktifkan iklan otomatis).
+              </p>
+            </div>
+
+            <div className="max-w-xs">
+              <label htmlFor="listingDefaultCategorySelect" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Tipe Kamar Default
+              </label>
+              <select
+                id="listingDefaultCategorySelect"
+                value={listingDefaultCategory}
+                onChange={(e) => setListingDefaultCategory(e.target.value)}
+                disabled={!canEdit || isSavingAutoListing}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-100 font-medium transition"
+              >
+                <option value="Campur">Campur</option>
+                <option value="Putra">Putra</option>
+                <option value="Putri">Putri</option>
+              </select>
+              <p className="mt-1 text-[11px] text-slate-400">
+                Kategori default untuk kamar kos saat draf iklan otomatis dibuat.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl border border-slate-200/90 bg-slate-50/70 space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <label
+                    htmlFor="autoListingOnVacantToggle"
+                    className={`text-xs sm:text-sm font-bold block ${!isListingPhoneValid ? 'text-slate-400 cursor-not-allowed' : 'text-slate-800 cursor-pointer'}`}
+                  >
+                    Iklankan otomatis saat kamar kosong
+                  </label>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Buat draf iklan atau tayangkan kembali sisa masa aktif saat kamar menjadi kosong (vacant).
+                  </p>
+                </div>
+                <label
+                  htmlFor="autoListingOnVacantToggle"
+                  className={`relative inline-flex items-center select-none shrink-0 ${!canEdit || !isListingPhoneValid ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                >
+                  <input
+                    id="autoListingOnVacantToggle"
+                    type="checkbox"
+                    checked={autoListingOnVacant}
+                    disabled={!canEdit || isSavingAutoListing || (!autoListingOnVacant && !isListingPhoneValid)}
+                    onChange={(e) => {
+                      if (!isListingPhoneValid && e.target.checked) {
+                        toast.error('Masukkan nomor WhatsApp iklan yang valid terlebih dahulu.');
+                        return;
+                      }
+                      setAutoListingOnVacant(e.target.checked);
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed" />
+                </label>
+              </div>
+              {!isListingPhoneValid && (
+                <p className="text-[11px] text-amber-700 font-medium">
+                  Nomor WhatsApp iklan yang valid wajib diisi sebelum sakelar dapat dinyalakan.
+                </p>
+              )}
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="submit"
+                disabled={!canEdit || isSavingAutoListing}
+                title={!canTransact ? tooltip : undefined}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <AiOutlineSave className="text-base" />
+                <span>{isSavingAutoListing ? 'Menyimpan...' : 'Simpan Pengaturan Iklan'}</span>
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
 
       {/* Bagian 3: Rekening Penerima */}
       <section className="bg-white rounded-xl border border-slate-200/80 shadow-xs p-5 sm:p-6">

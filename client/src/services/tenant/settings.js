@@ -58,6 +58,8 @@ const mockTenantSettingsAudit = {
   ],
 };
 
+const mockDemoTenantSettings = {};
+
 export function getCachedTenantInviteCode(tenantId) {
   if (!tenantId) return null;
   return mockTenantInviteCodes[tenantId] || null;
@@ -72,6 +74,20 @@ export async function fetchTenantDetails(tenantId) {
   if (IS_DEMO || String(tenantId).startsWith('demo-')) {
     const isKos = String(tenantId).includes('kos');
     if (isKos) {
+      const baseKosSettings = {
+        default_rent_price: 1200000,
+        billing_cycle: 'monthly',
+        due_day: 1,
+        auto_listing_on_vacant: false,
+        listing_contact_phone: '081234567891',
+        listing_default_category: 'Campur',
+        bank_account: {
+          bank_name: 'BCA',
+          account_number: '8830998877',
+          account_holder: 'Pengelola Kos Melati',
+        },
+        onboarding_completed: false,
+      };
       return {
         id: tenantId,
         name: 'Kos Melati Harmoni',
@@ -79,19 +95,29 @@ export async function fetchTenantDetails(tenantId) {
         address: 'Jl. Melati Raya No. 12, Sleman',
         contact_phone: '081234567891',
         settings: {
-          default_rent_price: 1200000,
-          billing_cycle: 'monthly',
-          due_day: 1,
-          bank_account: {
-            bank_name: 'BCA',
-            account_number: '8830998877',
-            account_holder: 'Pengelola Kos Melati',
-          },
-          onboarding_completed: false,
+          ...baseKosSettings,
+          ...(mockDemoTenantSettings[tenantId] || {}),
         },
       };
     }
 
+    const baseRtSettings = {
+      logo_url: '/tenants/palm-village/logo.png',
+      legacy_qris_enabled: true,
+      ipl_components: [
+        { name: 'Keamanan', amount: 80000 },
+        { name: 'Kebersihan', amount: 30000 },
+        { name: 'Kas RT', amount: 20000 },
+        { name: 'DDC (Sosial)', amount: 10000 },
+      ],
+      due_day: 10,
+      bank_account: {
+        bank_name: 'BCA',
+        account_number: '8830123456',
+        account_holder: 'Kas RT 05 Palm Village',
+      },
+      onboarding_completed: true,
+    };
     return {
       id: tenantId,
       name: 'Palm Village RT 05',
@@ -99,21 +125,8 @@ export async function fetchTenantDetails(tenantId) {
       address: 'Jl. Boulevard Palm No. 1',
       contact_phone: '081234567890',
       settings: {
-        logo_url: '/tenants/palm-village/logo.png',
-        legacy_qris_enabled: true,
-        ipl_components: [
-          { name: 'Keamanan', amount: 80000 },
-          { name: 'Kebersihan', amount: 30000 },
-          { name: 'Kas RT', amount: 20000 },
-          { name: 'DDC (Sosial)', amount: 10000 },
-        ],
-        due_day: 10,
-        bank_account: {
-          bank_name: 'BCA',
-          account_number: '8830123456',
-          account_holder: 'Kas RT 05 Palm Village',
-        },
-        onboarding_completed: true,
+        ...baseRtSettings,
+        ...(mockDemoTenantSettings[tenantId] || {}),
       },
     };
   }
@@ -170,6 +183,12 @@ export async function updateTenantProfileAndSettings(tenantId, { name, address, 
   }
 
   if (IS_DEMO || String(tenantId).startsWith('demo-')) {
+    if (payload.settings) {
+      mockDemoTenantSettings[tenantId] = {
+        ...(mockDemoTenantSettings[tenantId] || {}),
+        ...payload.settings,
+      };
+    }
     return { id: tenantId, ...payload };
   }
 
