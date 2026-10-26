@@ -66,7 +66,7 @@ DECLARE
   v_bill_metadata JSONB;
   v_days_in_month INT;
   v_prorata_days INT;
-  v_fee RECORD;
+  v_fee JSONB;
   v_fee_name TEXT;
   v_fee_amount NUMERIC;
   v_total_additional_fees NUMERIC := 0;
@@ -116,7 +116,7 @@ BEGIN
 
   v_total_additional_fees := 0;
   v_normalized_fees := '[]'::jsonb;
-  FOR v_fee IN SELECT * FROM jsonb_array_elements(p_additional_fees) LOOP
+  FOR v_fee IN SELECT value FROM jsonb_array_elements(p_additional_fees) LOOP
     IF jsonb_typeof(v_fee) <> 'object' THEN
       RAISE EXCEPTION 'Item biaya tambahan harus berupa objek';
     END IF;
@@ -293,7 +293,7 @@ BEGIN
     -- line_items prorata: per fee floor ke rupiah, baris Sewa = total prorata - jumlah biaya prorata
     v_sum_prorated_fees := 0;
     v_fee_line_items := '[]'::jsonb;
-    FOR v_fee IN SELECT * FROM jsonb_array_elements(v_normalized_fees) LOOP
+    FOR v_fee IN SELECT value FROM jsonb_array_elements(v_normalized_fees) LOOP
       v_prorated_fee := floor((v_fee->>'amount')::numeric * v_prorata_days::numeric / v_days_in_month::numeric);
       v_sum_prorated_fees := v_sum_prorated_fees + v_prorated_fee;
       v_fee_line_items := v_fee_line_items || jsonb_build_array(jsonb_build_object(
@@ -333,7 +333,7 @@ BEGIN
       'amount', p_rent_price
     ));
 
-    FOR v_fee IN SELECT * FROM jsonb_array_elements(v_normalized_fees) LOOP
+    FOR v_fee IN SELECT value FROM jsonb_array_elements(v_normalized_fees) LOOP
       v_line_items := v_line_items || jsonb_build_array(jsonb_build_object(
         'name', v_fee->>'name',
         'amount', (v_fee->>'amount')::numeric
@@ -422,7 +422,7 @@ DECLARE
   v_new_bill_id UUID;
   v_bill_amount NUMERIC;
   v_line_items JSONB;
-  v_fee RECORD;
+  v_fee JSONB;
   v_fee_amount NUMERIC;
 BEGIN
   FOR v_contract IN
@@ -458,7 +458,7 @@ BEGIN
     ));
 
     IF v_contract.additional_fees IS NOT NULL AND jsonb_typeof(v_contract.additional_fees) = 'array' THEN
-      FOR v_fee IN SELECT * FROM jsonb_array_elements(v_contract.additional_fees) LOOP
+      FOR v_fee IN SELECT value FROM jsonb_array_elements(v_contract.additional_fees) LOOP
         v_fee_amount := COALESCE((v_fee->>'amount')::numeric, 0);
         v_bill_amount := v_bill_amount + v_fee_amount;
         v_line_items := v_line_items || jsonb_build_array(jsonb_build_object(

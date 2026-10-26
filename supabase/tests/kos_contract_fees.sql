@@ -244,7 +244,7 @@ BEGIN
   PERFORM set_config('role', 'postgres', true);
   PERFORM set_config('request.jwt.claims', jsonb_build_object('role', 'service_role')::text, true);
 
-  PERFORM public.generate_kos_contract_bills(v_next_month_gen, v_tenant_kos);
+  PERFORM public.generate_kos_contract_bills(GREATEST(v_next_month_gen, (v_test_start_date + interval '1 month')::date), v_tenant_kos);
 
   -- Verifikasi tagihan periode 1 (bulan berikutnya)
   SELECT * INTO v_bill_rec
@@ -274,7 +274,7 @@ BEGIN
 
   -- Uji idempoten generator
   SELECT count(*) INTO v_bill_count FROM public.billing_items WHERE contract_id = v_contract_rec.id;
-  PERFORM public.generate_kos_contract_bills(v_next_month_gen, v_tenant_kos);
+  PERFORM public.generate_kos_contract_bills(GREATEST(v_next_month_gen, (v_test_start_date + interval '1 month')::date), v_tenant_kos);
   IF (SELECT count(*) FROM public.billing_items WHERE contract_id = v_contract_rec.id) <> v_bill_count THEN
     RAISE EXCEPTION 'Uji 3 GAGAL: Eksekusi berulang generator menduplikasi tagihan!';
   END IF;
