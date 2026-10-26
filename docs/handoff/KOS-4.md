@@ -1,6 +1,6 @@
 # KOS-4 — Aturan Kontrak Sewa sebagai master pengaturan kos
 
-Status: ✅ **Disetujui user 2026-10-26** ("Ganti menggunakan aturan kontrak saja"). Menyentuh tagihan dan schema; migration diterapkan ke dev setelah dry-run lolos.
+Status: ✅ **Selesai, terpasang di dev 2026-10-27** (`20261026235613 kos_contract_fees`, `KOS-4-report.md`). Disetujui user 2026-10-26 ("Ganti menggunakan aturan kontrak saja").
 
 ## Masalah
 Halaman Pengaturan tenant kos masih memakai pengaturan tagihan gaya IPL. Pengaturan itu tidak berlaku untuk kontrak dan menyesatkan:
