@@ -1,6 +1,6 @@
 # LIST-UI-1 — Akses iklan kamar & tampilan katalog kos ala marketplace
 
-Status: ✅ **Disetujui user 2026-10-25** (termasuk tombol WhatsApp ke `contact_phone`). Frontend saja: tidak ada perubahan schema, pembayaran iklan (PAY-1.7), atau status listing.
+Status: ✅ **Selesai 2026-10-26** (`LIST-UI-1-report.md`). Disetujui user 2026-10-25 (termasuk tombol WhatsApp ke `contact_phone`). Frontend saja: tidak ada perubahan schema, pembayaran iklan (PAY-1.7), atau status listing.
 
 Dasar: pertanyaan user 2026-10-23 "di mana link untuk mengiklankan kamar kosong?" dan permintaan tampilan seperti mamikos.com.
 

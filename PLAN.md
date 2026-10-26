@@ -63,7 +63,7 @@ Terakhir diperbarui: 2026-10-23 (Claude, orchestrator).
 - **Merchant DOKU platform sudah disetujui** (user, 2026-10-22). Langkah penyiapan ada di § 7.
 
 ## 5. Roadmap berikutnya (urut)
-1. Batch PANITIA-ARISAN-2F + KOS-2F + KOS-3 ✅ sudah di `main` (2026-10-25). **LIST-UI-1** dikerjakan setelah disetujui user.
+1. Batch PANITIA-ARISAN-2F + KOS-2F + KOS-3 ✅ sudah di `main` (2026-10-25). **LIST-UI-1** ✅ dan **LIST-AUTO-1** ✅ (draf iklan otomatis saat kamar kosong, migration `20261026134747` di dev). **WALLET-1** (Dompet RuangWarga) disetujui, dikerjakan setelah DOKU platform siap.
 2. **Penyiapan DOKU** (§ 7), dikerjakan user, lalu Claude men-deploy fungsi pembayaran ke dev.
 3. **PAY-3** (perlu persetujuan user; menyentuh pembayaran):
    - **satu** URL notifikasi DOKU yang meneruskan berdasarkan awalan referensi: `SUB-` langganan, `LST-` iklan, nanti acara. DOKU umumnya menyimpan satu URL notifikasi QRIS per merchant, sedangkan kode sekarang punya dua penerima terpisah;

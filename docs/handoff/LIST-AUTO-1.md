@@ -1,6 +1,6 @@
 # LIST-AUTO-1 — Iklan otomatis saat kamar kosong (tahap 1: draf)
 
-Status: ✅ **Disetujui user 2026-10-25** (opsi A + dua aturan gratis). Menyentuh schema dan kolom masa tayang iklan; **tidak** mengubah alur bayar iklan (`create-listing-payment`, `activate_listing_payment`) atau harga.
+Status: ✅ **Selesai, terpasang di dev 2026-10-26** (`20261026134747 listing_auto_vacancy`). Disetujui user 2026-10-25 (opsi A + dua aturan gratis). Menyentuh schema dan kolom masa tayang iklan; **tidak** mengubah alur bayar iklan (`create-listing-payment`, `activate_listing_payment`) atau harga.
 Tahap 2 (LIST-AUTO-2: tayang otomatis bayar dari Dompet) menunggu WALLET-1.
 
 ## Requirement
