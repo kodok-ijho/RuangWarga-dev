@@ -1,5 +1,59 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { saveKosSetupUnitsAndInvite } from './KosSetupWizard';
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import React from 'react';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import KosSetupWizard, { saveKosSetupUnitsAndInvite } from './KosSetupWizard';
+import * as tenantOperationalService from '../../services/tenantOperationalService';
+
+// Polyfill ResizeObserver jika diperlukan
+if (typeof window !== 'undefined' && !window.ResizeObserver) {
+  class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  window.ResizeObserver = ResizeObserver;
+  global.ResizeObserver = ResizeObserver;
+}
+
+const mockToast = {
+  success: vi.fn(),
+  error: vi.fn(),
+  warning: vi.fn(),
+  info: vi.fn(),
+};
+
+vi.mock('../../hooks/useTenant', () => ({
+  useTenant: () => ({
+    activeTenant: { id: 'kos-tenant-123', name: 'Kos Mawar', type: 'kos' },
+    activeTenantId: 'kos-tenant-123',
+    switchTenant: vi.fn(),
+    refreshTenant: vi.fn().mockResolvedValue({}),
+    isTenantAdmin: true,
+  }),
+}));
+
+vi.mock('../../hooks/useAuth', () => ({
+  useAuth: () => ({ isAuthenticated: true }),
+}));
+
+vi.mock('../../hooks/useToast', () => ({
+  useToast: () => mockToast,
+}));
+
+vi.mock('../../services/tenantOperationalService', async () => {
+  const actual = await vi.importActual('../../services/tenantOperationalService');
+  return {
+    ...actual,
+    fetchTenantDetails: vi.fn(),
+    fetchTenantUnits: vi.fn(),
+    fetchTenantInviteCode: vi.fn(),
+    updateTenantProfileAndSettings: vi.fn(),
+    bulkCreateTenantUnits: vi.fn(),
+    saveInviteCodeWithRetry: vi.fn(),
+  };
+});
 
 describe('KosSetupWizard - saveKosSetupUnitsAndInvite (VERT-1.4)', () => {
   const TENANT_ID = 'kos-tenant-123';
@@ -166,5 +220,88 @@ describe('KosSetupWizard - saveKosSetupUnitsAndInvite (VERT-1.4)', () => {
     expect(createdArg[1].metadata.default_rent_price).toBe(1500000);
     expect(createdArg[2].metadata.default_rent_price).toBe(2000000);
     expect(result.createdCount).toBe(3);
+  });
+});
+
+describe('KosSetupWizard Component (KOS-4.2)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    tenantOperationalService.fetchTenantDetails.mockResolvedValue({
+      id: 'kos-tenant-123',
+      name: 'Kos Mawar Indah',
+      address: 'Jl. Melati No. 5',
+      contact_phone: '081234567890',
+      type: 'kos',
+      settings: {
+        bank_account: {
+          bank_name: 'BCA',
+          account_number: '1234567890',
+          account_holder: 'Pengelola Kos Mawar',
+        },
+      },
+    });
+    tenantOperationalService.fetchTenantUnits.mockResolvedValue([]);
+    tenantOperationalService.fetchTenantInviteCode.mockResolvedValue('INV-KOS-123');
+    tenantOperationalService.bulkCreateTenantUnits.mockResolvedValue([]);
+    tenantOperationalService.updateTenantProfileAndSettings.mockResolvedValue({ success: true });
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('Langkah 3 menampilkan isian "Tenggat bayar (hari setelah tanggal tagih)" dan menyimpannya ke rent_grace_days', async () => {
+    render(
+      <MemoryRouter initialEntries={['/onboarding/kos/kos-tenant-123']}>
+        <Routes>
+          <Route path="/onboarding/kos/:tenantId" element={<KosSetupWizard />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    // Langkah 1
+    expect(await screen.findByText(/Langkah 1: Identitas Properti Kos/i)).toBeTruthy();
+    const lanjutBtn1 = screen.getByRole('button', { name: /Lanjut ke Daftar Kamar/i });
+    fireEvent.click(lanjutBtn1);
+
+    // Langkah 2
+    expect(await screen.findByText(/Langkah 2: Konfigurasi Kamar Kos/i)).toBeTruthy();
+    const lanjutBtn2 = screen.getByRole('button', { name: /Lanjut ke Ketentuan Sewa/i });
+    fireEvent.click(lanjutBtn2);
+
+    // Langkah 3
+    expect(await screen.findByText(/Langkah 3: Tarif Sewa/i)).toBeTruthy();
+    expect(screen.getByText('Tenggat bayar (hari setelah tanggal tagih)')).toBeTruthy();
+
+    // Input tenggat bayar default 10, ubah ke 14
+    const graceInput = screen.getByDisplayValue('10');
+    fireEvent.change(graceInput, { target: { value: '14' } });
+    expect(graceInput.value).toBe('14');
+
+    const lanjutBtn3 = screen.getByRole('button', { name: /Lanjut ke Review/i });
+    fireEvent.click(lanjutBtn3);
+
+    // Langkah 4
+    expect(await screen.findByText(/Langkah 4: Tinjau & Aktifkan Kos/i)).toBeTruthy();
+    expect(screen.getByText(/Tenggat 14 hari/i)).toBeTruthy();
+
+    // Simpan pengaturan
+    const simpanBtn = screen.getByRole('button', { name: /Simpan & Aktifkan Kos/i });
+    fireEvent.click(simpanBtn);
+
+    await waitFor(() => {
+      expect(tenantOperationalService.updateTenantProfileAndSettings).toHaveBeenCalledWith(
+        'kos-tenant-123',
+        expect.objectContaining({
+          settings: expect.objectContaining({
+            rent_grace_days: 14,
+          }),
+        })
+      );
+    });
+
+    const callArgs = tenantOperationalService.updateTenantProfileAndSettings.mock.calls[0];
+    expect(callArgs[1].settings.rent_grace_days).toBe(14);
+    expect(callArgs[1].settings.due_day).toBeUndefined();
   });
 });

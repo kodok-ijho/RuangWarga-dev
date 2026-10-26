@@ -275,4 +275,114 @@ describe('KOS-2.4: CreateBillingModal (Form Kontrak Sewa Kos)', () => {
       );
     });
   });
+
+  it('KOS-4.2: prefill dari master settings (tenggat, siklus, durasi, harga) dan biaya tambahan tampil sebagai centang', async () => {
+    tenantOperationalService.fetchTenantDetails.mockResolvedValueOnce({
+      settings: {
+        default_rent_price: 1800000,
+        rent_grace_days: 14,
+        contract_default_cycle: 'month_start_prorata',
+        contract_default_months: 6,
+        additional_fees: [
+          { name: 'Parkir Mobil', amount: 100000 },
+          { name: 'Laundry Kiloan', amount: 50000 },
+        ],
+      },
+    });
+
+    render(
+      <CreateBillingModal
+        open={true}
+        onClose={vi.fn()}
+        tenantId={mockTenantId}
+        tenantType="kos"
+        initialUnitId="2" // Kamar 102 punya metadata.default_rent_price 1750000
+      />
+    );
+
+    await screen.findByText('Buat Kontrak Sewa');
+
+    // Tenggat bayar ter-prefill dari master (14)
+    const graceInput = document.getElementById('kos-grace-days-input');
+    expect(graceInput.value).toBe('14');
+
+    // Siklus ter-prefill dari master (month_start_prorata)
+    const radioProrata = screen.getByDisplayValue('month_start_prorata');
+    expect(radioProrata.checked).toBe(true);
+
+    // Durasi ter-prefill dari master (fixed, 6 bulan)
+    const durationSelect = screen.getByLabelText(/Durasi Kontrak/i);
+    expect(durationSelect.value).toBe('fixed');
+    const durationMonthsInput = document.getElementById('kos-duration-months-input');
+    expect(durationMonthsInput.value).toBe('6');
+
+    // Panel biaya tambahan muncul dengan 2 opsi, default tidak tercentang
+    const feePanel = screen.getByTestId('kos-contract-fees-panel');
+    expect(feePanel).toBeTruthy();
+    expect(screen.getByText('Parkir Mobil')).toBeTruthy();
+    expect(screen.getByText('Laundry Kiloan')).toBeTruthy();
+
+    const checkboxes = feePanel.querySelectorAll('input[type="checkbox"]');
+    expect(checkboxes).toHaveLength(2);
+    expect(checkboxes[0].checked).toBe(false);
+    expect(checkboxes[1].checked).toBe(false);
+  });
+
+  it('KOS-4.2: mencentang biaya tambahan mengupdate total pratinjau prorata dan mengirim additionalFees ke createKosContract', async () => {
+    tenantOperationalService.fetchTenantDetails.mockResolvedValueOnce({
+      settings: {
+        default_rent_price: 1500000,
+        rent_grace_days: 10,
+        contract_default_cycle: 'month_start_prorata',
+        additional_fees: [
+          { name: 'Parkir Mobil', amount: 100000 },
+        ],
+      },
+    });
+
+    render(
+      <CreateBillingModal
+        open={true}
+        onClose={vi.fn()}
+        tenantId={mockTenantId}
+        tenantType="kos"
+        initialUnitId="1" // Kamar 101: 1500000
+      />
+    );
+
+    await screen.findByText('Buat Kontrak Sewa');
+
+    const startDateInput = screen.getByLabelText(/Tanggal Masuk/i);
+    fireEvent.change(startDateInput, { target: { value: '2026-10-19' } });
+
+    // Sebelum dicentang: sewa prorata 19-31 Okt = floor(1500000 * 13 / 31 / 1000) * 1000 = 629000
+    let prorataBadge = await screen.findByTestId('prorata-preview-badge');
+    expect(prorataBadge.textContent).toContain('629.000');
+
+    // Centang Parkir Mobil
+    const parkirCheckbox = screen.getByRole('checkbox', { name: /Parkir Mobil/i });
+    fireEvent.click(parkirCheckbox);
+    expect(parkirCheckbox.checked).toBe(true);
+
+    // Setelah dicentang: total prorata (1500000 + 100000) * 13 / 31 = 670000
+    prorataBadge = screen.getByTestId('prorata-preview-badge');
+    expect(prorataBadge.textContent).toContain('670.000');
+
+    // Submit form dan pastikan additionalFees terkirim ke createKosContract
+    const submitBtn = screen.getByRole('button', { name: /Simpan Kontrak/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(tenantOperationalService.createKosContract).toHaveBeenCalledWith(
+        mockTenantId,
+        expect.objectContaining({
+          unitId: 1,
+          rentPrice: 1500000,
+          additionalFees: [
+            { name: 'Parkir Mobil', amount: 100000 },
+          ],
+        })
+      );
+    });
+  });
 });

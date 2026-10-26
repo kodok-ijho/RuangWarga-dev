@@ -42,7 +42,7 @@ export default function TenantSettings() {
 
   const effectiveTenantType = tenantType || ctxTenantType || null;
 
-  const isAutoBillingSupported = effectiveTenantType === 'rt_rw' || effectiveTenantType === 'kos';
+  const isAutoBillingSupported = effectiveTenantType === 'rt_rw';
 
   const canManage = Boolean(isOwner || (hasPermission && hasPermission('manage_settings')));
   const { canTransact, isReadOnly, tooltip } = useSubscriptionGate({
@@ -58,7 +58,7 @@ export default function TenantSettings() {
   const [contactPhone, setContactPhone] = useState('');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
-  // Bagian 2: Tagihan {billLabel}
+  // Bagian 2 (Non-Kos): Tagihan {billLabel}
   const [dueDay, setDueDay] = useState(10);
   const [iplComponents, setIplComponents] = useState([
     { name: `Iuran Pokok`, amount: 0 },
@@ -68,6 +68,14 @@ export default function TenantSettings() {
   const [billingIssueDay, setBillingIssueDay] = useState(1);
   const [autoRuns, setAutoRuns] = useState([]);
   const [isLoadingAutoRuns, setIsLoadingAutoRuns] = useState(false);
+
+  // Bagian 2 (Kos): Aturan Kontrak Sewa (KOS-4)
+  const [defaultRentPrice, setDefaultRentPrice] = useState('');
+  const [rentGraceDays, setRentGraceDays] = useState(10);
+  const [contractDefaultCycle, setContractDefaultCycle] = useState('start_date');
+  const [contractDefaultMonths, setContractDefaultMonths] = useState('');
+  const [additionalFees, setAdditionalFees] = useState([]);
+  const [isSavingKosContract, setIsSavingKosContract] = useState(false);
 
   // Bagian: Iklan Otomatis Kamar Kos (LIST-AUTO-1.2)
   const [autoListingOnVacant, setAutoListingOnVacant] = useState(false);
@@ -138,6 +146,43 @@ export default function TenantSettings() {
 
         const settings = details.settings || {};
         const isKos = (details.type || effectiveTenantType) === 'kos';
+
+        // Load Aturan Kontrak Sewa (KOS-4)
+        if (settings.default_rent_price !== undefined && settings.default_rent_price !== null) {
+          setDefaultRentPrice(settings.default_rent_price);
+        } else {
+          setDefaultRentPrice('');
+        }
+
+        if (settings.rent_grace_days !== undefined && settings.rent_grace_days !== null) {
+          setRentGraceDays(settings.rent_grace_days);
+        } else {
+          setRentGraceDays(10);
+        }
+
+        if (settings.contract_default_cycle) {
+          setContractDefaultCycle(settings.contract_default_cycle);
+        } else {
+          setContractDefaultCycle('start_date');
+        }
+
+        if (settings.contract_default_months !== undefined && settings.contract_default_months !== null) {
+          setContractDefaultMonths(String(settings.contract_default_months));
+        } else {
+          setContractDefaultMonths('');
+        }
+
+        if (Array.isArray(settings.additional_fees)) {
+          setAdditionalFees(
+            settings.additional_fees.map((f) => ({
+              name: f.name || '',
+              amount: f.amount !== undefined ? f.amount : 0,
+            }))
+          );
+        } else {
+          setAdditionalFees([]);
+        }
+
         const hasBillingDueDay =
           settings.billing_due_day !== undefined &&
           settings.billing_due_day !== null &&
@@ -338,6 +383,107 @@ export default function TenantSettings() {
       toast.error(err.message || 'Gagal menyimpan pengaturan tagihan.');
     } finally {
       setIsSavingBilling(false);
+    }
+  };
+
+  // ── Handler Bagian 2 (Kos): Aturan Kontrak Sewa (KOS-4) ────────────────────
+  const handleAddAdditionalFee = () => {
+    if (additionalFees.length >= 10) {
+      toast.error('Jumlah biaya tambahan maksimal 10 item.');
+      return;
+    }
+    setAdditionalFees((prev) => [...prev, { name: '', amount: 0 }]);
+  };
+
+  const handleRemoveAdditionalFee = (index) => {
+    setAdditionalFees((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAdditionalFeeChange = (index, field, value) => {
+    setAdditionalFees((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const handleSaveKosContractRules = async (e) => {
+    if (e) e.preventDefault();
+    if (!canEdit) return;
+
+    const graceNum = parseInt(rentGraceDays, 10);
+    if (isNaN(graceNum) || graceNum < 0 || graceNum > 28) {
+      toast.error('Tenggat bayar harus berupa angka antara 0 hingga 28.');
+      return;
+    }
+
+    const rentPriceNum = defaultRentPrice === '' ? 0 : Number(defaultRentPrice);
+    if (isNaN(rentPriceNum) || rentPriceNum < 0) {
+      toast.error('Harga sewa default tidak boleh bernilai negatif.');
+      return;
+    }
+
+    let defaultMonthsNum = null;
+    if (contractDefaultMonths !== '' && contractDefaultMonths !== null && contractDefaultMonths !== undefined) {
+      const parsedMonths = parseInt(contractDefaultMonths, 10);
+      if (isNaN(parsedMonths) || parsedMonths <= 0) {
+        toast.error('Durasi kontrak default harus berupa angka positif.');
+        return;
+      }
+      defaultMonthsNum = parsedMonths;
+    }
+
+    if (contractDefaultCycle !== 'start_date' && contractDefaultCycle !== 'month_start_prorata') {
+      toast.error('Siklus default tidak valid.');
+      return;
+    }
+
+    if (additionalFees.length > 10) {
+      toast.error('Jumlah biaya tambahan maksimal 10 item.');
+      return;
+    }
+
+    for (let i = 0; i < additionalFees.length; i++) {
+      const f = additionalFees[i];
+      if (!f.name || !f.name.trim()) {
+        toast.error(`Nama biaya tambahan ke-${i + 1} wajib diisi.`);
+        return;
+      }
+      if (f.name.trim().length > 60) {
+        toast.error(`Nama biaya tambahan ke-${i + 1} maksimal 60 karakter.`);
+        return;
+      }
+      const amt = Number(f.amount);
+      if (isNaN(amt) || amt < 0) {
+        toast.error(`Nominal biaya tambahan "${f.name.trim()}" harus berupa angka non-negatif.`);
+        return;
+      }
+    }
+
+    const cleanedFees = additionalFees.map((f) => ({
+      name: f.name.trim(),
+      amount: Math.round(Number(f.amount) || 0),
+    }));
+
+    const kosSettings = {
+      default_rent_price: rentPriceNum,
+      rent_grace_days: graceNum,
+      contract_default_cycle: contractDefaultCycle,
+      contract_default_months: defaultMonthsNum,
+      additional_fees: cleanedFees,
+    };
+
+    setIsSavingKosContract(true);
+    try {
+      await updateTenantProfileAndSettings(tenantId, {
+        settings: kosSettings,
+      });
+      toast.success('Aturan kontrak sewa berhasil disimpan.');
+      if (typeof refreshTenant === 'function') {
+        refreshTenant();
+      }
+    } catch (err) {
+      toast.error(err.message || 'Gagal menyimpan aturan kontrak sewa.');
+    } finally {
+      setIsSavingKosContract(false);
     }
   };
 
@@ -578,248 +724,428 @@ export default function TenantSettings() {
         </form>
       </section>
 
-      {/* Bagian 2: Pengaturan Tagihan */}
-      <section className="bg-white rounded-xl border border-slate-200/80 shadow-xs p-5 sm:p-6">
-        <div className="mb-4">
-          <h2 className="text-base font-bold text-slate-900">Pengaturan Tagihan {billLabel}</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Tentukan tanggal jatuh tempo rutin dan rincian biaya yang ditagihkan per {unitLabel.toLowerCase()}.
-          </p>
-        </div>
-
-        <form noValidate onSubmit={handleSaveBilling} className="space-y-5">
-          <div className="max-w-xs">
-            <label htmlFor="billingDueDayInput" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Tanggal Jatuh Tempo (1–28) <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="billingDueDayInput"
-              type="number"
-              min="1"
-              max="28"
-              value={dueDay}
-              onChange={(e) => setDueDay(e.target.value)}
-              disabled={!canEdit || isSavingBilling}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50 font-medium transition"
-            />
-            <p className="mt-1 text-[11px] text-slate-400">
-              Tagihan bulanan akan diterbitkan setiap tanggal ini.
+      {/* Bagian 2: Pengaturan Tagihan (Non-Kos) / Aturan Kontrak Sewa (Kos - KOS-4) */}
+      {effectiveTenantType === 'kos' ? (
+        <section className="bg-white rounded-xl border border-slate-200/80 shadow-xs p-5 sm:p-6" data-testid="kos-contract-rules-section">
+          <div className="mb-4">
+            <h2 className="text-base font-bold text-slate-900">Aturan Kontrak Sewa</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Tagihan sewa terbit otomatis setiap tanggal masuk penyewa sesuai kontrak.
             </p>
           </div>
 
-          {/* Blok Terbitkan Tagihan Otomatis (BILL-AUTO-1.2) - HANYA tipe rt_rw atau kos */}
-          {isAutoBillingSupported && (
-            <div className="pt-2 border-t border-slate-100 space-y-4">
-              <div className="p-4 rounded-xl border border-slate-200/90 bg-slate-50/70 space-y-3.5">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <label
-                      htmlFor="autoBillingEnabledToggle"
-                      className="text-xs sm:text-sm font-bold text-slate-800 cursor-pointer block"
-                    >
-                      Terbitkan tagihan otomatis
-                    </label>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Otomatisasi pembuatan tagihan berkala setiap bulan tanpa perlu terbit manual.
-                    </p>
-                  </div>
-                  <label
-                    htmlFor="autoBillingEnabledToggle"
-                    className="relative inline-flex items-center cursor-pointer select-none shrink-0"
-                  >
-                    <input
-                      id="autoBillingEnabledToggle"
-                      type="checkbox"
-                      checked={autoBillingEnabled}
-                      onChange={(e) => setAutoBillingEnabled(e.target.checked)}
-                      disabled={!canEdit || isSavingBilling}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed" />
-                  </label>
-                </div>
-
-                <div className="max-w-xs">
-                  <label
-                    htmlFor="billingIssueDaySelect"
-                    className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1"
-                  >
-                    Tanggal Terbit (1–28)
-                  </label>
-                  <select
-                    id="billingIssueDaySelect"
-                    value={billingIssueDay}
-                    onChange={(e) => setBillingIssueDay(parseInt(e.target.value, 10))}
-                    disabled={!canEdit || isSavingBilling || !autoBillingEnabled}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-100 disabled:text-slate-400 font-medium transition"
-                  >
-                    {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
-                      <option key={day} value={day}>
-                        Tanggal {day}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {autoBillingEnabled ? (
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Tagihan bulan berjalan diterbitkan otomatis setiap tanggal {billingIssueDay} pukul 00:05 WIB, jatuh tempo tanggal {dueDay}.{' '}
-                    {effectiveTenantType === 'kos'
-                      ? 'Berlaku untuk kamar terisi dengan kontrak berjalan.'
-                      : 'Berlaku untuk semua rumah aktif, termasuk rumah kosong.'}{' '}
-                    Tombol terbit manual tetap bisa dipakai.
-                  </p>
-                ) : (
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Tagihan saat ini hanya diterbitkan manual. Aktifkan untuk menerbitkan tagihan bulan berjalan otomatis pada tanggal terbit.
-                  </p>
-                )}
-
-                {autoBillingEnabled && Number(billingIssueDay) > Number(dueDay) && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-800 flex items-start gap-2">
-                    <AiOutlineWarning className="text-base text-amber-600 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-semibold">Peringatan: </span>
-                      Tanggal terbit ({billingIssueDay}) lebih besar dari tanggal jatuh tempo ({dueDay}). Tagihan akan langsung lewat jatuh tempo saat terbit.
-                    </div>
-                  </div>
-                )}
+          <form noValidate onSubmit={handleSaveKosContractRules} className="space-y-5">
+            {/* Harga Sewa Default */}
+            <div className="max-w-xs">
+              <label htmlFor="kosDefaultRentPriceInput" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Harga Sewa Default (Rp / bulan)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">
+                  Rp
+                </span>
+                <input
+                  id="kosDefaultRentPriceInput"
+                  type="number"
+                  min="0"
+                  step="1000"
+                  value={defaultRentPrice}
+                  onChange={(e) => setDefaultRentPrice(e.target.value)}
+                  placeholder="0"
+                  disabled={!canEdit || isSavingKosContract}
+                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 bg-white text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50 font-medium transition"
+                />
               </div>
+              <p className="mt-1 text-[11px] text-slate-400">
+                Tarif sewa dasar per bulan jika kamar belum memiliki harga khusus.
+              </p>
+            </div>
 
-              {/* Riwayat Penerbitan Otomatis (6 run terakhir) */}
-              <div className="pt-2">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                    <AiOutlineClockCircle className="text-slate-400" size={14} />
-                    Riwayat Penerbitan Otomatis
-                  </h3>
-                  <span className="text-[11px] text-slate-400">6 Run Terakhir</span>
-                </div>
-
-                {isLoadingAutoRuns ? (
-                  <p className="text-xs text-slate-400 italic py-2">Memuat riwayat penerbitan otomatis...</p>
-                ) : autoRuns.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic py-1">Belum ada penerbitan otomatis.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {autoRuns.map((run) => {
-                      const runAtStr = run.run_at
-                        ? new Date(run.run_at).toLocaleString('id-ID', {
-                            timeZone: 'Asia/Jakarta',
-                            dateStyle: 'medium',
-                            timeStyle: 'short',
-                          })
-                        : '-';
-
-                      return (
-                        <div
-                          key={run.id || `${run.period}-${run.run_at}`}
-                          className="p-3 rounded-lg border border-slate-200 bg-slate-50/70 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-1.5"
-                        >
-                          <div className="space-y-0.5">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-slate-800">Periode {run.period}</span>
-                              <span className="text-[11px] text-slate-400">• {runAtStr}</span>
-                            </div>
-                            <div className="text-[11px] text-slate-600">
-                              {run.created_count ?? 0} tagihan dibuat, {run.skipped_count ?? 0} dilewati
-                            </div>
-                            {run.error && (
-                              <p className="text-[11px] text-red-600 font-medium mt-0.5">
-                                {run.error}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+            {/* Tenggat Bayar */}
+            <div className="max-w-xs">
+              <label htmlFor="kosRentGraceDaysInput" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Tenggat Bayar (0–28 Hari) <span className="text-red-500">*</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="kosRentGraceDaysInput"
+                  type="number"
+                  min="0"
+                  max="28"
+                  value={rentGraceDays}
+                  onChange={(e) => setRentGraceDays(e.target.value)}
+                  disabled={!canEdit || isSavingKosContract}
+                  className="w-24 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50 font-medium transition"
+                />
+                <span className="text-xs text-slate-500">hari setelah tanggal tagih (default: 10)</span>
               </div>
             </div>
-          )}
 
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Daftar Komponen Biaya {billLabel}
+            {/* Siklus Default */}
+            <div className="max-w-md">
+              <label htmlFor="kosContractDefaultCycleSelect" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Siklus Default
               </label>
-              <button
-                type="button"
-                onClick={handleAddComponent}
-                disabled={!canEdit || isSavingBilling}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              <select
+                id="kosContractDefaultCycleSelect"
+                value={contractDefaultCycle}
+                onChange={(e) => setContractDefaultCycle(e.target.value)}
+                disabled={!canEdit || isSavingKosContract}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-100 font-medium transition"
               >
-                <AiOutlinePlus />
-                <span>Tambah Baris</span>
+                <option value="start_date">Ikut tanggal masuk (start_date)</option>
+                <option value="month_start_prorata">Awal bulan prorata (month_start_prorata)</option>
+              </select>
+              <p className="mt-1 text-[11px] text-slate-400">
+                Pilihan default siklus tagihan saat membuat kontrak sewa baru.
+              </p>
+            </div>
+
+            {/* Durasi Default */}
+            <div className="max-w-xs">
+              <label htmlFor="kosContractDefaultMonthsInput" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Durasi Default
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="kosContractDefaultMonthsInput"
+                  type="number"
+                  min="1"
+                  max="60"
+                  value={contractDefaultMonths}
+                  onChange={(e) => setContractDefaultMonths(e.target.value)}
+                  placeholder="Kosongkan jika bulanan"
+                  disabled={!canEdit || isSavingKosContract}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50 font-medium transition"
+                />
+                {contractDefaultMonths && <span className="text-xs text-slate-600">bulan</span>}
+              </div>
+              <p className="mt-1 text-[11px] text-slate-400">
+                Kosongkan untuk durasi bulanan (berjalan terus) atau isi N bulan.
+              </p>
+            </div>
+
+            {/* Daftar Biaya Tambahan (Maks. 10) */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Daftar Biaya Tambahan (Maks. 10)
+                </label>
+                <button
+                  type="button"
+                  onClick={handleAddAdditionalFee}
+                  disabled={!canEdit || isSavingKosContract || additionalFees.length >= 10}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <AiOutlinePlus />
+                  <span>Tambah Baris</span>
+                </button>
+              </div>
+
+              {additionalFees.length === 0 ? (
+                <p className="text-xs text-slate-400 italic py-1">
+                  Belum ada biaya tambahan master. Klik "Tambah Baris" untuk menambahkan (misal: Parkir Mobil, Laundry).
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {additionalFees.map((fee, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={fee.name}
+                          onChange={(e) => handleAdditionalFeeChange(index, 'name', e.target.value)}
+                          placeholder="Nama biaya (misal: Parkir Mobil, Laundry)"
+                          maxLength={60}
+                          disabled={!canEdit || isSavingKosContract}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50 transition"
+                        />
+                      </div>
+                      <div className="w-36 sm:w-48">
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">
+                            Rp
+                          </span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={fee.amount}
+                            onChange={(e) => handleAdditionalFeeChange(index, 'amount', e.target.value)}
+                            placeholder="0"
+                            disabled={!canEdit || isSavingKosContract}
+                            className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 bg-white text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50 font-medium transition text-right"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAdditionalFee(index)}
+                        disabled={!canEdit || isSavingKosContract}
+                        title="Hapus biaya"
+                        className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <AiOutlineDelete size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="submit"
+                disabled={!canEdit || isSavingKosContract}
+                title={!canTransact ? tooltip : undefined}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <AiOutlineSave className="text-base" />
+                <span>{isSavingKosContract ? 'Menyimpan...' : 'Simpan Aturan Kontrak'}</span>
               </button>
             </div>
+          </form>
+        </section>
+      ) : (
+        <section className="bg-white rounded-xl border border-slate-200/80 shadow-xs p-5 sm:p-6">
+          <div className="mb-4">
+            <h2 className="text-base font-bold text-slate-900">Pengaturan Tagihan {billLabel}</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Tentukan tanggal jatuh tempo rutin dan rincian biaya yang ditagihkan per {unitLabel.toLowerCase()}.
+            </p>
+          </div>
 
-            <div className="space-y-2">
-              {iplComponents.map((component, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <input
-                      type="text"
-                      value={component.name}
-                      onChange={(e) => handleComponentChange(index, 'name', e.target.value)}
-                      placeholder="Nama komponen (misal: Keamanan, Kas)"
-                      disabled={!canEdit || isSavingBilling}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50 transition"
-                    />
-                  </div>
-                  <div className="w-36 sm:w-48">
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">
-                        Rp
-                      </span>
+          <form noValidate onSubmit={handleSaveBilling} className="space-y-5">
+            <div className="max-w-xs">
+              <label htmlFor="billingDueDayInput" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Tanggal Jatuh Tempo (1–28) <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="billingDueDayInput"
+                type="number"
+                min="1"
+                max="28"
+                value={dueDay}
+                onChange={(e) => setDueDay(e.target.value)}
+                disabled={!canEdit || isSavingBilling}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50 font-medium transition"
+              />
+              <p className="mt-1 text-[11px] text-slate-400">
+                Tagihan bulanan akan diterbitkan setiap tanggal ini.
+              </p>
+            </div>
+
+            {/* Blok Terbitkan Tagihan Otomatis (BILL-AUTO-1.2) - HANYA tipe rt_rw */}
+            {isAutoBillingSupported && (
+              <div className="pt-2 border-t border-slate-100 space-y-4">
+                <div className="p-4 rounded-xl border border-slate-200/90 bg-slate-50/70 space-y-3.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <label
+                        htmlFor="autoBillingEnabledToggle"
+                        className="text-xs sm:text-sm font-bold text-slate-800 cursor-pointer block"
+                      >
+                        Terbitkan tagihan otomatis
+                      </label>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Otomatisasi pembuatan tagihan berkala setiap bulan tanpa perlu terbit manual.
+                      </p>
+                    </div>
+                    <label
+                      htmlFor="autoBillingEnabledToggle"
+                      className="relative inline-flex items-center cursor-pointer select-none shrink-0"
+                    >
                       <input
-                        type="number"
-                        min="0"
-                        value={component.amount}
-                        onChange={(e) => handleComponentChange(index, 'amount', e.target.value)}
-                        placeholder="0"
+                        id="autoBillingEnabledToggle"
+                        type="checkbox"
+                        checked={autoBillingEnabled}
+                        onChange={(e) => setAutoBillingEnabled(e.target.checked)}
                         disabled={!canEdit || isSavingBilling}
-                        className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 bg-white text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50 font-medium transition text-right"
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed" />
+                    </label>
+                  </div>
+
+                  <div className="max-w-xs">
+                    <label
+                      htmlFor="billingIssueDaySelect"
+                      className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1"
+                    >
+                      Tanggal Terbit (1–28)
+                    </label>
+                    <select
+                      id="billingIssueDaySelect"
+                      value={billingIssueDay}
+                      onChange={(e) => setBillingIssueDay(parseInt(e.target.value, 10))}
+                      disabled={!canEdit || isSavingBilling || !autoBillingEnabled}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-100 disabled:text-slate-400 font-medium transition"
+                    >
+                      {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
+                        <option key={day} value={day}>
+                          Tanggal {day}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {autoBillingEnabled ? (
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      Tagihan bulan berjalan diterbitkan otomatis setiap tanggal {billingIssueDay} pukul 00:05 WIB, jatuh tempo tanggal {dueDay}.{' '}
+                      Berlaku untuk semua rumah aktif, termasuk rumah kosong.{' '}
+                      Tombol terbit manual tetap bisa dipakai.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      Tagihan saat ini hanya diterbitkan manual. Aktifkan untuk menerbitkan tagihan bulan berjalan otomatis pada tanggal terbit.
+                    </p>
+                  )}
+
+                  {autoBillingEnabled && Number(billingIssueDay) > Number(dueDay) && (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-800 flex items-start gap-2">
+                      <AiOutlineWarning className="text-base text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-semibold">Peringatan: </span>
+                        Tanggal terbit ({billingIssueDay}) lebih besar dari tanggal jatuh tempo ({dueDay}). Tagihan akan langsung lewat jatuh tempo saat terbit.
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Riwayat Penerbitan Otomatis (6 run terakhir) */}
+                <div className="pt-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <AiOutlineClockCircle className="text-slate-400" size={14} />
+                      Riwayat Penerbitan Otomatis
+                    </h3>
+                    <span className="text-[11px] text-slate-400">6 Run Terakhir</span>
+                  </div>
+
+                  {isLoadingAutoRuns ? (
+                    <p className="text-xs text-slate-400 italic py-2">Memuat riwayat penerbitan otomatis...</p>
+                  ) : autoRuns.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic py-1">Belum ada penerbitan otomatis.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {autoRuns.map((run) => {
+                        const runAtStr = run.run_at
+                          ? new Date(run.run_at).toLocaleString('id-ID', {
+                              timeZone: 'Asia/Jakarta',
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })
+                          : '-';
+
+                        return (
+                          <div
+                            key={run.id || `${run.period}-${run.run_at}`}
+                            className="p-3 rounded-lg border border-slate-200 bg-slate-50/70 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-1.5"
+                          >
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-800">Periode {run.period}</span>
+                                <span className="text-[11px] text-slate-400">• {runAtStr}</span>
+                              </div>
+                              <div className="text-[11px] text-slate-600">
+                                {run.created_count ?? 0} tagihan dibuat, {run.skipped_count ?? 0} dilewati
+                              </div>
+                              {run.error && (
+                                <p className="text-[11px] text-red-600 font-medium mt-0.5">
+                                  {run.error}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Daftar Komponen Biaya {billLabel}
+                </label>
+                <button
+                  type="button"
+                  onClick={handleAddComponent}
+                  disabled={!canEdit || isSavingBilling}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <AiOutlinePlus />
+                  <span>Tambah Baris</span>
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {iplComponents.map((component, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <input
+                        type="text"
+                        value={component.name}
+                        onChange={(e) => handleComponentChange(index, 'name', e.target.value)}
+                        placeholder="Nama komponen (misal: Keamanan, Kas)"
+                        disabled={!canEdit || isSavingBilling}
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50 transition"
                       />
                     </div>
+                    <div className="w-36 sm:w-48">
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">
+                          Rp
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={component.amount}
+                          onChange={(e) => handleComponentChange(index, 'amount', e.target.value)}
+                          placeholder="0"
+                          disabled={!canEdit || isSavingBilling}
+                          className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 bg-white text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50 font-medium transition text-right"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveComponent(index)}
+                      disabled={!canEdit || isSavingBilling || iplComponents.length <= 1}
+                      title="Hapus komponen"
+                      className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <AiOutlineDelete size={16} />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveComponent(index)}
-                    disabled={!canEdit || isSavingBilling || iplComponents.length <= 1}
-                    title="Hapus komponen"
-                    className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <AiOutlineDelete size={16} />
-                  </button>
-                </div>
-              ))}
+                ))}
+              </div>
+
+              {/* Total Ringkasan Biaya */}
+              <div className="mt-3 flex items-center justify-between p-3.5 rounded-lg bg-slate-50 border border-slate-200/80 text-xs sm:text-sm">
+                <span className="font-semibold text-slate-700">Total Biaya {billLabel}:</span>
+                <span className="font-extrabold text-forest-900 text-sm sm:text-base">
+                  {formatRupiah(totalBillingAmount)}{' '}
+                  <span className="text-xs font-normal text-slate-500">/ {unitLabel.toLowerCase()} / bulan</span>
+                </span>
+              </div>
             </div>
 
-            {/* Total Ringkasan Biaya */}
-            <div className="mt-3 flex items-center justify-between p-3.5 rounded-lg bg-slate-50 border border-slate-200/80 text-xs sm:text-sm">
-              <span className="font-semibold text-slate-700">Total Biaya {billLabel}:</span>
-              <span className="font-extrabold text-forest-900 text-sm sm:text-base">
-                {formatRupiah(totalBillingAmount)}{' '}
-                <span className="text-xs font-normal text-slate-500">/ {unitLabel.toLowerCase()} / bulan</span>
-              </span>
+            <div className="pt-2 flex justify-end">
+              <button
+                type="submit"
+                disabled={!canEdit || isSavingBilling}
+                title={!canTransact ? tooltip : undefined}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <AiOutlineSave className="text-base" />
+                <span>{isSavingBilling ? 'Menyimpan...' : 'Simpan Tagihan'}</span>
+              </button>
             </div>
-          </div>
-
-          <div className="pt-2 flex justify-end">
-            <button
-              type="submit"
-              disabled={!canEdit || isSavingBilling}
-              title={!canTransact ? tooltip : undefined}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <AiOutlineSave className="text-base" />
-              <span>{isSavingBilling ? 'Menyimpan...' : 'Simpan Tagihan'}</span>
-            </button>
-          </div>
-        </form>
-      </section>
+          </form>
+        </section>
+      )}
 
       {/* Bagian: Iklan Otomatis Kamar Kos (LIST-AUTO-1.2) - Khusus Kos */}
       {effectiveTenantType === 'kos' && (

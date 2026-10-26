@@ -245,12 +245,64 @@ describe('KOS-2.3: computeRentPeriods & Kos Contract Service', () => {
       expect(result.bill.metadata.prorata).toBeUndefined();
     });
 
-    it('KOS-3.2: createKosContract mode Supabase RPC mengirim p_billing_cycle', async () => {
+    it('KOS-4.2: createKosContract mode demo menyimpan additional_fees dan menghitung line_items serta total amount', async () => {
+      const fees = [
+        { name: 'Parkir Mobil', amount: 100000 },
+        { name: 'WiFi Ekstra', amount: 50000 },
+      ];
+
+      const result = await createKosContract(TENANT_ID, {
+        unitId: 8,
+        tenantName: 'Citra Penyewa',
+        rentPrice: 1500000,
+        startDate: '2026-10-19',
+        months: 6,
+        billingCycle: 'start_date',
+        additionalFees: fees,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.additional_fees).toEqual(fees);
+      expect(result.contract.additional_fees).toEqual(fees);
+      // start_date non-prorata: amount = 1500000 + 100000 + 50000 = 1650000
+      expect(result.bill.amount).toBe(1650000);
+      expect(result.bill.metadata.line_items).toEqual([
+        { name: 'Sewa', amount: 1500000 },
+        { name: 'Parkir Mobil', amount: 100000 },
+        { name: 'WiFi Ekstra', amount: 50000 },
+      ]);
+    });
+
+    it('KOS-4.2: createKosContract mode demo siklus prorata menghitung line_items prorata', async () => {
+      const fees = [{ name: 'Parkir Mobil', amount: 100000 }];
+
+      const result = await createKosContract(TENANT_ID, {
+        unitId: 9,
+        tenantName: 'Dewi Mahasiswi',
+        rentPrice: 1500000,
+        startDate: '2026-10-19',
+        months: 3,
+        billingCycle: 'month_start_prorata',
+        additionalFees: fees,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.billing_cycle).toBe('month_start_prorata');
+      // floor(1600000 * 13 / 31 / 1000) * 1000 = 670000
+      expect(result.bill.amount).toBe(670000);
+      expect(result.bill.metadata.prorata).toBe(true);
+      expect(result.bill.metadata.line_items).toEqual([
+        { name: 'Sewa', amount: 628065 },
+        { name: 'Parkir Mobil', amount: 41935 },
+      ]);
+    });
+
+    it('KOS-4.2: createKosContract mode Supabase RPC mengirim p_additional_fees', async () => {
       const rpcSpy = vi.spyOn(supabase, 'rpc').mockResolvedValue({
         data: {
           success: true,
-          contract_id: 'c-supabase-1',
-          billing_cycle: 'month_start_prorata',
+          contract_id: 'c-supabase-fees-1',
+          additional_fees: [{ name: 'Parkir Mobil', amount: 100000 }],
         },
         error: null,
       });
@@ -258,11 +310,12 @@ describe('KOS-2.3: computeRentPeriods & Kos Contract Service', () => {
       const realTenantId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
       if (!import.meta.env?.VITE_DEMO_MODE || import.meta.env.VITE_DEMO_MODE === 'false') {
         const result = await createKosContract(realTenantId, {
-          unitId: 10,
-          tenantName: 'Supabase User',
+          unitId: 11,
+          tenantName: 'Supabase User Fees',
           rentPrice: 2000000,
           startDate: '2026-10-19',
           billingCycle: 'month_start_prorata',
+          additionalFees: [{ name: 'Parkir Mobil', amount: 100000 }],
         });
 
         expect(result.success).toBe(true);
@@ -270,14 +323,14 @@ describe('KOS-2.3: computeRentPeriods & Kos Contract Service', () => {
           'create_kos_contract',
           expect.objectContaining({
             p_tenant_id: realTenantId,
-            p_unit_id: 10,
+            p_unit_id: 11,
             p_rent_price: 2000000,
             p_start_date: '2026-10-19',
             p_billing_cycle: 'month_start_prorata',
+            p_additional_fees: [{ name: 'Parkir Mobil', amount: 100000 }],
           })
         );
       } else {
-        // Pada mode demo, createKosContract akan merutekan ke mock handler
         expect(true).toBe(true);
       }
       rpcSpy.mockRestore();

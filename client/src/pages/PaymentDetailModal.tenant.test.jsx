@@ -358,4 +358,34 @@ describe('PaymentDetailModal Tenant Mode (RTRW-1F.2)', () => {
       expect.stringContaining('LUNAS')
     );
   });
+
+  it('7. menampilkan rincian line_items bila ada pada metadata tagihan kos (KOS-4.2)', () => {
+    mockTenantState.activeTenant = { id: 'tenant-kos-1', name: 'Kos Melati', type: 'kos' };
+    mockTenantState.activeTenantId = 'tenant-kos-1';
+
+    const props = createDefaultProps();
+    props.bill = {
+      id: 'bill-kos-1',
+      amount: 1600000,
+      period: '2026-10',
+      status: 'pending',
+      metadata: {
+        line_items: [
+          { name: 'Sewa Kamar 101', amount: 1500000 },
+          { name: 'Parkir Mobil', amount: 100000 },
+        ],
+      },
+    };
+    props.payment = null;
+
+    render(<PaymentDetailModal {...props} />);
+
+    const lineItemsContainer = screen.getByTestId('kos-bill-line-items');
+    expect(lineItemsContainer).toBeTruthy();
+    expect(screen.getByText('Sewa Kamar 101')).toBeTruthy();
+    expect(screen.getByText('Parkir Mobil')).toBeTruthy();
+    expect(screen.getByText('Rp 1.500.000')).toBeTruthy();
+    expect(screen.getByText('Rp 100.000')).toBeTruthy();
+    expect(screen.getByText('2 komponen')).toBeTruthy();
+  });
 });

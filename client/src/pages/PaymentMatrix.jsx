@@ -2144,9 +2144,21 @@ function ResidentPayModal({ bills, total, canUseQris, billLabel = 'IPL', onConfi
           </p>
           <div className="mt-1 space-y-1 max-h-28 overflow-y-auto">
             {bills.map((bill) => (
-              <div key={bill.id} className="flex justify-between text-xs py-0.5">
-                <span className="font-medium text-slate-800">{formatPeriod(bill.period)}</span>
-                <span className="text-slate-700">{formatRupiah(bill.amount)}</span>
+              <div key={bill.id} className="text-xs py-0.5">
+                <div className="flex justify-between">
+                  <span className="font-medium text-slate-800">{formatPeriod(bill.period)}</span>
+                  <span className="text-slate-700">{formatRupiah(bill.amount)}</span>
+                </div>
+                {Array.isArray(bill.metadata?.line_items) && bill.metadata.line_items.length > 0 && (
+                  <div className="pl-2 pt-0.5 text-[11px] text-slate-500 space-y-0.5" data-testid="resident-pay-line-items">
+                    {bill.metadata.line_items.map((li, idx) => (
+                      <div key={idx} className="flex justify-between">
+                        <span>• {li.name}</span>
+                        <span>{formatRupiah(li.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -2784,6 +2796,11 @@ export function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profil
 
 
   const resolvedBill = bill;
+  const lineItems = Array.isArray(resolvedBill?.metadata?.line_items)
+    ? resolvedBill.metadata.line_items
+    : Array.isArray(activePayment?.metadata?.line_items)
+    ? activePayment.metadata.line_items
+    : [];
   const targetUnit = unit || (IS_DEMO && bill?.unit_id ? getUnitById(bill.unit_id) : null);
   const resolvedUnitId = targetUnit?.id ?? bill?.unit_id ?? activePayment?.unit_id;
 
@@ -3332,6 +3349,35 @@ export function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profil
                   {resolvedBill.contract_start ? formatDate(resolvedBill.contract_start) : '-'} s/d{' '}
                   {resolvedBill.contract_end ? formatDate(resolvedBill.contract_end) : '-'}
                 </p>
+              </div>
+            )}
+
+            {/* Rincian Line Items Tagihan (KOS-4.2) */}
+            {lineItems.length > 0 && (
+              <div
+                data-testid="kos-bill-line-items"
+                className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-forest-900 space-y-2"
+              >
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-200">
+                  <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                    <span>📋</span> Rincian Tagihan
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    {lineItems.length} komponen
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  {lineItems.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-center py-0.5 text-xs">
+                      <span className="text-slate-600 font-medium">{item.name}</span>
+                      <span className="font-semibold text-slate-900">{formatRupiah(item.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="pt-1.5 border-t border-slate-200 flex justify-between items-center font-bold text-xs">
+                  <span className="text-slate-800">Total:</span>
+                  <span className="text-emerald-700">{formatRupiah(resolvedBill.amount)}</span>
+                </div>
               </div>
             )}
 

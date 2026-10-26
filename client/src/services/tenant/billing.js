@@ -633,6 +633,7 @@ async function createDemoKosContract(tenantId, {
   graceDays = 10,
   notes = null,
   billingCycle = 'start_date',
+  additionalFees = [],
 }) {
   const contracts = getInitialDemoContracts(tenantId);
   const numericUnitId = Number(unitId);
@@ -655,7 +656,14 @@ async function createDemoKosContract(tenantId, {
     }
   }
 
-  const prorataInfo = calculateKosProrata(startDate, rentPrice, billingCycle);
+  const normalizedFees = (Array.isArray(additionalFees) ? additionalFees : [])
+    .filter((f) => f && typeof f === 'object' && f.name && String(f.name).trim())
+    .map((f) => ({
+      name: String(f.name).trim(),
+      amount: Math.max(0, Math.floor(Number(f.amount) || 0)),
+    }));
+
+  const prorataInfo = calculateKosProrata(startDate, rentPrice, billingCycle, normalizedFees);
   const finalBillingCycle = prorataInfo.billingCycle;
 
   const periods = computeRentPeriods(startDate, graceDays, 1, null, finalBillingCycle);
@@ -697,6 +705,7 @@ async function createDemoKosContract(tenantId, {
     billing_cycle: finalBillingCycle,
     status: 'active',
     notes: notes || null,
+    additional_fees: normalizedFees,
     created_at: new Date().toISOString(),
     unit: { id: numericUnitId, label: `Kamar ${numericUnitId}`, status: 'occupied' },
     member: memberId ? { id: memberId, full_name: tenantName || 'Penyewa Kamar', status: 'approved' } : null,
@@ -705,7 +714,7 @@ async function createDemoKosContract(tenantId, {
   contracts.unshift(newContract);
   demoKosContractsMap.set(tenantId, contracts);
 
-  const billAmount = prorataInfo.isProrata ? prorataInfo.amount : Number(rentPrice || 0);
+  const billAmount = prorataInfo.amount;
   const billMetadata = {
     bill_type: 'rent',
     billing_type: 'rent',
@@ -713,6 +722,7 @@ async function createDemoKosContract(tenantId, {
     contract_id: contractId,
     service_start: firstPeriod.service_start,
     service_end: firstPeriod.service_end,
+    line_items: prorataInfo.lineItems,
     notes: notes || (prorataInfo.isProrata
       ? 'Tagihan sewa periode pertama (kontrak baru prorata)'
       : 'Tagihan sewa periode pertama (kontrak baru)'),
@@ -747,6 +757,7 @@ async function createDemoKosContract(tenantId, {
     end_date: endDate,
     grace_days: newContract.grace_days,
     billing_cycle: finalBillingCycle,
+    additional_fees: normalizedFees,
     contract: newContract,
     bill,
   };
@@ -756,7 +767,7 @@ async function createDemoKosContract(tenantId, {
  * Membuat kontrak sewa kos master dan menerbitkan tagihan periode pertama (KOS-2)
  *
  * @param {string} tenantId - UUID tenant kos
- * @param {object} params - { unitId, memberId, tenantName, rentPrice, startDate, months, graceDays, notes, billingCycle }
+ * @param {object} params - { unitId, memberId, tenantName, rentPrice, startDate, months, graceDays, notes, billingCycle, additionalFees }
  */
 export async function createKosContract(tenantId, {
   unitId,
@@ -768,6 +779,7 @@ export async function createKosContract(tenantId, {
   graceDays = 10,
   notes = null,
   billingCycle = 'start_date',
+  additionalFees = [],
 } = {}) {
   if (!tenantId) throw new Error('Tenant ID wajib disertakan.');
   if (!unitId) throw new Error('Kamar (unitId) wajib dipilih.');
@@ -788,6 +800,7 @@ export async function createKosContract(tenantId, {
       graceDays,
       notes,
       billingCycle,
+      additionalFees,
     });
   }
 
@@ -802,6 +815,7 @@ export async function createKosContract(tenantId, {
     p_grace_days: graceDays !== undefined && graceDays !== null ? Number(graceDays) : null,
     p_notes: notes || null,
     p_billing_cycle: billingCycle || 'start_date',
+    p_additional_fees: Array.isArray(additionalFees) ? additionalFees : [],
   });
 
   if (error) {
@@ -889,6 +903,7 @@ export async function assignRoomContract(tenantId, {
   dueDate,
   notes,
   billingCycle = 'start_date',
+  additionalFees = [],
 } = {}) {
   if (!tenantId) throw new Error('Tenant ID wajib disertakan.');
   if (!unitId) throw new Error('Kamar (unitId) wajib dipilih.');
@@ -916,6 +931,7 @@ export async function assignRoomContract(tenantId, {
     rentPrice: rentPrice !== undefined && rentPrice !== null ? Number(rentPrice) : 0,
     notes: notes || null,
     billingCycle,
+    additionalFees,
   });
 
   const finalUnitId = (res?.unit_id != null && !Number.isNaN(res.unit_id)) ? res.unit_id : unitId;

@@ -61,6 +61,7 @@ export function getDaysInMonth(year, month) {
  * @param {string} startDate - Tanggal mulai sewa (YYYY-MM-DD)
  * @param {number|string} rentPrice - Harga sewa per bulan
  * @param {string} [billingCycle='month_start_prorata'] - 'start_date' | 'month_start_prorata'
+ * @param {Array<{ name: string, amount: number|string }>} [additionalFees=[]] - Daftar biaya tambahan
  * @returns {{
  *   billingCycle: 'start_date' | 'month_start_prorata',
  *   isProrata: boolean,
@@ -71,23 +72,45 @@ export function getDaysInMonth(year, month) {
  *   serviceEnd: string,
  *   period: string,
  *   monthLabel: string,
+ *   lineItems: Array<{ name: string, amount: number }>,
+ *   rentPrice: number,
+ *   totalAdditionalFees: number,
  * }}
  */
-export function calculateKosProrata(startDate, rentPrice, billingCycle = 'month_start_prorata') {
+export function calculateKosProrata(
+  startDate,
+  rentPrice,
+  billingCycle = 'month_start_prorata',
+  additionalFees = []
+) {
   const parts = parseDateParts(startDate);
   const rawRent = Math.max(0, Math.floor(Number(rentPrice) || 0));
+  const fees = Array.isArray(additionalFees)
+    ? additionalFees
+        .filter((f) => f && typeof f === 'object' && f.name && String(f.name).trim())
+        .map((f) => ({
+          name: String(f.name).trim(),
+          amount: Math.max(0, Math.floor(Number(f.amount) || 0)),
+        }))
+    : [];
+  const totalAdditionalFees = fees.reduce((sum, f) => sum + f.amount, 0);
+  const totalBase = rawRent + totalAdditionalFees;
 
   if (!parts) {
+    const baseLineItems = [{ name: 'Sewa', amount: rawRent }, ...fees];
     return {
       billingCycle: billingCycle === 'month_start_prorata' ? 'month_start_prorata' : 'start_date',
       isProrata: false,
-      amount: rawRent,
+      amount: totalBase,
       daysInMonth: 30,
       prorataDays: 30,
       serviceStart: '',
       serviceEnd: '',
       period: '',
       monthLabel: '',
+      lineItems: baseLineItems,
+      rentPrice: rawRent,
+      totalAdditionalFees,
     };
   }
 
@@ -98,24 +121,37 @@ export function calculateKosProrata(startDate, rentPrice, billingCycle = 'month_
 
   // Tanggal 1 -> nominal penuh dan siklus dinormalkan ke start_date
   if (billingCycle !== 'month_start_prorata' || day === 1) {
+    const lineItems = [{ name: 'Sewa', amount: rawRent }, ...fees];
     return {
       billingCycle: 'start_date',
       isProrata: false,
-      amount: rawRent,
+      amount: totalBase,
       daysInMonth,
       prorataDays: daysInMonth,
       serviceStart: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
       serviceEnd: `${year}-${String(month).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`,
       period,
       monthLabel,
+      lineItems,
+      rentPrice: rawRent,
+      totalAdditionalFees,
     };
   }
 
   // Hari terpakai = hari dalam bulan - tanggal masuk + 1
   const prorataDays = Math.max(1, daysInMonth - day + 1);
 
-  // nominal = floor(rent * hari_terpakai / hari_dalam_bulan / 1000) * 1000
-  const nominal = Math.floor((rawRent * prorataDays / daysInMonth) / 1000) * 1000;
+  // total prorata = floor((sewa + biaya) * hari_terpakai / hari_dalam_bulan / 1000) * 1000
+  const nominal = Math.floor((totalBase * prorataDays / daysInMonth) / 1000) * 1000;
+
+  // line_items prorata: per fee floor ke rupiah, baris Sewa = total prorata - jumlah biaya prorata
+  const feeLineItems = fees.map((f) => ({
+    name: f.name,
+    amount: Math.floor(f.amount * prorataDays / daysInMonth),
+  }));
+  const sumFeeLines = feeLineItems.reduce((acc, f) => acc + f.amount, 0);
+  const rentLineAmount = nominal - sumFeeLines;
+  const lineItems = [{ name: 'Sewa', amount: rentLineAmount }, ...feeLineItems];
 
   return {
     billingCycle: 'month_start_prorata',
@@ -127,6 +163,9 @@ export function calculateKosProrata(startDate, rentPrice, billingCycle = 'month_
     serviceEnd: `${year}-${String(month).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`,
     period,
     monthLabel,
+    lineItems,
+    rentPrice: rawRent,
+    totalAdditionalFees,
   };
 }
 

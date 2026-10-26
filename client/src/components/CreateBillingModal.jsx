@@ -8,6 +8,7 @@ import {
   AiOutlineCheckCircle,
   AiOutlineInfoCircle,
   AiOutlineClockCircle,
+  AiOutlineAppstore,
 } from 'react-icons/ai';
 import Modal from './Modal';
 import { useToast } from '../hooks/useToast';
@@ -64,6 +65,8 @@ export default function CreateBillingModal({
   const [durationMonths, setDurationMonths] = useState('12');
   const [graceDays, setGraceDays] = useState(10);
   const [billingCycle, setBillingCycle] = useState('start_date'); // 'start_date' | 'month_start_prorata'
+  const [contractFees, setContractFees] = useState([]);
+  const [masterSettings, setMasterSettings] = useState(null);
 
   // Muat opsi kamar, anggota, dan pengaturan tenant saat modal dibuka
   useEffect(() => {
@@ -80,8 +83,38 @@ export default function CreateBillingModal({
         ]);
         if (!mounted) return;
 
-        const defaultGrace = Number(tenantData?.settings?.rent_grace_days || 10);
+        const settings = tenantData?.settings || {};
+        setMasterSettings(settings);
+
+        const defaultGrace = Number(
+          settings.rent_grace_days !== undefined && settings.rent_grace_days !== null
+            ? settings.rent_grace_days
+            : 10
+        );
         setGraceDays(defaultGrace);
+
+        if (settings.contract_default_cycle) {
+          setBillingCycle(settings.contract_default_cycle);
+        }
+
+        if (settings.contract_default_months !== undefined && settings.contract_default_months !== null && settings.contract_default_months !== '') {
+          setDurationType('fixed');
+          setDurationMonths(String(settings.contract_default_months));
+        } else {
+          setDurationType('monthly');
+        }
+
+        if (Array.isArray(settings.additional_fees)) {
+          setContractFees(
+            settings.additional_fees.map((f) => ({
+              name: f.name || '',
+              amount: f.amount !== undefined ? f.amount : 0,
+              checked: false,
+            }))
+          );
+        } else {
+          setContractFees([]);
+        }
 
         setUnits(unitData || []);
         setMembers(memberData || []);
@@ -110,10 +143,11 @@ export default function CreateBillingModal({
     const found = unitList.find((u) => String(u.id) === String(selectedId));
     if (!found) return;
 
-    // Set default harga
+    // Set default harga: harga kamar dulu lalu default_rent_price master
+    const s = tenantData?.settings || masterSettings || {};
     const defaultPrice = found.metadata?.rent_price
       || found.metadata?.default_rent_price
-      || tenantData?.settings?.default_rent_price
+      || s.default_rent_price
       || '';
     if (defaultPrice) {
       setAmount(String(defaultPrice));
@@ -182,11 +216,25 @@ export default function CreateBillingModal({
     return members.filter((m) => m.status === 'approved' && (!m.unit_id || String(m.unit_id) === String(unitId)));
   }, [members, unitId]);
 
-  // Kalkulasi tagihan prorata untuk kos (KOS-3.2)
+  // Daftar biaya tambahan yang dicentang per kontrak (KOS-4.2)
+  const selectedAdditionalFees = useMemo(() => {
+    return contractFees
+      .filter((f) => f.checked && f.name && String(f.name).trim())
+      .map((f) => ({
+        name: String(f.name).trim(),
+        amount: Math.max(0, Math.floor(Number(f.amount) || 0)),
+      }));
+  }, [contractFees]);
+
+  const totalSelectedFees = useMemo(() => {
+    return selectedAdditionalFees.reduce((sum, f) => sum + f.amount, 0);
+  }, [selectedAdditionalFees]);
+
+  // Kalkulasi tagihan prorata untuk kos (KOS-3.2, KOS-4.2)
   const prorataInfo = useMemo(() => {
     if (!isKos || !startDate || !amount) return null;
-    return calculateKosProrata(startDate, Number(amount), billingCycle);
-  }, [isKos, startDate, amount, billingCycle]);
+    return calculateKosProrata(startDate, Number(amount), billingCycle, selectedAdditionalFees);
+  }, [isKos, startDate, amount, billingCycle, selectedAdditionalFees]);
 
   // Pratinjau teks nominal prorata jika opsi prorata dipilih dan tanggal bukan tgl 1
   const prorataPreview = useMemo(() => {
@@ -252,6 +300,7 @@ export default function CreateBillingModal({
           graceDays: Number(graceDays || 10),
           notes: notes?.trim() || null,
           billingCycle,
+          additionalFees: selectedAdditionalFees,
         });
 
         if (onSaveContract) {
@@ -636,6 +685,67 @@ export default function CreateBillingModal({
                   </div>
                 </div>
 
+                {/* Biaya Tambahan Kontrak dari Master (KOS-4.2) */}
+                {contractFees.length > 0 && (
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5" data-testid="kos-contract-fees-panel">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <AiOutlineAppstore className="text-forest-600" />
+                        <span>Biaya Tambahan Kontrak</span>
+                      </label>
+                      <span className="text-[10px] text-slate-500">Centang biaya yang berlaku untuk kontrak ini</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      {contractFees.map((fee, idx) => (
+                        <div
+                          key={idx}
+                          className={`flex items-center justify-between gap-3 p-2.5 rounded-xl border transition-all ${
+                            fee.checked
+                              ? 'bg-white border-forest-500 shadow-2xs'
+                              : 'bg-white/60 border-slate-200 text-slate-600'
+                          }`}
+                        >
+                          <label className="flex items-center gap-2.5 cursor-pointer flex-1 select-none">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(fee.checked)}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setContractFees((prev) =>
+                                  prev.map((item, i) => (i === idx ? { ...item, checked } : item))
+                                );
+                              }}
+                              className="rounded border-slate-300 text-forest-700 focus:ring-forest-600 h-4 w-4"
+                            />
+                            <span className="text-xs font-semibold text-slate-900">{fee.name}</span>
+                          </label>
+
+                          <div className="relative w-32 sm:w-36">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 font-semibold">
+                              Rp
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1000"
+                              value={fee.amount}
+                              disabled={!fee.checked}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setContractFees((prev) =>
+                                  prev.map((item, i) => (i === idx ? { ...item, amount: val } : item))
+                                );
+                              }}
+                              className="w-full pl-8 pr-2.5 py-1 rounded-lg border border-slate-300 text-xs text-right font-semibold text-slate-900 focus:border-forest-600 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Pratinjau 3 Periode Pertama (KOS-2.4 f) */}
                 {previewPeriods.length > 0 && (
                   <div data-testid="rent-preview-panel" className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
@@ -663,7 +773,7 @@ export default function CreateBillingModal({
                           <div className="text-[11px] text-slate-600 sm:text-right flex items-center sm:justify-end gap-2">
                             {amount && (
                               <span className="font-bold text-emerald-700">
-                                {formatRupiah(p.is_prorata ? prorataInfo?.amount : Number(amount))}
+                                {formatRupiah(p.is_prorata ? prorataInfo?.amount : (Number(amount) + totalSelectedFees))}
                               </span>
                             )}
                             <span>

@@ -88,6 +88,42 @@ describe('prorata.js (KOS-3.2)', () => {
         calculateKosProrata('2026-10-19', 1500000, 'month_start_prorata')
       );
     });
+
+    it('KOS-4: menghitung prorata dengan additional_fees (sewa 1.500.000 + Parkir 100.000 pada 19 Okt 2026)', () => {
+      const fees = [{ name: 'Parkir Mobil', amount: 100000 }];
+      const res = calculateKosProrata('2026-10-19', 1500000, 'month_start_prorata', fees);
+
+      expect(res.billingCycle).toBe('month_start_prorata');
+      expect(res.isProrata).toBe(true);
+      expect(res.prorataDays).toBe(13);
+      expect(res.daysInMonth).toBe(31);
+      // floor(1600000 * 13 / 31 / 1000) * 1000 = 670000
+      expect(res.amount).toBe(670000);
+      expect(res.totalAdditionalFees).toBe(100000);
+      expect(res.rentPrice).toBe(1500000);
+
+      // line items: Parkir diprorata floor ke rupiah = 41935, Sewa = 670000 - 41935 = 628065
+      expect(res.lineItems).toEqual([
+        { name: 'Sewa', amount: 628065 },
+        { name: 'Parkir Mobil', amount: 41935 },
+      ]);
+    });
+
+    it('KOS-4: siklus start_date dengan additional_fees tidak prorata dan nominal penuh', () => {
+      const fees = [
+        { name: 'Parkir Mobil', amount: 100000 },
+        { name: 'Laundry', amount: 50000 },
+      ];
+      const res = calculateKosProrata('2026-10-19', 1500000, 'start_date', fees);
+
+      expect(res.isProrata).toBe(false);
+      expect(res.amount).toBe(1650000);
+      expect(res.lineItems).toEqual([
+        { name: 'Sewa', amount: 1500000 },
+        { name: 'Parkir Mobil', amount: 100000 },
+        { name: 'Laundry', amount: 50000 },
+      ]);
+    });
   });
 
   describe('formatProrataPreview', () => {

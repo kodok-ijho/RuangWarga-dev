@@ -578,8 +578,8 @@ describe('TenantSettings (RTRW-2.4)', () => {
     });
   });
 
-  describe('Jatuh Tempo Kos (NOTIF-1.2)', () => {
-    it('a. tenant kos dengan billing_due_day 5 dan due_day 10 menampilkan 5', async () => {
+  describe('Aturan Kontrak Sewa Kos (KOS-4)', () => {
+    it('a. tenant kos menampilkan bagian Aturan Kontrak Sewa dan menyembunyikan input jatuh tempo tetap / IPL / auto-billing', async () => {
       mockTenantContext = {
         ...mockTenantContext,
         activeTenant: { id: 'tenant-kos-1', name: 'Kos Melati', type: 'kos' },
@@ -592,9 +592,11 @@ describe('TenantSettings (RTRW-2.4)', () => {
         name: 'Kos Melati',
         type: 'kos',
         settings: {
-          ...sampleDetails.settings,
-          due_day: 10,
-          billing_due_day: 5,
+          default_rent_price: 1500000,
+          rent_grace_days: 7,
+          contract_default_cycle: 'month_start_prorata',
+          contract_default_months: 12,
+          additional_fees: [{ name: 'Parkir Mobil', amount: 100000 }],
         },
       });
 
@@ -604,11 +606,33 @@ describe('TenantSettings (RTRW-2.4)', () => {
         expect(screen.getByDisplayValue('Kos Melati')).toBeTruthy();
       });
 
-      const dueDayInput = document.getElementById('billingDueDayInput');
-      expect(dueDayInput.value).toBe('5');
+      // Bagian Aturan Kontrak Sewa tampil
+      expect(screen.getByTestId('kos-contract-rules-section')).toBeTruthy();
+      expect(screen.getByText('Tagihan sewa terbit otomatis setiap tanggal masuk penyewa sesuai kontrak.')).toBeTruthy();
+
+      // Input harga, tenggat, siklus, durasi terisi
+      const rentPriceInput = document.getElementById('kosDefaultRentPriceInput');
+      expect(rentPriceInput.value).toBe('1500000');
+
+      const graceDaysInput = document.getElementById('kosRentGraceDaysInput');
+      expect(graceDaysInput.value).toBe('7');
+
+      const cycleSelect = document.getElementById('kosContractDefaultCycleSelect');
+      expect(cycleSelect.value).toBe('month_start_prorata');
+
+      const monthsInput = document.getElementById('kosContractDefaultMonthsInput');
+      expect(monthsInput.value).toBe('12');
+
+      // Biaya tambahan tampil
+      expect(screen.getByDisplayValue('Parkir Mobil')).toBeTruthy();
+
+      // Input lama (IPL, tanggal jatuh tempo tetap, toggle auto-billing) disembunyikan untuk kos
+      expect(document.getElementById('billingDueDayInput')).toBeNull();
+      expect(document.getElementById('autoBillingEnabledToggle')).toBeNull();
+      expect(screen.queryByText(/Daftar Komponen Biaya IPL/i)).toBeNull();
     });
 
-    it('b. simpan pada tenant kos mengirim due_day dan billing_due_day yang sama', async () => {
+    it('b. simpan aturan kontrak sewa pada tenant kos menyimpan pengaturan kontrak ke database', async () => {
       mockTenantContext = {
         ...mockTenantContext,
         activeTenant: { id: 'tenant-kos-1', name: 'Kos Melati', type: 'kos' },
@@ -621,9 +645,11 @@ describe('TenantSettings (RTRW-2.4)', () => {
         name: 'Kos Melati',
         type: 'kos',
         settings: {
-          ...sampleDetails.settings,
-          due_day: 10,
-          billing_due_day: 5,
+          default_rent_price: 1500000,
+          rent_grace_days: 10,
+          contract_default_cycle: 'start_date',
+          contract_default_months: null,
+          additional_fees: [],
         },
       });
 
@@ -633,29 +659,83 @@ describe('TenantSettings (RTRW-2.4)', () => {
         expect(screen.getByDisplayValue('Kos Melati')).toBeTruthy();
       });
 
-      const dueDayInput = document.getElementById('billingDueDayInput');
-      expect(dueDayInput.value).toBe('5');
+      const rentPriceInput = document.getElementById('kosDefaultRentPriceInput');
+      fireEvent.change(rentPriceInput, { target: { value: '1750000' } });
 
-      fireEvent.change(dueDayInput, { target: { value: '15' } });
+      const graceDaysInput = document.getElementById('kosRentGraceDaysInput');
+      fireEvent.change(graceDaysInput, { target: { value: '14' } });
 
-      const saveBillingBtn = screen.getByRole('button', { name: /simpan tagihan/i });
-      fireEvent.click(saveBillingBtn);
+      const cycleSelect = document.getElementById('kosContractDefaultCycleSelect');
+      fireEvent.change(cycleSelect, { target: { value: 'month_start_prorata' } });
+
+      const monthsInput = document.getElementById('kosContractDefaultMonthsInput');
+      fireEvent.change(monthsInput, { target: { value: '6' } });
+
+      // Tambah baris biaya tambahan
+      const addFeeBtn = screen.getByRole('button', { name: /Tambah Baris/i });
+      fireEvent.click(addFeeBtn);
+
+      const feeNameInputs = screen.getAllByPlaceholderText(/Nama biaya/i);
+      fireEvent.change(feeNameInputs[feeNameInputs.length - 1], { target: { value: 'Parkir Motor' } });
+
+      const feeAmountInputs = screen.getAllByPlaceholderText('0');
+      // Ambil input amount biaya tambahan terakhir
+      const lastAmountInput = feeAmountInputs[feeAmountInputs.length - 1];
+      fireEvent.change(lastAmountInput, { target: { value: '50000' } });
+
+      const saveBtn = screen.getByRole('button', { name: /Simpan Aturan Kontrak/i });
+      fireEvent.click(saveBtn);
 
       await waitFor(() => {
         expect(tenantOperationalService.updateTenantProfileAndSettings).toHaveBeenCalledWith(
           'tenant-kos-1',
           expect.objectContaining({
             settings: expect.objectContaining({
-              due_day: 15,
-              billing_due_day: 15,
+              default_rent_price: 1750000,
+              rent_grace_days: 14,
+              contract_default_cycle: 'month_start_prorata',
+              contract_default_months: 6,
+              additional_fees: [
+                { name: 'Parkir Motor', amount: 50000 },
+              ],
             }),
           })
         );
       });
+    });
 
-      const callArgs = tenantOperationalService.updateTenantProfileAndSettings.mock.calls[0];
-      expect(callArgs[1].settings.due_day).toBe(15);
-      expect(callArgs[1].settings.billing_due_day).toBe(15);
+    it('c. hanya owner atau pengguna dengan manage_settings yang dapat mengubah aturan kontrak sewa', async () => {
+      mockTenantContext = {
+        ...mockTenantContext,
+        activeTenant: { id: 'tenant-kos-1', name: 'Kos Melati', type: 'kos' },
+        activeTenantId: 'tenant-kos-1',
+        tenantType: 'kos',
+        isOwner: false,
+        hasPermission: vi.fn((perm) => perm !== 'manage_settings'),
+      };
+
+      tenantOperationalService.fetchTenantDetails.mockResolvedValueOnce({
+        ...sampleDetails,
+        id: 'tenant-kos-1',
+        name: 'Kos Melati',
+        type: 'kos',
+        settings: {
+          default_rent_price: 1500000,
+          rent_grace_days: 10,
+        },
+      });
+
+      renderComponent('tenant-kos-1');
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Kos Melati')).toBeTruthy();
+      });
+
+      const rentPriceInput = document.getElementById('kosDefaultRentPriceInput');
+      expect(rentPriceInput.disabled).toBe(true);
+
+      const saveBtn = screen.getByRole('button', { name: /Simpan Aturan Kontrak/i });
+      expect(saveBtn.disabled).toBe(true);
     });
 
     it('c. tenant rt_rw tetap hanya mengirim due_day', async () => {

@@ -118,7 +118,7 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
   // Step 3: Tarif Sewa Default & Penagihan
   const [defaultRentPrice, setDefaultRentPrice] = useState(1200000);
   const [billingCycle, setBillingCycle] = useState('monthly');
-  const [dueDay, setDueDay] = useState(1);
+  const [rentGraceDays, setRentGraceDays] = useState(10);
   const [bankName, setBankName] = useState('BCA');
   const [bankAccountNo, setBankAccountNo] = useState('');
   const [bankAccountHolder, setBankAccountHolder] = useState('');
@@ -147,8 +147,8 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
       if (initialData.settings?.billing_cycle) {
         setBillingCycle(initialData.settings.billing_cycle);
       }
-      if (initialData.settings?.due_day) {
-        setDueDay(initialData.settings.due_day);
+      if (initialData.settings?.rent_grace_days !== undefined && initialData.settings?.rent_grace_days !== null) {
+        setRentGraceDays(Number(initialData.settings.rent_grace_days));
       }
       if (initialData.settings?.bank_account) {
         setBankName(initialData.settings.bank_account.bank_name || 'BCA');
@@ -175,8 +175,8 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
           if (data.settings?.billing_cycle) {
             setBillingCycle(data.settings.billing_cycle);
           }
-          if (data.settings?.due_day) {
-            setDueDay(data.settings.due_day);
+          if (data.settings?.rent_grace_days !== undefined && data.settings?.rent_grace_days !== null) {
+            setRentGraceDays(Number(data.settings.rent_grace_days));
           }
           if (data.settings?.bank_account) {
             setBankName(data.settings.bank_account.bank_name || 'BCA');
@@ -351,7 +351,7 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
         onboarding_completed: true,
         default_rent_price: Number(defaultRentPrice),
         billing_cycle: billingCycle,
-        due_day: Number(dueDay) || 1,
+        rent_grace_days: Number(rentGraceDays !== undefined ? rentGraceDays : 10),
         kos_rules: kosRules.trim(),
         additional_fees: additionalFees.map((f) => ({
           name: f.name,
@@ -844,19 +844,19 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Tanggal Jatuh Tempo Penagihan
+                  Tenggat bayar (hari setelah tanggal tagih)
                 </label>
-                <select
-                  value={dueDay}
-                  onChange={(e) => setDueDay(Number(e.target.value))}
-                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm focus:border-forest-800 focus:outline-none shadow-xs"
-                >
-                  {[1, 5, 10, 15, 20, 25, 28].map((d) => (
-                    <option key={d} value={d}>
-                      Tanggal {d} setiap bulan
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    max="28"
+                    value={rentGraceDays}
+                    onChange={(e) => setRentGraceDays(Math.max(0, Math.min(28, Number(e.target.value) || 0)))}
+                    className="w-28 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm focus:border-forest-800 focus:outline-none shadow-xs font-semibold"
+                  />
+                  <span className="text-xs text-slate-500">hari setelah tanggal tagih (0–28, default: 10)</span>
+                </div>
               </div>
 
               <div>
@@ -1029,9 +1029,9 @@ export default function KosSetupWizard({ tenantId: propTenantId, initialData }) 
                   <strong className="text-sm text-slate-900">{formatRupiah(defaultRentPrice)} / bulan</strong>
                 </div>
                 <div>
-                  <span className="text-xs text-slate-500 block">Siklus &amp; Jatuh Tempo:</span>
+                  <span className="text-xs text-slate-500 block">Siklus &amp; Tenggat Bayar:</span>
                   <span className="text-xs text-slate-700 capitalize">
-                    {billingCycle} &bull; Setiap tanggal {dueDay}
+                    {billingCycle} &bull; Tenggat {rentGraceDays} hari
                   </span>
                 </div>
                 <div>
