@@ -21,7 +21,13 @@ BEGIN
   ) THEN
     ALTER TABLE public.public_listings
       ADD CONSTRAINT chk_public_listings_paused_remaining_seconds
-      CHECK (paused_remaining_seconds IS NULL OR paused_remaining_seconds > 0);
+      CHECK (paused_remaining_seconds IS NULL OR (paused_remaining_seconds > 0 AND paused_remaining_seconds <= 31 * 86400));
+  ELSE
+    ALTER TABLE public.public_listings
+      DROP CONSTRAINT chk_public_listings_paused_remaining_seconds;
+    ALTER TABLE public.public_listings
+      ADD CONSTRAINT chk_public_listings_paused_remaining_seconds
+      CHECK (paused_remaining_seconds IS NULL OR (paused_remaining_seconds > 0 AND paused_remaining_seconds <= 31 * 86400));
   END IF;
 END $$;
 
@@ -35,7 +41,56 @@ WHERE l.unit_id = u.id
 
 
 -- ==============================================================================
--- 2. TRIGGER FUNCTION: handle_kos_unit_vacancy_listing()
+-- 2. TRIGGER FUNCTION: guard_listing_auto_columns()
+-- Mengunci kolom auto_created dan paused_remaining_seconds agar tidak dapat
+-- dimanipulasi langsung oleh pemanggil non-privileged (klien/pengurus).
+-- ==============================================================================
+
+CREATE OR REPLACE FUNCTION public.guard_listing_auto_columns()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+BEGIN
+  -- Privilege bypass: backend/service_role atau platform admin
+  IF public.is_billing_privileged() THEN
+    RETURN NEW;
+  END IF;
+
+  -- Operasi INSERT oleh non-privileged:
+  IF TG_OP = 'INSERT' THEN
+    NEW.auto_created := false;
+    NEW.paused_remaining_seconds := NULL;
+    RETURN NEW;
+  END IF;
+
+  -- Operasi UPDATE oleh non-privileged:
+  IF TG_OP = 'UPDATE' THEN
+    IF NEW.auto_created IS DISTINCT FROM OLD.auto_created
+       OR NEW.paused_remaining_seconds IS DISTINCT FROM OLD.paused_remaining_seconds THEN
+      RAISE EXCEPTION 'Kolom iklan otomatis hanya diubah oleh sistem'
+        USING ERRCODE = '42501';
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.guard_listing_auto_columns() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.guard_listing_auto_columns() TO service_role;
+
+DROP TRIGGER IF EXISTS trg_guard_listing_auto_columns ON public.public_listings;
+CREATE TRIGGER trg_guard_listing_auto_columns
+  BEFORE INSERT OR UPDATE ON public.public_listings
+  FOR EACH ROW
+  EXECUTE FUNCTION public.guard_listing_auto_columns();
+
+
+-- ==============================================================================
+-- 3. TRIGGER FUNCTION: handle_kos_unit_vacancy_listing()
 -- Menangani penutupan/penyimpanan sisa masa tayang saat kamar terisi,
 -- serta pemulihan iklan atau pembuatan draf baru saat kamar kosong.
 -- ==============================================================================
@@ -83,7 +138,7 @@ BEGIN
     UPDATE public.public_listings
     SET status = 'rented_or_sold',
         paused_remaining_seconds = CASE
-          WHEN expires_at > now() THEN GREATEST(1, ROUND(EXTRACT(EPOCH FROM (expires_at - now())))::INTEGER)
+          WHEN expires_at > now() THEN LEAST(GREATEST(1, ROUND(EXTRACT(EPOCH FROM (expires_at - now())))::INTEGER), 31 * 86400)
           ELSE NULL
         END,
         updated_at = now()
@@ -255,7 +310,7 @@ CREATE TRIGGER trg_handle_kos_unit_vacancy_listing
 
 
 -- ==============================================================================
--- 3. RPC: resume_listing_remaining(p_listing_id UUID)
+-- 4. RPC: resume_listing_remaining(p_listing_id UUID)
 -- Menayangkan kembali iklan yang ditutup karena terisi dengan sisa masa tayang
 -- ==============================================================================
 
@@ -337,6 +392,8 @@ COMMIT;
 -- ROLLBACK:
 -- ==============================================================================
 -- DROP FUNCTION IF EXISTS public.resume_listing_remaining(UUID);
+-- DROP TRIGGER IF EXISTS trg_guard_listing_auto_columns ON public.public_listings;
+-- DROP FUNCTION IF EXISTS public.guard_listing_auto_columns();
 -- DROP TRIGGER IF EXISTS trg_handle_kos_unit_vacancy_listing ON public.tenant_units;
 -- DROP FUNCTION IF EXISTS public.handle_kos_unit_vacancy_listing();
 -- ALTER TABLE public.public_listings DROP CONSTRAINT IF EXISTS chk_public_listings_paused_remaining_seconds;

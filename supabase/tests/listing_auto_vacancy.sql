@@ -14,6 +14,8 @@
 -- 9. resume_listing_remaining: oleh owner saat kamar terisi -> ditolak
 -- 10. resume_listing_remaining: oleh owner saat kamar kosong -> sukses
 -- 11. Draf baru mewarisi foto dari iklan terakhir kamar itu jika pernah ada
+-- 12. Penguncian kolom auto_created dan paused_remaining_seconds dari klien:
+--     UPDATE paused_remaining_seconds -> 42501, INSERT auto_created=true & paused_remaining_seconds=1000 -> dipaksa false & NULL
 
 BEGIN;
 
@@ -517,6 +519,86 @@ BEGIN
     RAISE EXCEPTION 'Uji 11 Gagal: foto dari iklan terdahulu tidak diwarisi pada draf baru, aktual: %', v_listing_rec.photos;
   END IF;
   RAISE NOTICE '-> OK: Draf baru berhasil mewarisi foto dari iklan terdahulu kamar tersebut.';
+
+  -- ----------------------------------------------------------------------------
+  -- UJI 12: Penguncian kolom auto_created dan paused_remaining_seconds dari klien
+  -- ----------------------------------------------------------------------------
+  RAISE NOTICE '[UJI 12] Menguji penguncian kolom auto_created dan paused_remaining_seconds dari klien...';
+  -- 12.1 UPDATE paused_remaining_seconds oleh owner pada iklan miliknya ditolak (42501)
+  PERFORM set_config('request.jwt.claims', jsonb_build_object('sub', v_owner_user_id, 'role', 'authenticated')::text, true);
+  PERFORM set_config('role', 'authenticated', true);
+
+  v_caught_error := false;
+  v_sqlstate := NULL;
+  BEGIN
+    UPDATE public.public_listings
+    SET paused_remaining_seconds = 86400
+    WHERE id = v_active_listing_id;
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS v_sqlstate = RETURNED_SQLSTATE;
+    IF v_sqlstate = '42501' THEN
+      v_caught_error := true;
+    END IF;
+  END;
+
+  IF NOT v_caught_error THEN
+    RAISE EXCEPTION 'Uji 12.1 Gagal: UPDATE paused_remaining_seconds oleh owner tidak ditolak 42501, sqlstate: %', v_sqlstate;
+  END IF;
+  RAISE NOTICE '-> OK: UPDATE paused_remaining_seconds oleh owner ditolak dengan SQLSTATE 42501.';
+
+  -- 12.2 UPDATE auto_created oleh owner pada iklan miliknya ditolak (42501)
+  v_caught_error := false;
+  v_sqlstate := NULL;
+  BEGIN
+    UPDATE public.public_listings
+    SET auto_created = true
+    WHERE id = v_active_listing_id;
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS v_sqlstate = RETURNED_SQLSTATE;
+    IF v_sqlstate = '42501' THEN
+      v_caught_error := true;
+    END IF;
+  END;
+
+  IF NOT v_caught_error THEN
+    RAISE EXCEPTION 'Uji 12.2 Gagal: UPDATE auto_created oleh owner tidak ditolak 42501, sqlstate: %', v_sqlstate;
+  END IF;
+  RAISE NOTICE '-> OK: UPDATE auto_created oleh owner ditolak dengan SQLSTATE 42501.';
+
+  -- 12.3 INSERT iklan dengan auto_created = true dan paused_remaining_seconds = 1000 oleh owner
+  --      harus tersimpan sebagai auto_created = false dan paused_remaining_seconds = NULL
+  INSERT INTO public.public_listings (
+    tenant_id,
+    posted_by,
+    type,
+    title,
+    contact_phone,
+    auto_created,
+    paused_remaining_seconds
+  ) VALUES (
+    v_tenant_id,
+    v_member_owner_id,
+    'room_vacancy',
+    'Kamar Uji Guard Kolom Auto',
+    '08123456789',
+    true,
+    1000
+  ) RETURNING id INTO v_new_draft_id;
+
+  SELECT * INTO v_listing_rec
+  FROM public.public_listings
+  WHERE id = v_new_draft_id;
+
+  IF v_listing_rec.auto_created <> false THEN
+    RAISE EXCEPTION 'Uji 12.3 Gagal: auto_created tidak tersimpan false, aktual: %', v_listing_rec.auto_created;
+  END IF;
+  IF v_listing_rec.paused_remaining_seconds IS NOT NULL THEN
+    RAISE EXCEPTION 'Uji 12.3 Gagal: paused_remaining_seconds tidak tersimpan NULL, aktual: %', v_listing_rec.paused_remaining_seconds;
+  END IF;
+  RAISE NOTICE '-> OK: INSERT iklan dengan auto_created=true dan paused_remaining_seconds=1000 tersimpan false dan NULL.';
+
+  -- Pastikan di akhir DO block role dikembalikan ke postgres
+  PERFORM set_config('role', 'postgres', true);
 
   RAISE NOTICE '============================================================';
   RAISE NOTICE 'SELURUH UJI LISTING AUTO VACANCY (LIST-AUTO-1.1) BERHASIL!';
