@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import PaymentMatrix, { buildStaffCashPaymentArgs, buildDetailActionArgs } from './PaymentMatrix';
 import * as apiClient from '../services/apiClient';
@@ -676,6 +676,227 @@ describe('PaymentMatrix Tenant Mode (RTRW-1.3 / RTRW-1F.1)', () => {
       expect(await screen.findByText('Kamar 102')).toBeTruthy();
       const emptyBadges = await screen.findAllByText('Kamar Kosong');
       expect(emptyBadges.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('RBAC-UI-1: Gate izin tombol kontrak, tagihan, iklan, dan checkout di matriks kos', () => {
+    const kosMatrixRows = [
+      {
+        unit: { id: 101, label: 'Kamar 101', status: 'occupied' },
+        resident: null,
+        residents: [],
+        cells: [{ period: '2026-10', status: 'unpaid', bill: { id: 'b-101', period: '2026-10', status: 'unpaid', amount: 1500000 } }],
+      },
+      {
+        unit: { id: 102, label: 'Kamar 102', status: 'vacant' },
+        resident: null,
+        residents: [],
+        cells: [{ period: '2026-10', status: 'none', bill: null }],
+      },
+    ];
+
+    beforeEach(async () => {
+      const dataService = await import('../services/dataService');
+      dataService.fetchBillMatrix.mockResolvedValue(kosMatrixRows);
+
+      const opService = await import('../services/tenantOperationalService');
+      opService.fetchKosContracts.mockResolvedValue([]);
+      opService.fetchTenantMembers.mockResolvedValue([
+        { id: 'mem-101', user_id: 'u-warga', email: 'warga@example.com', unit_id: 101 },
+      ]);
+
+      const listService = await import('../services/publicListingService');
+      listService.fetchTenantListings.mockResolvedValue([]);
+
+      currentTenantTemplate = {
+        name: 'Kos-kosan',
+        unitLabel: 'Kamar',
+        billLabel: 'Sewa',
+        memberLabel: 'Penyewa',
+        occupiedUnitLabel: 'Terisi',
+        emptyUnitLabel: 'Kosong',
+        icon: '🛏️',
+      };
+    });
+
+    it('anggota biasa tanpa izin: tidak ada tombol Kontrak & Tagihan Kamar, Auto-Generate / Auto-Tagih Sewa, Buat Kontrak, Iklankan, dan Checkout', async () => {
+      currentAuth = {
+        ...mockAuth,
+        role: 'warga',
+        user: { id: 'u-warga', email: 'warga@example.com' },
+        profile: { id: 'u-warga', full_name: 'Penyewa Biasa', email: 'warga@example.com', unit_id: 101 },
+      };
+
+      currentTenantState = {
+        activeTenant: { id: 'tenant-kos-1', name: 'Kos Harmoni', type: 'kos' },
+        activeTenantId: 'tenant-kos-1',
+        userTenants: [],
+        switchTenant: vi.fn(),
+        subscriptionStatus: 'active',
+        isPlatformAdmin: false,
+        isOwner: false,
+        userRole: 'anggota',
+        hasPermission: () => false,
+      };
+
+      currentTenantAccess = {
+        ...mockTenantAccessState,
+        isMember: true,
+        isStaff: false,
+        canWrite: true, // subscriptionStatus 'active'
+        canGenerateBilling: false,
+        canManageMembers: false,
+        canVerifyPayments: false,
+        canRecordCash: false,
+        canRecordTransfer: false,
+      };
+
+      render(
+        <MemoryRouter initialEntries={['/t/tenant-kos-1/payment-matrix']}>
+          <PaymentMatrix />
+        </MemoryRouter>
+      );
+
+      // Verifikasi di header toolbar
+      expect(screen.queryByText(/Kontrak & Tagihan Kamar/i)).toBeNull();
+      expect(screen.queryByText(/Auto-Tagih Sewa/i)).toBeNull();
+      expect(screen.queryByText(/Auto-Generate/i)).toBeNull();
+      expect(screen.queryByText(/Checkout Kamar/i)).toBeNull();
+
+      // Beralih ke tab matriks transparansi
+      const matrixTab = await screen.findByRole('button', { name: /Matriks Transparansi/i });
+      fireEvent.click(matrixTab);
+
+      // Warga hanya melihat unit miliknya sendiri (Kamar 101)
+      expect(await screen.findByText('Kamar 101')).toBeTruthy();
+      expect(screen.queryByText(/Buat Kontrak/i)).toBeNull();
+      expect(screen.queryByRole('button', { name: /^Iklankan$/i })).toBeNull();
+    });
+
+    it('staf tanpa izin billing/listing/members: melihat kamar kosong tetapi tidak ada tombol Buat Kontrak, Iklankan, tagihan, dan checkout', async () => {
+      currentAuth = {
+        ...mockAuth,
+        role: 'pengurus',
+        user: { id: 'u-pengawas', email: 'pengawas@example.com' },
+        profile: { id: 'u-pengawas', full_name: 'Pengawas Kos', email: 'pengawas@example.com' },
+      };
+
+      currentTenantState = {
+        activeTenant: { id: 'tenant-kos-1', name: 'Kos Harmoni', type: 'kos' },
+        activeTenantId: 'tenant-kos-1',
+        userTenants: [],
+        switchTenant: vi.fn(),
+        subscriptionStatus: 'active',
+        isPlatformAdmin: false,
+        isOwner: false,
+        userRole: 'pengurus',
+        hasPermission: (p) => p === 'view_reports',
+      };
+
+      currentTenantAccess = {
+        ...mockTenantAccessState,
+        isMember: true,
+        isStaff: true,
+        canWrite: true,
+        canGenerateBilling: false,
+        canManageMembers: false,
+        canVerifyPayments: false,
+        canRecordCash: false,
+        canRecordTransfer: false,
+        canViewReports: true,
+      };
+
+      render(
+        <MemoryRouter initialEntries={['/t/tenant-kos-1/payment-matrix']}>
+          <PaymentMatrix />
+        </MemoryRouter>
+      );
+
+      // Header toolbar
+      expect(screen.queryByText(/Kontrak & Tagihan Kamar/i)).toBeNull();
+      expect(screen.queryByText(/Auto-Tagih Sewa/i)).toBeNull();
+      expect(screen.queryByText(/Checkout Kamar/i)).toBeNull();
+
+      // Staf melihat kamar kosong (Kamar 102)
+      expect(await screen.findByText('Kamar 102')).toBeTruthy();
+      // Tombol Buat Kontrak & Iklankan di kamar kosong TIDAK ADA
+      expect(screen.queryByText(/Buat Kontrak/i)).toBeNull();
+      expect(screen.queryByRole('button', { name: /^Iklankan$/i })).toBeNull();
+    });
+
+    it('owner kos: tombol Kontrak & Tagihan Kamar, Auto-Tagih Sewa, Buat Kontrak, Iklankan, dan Checkout Kamar tampil', async () => {
+      currentAuth = { ...mockAuth, role: 'admin' };
+      currentTenantState = {
+        activeTenant: { id: 'tenant-kos-1', name: 'Kos Harmoni', type: 'kos', is_owner: true },
+        activeTenantId: 'tenant-kos-1',
+        userTenants: [],
+        switchTenant: vi.fn(),
+        subscriptionStatus: 'active',
+        isPlatformAdmin: false,
+        isOwner: true,
+        userRole: 'admin',
+        hasPermission: () => true,
+      };
+
+      currentTenantAccess = {
+        ...mockTenantAccessState,
+        isMember: true,
+        isStaff: true,
+        canWrite: true,
+        canGenerateBilling: true,
+        canManageMembers: true,
+      };
+
+      render(
+        <MemoryRouter initialEntries={['/t/tenant-kos-1/payment-matrix']}>
+          <PaymentMatrix />
+        </MemoryRouter>
+      );
+
+      expect(await screen.findByText(/Kontrak & Tagihan Kamar/i)).toBeTruthy();
+      expect(screen.getByText(/Auto-Tagih Sewa/i)).toBeTruthy();
+      expect(screen.getByText(/Checkout Kamar/i)).toBeTruthy();
+      expect((await screen.findAllByText(/Buat Kontrak/i)).length).toBeGreaterThanOrEqual(1);
+      expect(await screen.findByRole('button', { name: /^Iklankan$/i })).toBeTruthy();
+    });
+
+    it('anggota dengan generate_billing saja: tombol kontrak dan tagihan ada, checkout dan iklankan tidak ada', async () => {
+      currentAuth = { ...mockAuth, role: 'pengurus' };
+      currentTenantState = {
+        activeTenant: { id: 'tenant-kos-1', name: 'Kos Harmoni', type: 'kos', permissions: ['generate_billing'] },
+        activeTenantId: 'tenant-kos-1',
+        userTenants: [],
+        switchTenant: vi.fn(),
+        subscriptionStatus: 'active',
+        isPlatformAdmin: false,
+        isOwner: false,
+        userRole: 'pengurus',
+        hasPermission: (p) => p === 'generate_billing',
+      };
+
+      currentTenantAccess = {
+        ...mockTenantAccessState,
+        isMember: true,
+        isStaff: true,
+        canWrite: true,
+        canGenerateBilling: true,
+        canManageMembers: false,
+      };
+
+      render(
+        <MemoryRouter initialEntries={['/t/tenant-kos-1/payment-matrix']}>
+          <PaymentMatrix />
+        </MemoryRouter>
+      );
+
+      // Tombol tagihan & kontrak ada
+      expect(await screen.findByText(/Kontrak & Tagihan Kamar/i)).toBeTruthy();
+      expect(screen.getByText(/Auto-Tagih Sewa/i)).toBeTruthy();
+      expect((await screen.findAllByText(/Buat Kontrak/i)).length).toBeGreaterThanOrEqual(1);
+
+      // Checkout kamar dan iklankan TIDAK ada
+      expect(screen.queryByText(/Checkout Kamar/i)).toBeNull();
+      expect(screen.queryByRole('button', { name: /^Iklankan$/i })).toBeNull();
     });
   });
 });

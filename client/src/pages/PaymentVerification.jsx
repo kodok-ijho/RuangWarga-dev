@@ -207,6 +207,9 @@ export default function PaymentVerification() {
   const canWrite = activeTenantId
     ? (tenantAccess.canWrite && !authReadOnly && subCanWrite)
     : (canModifyData(role) && !authReadOnly && subCanWrite);
+  const canVerifyPayments = activeTenantId
+    ? Boolean(tenantAccess.canVerifyPayments && canWrite)
+    : Boolean(isBendaharaOrAbove(role) && canWrite);
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState('pending');
   const [selectedPayment, setSelectedPayment] = useState(null);
@@ -440,8 +443,8 @@ export default function PaymentVerification() {
   }
 
   const handleVerify = async (payment) => {
-    if (!canWrite) {
-      toast.error('Akun read-only atau langganan kadaluarsa tidak dapat memverifikasi pembayaran.');
+    if (!canVerifyPayments) {
+      toast.error('Akun read-only atau tidak memiliki izin memverifikasi pembayaran.');
       return;
     }
     if (!payment || activeActionId) return;
@@ -468,8 +471,8 @@ export default function PaymentVerification() {
   };
 
   const openRejectModal = (payment) => {
-    if (!canWrite) {
-      toast.error('Akun read-only atau langganan kadaluarsa tidak dapat menolak pembayaran.');
+    if (!canVerifyPayments) {
+      toast.error('Akun read-only atau tidak memiliki izin menolak pembayaran.');
       return;
     }
     setSelectedPayment(payment);
@@ -478,7 +481,7 @@ export default function PaymentVerification() {
   };
 
   const handleReject = async () => {
-    if (!canWrite || !selectedPayment || activeActionId) return;
+    if (!canVerifyPayments || !selectedPayment || activeActionId) return;
     if (!rejectReason.trim()) {
       toast.error('Silakan isi alasan penolakan.');
       return;
@@ -515,8 +518,8 @@ export default function PaymentVerification() {
   };
 
   const openEditModal = (payment) => {
-    if (!canWrite) {
-      toast.error('Akun read-only atau langganan kadaluarsa tidak dapat mengubah pembayaran.');
+    if (!canVerifyPayments) {
+      toast.error('Akun read-only atau tidak memiliki izin mengubah pembayaran.');
       return;
     }
     const currentUnitId =
@@ -539,7 +542,7 @@ export default function PaymentVerification() {
 
   const handleUpdatePayment = async (event) => {
     event.preventDefault();
-    if (!canWrite || !selectedPayment || activeActionId) return;
+    if (!canVerifyPayments || !selectedPayment || activeActionId) return;
     if (paymentForm.amount === '' || Number(paymentForm.amount) < 0) {
       toast.error('Nominal pembayaran tidak boleh bernilai negatif.');
       return;
@@ -852,7 +855,7 @@ export default function PaymentVerification() {
                         <button
                           type="button"
                           onClick={() => handleVerify(payment)}
-                          disabled={Boolean(activeActionId) || !canWrite}
+                          disabled={Boolean(activeActionId) || !canVerifyPayments}
                           aria-label={`Verifikasi pembayaran dari ${resident?.full_name || 'warga'}`}
                           className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-60 shadow-xs pv-focus-ring"
                         >
@@ -861,7 +864,7 @@ export default function PaymentVerification() {
                         <button
                           type="button"
                           onClick={() => openRejectModal(payment)}
-                          disabled={Boolean(activeActionId) || !canWrite}
+                          disabled={Boolean(activeActionId) || !canVerifyPayments}
                           aria-label={`Tolak pembayaran dari ${resident?.full_name || 'warga'}`}
                           className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60 shadow-xs pv-focus-ring"
                         >
@@ -1053,7 +1056,7 @@ export default function PaymentVerification() {
                 </div>
               )}
               <div className="flex flex-col gap-2 sm:flex-row">
-                {canWrite && (
+                {canVerifyPayments && (
                   <button
                     onClick={() => openEditModal(selectedPayment)}
                     disabled={Boolean(activeActionId)}
@@ -1066,14 +1069,14 @@ export default function PaymentVerification() {
                   <>
                     <button
                       onClick={() => handleVerify(selectedPayment)}
-                      disabled={Boolean(activeActionId) || !canWrite}
+                      disabled={Boolean(activeActionId) || !canVerifyPayments}
                       className="flex-1 pv-btn-primary py-2.5 rounded-lg text-sm"
                     >
                       ✅ Verifikasi
                     </button>
                     <button
                       onClick={() => { setModalMode('reject'); setRejectReason(''); }}
-                      disabled={Boolean(activeActionId)}
+                      disabled={Boolean(activeActionId) || !canVerifyPayments}
                       className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200 py-2.5 text-sm font-medium hover:bg-red-100 transition-colors"
                     >
                       ❌ Tolak
@@ -1228,7 +1231,7 @@ export default function PaymentVerification() {
             <div className="mt-6 flex flex-col gap-2 sm:flex-row">
               <button
                 onClick={handleReject}
-                disabled={Boolean(activeActionId) || !canWrite}
+                disabled={Boolean(activeActionId) || !canVerifyPayments}
                 className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-red-600 text-white py-2.5 text-sm font-medium hover:bg-red-700 transition-colors"
               >
                 ❌ Tolak Pembayaran

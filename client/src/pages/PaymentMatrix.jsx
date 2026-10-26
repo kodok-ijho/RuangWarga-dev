@@ -169,7 +169,7 @@ export function buildDetailActionArgs(actionType, {
 export default function PaymentMatrix() {
   const { profile, role, session, isReadOnly, user } = useAuth();
   const { tenantId: routeTenantId } = useParams();
-  const { activeTenantId, activeTenant } = useTenant();
+  const { activeTenantId, activeTenant, isOwner, isPlatformAdmin, hasPermission } = useTenant();
   const tenantAccess = useTenantAccess();
   const template = useTenantTemplate();
   const { triggerTour } = useTour();
@@ -345,12 +345,23 @@ export default function PaymentMatrix() {
     return map;
   }, [tenantListings]);
 
-  const canGenerateBilling = Boolean(
-    tenantAccess.canGenerateBilling || isStaff || canWrite
-  );
-  const canPostListing = Boolean(
-    isStaff || canWrite || (tenantAccess.permissions && tenantAccess.permissions.includes('post_listing'))
-  );
+  const canGenerateBilling = activeTenantId
+    ? Boolean(tenantAccess.canGenerateBilling && canWrite)
+    : Boolean(tenantAccess.canGenerateBilling || isStaff || canWrite);
+  const canPostListing = activeTenantId
+    ? Boolean(
+        (isOwner ||
+          isPlatformAdmin ||
+          activeTenant?.is_owner ||
+          (typeof hasPermission === 'function' ? hasPermission('post_listing') : tenantAccess.permissions?.includes('post_listing'))) &&
+          canWrite
+      )
+    : Boolean(
+        isStaff || canWrite || (tenantAccess.permissions && tenantAccess.permissions.includes('post_listing'))
+      );
+  const canManageMembers = activeTenantId
+    ? Boolean(tenantAccess.canManageMembers && canWrite)
+    : Boolean(isStaff && canWrite);
 
   const [isCreateBillingOpen, setIsCreateBillingOpen] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
@@ -878,6 +889,10 @@ export default function PaymentMatrix() {
   // Staff memakai mekanisme seleksi yang sama dengan warga: klik untuk
   // memilih beberapa bulan (runut, lintas tahun), lalu klik tombol di footer.
   const handleStaffPay = () => {
+    if (activeTenantId && !tenantAccess.canRecordCash && !tenantAccess.canRecordTransfer && !canUseQris) {
+      toast.error('Anda tidak memiliki izin untuk mencatat pembayaran.');
+      return;
+    }
     if (!canWrite && !canUseQris) {
       toast.error('Akun read-only tidak dapat mencatat pembayaran.');
       return;
@@ -913,6 +928,16 @@ export default function PaymentMatrix() {
     const noteWithDate = [note?.trim(), `Tanggal diterima: ${paidAt}`].filter(Boolean).join(' | ');
     let completedCount = 0;
     try {
+      if (activeTenantId) {
+        if (method === 'cash' && (!tenantAccess.canRecordCash || !canWrite)) {
+          toast.error('Anda tidak memiliki izin mencatat pembayaran tunai.');
+          return;
+        }
+        if (method === 'bank_transfer' && (!tenantAccess.canRecordTransfer || !canWrite)) {
+          toast.error('Anda tidak memiliki izin mencatat pembayaran transfer.');
+          return;
+        }
+      }
       if (method !== 'qris' && !canWrite) {
         toast.error('Akun read-only hanya diizinkan melakukan pembayaran melalui QRIS.');
         return;
@@ -1141,35 +1166,39 @@ export default function PaymentMatrix() {
               </option>
             ))}
           </select>
-          {canWrite && (
+          {(canGenerateBilling || (activeTenant?.type === 'kos' && canManageMembers)) && (
             <div className="flex flex-wrap items-center gap-2">
               {activeTenant?.type === 'kos' && (
                 <>
-                  <button
-                    type="button"
-                    disabled={isAutoGenerating}
-                    onClick={handleAutoGenerateBills}
-                    className="bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 text-xs font-semibold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-xs transition disabled:opacity-50"
-                    title="Generate otomatis tagihan sewa bulanan untuk kamar dengan kontrak aktif pada periode ini"
-                  >
-                    <span>⚡</span>
-                    <span>{isAutoGenerating ? 'Memproses...' : 'Auto-Tagih Sewa'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCheckoutUnitId(null);
-                      setIsCheckoutModalOpen(true);
-                    }}
-                    className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-semibold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-xs transition"
-                    title="Checkout penyewa dari kamar dan hentikan tagihan sewa"
-                  >
-                    <span>🚪</span>
-                    <span>Checkout Kamar</span>
-                  </button>
+                  {canGenerateBilling && (
+                    <button
+                      type="button"
+                      disabled={isAutoGenerating}
+                      onClick={handleAutoGenerateBills}
+                      className="bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 text-xs font-semibold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-xs transition disabled:opacity-50"
+                      title="Generate otomatis tagihan sewa bulanan untuk kamar dengan kontrak aktif pada periode ini"
+                    >
+                      <span>⚡</span>
+                      <span>{isAutoGenerating ? 'Memproses...' : 'Auto-Tagih Sewa'}</span>
+                    </button>
+                  )}
+                  {canManageMembers && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCheckoutUnitId(null);
+                        setIsCheckoutModalOpen(true);
+                      }}
+                      className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-semibold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-xs transition"
+                      title="Checkout penyewa dari kamar dan hentikan tagihan sewa"
+                    >
+                      <span>🚪</span>
+                      <span>Checkout Kamar</span>
+                    </button>
+                  )}
                 </>
               )}
-              {activeTenant?.type === 'kelas' && (
+              {activeTenant?.type === 'kelas' && canGenerateBilling && (
                 <button
                   type="button"
                   disabled={isAutoGenerating}
@@ -1181,14 +1210,16 @@ export default function PaymentMatrix() {
                   <span>{isAutoGenerating ? 'Memproses...' : 'Auto-Generate SPP'}</span>
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => setIsCreateBillingOpen(true)}
-                className="pv-btn-primary text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-xs"
-              >
-                <span>+</span>
-                <span>{activeTenant?.type === 'kos' ? 'Kontrak & Tagihan Kamar' : `Buat Tagihan ${template.billLabel}`}</span>
-              </button>
+              {canGenerateBilling && (
+                <button
+                  type="button"
+                  onClick={() => setIsCreateBillingOpen(true)}
+                  className="pv-btn-primary text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-xs"
+                >
+                  <span>+</span>
+                  <span>{activeTenant?.type === 'kos' ? 'Kontrak & Tagihan Kamar' : `Buat Tagihan ${template.billLabel}`}</span>
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -1685,7 +1716,11 @@ export default function PaymentMatrix() {
               ✕ Kosongkan
             </button>
             {isStaff ? (
-              <button onClick={handleStaffPay} disabled={!canWrite && !canUseQris} className="pv-btn-primary text-sm disabled:opacity-50">
+              <button
+                onClick={handleStaffPay}
+                disabled={(!canWrite && !canUseQris) || (activeTenantId && !tenantAccess.canRecordCash && !tenantAccess.canRecordTransfer && !canUseQris)}
+                className="pv-btn-primary text-sm disabled:opacity-50"
+              >
                 {isDemoAdmin ? 'Bayar via QRIS →' : 'Catat Pembayaran →'}
               </button>
             ) : (
