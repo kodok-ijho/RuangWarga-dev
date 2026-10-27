@@ -1,6 +1,6 @@
 # KOS-5 — "Tagih tanpa capek": pengingat, tunggakan, denda, notifikasi push
 
-Status: ⏳ **Menunggu persetujuan user atas dokumen ini.** Keputusan desain sudah disepakati 2026-10-27:
+Status: ✅ **Disetujui user 2026-10-27** ("Mulai laksanakan"). Keputusan desain sudah disepakati 2026-10-27:
 - kanal pengingat **A** (WhatsApp satu ketuk + peringatan di portal) dan **B** (push PWA);
 - model denda 1–4 + aturan pendukung.
 
