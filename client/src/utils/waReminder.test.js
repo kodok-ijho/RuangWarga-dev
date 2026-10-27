@@ -103,6 +103,23 @@ describe('waReminder - getUnpaidBillsForReminder', () => {
     expect(getUnpaidBillsForReminder([], '2026-10')).toEqual([]);
     expect(getUnpaidBillsForReminder([{ status: 'paid', bill: { status: 'paid' } }], '2026-10')).toEqual([]);
   });
+
+  it('KOS-5.2a (A): mempertahankan late_fee pada tagihan yang diekstrak', () => {
+    const cellsWithLateFee = [
+      {
+        status: 'unpaid',
+        bill: { id: 'b-kos-1', period: '2026-09', amount: 1500000, late_fee: 50000, status: 'unpaid' },
+      },
+      {
+        status: 'unpaid',
+        bill: { id: 'b-kos-2', period: '2026-10', amount: 1500000, status: 'unpaid' },
+        late_fee: 25000,
+      },
+    ];
+    const result = getUnpaidBillsForReminder(cellsWithLateFee, '2026-10');
+    expect(result[0].late_fee).toBe(50000);
+    expect(result[1].late_fee).toBe(25000);
+  });
 });
 
 describe('waReminder - getCurrentPeriodJakarta', () => {
@@ -216,6 +233,36 @@ describe('waReminder - buildBillReminderMessage', () => {
       appUrl: 'https://ruangwarga.com/t/tenant-1',
     });
     expect(text.startsWith('Halo Bapak/Ibu,')).toBe(true);
+  });
+
+  it('KOS-5.2a (A): menghitung total yang harus dibayar = amount + late_fee untuk tagihan kos dengan denda', () => {
+    const kosBillsWithLateFee = [
+      {
+        id: 'b-kos-fee',
+        period: '2026-10',
+        amount: 1500000,
+        late_fee: 50000,
+        due_date: '2026-10-10',
+      },
+    ];
+
+    const text = buildBillReminderMessage({
+      residentName: 'Dimas',
+      billLabel: 'Sewa',
+      unitLabel: 'Kamar',
+      unitName: 'Kamar 12',
+      bills: kosBillsWithLateFee,
+      bankAccount: {
+        bank_name: 'BCA',
+        account_number: '1234567890',
+        account_holder: 'Pemilik Kos',
+      },
+      appUrl: 'https://ruangwarga.com/t/kos-1',
+      tenantName: 'Kos Melati',
+    });
+
+    expect(text).toContain('- Oktober 2026: Rp1.550.000 (jatuh tempo 10 Okt 2026)');
+    expect(text).toContain('Total: Rp1.550.000');
   });
 });
 

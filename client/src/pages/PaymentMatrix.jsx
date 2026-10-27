@@ -69,6 +69,7 @@ import {
   isLegacyQrisEnabled,
   getTenantBankAccount,
   fetchKosContracts,
+  waiveLateFee,
 } from '../services/tenantOperationalService';
 import { compressImage } from '../utils/imageCompressor';
 import { AiOutlineDownload } from 'react-icons/ai';
@@ -1918,6 +1919,8 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
   // Sel non-interaktif (warga lihat unit lain): view-only, tidak bisa diklik
   const isViewOnly = !canInteract;
 
+  const totalBillAmount = Number(bill.amount || 0) + Number(bill.late_fee || 0);
+  const lateFeeText = bill.late_fee > 0 ? ` (Denda keterlambatan ${formatRupiah(bill.late_fee)})` : '';
   const leasePeriodText = (bill.service_start && bill.service_end)
     ? ` · Masa Sewa: ${formatDateWIB(bill.service_start)} – ${formatDateWIB(bill.service_end)}`
     : '';
@@ -1930,9 +1933,9 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
         <span
           onClick={onClick}
           className="block h-12 rounded bg-amber-100 border-2 border-dashed border-amber-500 hover:bg-amber-200 text-amber-900 flex flex-col items-center justify-center px-0.5 cursor-pointer transition-colors shadow-sm"
-          title={`Transaksi Menggantung / Perlu Perbaikan (${formatRupiah(bill.amount)})${leasePeriodText}${dueDateText} · Klik untuk perbaiki atau batalkan`}
+          title={`Transaksi Menggantung / Perlu Perbaikan (${formatRupiah(totalBillAmount)})${lateFeeText}${leasePeriodText}${dueDateText} · Klik untuk perbaiki atau batalkan`}
         >
-          <span className="text-[9px] font-bold leading-none">{formatShort(bill.amount)}</span>
+          <span className="text-[9px] font-bold leading-none">{formatShort(totalBillAmount)}</span>
           <span className="text-[8px] leading-none mt-0.5 font-bold text-amber-800">
             ⚠️ Perbaiki
           </span>
@@ -1943,9 +1946,9 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
       <span
         onClick={canInteract ? onClick : undefined}
         className={`block h-12 rounded bg-amber-50 border border-amber-300 text-amber-800 flex flex-col items-center justify-center px-0.5 ${canInteract ? 'cursor-pointer hover:bg-amber-100' : ''}`}
-        title={`Pembayaran sedang diproses / menggantung (${formatRupiah(bill.amount)})${leasePeriodText}${dueDateText}`}
+        title={`Pembayaran sedang diproses / menggantung (${formatRupiah(totalBillAmount)})${lateFeeText}${leasePeriodText}${dueDateText}`}
       >
-        <span className="text-[9px] font-bold leading-none">{formatShort(bill.amount)}</span>
+        <span className="text-[9px] font-bold leading-none">{formatShort(totalBillAmount)}</span>
         <span className="text-[8px] leading-none mt-0.5 font-medium">
           ⏳ Diproses
         </span>
@@ -1971,9 +1974,9 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
       <span
         onClick={onClick}
         className={`block h-12 rounded-xl ${bgClass} flex flex-col items-center justify-center px-0.5 cursor-pointer transition-colors shadow-2xs`}
-        title={`${billStatusLabel(status)} ${formatRupiah(bill.amount)}${leasePeriodText}${dueDateText}${payment ? ' · ' + formatDate(payment.paid_at) : ''}`}
+        title={`${billStatusLabel(status)} ${formatRupiah(totalBillAmount)}${lateFeeText}${leasePeriodText}${dueDateText}${payment ? ' · ' + formatDate(payment.paid_at) : ''}`}
       >
-        <span className="text-[9px] font-bold leading-none">{formatShort(bill.amount)}</span>
+        <span className="text-[9px] font-bold leading-none">{formatShort(totalBillAmount)}</span>
         <span className="text-[8px] leading-none mt-0.5 font-semibold">
           {label}
         </span>
@@ -1990,9 +1993,9 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
       <span
         onClick={onClick}
         className={`block h-12 rounded-xl ${bgClass} flex flex-col items-center justify-center px-0.5 cursor-pointer transition-colors`}
-        title={`${billStatusLabel(status)} ${formatRupiah(bill.amount)}${leasePeriodText}${dueDateText} — klik untuk bayar ulang`}
+        title={`${billStatusLabel(status)} ${formatRupiah(totalBillAmount)}${lateFeeText}${leasePeriodText}${dueDateText} — klik untuk bayar ulang`}
       >
-        <span className="text-[9px] font-bold leading-none">{formatShort(bill.amount)}</span>
+        <span className="text-[9px] font-bold leading-none">{formatShort(totalBillAmount)}</span>
         <span className="text-[8px] leading-none mt-0.5 font-medium">
           {label}
         </span>
@@ -2011,9 +2014,9 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
     return (
       <span
         className={`block h-12 rounded-xl border flex flex-col items-center justify-center ${viewClass}`}
-        title={`${isOverdue ? 'Terlambat' : isPending ? 'Belum bayar' : ''} ${formatRupiah(bill.amount)}${leasePeriodText}${dueDateText}`.trim()}
+        title={`${isOverdue ? 'Terlambat' : isPending ? 'Belum bayar' : ''} ${formatRupiah(totalBillAmount)}${lateFeeText}${leasePeriodText}${dueDateText}`.trim()}
       >
-        <span className="text-[8px] mt-0.5 leading-none opacity-60">{formatShort(bill.amount)}</span>
+        <span className="text-[8px] mt-0.5 leading-none opacity-60">{formatShort(totalBillAmount)}</span>
       </span>
     );
   }
@@ -2029,7 +2032,7 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
       >
         <span className="text-[10px] leading-none text-slate-400">🔒</span>
         <span className="text-[8px] mt-0.5 leading-none text-slate-400">
-          {formatShort(bill.amount)}
+          {formatShort(totalBillAmount)}
         </span>
       </span>
     );
@@ -2050,7 +2053,7 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
     <span
       onClick={onClick}
       className={`block h-12 rounded-xl border transition-all flex flex-col items-center justify-center px-0.5 ${classes}`}
-      title={`${isSelected ? '✓ Terpilih: ' : ''}${billStatusLabel(status)} ${formatRupiah(bill.amount)}${leasePeriodText}${dueDateText}`}
+      title={`${isSelected ? '✓ Terpilih: ' : ''}${billStatusLabel(status)} ${formatRupiah(totalBillAmount)}${lateFeeText}${leasePeriodText}${dueDateText}`}
     >
       {isSelected ? (
         <span className="text-base leading-none">✓</span>
@@ -2060,7 +2063,7 @@ function Cell({ cell, payment: propPayment, isHanging, unitId, isSelected, isSta
         <span className="text-base leading-none text-forest-300">○</span>
       )}
       <span className="text-[8px] mt-0.5 leading-none opacity-70">
-        {formatShort(bill.amount)}
+        {formatShort(totalBillAmount)}
       </span>
     </span>
   );
@@ -2143,24 +2146,38 @@ function ResidentPayModal({ bills, total, canUseQris, billLabel = 'IPL', onConfi
             {isMulti ? `${bills.length} tagihan ${billLabel}:` : `Tagihan ${billLabel}:`}
           </p>
           <div className="mt-1 space-y-1 max-h-28 overflow-y-auto">
-            {bills.map((bill) => (
-              <div key={bill.id} className="text-xs py-0.5">
-                <div className="flex justify-between">
-                  <span className="font-medium text-slate-800">{formatPeriod(bill.period)}</span>
-                  <span className="text-slate-700">{formatRupiah(bill.amount)}</span>
-                </div>
-                {Array.isArray(bill.metadata?.line_items) && bill.metadata.line_items.length > 0 && (
-                  <div className="pl-2 pt-0.5 text-[11px] text-slate-500 space-y-0.5" data-testid="resident-pay-line-items">
-                    {bill.metadata.line_items.map((li, idx) => (
-                      <div key={idx} className="flex justify-between">
-                        <span>• {li.name}</span>
-                        <span>{formatRupiah(li.amount)}</span>
-                      </div>
-                    ))}
+            {bills.map((bill) => {
+              const amountWithLateFee = Number(bill.amount || 0) + Number(bill.late_fee || 0);
+              return (
+                <div key={bill.id} className="text-xs py-0.5 space-y-0.5">
+                  <div className="flex justify-between">
+                    <span className="font-medium text-slate-800">{formatPeriod(bill.period)}</span>
+                    <span className="text-slate-700 font-medium">{formatRupiah(amountWithLateFee)}</span>
                   </div>
-                )}
-              </div>
-            ))}
+                  {bill.late_fee > 0 && (
+                    <div className="pl-2 text-[11px] text-amber-700 flex justify-between">
+                      <span>Denda keterlambatan</span>
+                      <span>{formatRupiah(bill.late_fee)}</span>
+                    </div>
+                  )}
+                  {bill.metadata?.late_fee_waived && (
+                    <div className="pl-2 text-[11px] text-slate-500 italic">
+                      Denda dihapus: {bill.metadata?.waive_reason || '-'}
+                    </div>
+                  )}
+                  {Array.isArray(bill.metadata?.line_items) && bill.metadata.line_items.length > 0 && (
+                    <div className="pl-2 pt-0.5 text-[11px] text-slate-500 space-y-0.5" data-testid="resident-pay-line-items">
+                      {bill.metadata.line_items.map((li, idx) => (
+                        <div key={idx} className="flex justify-between">
+                          <span>• {li.name}</span>
+                          <span>{formatRupiah(li.amount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {method === 'qris' && (
@@ -2436,21 +2453,34 @@ function ManualPaymentModal({ bills, unit, role, canWrite, canUseQris, billLabel
           {/* Daftar periode terpilih (lintas tahun) */}
           <div className="mt-1 space-y-1 max-h-40 overflow-y-auto">
             {bills.map((bill) => (
-              <div key={bill.id} className="flex items-center justify-between text-xs py-0.5 gap-2">
-                <span className="font-medium text-slate-800 flex-shrink-0">
-                  {formatPeriod(bill.period)}
-                </span>
-                {canEditNominal ? (
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={customAmounts[bill.id] ?? ''}
-                    onChange={(e) => handleAmountChange(bill.id, e.target.value)}
-                    className="w-28 rounded-lg border border-gold-300 bg-gold-50 px-2 py-1 text-right text-xs font-semibold text-slate-900 outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-400/30"
-                  />
-                ) : (
-                  <span className="text-slate-700 font-medium">{formatRupiah(Number(bill.amount || 0) + Number(bill.late_fee || 0))}</span>
+              <div key={bill.id} className="py-0.5 space-y-0.5">
+                <div className="flex items-center justify-between text-xs gap-2">
+                  <span className="font-medium text-slate-800 flex-shrink-0">
+                    {formatPeriod(bill.period)}
+                  </span>
+                  {canEditNominal ? (
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={customAmounts[bill.id] ?? ''}
+                      onChange={(e) => handleAmountChange(bill.id, e.target.value)}
+                      className="w-28 rounded-lg border border-gold-300 bg-gold-50 px-2 py-1 text-right text-xs font-semibold text-slate-900 outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-400/30"
+                    />
+                  ) : (
+                    <span className="text-slate-700 font-medium">{formatRupiah(Number(bill.amount || 0) + Number(bill.late_fee || 0))}</span>
+                  )}
+                </div>
+                {bill.late_fee > 0 && (
+                  <div className="pl-2 text-[11px] text-amber-700 flex justify-between">
+                    <span>Denda keterlambatan</span>
+                    <span>{formatRupiah(bill.late_fee)}</span>
+                  </div>
+                )}
+                {bill.metadata?.late_fee_waived && (
+                  <div className="pl-2 text-[11px] text-slate-500 italic">
+                    Denda dihapus: {bill.metadata?.waive_reason || '-'}
+                  </div>
                 )}
               </div>
             ))}
@@ -2730,9 +2760,14 @@ export function ReceiptActions({
 export function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profile, session, isHanging: initialIsHanging, billLabel = 'IPL', onRefresh, onRetry, onClose }) {
   const toast = useToast();
   const { template } = useTenantTemplate();
-  const { activeTenant, activeTenantId } = useTenant();
+  const { activeTenant, activeTenantId, isOwner } = useTenant();
   const tenantAccess = useTenantAccess();
   const [asyncPayment, setAsyncPayment] = useState(null);
+  const [isWaiveModalOpen, setIsWaiveModalOpen] = useState(false);
+  const [waiveReasonInput, setWaiveReasonInput] = useState('');
+  const [waiveError, setWaiveError] = useState('');
+  const [isWaiving, setIsWaiving] = useState(false);
+  const [waivedState, setWaivedState] = useState(null);
 
   // Selalu fetch data payment lengkap dari backend
   useEffect(() => {
@@ -2818,6 +2853,23 @@ export function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profil
   const isHanging = Boolean(initialIsHanging || isHangingPayment(activePayment, resolvedBill, resolvedBill?.status));
   const paymentMethod = activePayment?.method || activePayment?.payment_method || activePayment?.paymentMethod;
 
+  const currentLateFee = waivedState ? 0 : Number(resolvedBill?.late_fee || 0);
+  const hasLateFee = currentLateFee > 0;
+  const isLateFeeWaived = waivedState ? true : Boolean(resolvedBill?.metadata?.late_fee_waived);
+  const waiveReason = waivedState ? waivedState.reason : (resolvedBill?.metadata?.waive_reason || '');
+  const totalAmount = Number(resolvedBill?.amount || 0) + currentLateFee;
+
+  const isKos = activeTenant?.type === 'kos' || resolvedBill?.metadata?.bill_type === 'rent' || resolvedBill?.metadata?.billing_type === 'rent';
+  const isOwnerUser = Boolean(isOwner || tenantAccess.isOwner);
+  const canWaiveLateFee = Boolean((isOwnerUser || tenantAccess.canGenerateBilling) && canWrite);
+  const billStatus = resolvedBill?.status || 'unpaid';
+  const paymentStatus = activePayment?.status || payment?.status;
+  const isUnpaidOrPending =
+    billStatus === 'unpaid' ||
+    billStatus === 'pending_verification' ||
+    billStatus === 'pending' ||
+    paymentStatus === 'pending_verification';
+
   let proofFileUrl =
     activePayment?.proof_file_url ||
     activePayment?.receipt_file_url ||
@@ -2900,14 +2952,38 @@ export function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profil
       : 'Tidak ada file bukti transfer yang tersimpan.';
 
   const [isEditing, setIsEditing] = useState(Boolean(isHanging && canRepair));
+  const canShowWaiveButton = isKos && canWaiveLateFee && hasLateFee && isUnpaidOrPending && !isEditing;
   const [editForm, setEditForm] = useState({
-    amount: activePayment?.amount ?? resolvedBill?.amount ?? 0,
+    amount: activePayment?.amount ?? totalAmount,
     method: activePayment?.method || 'cash',
     paid_at: resolvedPaidAt ? String(resolvedPaidAt).slice(0, 10) : new Date().toISOString().slice(0, 10),
     note: activePayment?.metadata?.note || '',
     file: null,
     markCompleted: true,
   });
+
+  const handleConfirmWaiveLateFee = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const trimmed = String(waiveReasonInput || '').trim();
+    if (!trimmed) {
+      setWaiveError('Alasan penghapusan denda wajib diisi.');
+      return;
+    }
+
+    setIsWaiving(true);
+    try {
+      await waiveLateFee(resolvedBill.id, trimmed);
+      setWaivedState({ reason: trimmed });
+      toast.success('Denda keterlambatan berhasil dihapus.');
+      setIsWaiveModalOpen(false);
+      if (onRefresh) onRefresh();
+      onClose();
+    } catch (err) {
+      toast.error(err.message || 'Gagal menghapus denda keterlambatan.');
+    } finally {
+      setIsWaiving(false);
+    }
+  };
 
   useEffect(() => {
     if (activePayment) {
@@ -3332,7 +3408,7 @@ export function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profil
               </div>
               <div>
                 <p className="text-xs text-slate-500 font-medium">Jumlah Tagihan</p>
-                <p className="font-bold text-slate-900">{formatRupiah(resolvedBill.amount)}</p>
+                <p className="font-bold text-slate-900">{formatRupiah(totalAmount)}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-500 font-medium">Tanggal Bayar</p>
@@ -3352,8 +3428,8 @@ export function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profil
               </div>
             )}
 
-            {/* Rincian Line Items Tagihan (KOS-4.2) */}
-            {lineItems.length > 0 && (
+            {/* Rincian Line Items Tagihan (KOS-4.2 / KOS-5.2a) */}
+            {(lineItems.length > 0 || hasLateFee || isLateFeeWaived) && (
               <div
                 data-testid="kos-bill-line-items"
                 className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-forest-900 space-y-2"
@@ -3363,20 +3439,42 @@ export function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profil
                     <span>📋</span> Rincian Tagihan
                   </span>
                   <span className="text-[11px] text-slate-500 font-medium">
-                    {lineItems.length} komponen
+                    {lineItems.length > 0
+                      ? `${lineItems.length + (hasLateFee ? 1 : 0)} komponen`
+                      : `${(resolvedBill?.amount ? 1 : 0) + (hasLateFee ? 1 : 0)} komponen`}
                   </span>
                 </div>
                 <div className="space-y-1">
-                  {lineItems.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-center py-0.5 text-xs">
-                      <span className="text-slate-600 font-medium">{item.name}</span>
-                      <span className="font-semibold text-slate-900">{formatRupiah(item.amount)}</span>
+                  {lineItems.length > 0 ? (
+                    lineItems.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center py-0.5 text-xs">
+                        <span className="text-slate-600 font-medium">{item.name}</span>
+                        <span className="font-semibold text-slate-900">{formatRupiah(item.amount)}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex justify-between items-center py-0.5 text-xs">
+                      <span className="text-slate-600 font-medium">{billLabel || 'Sewa'}</span>
+                      <span className="font-semibold text-slate-900">{formatRupiah(resolvedBill.amount)}</span>
                     </div>
-                  ))}
+                  )}
+
+                  {hasLateFee && (
+                    <div className="flex justify-between items-center py-0.5 text-xs text-amber-800 font-medium">
+                      <span>Denda keterlambatan</span>
+                      <span className="font-semibold">{formatRupiah(currentLateFee)}</span>
+                    </div>
+                  )}
+
+                  {isLateFeeWaived && (
+                    <div className="py-0.5 text-xs text-slate-500 italic">
+                      Denda dihapus: {waiveReason || '-'}
+                    </div>
+                  )}
                 </div>
                 <div className="pt-1.5 border-t border-slate-200 flex justify-between items-center font-bold text-xs">
                   <span className="text-slate-800">Total:</span>
-                  <span className="text-emerald-700">{formatRupiah(resolvedBill.amount)}</span>
+                  <span className="text-emerald-700">{formatRupiah(totalAmount)}</span>
                 </div>
               </div>
             )}
@@ -3544,12 +3642,84 @@ export function PaymentDetailModal({ bill, payment, unit, role, myUnitId, profil
             </button>
           )}
 
+          {canShowWaiveButton && (
+            <button
+              type="button"
+              onClick={() => {
+                setWaiveReasonInput('');
+                setWaiveError('');
+                setIsWaiveModalOpen(true);
+              }}
+              className="pv-btn-ghost w-full text-xs py-2 border-amber-300 text-amber-800 hover:bg-amber-50 flex items-center justify-center gap-1.5 font-medium"
+            >
+              <span>🏷️</span>
+              <span>Hapus denda</span>
+            </button>
+          )}
+
           <button type="button" onClick={onClose} className="pv-btn-ghost w-full text-sm">
             Tutup
           </button>
         </div>
       </div>
     </Modal>
+
+      {isWaiveModalOpen && (
+        <Modal
+          open
+          onClose={() => {
+            if (!isWaiving) setIsWaiveModalOpen(false);
+          }}
+          title="Hapus Denda Keterlambatan"
+          size="sm"
+        >
+          <form onSubmit={handleConfirmWaiveLateFee} className="space-y-3.5 text-forest-900">
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Denda keterlambatan sebesar <strong>{formatRupiah(currentLateFee)}</strong> untuk tagihan periode{' '}
+              <strong>{formatPeriod(resolvedBill.period)}</strong> akan dihapus dan diset menjadi Rp 0.
+            </p>
+
+            <div>
+              <label htmlFor="waiveReasonInput" className="block text-xs font-semibold text-forest-800 mb-1">
+                Alasan Penghapusan Denda <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                id="waiveReasonInput"
+                rows={3}
+                required
+                value={waiveReasonInput}
+                onChange={(e) => {
+                  setWaiveReasonInput(e.target.value);
+                  if (waiveError) setWaiveError('');
+                }}
+                placeholder="Contoh: Penyewa sakit opname di RS / dispensasi khusus"
+                className="w-full rounded-lg border border-forest-200 bg-white p-2.5 text-xs text-forest-900 outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500/20 resize-none"
+              />
+              {waiveError && (
+                <p className="text-[11px] text-red-600 mt-1 font-medium">{waiveError}</p>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setIsWaiveModalOpen(false)}
+                disabled={isWaiving}
+                className="pv-btn-ghost flex-1 text-xs py-2 disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={isWaiving || !waiveReasonInput.trim()}
+                className="pv-btn-primary flex-1 text-xs py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
+              >
+                {isWaiving ? 'Menghapus...' : 'Hapus Denda'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
       {isProofPreviewOpen && proofPreviewUrl && (
         <div

@@ -58,7 +58,12 @@ export function getUnpaidBillsForReminder(cells, currentPeriod) {
 
     if (status === 'unpaid' && period) {
       if (!currentPeriod || String(period) <= String(currentPeriod)) {
-        unpaidBills.push(bill);
+        const lateFee = Number(bill.late_fee ?? item.late_fee ?? 0);
+        unpaidBills.push({
+          ...bill,
+          amount: Number(bill.amount || 0),
+          late_fee: lateFee,
+        });
       }
     }
   }

@@ -113,6 +113,7 @@ vi.mock('../services/tenantOperationalService', async () => {
   const actual = await vi.importActual('../services/tenantOperationalService');
   return {
     ...actual,
+    waiveLateFee: vi.fn(() => Promise.resolve({ success: true, late_fee: 0 })),
     fetchTenantPayments: vi.fn(() =>
       Promise.resolve([
         {
@@ -387,5 +388,160 @@ describe('PaymentDetailModal Tenant Mode (RTRW-1F.2)', () => {
     expect(screen.getByText('Rp 1.500.000')).toBeTruthy();
     expect(screen.getByText('Rp 100.000')).toBeTruthy();
     expect(screen.getByText('2 komponen')).toBeTruthy();
+  });
+
+  it('8. KOS-5.2a (A): menampilkan total = amount + late_fee dan baris Denda keterlambatan Rp X pada tagihan kos dengan denda', () => {
+    mockTenantState.activeTenant = { id: 'tenant-kos-1', name: 'Kos Melati', type: 'kos' };
+    mockTenantState.activeTenantId = 'tenant-kos-1';
+
+    const props = createDefaultProps();
+    props.bill = {
+      id: 'bill-kos-denda-1',
+      amount: 1500000,
+      late_fee: 50000,
+      period: '2026-10',
+      status: 'unpaid',
+      metadata: {
+        bill_type: 'rent',
+      },
+    };
+    props.payment = null;
+
+    render(<PaymentDetailModal {...props} />);
+
+    // Total tagihan harus Rp 1.550.000 (1.500.000 + 50.000)
+    expect(screen.getAllByText('Rp 1.550.000').length).toBeGreaterThanOrEqual(1);
+
+    // Di rincian tampilkan baris Denda keterlambatan
+    const lineItemsContainer = screen.getByTestId('kos-bill-line-items');
+    expect(lineItemsContainer).toBeTruthy();
+    expect(screen.getByText('Denda keterlambatan')).toBeTruthy();
+    expect(screen.getByText('Rp 50.000')).toBeTruthy();
+  });
+
+  it('9. KOS-5.2a (A): menampilkan baris "Denda dihapus: <waive_reason>" bila metadata.late_fee_waived', () => {
+    mockTenantState.activeTenant = { id: 'tenant-kos-1', name: 'Kos Melati', type: 'kos' };
+    mockTenantState.activeTenantId = 'tenant-kos-1';
+
+    const props = createDefaultProps();
+    props.bill = {
+      id: 'bill-kos-waived-1',
+      amount: 1500000,
+      late_fee: 0,
+      period: '2026-10',
+      status: 'unpaid',
+      metadata: {
+        bill_type: 'rent',
+        late_fee_waived: true,
+        waive_reason: 'Dispensasi sakit rawat inap',
+      },
+    };
+    props.payment = null;
+
+    render(<PaymentDetailModal {...props} />);
+
+    expect(screen.getByText(/Denda dihapus: Dispensasi sakit rawat inap/i)).toBeTruthy();
+  });
+
+  it('10. KOS-5.2a (B): tombol "Hapus denda" tampil untuk owner atau canGenerateBilling saat late_fee > 0 dan unpaid/pending, dan tersembunyi jika status paid atau tanpa izin', () => {
+    mockTenantState.activeTenant = { id: 'tenant-kos-1', name: 'Kos Melati', type: 'kos' };
+    mockTenantState.activeTenantId = 'tenant-kos-1';
+    mockTenantAccessState.canGenerateBilling = true;
+    mockTenantAccessState.canWrite = true;
+
+    const props = createDefaultProps();
+    props.bill = {
+      id: 'bill-kos-fee-1',
+      amount: 1500000,
+      late_fee: 50000,
+      period: '2026-10',
+      status: 'unpaid',
+      metadata: { bill_type: 'rent' },
+    };
+    props.payment = null;
+
+    // 10a. canGenerateBilling = true, late_fee > 0, unpaid -> tombol tampil
+    const { unmount } = render(<PaymentDetailModal {...props} />);
+    expect(screen.getByRole('button', { name: /Hapus denda/i })).toBeTruthy();
+    unmount();
+
+    // 10b. status paid -> tombol TIDAK tampil
+    const paidProps = createDefaultProps();
+    paidProps.bill = { ...props.bill, status: 'paid' };
+    paidProps.payment = { id: 'p-paid', status: 'completed' };
+    const { unmount: unmountPaid } = render(<PaymentDetailModal {...paidProps} />);
+    expect(screen.queryByRole('button', { name: /Hapus denda/i })).toBeNull();
+    unmountPaid();
+
+    // 10c. late_fee = 0 -> tombol TIDAK tampil
+    const zeroFeeProps = createDefaultProps();
+    zeroFeeProps.bill = { ...props.bill, late_fee: 0 };
+    zeroFeeProps.payment = null;
+    const { unmount: unmountZero } = render(<PaymentDetailModal {...zeroFeeProps} />);
+    expect(screen.queryByRole('button', { name: /Hapus denda/i })).toBeNull();
+    unmountZero();
+
+    // 10d. canGenerateBilling = false dan bukan owner -> tombol TIDAK tampil
+    mockTenantAccessState.canGenerateBilling = false;
+    mockTenantState.isOwner = false;
+    const noPermProps = createDefaultProps();
+    noPermProps.bill = { ...props.bill };
+    noPermProps.payment = null;
+    const { unmount: unmountNoPerm } = render(<PaymentDetailModal {...noPermProps} />);
+    expect(screen.queryByRole('button', { name: /Hapus denda/i })).toBeNull();
+    unmountNoPerm();
+  });
+
+  it('11. KOS-5.2a (B): klik "Hapus denda" membuka modal alasan, validasi wajib isi alasan, panggil waiveLateFee dan refresh', async () => {
+    mockTenantState.activeTenant = { id: 'tenant-kos-1', name: 'Kos Melati', type: 'kos' };
+    mockTenantState.activeTenantId = 'tenant-kos-1';
+    mockTenantAccessState.canGenerateBilling = true;
+    mockTenantAccessState.canWrite = true;
+
+    const props = createDefaultProps();
+    props.bill = {
+      id: 'bill-kos-waive-action',
+      amount: 1500000,
+      late_fee: 75000,
+      period: '2026-10',
+      status: 'unpaid',
+      metadata: { bill_type: 'rent' },
+    };
+    props.payment = null;
+
+    render(<PaymentDetailModal {...props} />);
+
+    // Buka modal hapus denda
+    const waiveBtn = screen.getByRole('button', { name: /Hapus denda/i });
+    fireEvent.click(waiveBtn);
+
+    // Modal alasan muncul
+    expect(screen.getByText('Hapus Denda Keterlambatan')).toBeTruthy();
+    const reasonInput = screen.getByLabelText(/Alasan Penghapusan Denda/i);
+    expect(reasonInput).toBeTruthy();
+
+    // Klik tombol submit dalam modal dengan alasan masih kosong
+    const confirmBtn = screen.getByRole('button', { name: 'Hapus Denda' });
+    expect(confirmBtn.disabled).toBe(true);
+
+    // Isi alasan
+    fireEvent.change(reasonInput, { target: { value: 'Penyewa sakit opname 5 hari di RS' } });
+    expect(confirmBtn.disabled).toBe(false);
+
+    // Submit form
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(tenantOperationalService.waiveLateFee).toHaveBeenCalledWith(
+        'bill-kos-waive-action',
+        'Penyewa sakit opname 5 hari di RS'
+      );
+    });
+
+    expect(mockToast.success).toHaveBeenCalledWith(
+      expect.stringContaining('berhasil dihapus')
+    );
+    expect(props.onRefresh).toHaveBeenCalled();
+    expect(props.onClose).toHaveBeenCalled();
   });
 });

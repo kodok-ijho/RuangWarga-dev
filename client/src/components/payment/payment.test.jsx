@@ -385,6 +385,46 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
       expect(html).not.toContain('Bayar');
     });
 
+    it('19a. KOS-5.2a (A): ResidentIplOverview menampilkan baris Denda keterlambatan dan Denda dihapus', () => {
+      const bills = [
+        {
+          id: 'b-kos-fee',
+          period: '2026-10',
+          amount: 1500000,
+          late_fee: 50000,
+          status: 'unpaid',
+        },
+        {
+          id: 'b-kos-waived',
+          period: '2026-09',
+          amount: 1500000,
+          late_fee: 0,
+          status: 'unpaid',
+          metadata: {
+            late_fee_waived: true,
+            waive_reason: 'Dispensasi sakit',
+          },
+        },
+      ];
+
+      const html = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <ResidentIplOverview
+              unit={{ label: 'Kamar 101' }}
+              unpaidBills={bills}
+              selectedBillIds={['b-kos-fee', 'b-kos-waived']}
+              template={{ billLabel: 'Sewa', unitLabel: 'Kamar' }}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      expect(html).toContain('Denda keterlambatan');
+      expect(html).toContain('50.000');
+      expect(html).toContain('Denda dihapus: Dispensasi sakit');
+    });
+
     it('20. payment flow modal error — menampilkan pesan validasi jika bukti transfer belum dipilih', () => {
       const html = cleanHtml(
         renderToString(
@@ -441,6 +481,42 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
       expect(html).toContain('Unggah Bukti Transfer');
       expect(html).toContain('Pilih File Bukti Transfer');
       expect(html).toContain('Kirim Bukti Transfer');
+    });
+
+    it('20c. KOS-5.2a (A): payment flow modal menampilkan rincian denda keterlambatan dan denda dihapus', () => {
+      const html = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <PaymentFlowModal
+              open={true}
+              bills={[
+                { id: 'b1', period: '2026-09', amount: 1500000, late_fee: 50000 },
+                {
+                  id: 'b2',
+                  period: '2026-08',
+                  amount: 1500000,
+                  late_fee: 0,
+                  metadata: { late_fee_waived: true, waive_reason: 'Dispensasi sakit' },
+                },
+              ]}
+              total={3050000}
+              canUseQris={false}
+              billLabel="Sewa"
+              bankAccount={{
+                bank_name: 'BCA',
+                account_number: '8830123456',
+                account_holder: 'Pemilik Kos',
+              }}
+              onConfirm={() => {}}
+              onClose={() => {}}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      expect(html).toContain('Denda keterlambatan');
+      expect(html).toContain('50.000');
+      expect(html).toContain('Denda dihapus: Dispensasi sakit');
     });
 
     it('20b. payment flow modal tanpa rekening — menyembunyikan form unggah bukti dan menampilkan peringatan rekening belum tersedia', () => {

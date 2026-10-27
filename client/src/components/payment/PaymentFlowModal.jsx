@@ -135,16 +135,29 @@ export function PaymentFlowModal({
             {bills.map((bill) => {
               const amountWithLateFee = Number(bill.amount || 0) + Number(bill.late_fee || 0);
               return (
-                <div key={bill.id} className="flex justify-between text-xs pt-1.5 first:pt-0">
-                  <span className="font-semibold text-slate-800">
-                    {formatPeriod(bill.period)}
-                    {bill.late_fee > 0 && (
-                      <span className="text-[10px] text-amber-700 ml-1">(+Denda)</span>
-                    )}
-                  </span>
-                  <span className="font-mono text-slate-700 font-medium">
-                    {formatRupiah(amountWithLateFee)}
-                  </span>
+                <div key={bill.id} className="pt-1.5 first:pt-0 space-y-0.5">
+                  <div className="flex justify-between text-xs">
+                    <span className="font-semibold text-slate-800">
+                      {formatPeriod(bill.period)}
+                      {bill.late_fee > 0 && (
+                        <span className="text-[10px] text-amber-700 ml-1">(+Denda)</span>
+                      )}
+                    </span>
+                    <span className="font-mono text-slate-700 font-medium">
+                      {formatRupiah(amountWithLateFee)}
+                    </span>
+                  </div>
+                  {bill.late_fee > 0 && (
+                    <div className="text-[11px] text-amber-700 flex justify-between pl-2">
+                      <span>Denda keterlambatan</span>
+                      <span className="font-semibold">{formatRupiah(bill.late_fee)}</span>
+                    </div>
+                  )}
+                  {bill.metadata?.late_fee_waived && (
+                    <div className="text-[11px] text-slate-500 italic pl-2">
+                      Denda dihapus: {bill.metadata?.waive_reason || '-'}
+                    </div>
+                  )}
                 </div>
               );
             })}

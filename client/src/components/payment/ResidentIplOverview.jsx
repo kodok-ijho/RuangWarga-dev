@@ -320,7 +320,12 @@ export function ResidentIplOverview({
                       </span>
                       {bill.late_fee > 0 && (
                         <span className="text-[10px] text-amber-700 block">
-                          Termasuk denda: {formatRupiah(bill.late_fee)}
+                          Denda keterlambatan {formatRupiah(bill.late_fee)}
+                        </span>
+                      )}
+                      {bill.metadata?.late_fee_waived && (
+                        <span className="text-[10px] text-slate-500 italic block">
+                          Denda dihapus: {bill.metadata?.waive_reason || '-'}
                         </span>
                       )}
                     </div>

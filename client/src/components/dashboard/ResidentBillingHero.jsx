@@ -71,7 +71,8 @@ export function ResidentBillingHero({
   const billStatus = myBill.status;
   const isPaid = billStatus === 'paid' || billStatus === 'lunas' || billStatus === 'verified' || billStatus === 'approved';
   const isPending = billStatus === 'pending' || billStatus === 'pending_verification' || billStatus === 'menunggu';
-  const hasActualAmount = typeof myBill.amount === 'number' && !isNaN(myBill.amount);
+  const totalAmount = Number(myBill.amount || 0) + Number(myBill.late_fee || 0);
+  const hasActualAmount = (typeof myBill.amount === 'number' && !isNaN(myBill.amount)) || (typeof myBill.late_fee === 'number' && myBill.late_fee > 0);
 
   return (
     <div
@@ -102,7 +103,7 @@ export function ResidentBillingHero({
               {hasActualAmount ? (
                 <>
                   <span className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-tight">
-                    {formatRupiah(myBill.amount)}
+                    {formatRupiah(totalAmount)}
                   </span>
                   <span className="text-xs text-slate-500 font-medium">/ periode</span>
                 </>
@@ -112,6 +113,17 @@ export function ResidentBillingHero({
                 </span>
               )}
             </div>
+
+            {myBill.late_fee > 0 && (
+              <p className="text-xs text-amber-700 font-medium">
+                Denda keterlambatan {formatRupiah(myBill.late_fee)}
+              </p>
+            )}
+            {myBill.metadata?.late_fee_waived && (
+              <p className="text-xs text-slate-500 italic">
+                Denda dihapus: {myBill.metadata?.waive_reason || '-'}
+              </p>
+            )}
 
             <p className="text-xs text-slate-600 leading-relaxed max-w-xl">
               {isPaid
