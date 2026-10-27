@@ -559,11 +559,12 @@ BEGIN
   v_res := public.run_kos_collections(v_today);
 
   -- Verifikasi keberadaan baris pada masing-masing tahap
-  SELECT id, status, remind_date INTO v_reminder_id, v_reminder_rec.status, v_reminder_rec.remind_date
+  SELECT r.* INTO v_reminder_rec
   FROM public.rent_reminders r
   JOIN public.billing_items b ON b.id = r.bill_id
   JOIN public.kos_contracts c ON c.id = b.contract_id
   WHERE c.unit_id = v_room_rem_h3_id AND r.stage = 'h-3';
+  v_reminder_id := v_reminder_rec.id;
 
   IF v_reminder_id IS NULL OR v_reminder_rec.status <> 'pending' OR v_reminder_rec.remind_date <> v_today THEN
     RAISE EXCEPTION 'Uji 7 GAGAL: Pengingat tahap h-3 tidak dibuat dengan benar';
@@ -601,21 +602,21 @@ BEGIN
   PERFORM set_config('request.jwt.claims', jsonb_build_object('sub', v_owner_kos, 'role', 'authenticated')::text, true);
 
   v_res := public.mark_rent_reminder(v_reminder_id, 'sent');
-  SELECT status, sent_by, sent_at INTO v_reminder_rec.status, v_reminder_rec.sent_by, v_reminder_rec.sent_at
+  SELECT * INTO v_reminder_rec
   FROM public.rent_reminders WHERE id = v_reminder_id;
 
   IF v_reminder_rec.status <> 'sent' OR v_reminder_rec.sent_by <> v_owner_kos OR v_reminder_rec.sent_at IS NULL THEN
     RAISE EXCEPTION 'Uji 7 GAGAL: mark_rent_reminder status sent tidak tercatat dengan benar';
   END IF;
 
-  SELECT id INTO v_reminder_id
+  SELECT r.id INTO v_reminder_id
   FROM public.rent_reminders r
   JOIN public.billing_items b ON b.id = r.bill_id
   JOIN public.kos_contracts c ON c.id = b.contract_id
   WHERE c.unit_id = v_room_rem_h0_id AND r.stage = 'h0';
 
   v_res := public.mark_rent_reminder(v_reminder_id, 'skipped');
-  SELECT status INTO v_reminder_rec.status FROM public.rent_reminders WHERE id = v_reminder_id;
+  SELECT * INTO v_reminder_rec FROM public.rent_reminders WHERE id = v_reminder_id;
   IF v_reminder_rec.status <> 'skipped' THEN
     RAISE EXCEPTION 'Uji 7 GAGAL: mark_rent_reminder status skipped gagal';
   END IF;
