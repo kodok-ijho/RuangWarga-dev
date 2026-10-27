@@ -489,6 +489,31 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
       expect(html).toContain('Tagihan Oktober terlambat 5 hari, denda Rp50.000');
     });
 
+    it('19c. KOS-5.3b (Requirement 10): ResidentIplOverview menyertakan kartu notifikasi push di dekat banner tagihan', () => {
+      const html = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <ResidentIplOverview
+              unit={{ label: 'Kamar 101' }}
+              unpaidBills={[
+                {
+                  id: 'b1',
+                  period: '2026-10',
+                  amount: 500000,
+                  due_date: '2026-10-30',
+                  status: 'unpaid',
+                },
+              ]}
+              template={{ billLabel: 'Sewa', unitLabel: 'Kamar' }}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      expect(html).toContain('Notifikasi di perangkat ini');
+      expect(html).toContain('push-notification-compact-card');
+    });
+
     it('20. payment flow modal error — menampilkan pesan validasi jika bukti transfer belum dipilih', () => {
       const html = cleanHtml(
         renderToString(

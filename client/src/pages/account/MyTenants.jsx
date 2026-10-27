@@ -12,6 +12,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../hooks/useTenant';
 import { getTenantTemplate } from '../../config/tenantTemplates';
 import { Button, Card, Badge, PageHeader, EmptyState } from '../../components/ui';
+import PushNotificationCard from '../../components/PushNotificationCard';
 
 const STATUS_BADGES = {
   active: {
@@ -297,6 +298,11 @@ export default function MyTenants() {
           })}
         </div>
       )}
+
+      {/* ── Pengaturan Notifikasi Perangkat (KOS-5.3b) ──────────────────── */}
+      <div className="pt-2">
+        <PushNotificationCard />
+      </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, Button, StatusBadge, SkeletonList } from '../ui';
 import { formatRupiah, formatPeriod } from '../../services/dataHelpers';
 import { getRentDueBannerInfo } from '../../utils/rentDueReminder';
+import PushNotificationCard from '../PushNotificationCard';
 import {
   AiOutlineCreditCard,
   AiOutlineCheckCircle,
@@ -313,6 +314,9 @@ export function ResidentIplOverview({
           ))}
         </div>
       )}
+
+      {/* 1c. Notifikasi di Perangkat Ini (KOS-5.3b Requirement 10) */}
+      <PushNotificationCard compact className="mt-2" />
 
       {/* 2. Daftar Tagihan Belum Bayar (Quick Selector) jika ada */}
       {unpaidBills.length > 0 && (

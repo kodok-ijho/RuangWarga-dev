@@ -127,6 +127,7 @@ export default defineConfig(({ mode }) => {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         // Kalau ada update, cek saat navigasi
         navigateFallback: 'index.html',
+        importScripts: ['push-sw.js'],
       },
 
       manifest: {

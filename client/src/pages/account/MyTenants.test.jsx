@@ -68,4 +68,28 @@ describe('MyTenants Component — KOS-1.4b Join Requests Display', () => {
       screen.getByText('Ingin mengelola komunitas sendiri? Daftarkan tenant')
     ).toBeTruthy();
   });
+
+  it('menampilkan kartu notifikasi di perangkat ini pada halaman akun (KOS-5.3b)', () => {
+    useAuth.mockReturnValue({
+      user: { id: 'u-1', email: 'user@example.com' },
+      profile: { id: 'u-1', full_name: 'Pemilik Akun' },
+    });
+
+    useTenant.mockReturnValue({
+      userTenants: [],
+      joinRequests: [],
+      activeTenantId: null,
+      switchTenant: vi.fn(),
+      loading: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <MyTenants />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId('push-notification-card')).toBeTruthy();
+    expect(screen.getByText('Notifikasi di perangkat ini')).toBeTruthy();
+  });
 });
