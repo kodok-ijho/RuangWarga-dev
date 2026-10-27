@@ -72,3 +72,15 @@ Menyentuh tagihan, schema, Edge Function, dan secret. Pembayaran sewa tetap manu
   - tagihan lewat jatuh tempo mendapat denda sesuai aturan;
   - pengingat muncul dan terbuka di WA;
   - push diterima di HP user.
+
+## Progres (Claude, 2026-10-27)
+- 5.1 `1352327` + perbaikan test `7b25edb`; 5.2a `cf3f79c`, `99b7093`; 5.2b `1d71d33`; 5.3a `9dc7557`; 5.3b `62a21f6`.
+- Dry-run dev: kedua migration + `kos_collections.sql` + `push_notifications.sql` + semua test kos/listing → `DRYRUN_OK`.
+- Vitest 107 file 1466/1466 (`TZ=UTC` dan `TZ=Asia/Jakarta`), lint dan build bersih; `dist/sw.js` memuat `importScripts("push-sw.js")`.
+- Terpasang di dev: `20261027163431 kos_collections`, `20261027163435 push_notifications`; jadwal `ruangwarga-rent-push` 23:00 UTC (06:00 WIB). Uji `run_kos_collections` hari ini: 0 denda, 0 pengingat (belum ada tagihan pada tahapnya).
+- **Menunggu izin user:**
+  - kunci VAPID;
+  - secret Edge Function (`VAPID_*`, `RENT_PUSH_CRON_SECRET`);
+  - secret Vault (`rent_push_cron_secret`, `rent_push_function_url`);
+  - deploy `send-rent-push` (`--no-verify-jwt`; diamankan secret cron);
+  - env Vercel dev `VITE_VAPID_PUBLIC_KEY` (disetel user lewat dashboard).
