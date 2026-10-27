@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { NavLink, Link, Outlet, useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useQuery, QueryClient, QueryClientContext } from '@tanstack/react-query';
 import {
   AiOutlineHome,
   AiOutlineTable,
@@ -19,11 +20,13 @@ import {
   AiOutlinePlusCircle,
   AiOutlineNotification,
   AiOutlineShop,
+  AiOutlineBell,
 } from 'react-icons/ai';
 import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../hooks/useTenant';
 import { useTenantTemplate } from '../../hooks/useTenantTemplate';
 import { useTenantAccess } from '../../hooks/useTenantAccess';
+import { fetchTodayReminders } from '../../services/tenant/collections';
 import TenantSwitcher from '../TenantSwitcher';
 import TrialCountdownBanner from '../TrialCountdownBanner';
 import { Avatar } from '../ui/Avatar';
@@ -32,6 +35,12 @@ import Dropdown, { DropdownItem } from '../ui/Dropdown';
 import { Badge } from '../ui/Badge';
 import { isSafeLogoUrl } from '../../utils/brand';
 import { roleLabel, displayRoleName } from '../../services/dataHelpers';
+
+const fallbackQueryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+  },
+});
 
 export default function TenantShell() {
   const { tenantId: routeTenantId } = useParams();
@@ -89,6 +98,20 @@ export default function TenantShell() {
 
   const canManageUnits = Boolean((isOwner || (hasPermission && hasPermission('manage_settings'))) && hasUnits);
   const canPostListing = Boolean(isKos && (isOwner || activeTenant?.is_owner || hasPermission?.('post_listing')));
+  const canManageCollections = Boolean(isKos && (isOwner || activeTenant?.is_owner || hasPermission?.('generate_billing')));
+
+  const contextQueryClient = useContext(QueryClientContext);
+
+  const { data: todayReminders } = useQuery(
+    {
+      queryKey: ['todayReminders', tenantId],
+      queryFn: () => fetchTodayReminders(tenantId),
+      enabled: Boolean(canManageCollections && tenantId && contextQueryClient),
+      staleTime: 60000,
+    },
+    contextQueryClient || fallbackQueryClient
+  );
+  const pendingReminderCount = Array.isArray(todayReminders) ? todayReminders.length : 0;
 
   const secondLink = hasPrograms
     ? {
@@ -113,6 +136,21 @@ export default function TenantShell() {
       : []),
     ...(canPostListing
       ? [{ to: `${tenantBase}/listings`, label: 'Iklan', icon: AiOutlineShop }]
+      : []),
+    ...(canManageCollections
+      ? [
+          {
+            to: `${tenantBase}/reminders`,
+            label: 'Pengingat',
+            icon: AiOutlineBell,
+            badge: pendingReminderCount > 0 ? pendingReminderCount : null,
+          },
+          {
+            to: `${tenantBase}/arrears`,
+            label: 'Tunggakan',
+            icon: AiOutlineFileText,
+          },
+        ]
       : []),
     { to: `${tenantBase}/residents`, label: template.memberLabel || 'Anggota', icon: AiOutlineTeam },
     { to: `${tenantBase}/announcements`, label: 'Pengumuman', icon: AiOutlineNotification },
@@ -239,6 +277,11 @@ export default function TenantShell() {
                 >
                   <Icon className="text-sm" />
                   <span>{link.label}</span>
+                  {link.badge != null && (
+                    <span className="ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white leading-none">
+                      {link.badge}
+                    </span>
+                  )}
                 </NavLink>
               );
             })}
@@ -437,10 +480,17 @@ export default function TenantShell() {
                 <button
                   key={link.to}
                   onClick={() => navigate(link.to)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 text-left transition-colors"
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 text-left transition-colors"
                 >
-                  <Icon className="text-base text-slate-500" />
-                  <span>{link.label}</span>
+                  <div className="flex items-center gap-2.5">
+                    <Icon className="text-base text-slate-500" />
+                    <span>{link.label}</span>
+                  </div>
+                  {link.badge != null && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white leading-none">
+                      {link.badge}
+                    </span>
+                  )}
                 </button>
               );
             })}

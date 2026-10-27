@@ -2,7 +2,24 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import TenantShell from './TenantShell';
+
+let testQueryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false, gcTime: 0 },
+  },
+});
+
+const renderShell = (entries = ['/t/t-pv-1/dashboard']) => {
+  return renderToString(
+    <QueryClientProvider client={testQueryClient}>
+      <MemoryRouter initialEntries={entries}>
+        <TenantShell />
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
+};
 
 let mockTenantState = {
   activeTenant: null,
@@ -135,11 +152,7 @@ describe('TenantShell Logo & Identity (BRAND-1F.1)', () => {
       logo_url: '/tenants/palm-village/logo.png',
     };
 
-    const html = renderToString(
-      <MemoryRouter initialEntries={['/t/t-pv-1/dashboard']}>
-        <TenantShell />
-      </MemoryRouter>
-    );
+    const html = renderShell(['/t/t-pv-1/dashboard']);
 
     expect(html).toContain('src="/tenants/palm-village/logo.png"');
     expect(html).toContain('alt="Palm Village RT 05"');
@@ -151,11 +164,7 @@ describe('TenantShell Logo & Identity (BRAND-1F.1)', () => {
       logo_url: 'javascript:alert(1)',
     };
 
-    const html = renderToString(
-      <MemoryRouter initialEntries={['/t/t-pv-1/dashboard']}>
-        <TenantShell />
-      </MemoryRouter>
-    );
+    const html = renderShell(['/t/t-pv-1/dashboard']);
 
     expect(html).not.toContain('javascript:alert(1)');
     expect(html).toContain('🏡');
@@ -166,11 +175,7 @@ describe('TenantShell Logo & Identity (BRAND-1F.1)', () => {
       logo_url: 'http://evil.test/x.png',
     };
 
-    const html = renderToString(
-      <MemoryRouter initialEntries={['/t/t-pv-1/dashboard']}>
-        <TenantShell />
-      </MemoryRouter>
-    );
+    const html = renderShell(['/t/t-pv-1/dashboard']);
 
     expect(html).not.toContain('http://evil.test/x.png');
     expect(html).toContain('🏡');
@@ -204,53 +209,33 @@ describe('TenantShell Navigation (RTRW-1.2)', () => {
   });
 
   it('tidak memuat link /residents tanpa prefix /t/, melainkan ke /t/:tenantId/residents', () => {
-    const html = renderToString(
-      <MemoryRouter initialEntries={['/t/t-pv-1/dashboard']}>
-        <TenantShell />
-      </MemoryRouter>
-    );
+    const html = renderShell(['/t/t-pv-1/dashboard']);
     expect(html).toContain('href="/t/t-pv-1/residents"');
     expect(html).not.toMatch(/href="\/residents"/);
   });
 
   it('menyembunyikan menu Pengeluaran dan Laporan jika canViewReports false', () => {
     mockTenantAccess = { canViewReports: false, isMember: true, isStaff: false, canWrite: false };
-    const html = renderToString(
-      <MemoryRouter initialEntries={['/t/t-pv-1/dashboard']}>
-        <TenantShell />
-      </MemoryRouter>
-    );
+    const html = renderShell(['/t/t-pv-1/dashboard']);
     expect(html).not.toContain('href="/t/t-pv-1/expenses"');
     expect(html).not.toContain('href="/t/t-pv-1/reports"');
   });
 
   it('menampilkan menu Pengeluaran dan Laporan jika canViewReports true', () => {
     mockTenantAccess = { canViewReports: true, isMember: true, isStaff: true, canWrite: true };
-    const html = renderToString(
-      <MemoryRouter initialEntries={['/t/t-pv-1/dashboard']}>
-        <TenantShell />
-      </MemoryRouter>
-    );
+    const html = renderShell(['/t/t-pv-1/dashboard']);
     expect(html).toContain('href="/t/t-pv-1/expenses"');
     expect(html).toContain('href="/t/t-pv-1/reports"');
   });
 
   it('menampilkan menu Pengumuman untuk semua anggota (/t/:tenantId/announcements)', () => {
-    const html = renderToString(
-      <MemoryRouter initialEntries={['/t/t-pv-1/dashboard']}>
-        <TenantShell />
-      </MemoryRouter>
-    );
+    const html = renderShell(['/t/t-pv-1/dashboard']);
     expect(html).toContain('href="/t/t-pv-1/announcements"');
     expect(html).toContain('Pengumuman');
   });
 
   it('menampilkan menu Acara untuk semua anggota (/t/:tenantId/events)', () => {
-    const html = renderToString(
-      <MemoryRouter initialEntries={['/t/t-pv-1/dashboard']}>
-        <TenantShell />
-      </MemoryRouter>
-    );
+    const html = renderShell(['/t/t-pv-1/dashboard']);
     expect(html).toContain('href="/t/t-pv-1/events"');
     expect(html).toContain('Acara');
   });
@@ -259,21 +244,13 @@ describe('TenantShell Navigation (RTRW-1.2)', () => {
     mockTenantState.isOwner = true;
     mockTenantState.hasPermission = () => false;
 
-    const htmlOwner = renderToString(
-      <MemoryRouter initialEntries={['/t/t-pv-1/dashboard']}>
-        <TenantShell />
-      </MemoryRouter>
-    );
+    const htmlOwner = renderShell(['/t/t-pv-1/dashboard']);
     expect(htmlOwner).toContain('Jabatan &amp; Hak Akses');
 
     mockTenantState.isOwner = false;
     mockTenantState.hasPermission = (p) => p === 'manage_tenant_users';
 
-    const htmlManager = renderToString(
-      <MemoryRouter initialEntries={['/t/t-pv-1/dashboard']}>
-        <TenantShell />
-      </MemoryRouter>
-    );
+    const htmlManager = renderShell(['/t/t-pv-1/dashboard']);
     expect(htmlManager).toContain('Jabatan &amp; Hak Akses');
   });
 
@@ -281,11 +258,7 @@ describe('TenantShell Navigation (RTRW-1.2)', () => {
     mockTenantState.isOwner = false;
     mockTenantState.hasPermission = (p) => p === 'manage_settings';
 
-    const html = renderToString(
-      <MemoryRouter initialEntries={['/t/t-pv-1/dashboard']}>
-        <TenantShell />
-      </MemoryRouter>
-    );
+    const html = renderShell(['/t/t-pv-1/dashboard']);
     expect(html).not.toContain('Jabatan &amp; Hak Akses');
   });
 
@@ -300,11 +273,7 @@ describe('TenantShell Navigation (RTRW-1.2)', () => {
       mockTenantState.activeTenantId = 't-panitia-1';
       mockTenantAccess.canViewReports = true;
 
-      const html = renderToString(
-        <MemoryRouter initialEntries={['/t/t-panitia-1/dashboard']}>
-          <TenantShell />
-        </MemoryRouter>
-      );
+      const html = renderShell(['/t/t-panitia-1/dashboard']);
 
       // Link kedua menjadi Acara (/programs)
       expect(html).toContain('href="/t/t-panitia-1/programs"');
@@ -330,11 +299,7 @@ describe('TenantShell Navigation (RTRW-1.2)', () => {
       mockTenantState.activeTenantId = 't-rtrw-1';
       mockTenantAccess.canViewReports = true;
 
-      const html = renderToString(
-        <MemoryRouter initialEntries={['/t/t-rtrw-1/dashboard']}>
-          <TenantShell />
-        </MemoryRouter>
-      );
+      const html = renderShell(['/t/t-rtrw-1/dashboard']);
 
       // Menampilkan tagihan/payment-matrix dan unit
       expect(html).toContain('href="/t/t-rtrw-1/payment-matrix"');
@@ -353,11 +318,7 @@ describe('TenantShell Navigation (RTRW-1.2)', () => {
       };
       mockTenantState.activeTenantId = 't-panitia-1';
 
-      const html = renderToString(
-        <MemoryRouter initialEntries={['/t/t-panitia-1/dashboard']}>
-          <TenantShell />
-        </MemoryRouter>
-      );
+      const html = renderShell(['/t/t-panitia-1/dashboard']);
 
       // Header sticky memiliki print:hidden
       expect(html).toMatch(/<header[^>]*print:hidden/);
@@ -376,11 +337,7 @@ describe('TenantShell Navigation (RTRW-1.2)', () => {
       mockTenantState.activeTenantId = 't-panitia-1';
       mockTenantAccess.canVerifyPayments = true;
 
-      const html = renderToString(
-        <MemoryRouter initialEntries={['/t/t-panitia-1/dashboard']}>
-          <TenantShell />
-        </MemoryRouter>
-      );
+      const html = renderShell(['/t/t-panitia-1/dashboard']);
 
       // Link verifikasi muncul di navigasi desktop & drawer
       expect(html).toContain('href="/t/t-panitia-1/payment-verification"');
@@ -388,11 +345,7 @@ describe('TenantShell Navigation (RTRW-1.2)', () => {
 
       // Bila canVerifyPayments = false, link verifikasi tidak tampil
       mockTenantAccess.canVerifyPayments = false;
-      const htmlNoVerify = renderToString(
-        <MemoryRouter initialEntries={['/t/t-panitia-1/dashboard']}>
-          <TenantShell />
-        </MemoryRouter>
-      );
+      const htmlNoVerify = renderShell(['/t/t-panitia-1/dashboard']);
       expect(htmlNoVerify).not.toContain('href="/t/t-panitia-1/payment-verification"');
     });
 
@@ -406,11 +359,7 @@ describe('TenantShell Navigation (RTRW-1.2)', () => {
       };
       mockTenantState.activeTenantId = 't-arisan-1';
 
-      const arisanHtml = renderToString(
-        <MemoryRouter initialEntries={['/t/t-arisan-1/dashboard']}>
-          <TenantShell />
-        </MemoryRouter>
-      );
+      const arisanHtml = renderShell(['/t/t-arisan-1/dashboard']);
 
       expect(arisanHtml).toContain('href="/t/t-arisan-1/arisan/my"');
       expect(arisanHtml).toContain('Setoran Saya');
@@ -424,11 +373,7 @@ describe('TenantShell Navigation (RTRW-1.2)', () => {
       };
       mockTenantState.activeTenantId = 't-rtrw-1';
 
-      const rtrwHtml = renderToString(
-        <MemoryRouter initialEntries={['/t/t-rtrw-1/dashboard']}>
-          <TenantShell />
-        </MemoryRouter>
-      );
+      const rtrwHtml = renderShell(['/t/t-rtrw-1/dashboard']);
 
       expect(rtrwHtml).not.toContain('href="/t/t-rtrw-1/arisan/my"');
       expect(rtrwHtml).not.toContain('Setoran Saya');
@@ -446,11 +391,7 @@ describe('TenantShell Navigation (RTRW-1.2)', () => {
         mockTenantState.isOwner = true;
         mockTenantState.hasPermission = () => true;
 
-        const html = renderToString(
-          <MemoryRouter initialEntries={['/t/t-kos-1/dashboard']}>
-            <TenantShell />
-          </MemoryRouter>
-        );
+        const html = renderShell(['/t/t-kos-1/dashboard']);
 
         expect(html).toContain('href="/t/t-kos-1/listings"');
         expect(html).toContain('Iklan');
@@ -467,11 +408,7 @@ describe('TenantShell Navigation (RTRW-1.2)', () => {
         mockTenantState.isOwner = false;
         mockTenantState.hasPermission = (key) => key === 'post_listing';
 
-        const html = renderToString(
-          <MemoryRouter initialEntries={['/t/t-kos-1/dashboard']}>
-            <TenantShell />
-          </MemoryRouter>
-        );
+        const html = renderShell(['/t/t-kos-1/dashboard']);
 
         expect(html).toContain('href="/t/t-kos-1/listings"');
         expect(html).toContain('Iklan');
@@ -488,11 +425,7 @@ describe('TenantShell Navigation (RTRW-1.2)', () => {
         mockTenantState.isOwner = false;
         mockTenantState.hasPermission = () => false;
 
-        const html = renderToString(
-          <MemoryRouter initialEntries={['/t/t-kos-1/dashboard']}>
-            <TenantShell />
-          </MemoryRouter>
-        );
+        const html = renderShell(['/t/t-kos-1/dashboard']);
 
         expect(html).not.toContain('href="/t/t-kos-1/listings"');
       });
@@ -508,13 +441,83 @@ describe('TenantShell Navigation (RTRW-1.2)', () => {
         mockTenantState.isOwner = true;
         mockTenantState.hasPermission = () => true;
 
-        const html = renderToString(
-          <MemoryRouter initialEntries={['/t/t-rtrw-1/dashboard']}>
-            <TenantShell />
-          </MemoryRouter>
-        );
+        const html = renderShell(['/t/t-rtrw-1/dashboard']);
 
         expect(html).not.toContain('href="/t/t-rtrw-1/listings"');
+      });
+    });
+
+    describe('KOS-5.2b: Menu Pengingat dan Tunggakan untuk Tenant Kos', () => {
+      it('menu "Pengingat" dan "Tunggakan" tampil untuk owner kos', () => {
+        mockTenantState.activeTenant = {
+          id: 't-kos-1',
+          name: 'Kos Sejahtera',
+          type: 'kos',
+          settings: {},
+        };
+        mockTenantState.activeTenantId = 't-kos-1';
+        mockTenantState.isOwner = true;
+        mockTenantState.hasPermission = () => true;
+
+        const html = renderShell(['/t/t-kos-1/dashboard']);
+
+        expect(html).toContain('href="/t/t-kos-1/reminders"');
+        expect(html).toContain('Pengingat');
+        expect(html).toContain('href="/t/t-kos-1/arrears"');
+        expect(html).toContain('Tunggakan');
+      });
+
+      it('menu "Pengingat" dan "Tunggakan" tampil untuk staf kos dengan izin generate_billing', () => {
+        mockTenantState.activeTenant = {
+          id: 't-kos-1',
+          name: 'Kos Sejahtera',
+          type: 'kos',
+          settings: {},
+        };
+        mockTenantState.activeTenantId = 't-kos-1';
+        mockTenantState.isOwner = false;
+        mockTenantState.hasPermission = (key) => key === 'generate_billing';
+
+        const html = renderShell(['/t/t-kos-1/dashboard']);
+
+        expect(html).toContain('href="/t/t-kos-1/reminders"');
+        expect(html).toContain('Pengingat');
+        expect(html).toContain('href="/t/t-kos-1/arrears"');
+        expect(html).toContain('Tunggakan');
+      });
+
+      it('menu "Pengingat" dan "Tunggakan" TIDAK tampil untuk penyewa biasa (tanpa izin generate_billing)', () => {
+        mockTenantState.activeTenant = {
+          id: 't-kos-1',
+          name: 'Kos Sejahtera',
+          type: 'kos',
+          settings: {},
+        };
+        mockTenantState.activeTenantId = 't-kos-1';
+        mockTenantState.isOwner = false;
+        mockTenantState.hasPermission = () => false;
+
+        const html = renderShell(['/t/t-kos-1/dashboard']);
+
+        expect(html).not.toContain('href="/t/t-kos-1/reminders"');
+        expect(html).not.toContain('href="/t/t-kos-1/arrears"');
+      });
+
+      it('menu "Pengingat" dan "Tunggakan" TIDAK tampil untuk tenant RT/RW meskipun owner', () => {
+        mockTenantState.activeTenant = {
+          id: 't-rtrw-1',
+          name: 'Palm Village RT 05',
+          type: 'rt_rw',
+          settings: {},
+        };
+        mockTenantState.activeTenantId = 't-rtrw-1';
+        mockTenantState.isOwner = true;
+        mockTenantState.hasPermission = () => true;
+
+        const html = renderShell(['/t/t-rtrw-1/dashboard']);
+
+        expect(html).not.toContain('href="/t/t-rtrw-1/reminders"');
+        expect(html).not.toContain('href="/t/t-rtrw-1/arrears"');
       });
     });
   });

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, Button, StatusBadge, SkeletonList } from '../ui';
 import { formatRupiah, formatPeriod } from '../../services/dataHelpers';
+import { getRentDueBannerInfo } from '../../utils/rentDueReminder';
 import {
   AiOutlineCreditCard,
   AiOutlineCheckCircle,
@@ -153,6 +154,11 @@ export function ResidentIplOverview({
     0
   );
 
+  // KOS-5.2b: Evaluasi banner pengingat jatuh tempo/keterlambatan untuk tagihan unpaid
+  const dueBanners = (Array.isArray(unpaidBills) ? unpaidBills : [])
+    .map((b) => ({ bill: b, info: getRentDueBannerInfo(b) }))
+    .filter((item) => Boolean(item.info));
+
   // Styling banner status (Neutral-first, semantic accent)
   let statusBannerBg = 'border-slate-200/90 bg-white';
   let statusIcon = <AiOutlineInfoCircle className="text-slate-500 text-xl" />;
@@ -268,6 +274,46 @@ export function ResidentIplOverview({
         </div>
       </Card>
 
+      {/* 1b. Banner Pengingat Jatuh Tempo / Keterlambatan Tagihan (KOS-5.2b Requirement 9) */}
+      {dueBanners.length > 0 && (
+        <div className="space-y-2" data-testid="rent-due-banners">
+          {dueBanners.map(({ bill, info }) => (
+            <div
+              key={`due-banner-${bill.id}`}
+              data-testid={`rent-due-banner-${bill.id}`}
+              className={`rounded-xl border p-3 flex items-center justify-between gap-3 text-xs font-semibold ${
+                info.variant === 'rose'
+                  ? 'bg-rose-50 border-rose-300 text-rose-900'
+                  : 'bg-amber-50 border-amber-300 text-amber-900'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="text-base shrink-0">
+                  {info.variant === 'rose' ? '⚠️' : '⏰'}
+                </span>
+                <div>
+                  <p className="font-bold text-slate-900">{info.headline}</p>
+                  <p className="text-[11px] text-slate-600 mt-0.5">
+                    {info.isOverdue
+                      ? 'Harap segera lakukan pembayaran untuk menghindari akumulasi denda.'
+                      : 'Lakukan pembayaran sebelum batas jatuh tempo.'}
+                  </p>
+                </div>
+              </div>
+              <span
+                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 ${
+                  info.variant === 'rose'
+                    ? 'bg-rose-200 text-rose-900'
+                    : 'bg-amber-200 text-amber-900'
+                }`}
+              >
+                {info.shortText}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* 2. Daftar Tagihan Belum Bayar (Quick Selector) jika ada */}
       {unpaidBills.length > 0 && (
         <Card padding="md" className="border-slate-200/90 bg-white shadow-xs">
@@ -318,6 +364,22 @@ export function ResidentIplOverview({
                       <span className="text-xs font-bold text-slate-900 block">
                         {formatPeriod(bill.period)}
                       </span>
+                      {(() => {
+                        const dueInfo = getRentDueBannerInfo(bill);
+                        if (!dueInfo) return null;
+                        return (
+                          <span
+                            data-testid={`bill-due-tag-${bill.id}`}
+                            className={`inline-block text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 ${
+                              dueInfo.variant === 'rose'
+                                ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                : 'bg-amber-100 text-amber-900 border border-amber-200'
+                            }`}
+                          >
+                            {dueInfo.headline}
+                          </span>
+                        );
+                      })()}
                       {bill.late_fee > 0 && (
                         <span className="text-[10px] text-amber-700 block">
                           Denda keterlambatan {formatRupiah(bill.late_fee)}

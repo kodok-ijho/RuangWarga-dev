@@ -71,6 +71,8 @@ const ArisanDraw = lazy(() => import('./pages/arisan/ArisanDraw'));
 const ArisanMyContributions = lazy(() => import('./pages/arisan/ArisanMyContributions'));
 const PostListing = lazy(() => import('./pages/tenant/PostListing'));
 const MyListings = lazy(() => import('./pages/tenant/MyListings'));
+const KosReminders = lazy(() => import('./pages/tenant/KosReminders'));
+const KosArrears = lazy(() => import('./pages/tenant/KosArrears'));
 const RoomListingDirectory = lazy(() => import('./pages/public/RoomListingDirectory'));
 const RoomListingDetail = lazy(() => import('./pages/public/RoomListingDetail'));
 const UmkmListingDirectory = lazy(() => import('./pages/public/UmkmListingDirectory'));
@@ -521,6 +523,26 @@ export default function App() {
                     element={
                       <Suspense fallback={<PageLoader />}>
                         <MyListings />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="reminders"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <TenantPermissionGuard permission="generate_billing">
+                          <KosReminders />
+                        </TenantPermissionGuard>
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="arrears"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <TenantPermissionGuard permission="generate_billing">
+                          <KosArrears />
+                        </TenantPermissionGuard>
                       </Suspense>
                     }
                   />

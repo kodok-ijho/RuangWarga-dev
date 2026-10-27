@@ -425,6 +425,70 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
       expect(html).toContain('Denda dihapus: Dispensasi sakit');
     });
 
+    it('19b. KOS-5.2b (Requirement 9): ResidentIplOverview menampilkan banner jatuh tempo 3 hari lagi, hari ini, dan terlambat', () => {
+      // Menguji banner pada tagihan unpaid
+      // Kita buat tagihan dengan jatuh tempo tertentu relatif terhadap hari ini di WIB
+      const todayParts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Jakarta',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).formatToParts(new Date());
+      const ty = Number(todayParts.find((p) => p.type === 'year')?.value);
+      const tm = Number(todayParts.find((p) => p.type === 'month')?.value);
+      const td = Number(todayParts.find((p) => p.type === 'day')?.value);
+
+      const makeDateStr = (offsetDays) => {
+        const d = new Date(Date.UTC(ty, tm - 1, td + offsetDays));
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+
+      const bills = [
+        {
+          id: 'b-h-3',
+          period: '2026-10',
+          amount: 1500000,
+          due_date: makeDateStr(3), // 3 hari lagi
+          status: 'unpaid',
+        },
+        {
+          id: 'b-h0',
+          period: '2026-10',
+          amount: 1500000,
+          due_date: makeDateStr(0), // hari ini
+          status: 'unpaid',
+        },
+        {
+          id: 'b-late',
+          period: '2026-10',
+          amount: 1500000,
+          late_fee: 50000,
+          due_date: makeDateStr(-5), // terlambat 5 hari
+          status: 'unpaid',
+        },
+      ];
+
+      const html = cleanHtml(
+        renderToString(
+          <MemoryRouter>
+            <ResidentIplOverview
+              unit={{ label: 'Kamar 101' }}
+              unpaidBills={bills}
+              selectedBillIds={['b-h-3']}
+              template={{ billLabel: 'Sewa', unitLabel: 'Kamar' }}
+            />
+          </MemoryRouter>
+        )
+      );
+
+      expect(html).toContain('Tagihan Oktober jatuh tempo 3 hari lagi');
+      expect(html).toContain('Tagihan Oktober jatuh tempo hari ini');
+      expect(html).toContain('Tagihan Oktober terlambat 5 hari, denda Rp50.000');
+    });
+
     it('20. payment flow modal error — menampilkan pesan validasi jika bukti transfer belum dipilih', () => {
       const html = cleanHtml(
         renderToString(
