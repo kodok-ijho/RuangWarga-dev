@@ -738,6 +738,96 @@ describe('TenantSettings (RTRW-2.4)', () => {
       expect(saveBtn.disabled).toBe(true);
     });
 
+    it('d. KOS-5.2a: validasi dan simpan aturan denda keterlambatan (daily + toleransi)', async () => {
+      mockTenantContext = {
+        ...mockTenantContext,
+        activeTenant: { id: 'tenant-kos-1', name: 'Kos Melati', type: 'kos' },
+        activeTenantId: 'tenant-kos-1',
+        tenantType: 'kos',
+      };
+      tenantOperationalService.fetchTenantDetails.mockResolvedValueOnce({
+        ...sampleDetails,
+        id: 'tenant-kos-1',
+        name: 'Kos Melati',
+        type: 'kos',
+        settings: {
+          default_rent_price: 1500000,
+          rent_grace_days: 10,
+          late_fee_rule: { type: 'none', grace_days: 0 },
+        },
+      });
+
+      renderComponent('tenant-kos-1');
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Kos Melati')).toBeTruthy();
+      });
+
+      // Pilih jenis denda per hari
+      const typeSelect = document.getElementById('kosLateFeeTypeSelect');
+      fireEvent.change(typeSelect, { target: { value: 'daily' } });
+
+      // Isi toleransi 3 hari
+      const graceInput = document.getElementById('kosLateFeeGraceDaysInput');
+      fireEvent.change(graceInput, { target: { value: '3' } });
+
+      // Isi denda harian dan batas maksimum
+      const amountInput = document.getElementById('kosLateFeeDailyAmountInput');
+      fireEvent.change(amountInput, { target: { value: '15000' } });
+
+      const maxInput = document.getElementById('kosLateFeeDailyMaxInput');
+      fireEvent.change(maxInput, { target: { value: '150000' } });
+
+      const saveBtn = screen.getByRole('button', { name: /Simpan Aturan Kontrak/i });
+      fireEvent.click(saveBtn);
+
+      await waitFor(() => {
+        expect(tenantOperationalService.updateTenantProfileAndSettings).toHaveBeenCalledWith(
+          'tenant-kos-1',
+          expect.objectContaining({
+            settings: expect.objectContaining({
+              late_fee_rule: {
+                type: 'daily',
+                amount: 15000,
+                max: 150000,
+                grace_days: 3,
+              },
+            }),
+          })
+        );
+      });
+    });
+
+    it('e. KOS-5.2a: toleransi denda > 7 hari ditolak dengan pesan error', async () => {
+      mockTenantContext = {
+        ...mockTenantContext,
+        activeTenant: { id: 'tenant-kos-1', name: 'Kos Melati', type: 'kos' },
+        activeTenantId: 'tenant-kos-1',
+        tenantType: 'kos',
+      };
+      tenantOperationalService.fetchTenantDetails.mockResolvedValueOnce({
+        ...sampleDetails,
+        id: 'tenant-kos-1',
+        name: 'Kos Melati',
+        type: 'kos',
+        settings: {},
+      });
+
+      renderComponent('tenant-kos-1');
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Kos Melati')).toBeTruthy();
+      });
+
+      const graceInput = document.getElementById('kosLateFeeGraceDaysInput');
+      fireEvent.change(graceInput, { target: { value: '8' } });
+
+      const saveBtn = screen.getByRole('button', { name: /Simpan Aturan Kontrak/i });
+      fireEvent.click(saveBtn);
+
+      expect(mockToast.error).toHaveBeenCalledWith('Masa toleransi denda harus antara 0 hingga 7 hari.');
+    });
+
     it('c. tenant rt_rw tetap hanya mengirim due_day', async () => {
       renderComponent('tenant-rtrw-1');
 

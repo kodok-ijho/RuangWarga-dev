@@ -137,12 +137,13 @@ const EXPECTED_EXPORTS = [
   "validateFacilities",
   "validateRentPrice",
   "verifyTenantPayment",
+  "waiveLateFee",
 ];
 
 describe('tenantOperationalService Exports Guard (DEBT-1.4)', () => {
-  it('harus mengekspor 135 fungsi/konstanta yang sama persis', () => {
+  it('harus mengekspor 136 fungsi/konstanta yang sama persis', () => {
     const exportsList = Object.keys(tenantOperationalService).sort();
     expect(exportsList).toEqual(EXPECTED_EXPORTS);
-    expect(exportsList.length).toBe(135);
+    expect(exportsList.length).toBe(136);
   });
 });

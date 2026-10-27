@@ -547,6 +547,7 @@ describe('tenantOperationalService - Unit Tests', () => {
         p_notes: 'Sewa 6 bulan via assignRoomContract',
         p_billing_cycle: 'start_date',
         p_additional_fees: [],
+        p_late_fee_rule: null,
       });
 
       // Pastikan tidak ada query langsung ke tenant_units atau billing_items

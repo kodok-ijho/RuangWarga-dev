@@ -67,6 +67,11 @@ export default function CreateBillingModal({
   const [billingCycle, setBillingCycle] = useState('start_date'); // 'start_date' | 'month_start_prorata'
   const [contractFees, setContractFees] = useState([]);
   const [masterSettings, setMasterSettings] = useState(null);
+  const [lateFeeType, setLateFeeType] = useState('none');
+  const [lateFeeGraceDays, setLateFeeGraceDays] = useState(0);
+  const [lateFeeAmount, setLateFeeAmount] = useState('');
+  const [lateFeeDailyMax, setLateFeeDailyMax] = useState('');
+  const [lateFeePercent, setLateFeePercent] = useState('');
 
   // Muat opsi kamar, anggota, dan pengaturan tenant saat modal dibuka
   useEffect(() => {
@@ -115,6 +120,30 @@ export default function CreateBillingModal({
         } else {
           setContractFees([]);
         }
+
+        // Prefill aturan denda dari settings.late_fee_rule (KOS-5.2a)
+        const lfr = settings.late_fee_rule || {};
+        setLateFeeType(lfr.type || 'none');
+        setLateFeeGraceDays(
+          lfr.grace_days !== undefined && lfr.grace_days !== null
+            ? Number(lfr.grace_days)
+            : 0
+        );
+        setLateFeeAmount(
+          lfr.amount !== undefined && lfr.amount !== null
+            ? String(lfr.amount)
+            : ''
+        );
+        setLateFeeDailyMax(
+          lfr.max !== undefined && lfr.max !== null
+            ? String(lfr.max)
+            : ''
+        );
+        setLateFeePercent(
+          lfr.percent !== undefined && lfr.percent !== null
+            ? String(lfr.percent)
+            : ''
+        );
 
         setUnits(unitData || []);
         setMembers(memberData || []);
@@ -288,6 +317,54 @@ export default function CreateBillingModal({
         return;
       }
 
+      const lateGraceNum = parseInt(lateFeeGraceDays, 10);
+      if (isNaN(lateGraceNum) || lateGraceNum < 0 || lateGraceNum > 7) {
+        toast.error('Masa toleransi denda harus antara 0 hingga 7 hari.');
+        return;
+      }
+
+      let lateFeeRulePayload = { type: 'none', grace_days: lateGraceNum };
+      if (lateFeeType === 'once') {
+        const amt = Number(lateFeeAmount);
+        if (isNaN(amt) || amt <= 0) {
+          toast.error('Nominal denda sekali harus berupa angka lebih dari 0.');
+          return;
+        }
+        lateFeeRulePayload = {
+          type: 'once',
+          amount: Math.round(amt),
+          grace_days: lateGraceNum,
+        };
+      } else if (lateFeeType === 'daily') {
+        const amt = Number(lateFeeAmount);
+        if (isNaN(amt) || amt <= 0) {
+          toast.error('Nominal denda per hari harus berupa angka lebih dari 0.');
+          return;
+        }
+        const maxAmt = Number(lateFeeDailyMax);
+        if (isNaN(maxAmt) || maxAmt <= 0) {
+          toast.error('Batas maksimum denda per hari harus berupa angka lebih dari 0.');
+          return;
+        }
+        lateFeeRulePayload = {
+          type: 'daily',
+          amount: Math.round(amt),
+          max: Math.round(maxAmt),
+          grace_days: lateGraceNum,
+        };
+      } else if (lateFeeType === 'percent') {
+        const pct = Number(lateFeePercent);
+        if (isNaN(pct) || pct <= 0 || pct > 100) {
+          toast.error('Persen denda harus berupa angka antara 0.01 hingga 100.');
+          return;
+        }
+        lateFeeRulePayload = {
+          type: 'percent',
+          percent: pct,
+          grace_days: lateGraceNum,
+        };
+      }
+
       setIsSubmitting(true);
       try {
         const contractRes = await createKosContract(tenantId, {
@@ -301,6 +378,7 @@ export default function CreateBillingModal({
           notes: notes?.trim() || null,
           billingCycle,
           additionalFees: selectedAdditionalFees,
+          lateFeeRule: lateFeeRulePayload,
         });
 
         if (onSaveContract) {
@@ -745,6 +823,144 @@ export default function CreateBillingModal({
                     </div>
                   </div>
                 )}
+
+                {/* Aturan Denda Keterlambatan Kontrak (KOS-5.2a) */}
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3" data-testid="kos-contract-late-fee-panel">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <AiOutlineClockCircle className="text-forest-600" />
+                      <span>Aturan Denda Keterlambatan</span>
+                    </label>
+                    <span className="text-[10px] text-slate-500">Prefill dari pengaturan, dapat diubah</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="modal-late-fee-type-select" className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        Jenis Denda
+                      </label>
+                      <select
+                        id="modal-late-fee-type-select"
+                        value={lateFeeType}
+                        onChange={(e) => setLateFeeType(e.target.value)}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-forest-900 font-medium"
+                      >
+                        <option value="none">Tanpa denda</option>
+                        <option value="once">Denda sekali (Nominal tetap)</option>
+                        <option value="daily">Denda per hari + batas maksimum</option>
+                        <option value="percent">Persen dari sewa pokok</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label htmlFor="modal-late-fee-grace-days-input" className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        Masa Toleransi (0–7 Hari)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          id="modal-late-fee-grace-days-input"
+                          type="number"
+                          min="0"
+                          max="7"
+                          value={lateFeeGraceDays}
+                          onChange={(e) => setLateFeeGraceDays(e.target.value)}
+                          className="w-20 bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs text-forest-900 font-semibold"
+                        />
+                        <span className="text-xs text-slate-500">hari toleransi</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {lateFeeType === 'once' && (
+                    <div className="pt-2 border-t border-slate-200/80 max-w-xs">
+                      <label htmlFor="modal-late-fee-once-amount-input" className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        Nominal Denda Sekali (Rp) <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 font-semibold">
+                          Rp
+                        </span>
+                        <input
+                          id="modal-late-fee-once-amount-input"
+                          type="number"
+                          min="0"
+                          step="1000"
+                          value={lateFeeAmount}
+                          onChange={(e) => setLateFeeAmount(e.target.value)}
+                          placeholder="50000"
+                          className="w-full pl-8 pr-2.5 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-forest-900 font-semibold"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {lateFeeType === 'daily' && (
+                    <div className="pt-2 border-t border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
+                      <div>
+                        <label htmlFor="modal-late-fee-daily-amount-input" className="block text-[11px] font-semibold text-slate-700 mb-1">
+                          Denda per Hari (Rp) <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 font-semibold">
+                            Rp
+                          </span>
+                          <input
+                            id="modal-late-fee-daily-amount-input"
+                            type="number"
+                            min="0"
+                            step="1000"
+                            value={lateFeeAmount}
+                            onChange={(e) => setLateFeeAmount(e.target.value)}
+                            placeholder="10000"
+                            className="w-full pl-8 pr-2.5 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-forest-900 font-semibold"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label htmlFor="modal-late-fee-daily-max-input" className="block text-[11px] font-semibold text-slate-700 mb-1">
+                          Batas Maksimum (Rp) <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 font-semibold">
+                            Rp
+                          </span>
+                          <input
+                            id="modal-late-fee-daily-max-input"
+                            type="number"
+                            min="0"
+                            step="1000"
+                            value={lateFeeDailyMax}
+                            onChange={(e) => setLateFeeDailyMax(e.target.value)}
+                            placeholder="200000"
+                            className="w-full pl-8 pr-2.5 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-forest-900 font-semibold"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {lateFeeType === 'percent' && (
+                    <div className="pt-2 border-t border-slate-200/80 max-w-xs">
+                      <label htmlFor="modal-late-fee-percent-input" className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        Persentase Denda (%) <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          id="modal-late-fee-percent-input"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="any"
+                          value={lateFeePercent}
+                          onChange={(e) => setLateFeePercent(e.target.value)}
+                          placeholder="5"
+                          className="w-20 bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs text-forest-900 font-semibold"
+                        />
+                        <span className="text-xs text-slate-500">% dari sewa pokok</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* Pratinjau 3 Periode Pertama (KOS-2.4 f) */}
                 {previewPeriods.length > 0 && (

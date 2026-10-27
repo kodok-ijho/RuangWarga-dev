@@ -69,12 +69,17 @@ export default function TenantSettings() {
   const [autoRuns, setAutoRuns] = useState([]);
   const [isLoadingAutoRuns, setIsLoadingAutoRuns] = useState(false);
 
-  // Bagian 2 (Kos): Aturan Kontrak Sewa (KOS-4)
+  // Bagian 2 (Kos): Aturan Kontrak Sewa (KOS-4 & KOS-5)
   const [defaultRentPrice, setDefaultRentPrice] = useState('');
   const [rentGraceDays, setRentGraceDays] = useState(10);
   const [contractDefaultCycle, setContractDefaultCycle] = useState('start_date');
   const [contractDefaultMonths, setContractDefaultMonths] = useState('');
   const [additionalFees, setAdditionalFees] = useState([]);
+  const [lateFeeType, setLateFeeType] = useState('none');
+  const [lateFeeGraceDays, setLateFeeGraceDays] = useState(0);
+  const [lateFeeAmount, setLateFeeAmount] = useState('');
+  const [lateFeeDailyMax, setLateFeeDailyMax] = useState('');
+  const [lateFeePercent, setLateFeePercent] = useState('');
   const [isSavingKosContract, setIsSavingKosContract] = useState(false);
 
   // Bagian: Iklan Otomatis Kamar Kos (LIST-AUTO-1.2)
@@ -182,6 +187,30 @@ export default function TenantSettings() {
         } else {
           setAdditionalFees([]);
         }
+
+        // Load Aturan Denda Kos (KOS-5.2a)
+        const lfr = settings.late_fee_rule || {};
+        setLateFeeType(lfr.type || 'none');
+        setLateFeeGraceDays(
+          lfr.grace_days !== undefined && lfr.grace_days !== null
+            ? Number(lfr.grace_days)
+            : 0
+        );
+        setLateFeeAmount(
+          lfr.amount !== undefined && lfr.amount !== null
+            ? String(lfr.amount)
+            : ''
+        );
+        setLateFeeDailyMax(
+          lfr.max !== undefined && lfr.max !== null
+            ? String(lfr.max)
+            : ''
+        );
+        setLateFeePercent(
+          lfr.percent !== undefined && lfr.percent !== null
+            ? String(lfr.percent)
+            : ''
+        );
 
         const hasBillingDueDay =
           settings.billing_due_day !== undefined &&
@@ -463,12 +492,61 @@ export default function TenantSettings() {
       amount: Math.round(Number(f.amount) || 0),
     }));
 
+    const lateGraceNum = parseInt(lateFeeGraceDays, 10);
+    if (isNaN(lateGraceNum) || lateGraceNum < 0 || lateGraceNum > 7) {
+      toast.error('Masa toleransi denda harus antara 0 hingga 7 hari.');
+      return;
+    }
+
+    let normalizedLateFeeRule = { type: 'none', grace_days: lateGraceNum };
+    if (lateFeeType === 'once') {
+      const amt = Number(lateFeeAmount);
+      if (isNaN(amt) || amt <= 0) {
+        toast.error('Nominal denda sekali harus berupa angka lebih dari 0.');
+        return;
+      }
+      normalizedLateFeeRule = {
+        type: 'once',
+        amount: Math.round(amt),
+        grace_days: lateGraceNum,
+      };
+    } else if (lateFeeType === 'daily') {
+      const amt = Number(lateFeeAmount);
+      if (isNaN(amt) || amt <= 0) {
+        toast.error('Nominal denda per hari harus berupa angka lebih dari 0.');
+        return;
+      }
+      const maxAmt = Number(lateFeeDailyMax);
+      if (isNaN(maxAmt) || maxAmt <= 0) {
+        toast.error('Batas maksimum denda per hari harus berupa angka lebih dari 0.');
+        return;
+      }
+      normalizedLateFeeRule = {
+        type: 'daily',
+        amount: Math.round(amt),
+        max: Math.round(maxAmt),
+        grace_days: lateGraceNum,
+      };
+    } else if (lateFeeType === 'percent') {
+      const pct = Number(lateFeePercent);
+      if (isNaN(pct) || pct <= 0 || pct > 100) {
+        toast.error('Persen denda harus berupa angka antara 0.01 hingga 100.');
+        return;
+      }
+      normalizedLateFeeRule = {
+        type: 'percent',
+        percent: pct,
+        grace_days: lateGraceNum,
+      };
+    }
+
     const kosSettings = {
       default_rent_price: rentPriceNum,
       rent_grace_days: graceNum,
       contract_default_cycle: contractDefaultCycle,
       contract_default_months: defaultMonthsNum,
       additional_fees: cleanedFees,
+      late_fee_rule: normalizedLateFeeRule,
     };
 
     setIsSavingKosContract(true);
@@ -888,6 +966,152 @@ export default function TenantSettings() {
                       </button>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+
+            {/* Aturan Denda Keterlambatan (KOS-5.2a) */}
+            <div className="pt-4 border-t border-slate-200/80 space-y-4" data-testid="kos-late-fee-rule-section">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Aturan Denda Keterlambatan
+                </label>
+                <p className="text-xs text-slate-500">
+                  Denda otomatis dihitung setiap malam setelah melewati jatuh tempo + masa toleransi.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="kosLateFeeTypeSelect" className="block text-xs font-semibold text-slate-700 mb-1">
+                    Jenis Denda
+                  </label>
+                  <select
+                    id="kosLateFeeTypeSelect"
+                    value={lateFeeType}
+                    onChange={(e) => setLateFeeType(e.target.value)}
+                    disabled={!canEdit || isSavingKosContract}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-100 font-medium transition"
+                  >
+                    <option value="none">Tanpa denda</option>
+                    <option value="once">Denda sekali (Nominal tetap)</option>
+                    <option value="daily">Denda per hari + batas maksimum</option>
+                    <option value="percent">Persen dari sewa pokok</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="kosLateFeeGraceDaysInput" className="block text-xs font-semibold text-slate-700 mb-1">
+                    Masa Toleransi Denda (0–7 Hari)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="kosLateFeeGraceDaysInput"
+                      type="number"
+                      min="0"
+                      max="7"
+                      value={lateFeeGraceDays}
+                      onChange={(e) => setLateFeeGraceDays(e.target.value)}
+                      disabled={!canEdit || isSavingKosContract}
+                      className="w-24 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50 font-medium transition"
+                    />
+                    <span className="text-xs text-slate-500">hari setelah jatuh tempo</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Input Dinamis Denda Sesuai Jenis */}
+              {lateFeeType === 'once' && (
+                <div className="max-w-xs">
+                  <label htmlFor="kosLateFeeOnceAmountInput" className="block text-xs font-semibold text-slate-700 mb-1">
+                    Nominal Denda Sekali (Rp) <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">
+                      Rp
+                    </span>
+                    <input
+                      id="kosLateFeeOnceAmountInput"
+                      type="number"
+                      min="0"
+                      step="1000"
+                      value={lateFeeAmount}
+                      onChange={(e) => setLateFeeAmount(e.target.value)}
+                      placeholder="50000"
+                      disabled={!canEdit || isSavingKosContract}
+                      className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 bg-white text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50 font-medium transition"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {lateFeeType === 'daily' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg">
+                  <div>
+                    <label htmlFor="kosLateFeeDailyAmountInput" className="block text-xs font-semibold text-slate-700 mb-1">
+                      Denda per Hari (Rp) <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">
+                        Rp
+                      </span>
+                      <input
+                        id="kosLateFeeDailyAmountInput"
+                        type="number"
+                        min="0"
+                        step="1000"
+                        value={lateFeeAmount}
+                        onChange={(e) => setLateFeeAmount(e.target.value)}
+                        placeholder="10000"
+                        disabled={!canEdit || isSavingKosContract}
+                        className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 bg-white text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50 font-medium transition"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="kosLateFeeDailyMaxInput" className="block text-xs font-semibold text-slate-700 mb-1">
+                      Batas Maksimum Denda (Rp) <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">
+                        Rp
+                      </span>
+                      <input
+                        id="kosLateFeeDailyMaxInput"
+                        type="number"
+                        min="0"
+                        step="1000"
+                        value={lateFeeDailyMax}
+                        onChange={(e) => setLateFeeDailyMax(e.target.value)}
+                        placeholder="200000"
+                        disabled={!canEdit || isSavingKosContract}
+                        className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 bg-white text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50 font-medium transition"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {lateFeeType === 'percent' && (
+                <div className="max-w-xs">
+                  <label htmlFor="kosLateFeePercentInput" className="block text-xs font-semibold text-slate-700 mb-1">
+                    Persentase Denda (%) <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="kosLateFeePercentInput"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="any"
+                      value={lateFeePercent}
+                      onChange={(e) => setLateFeePercent(e.target.value)}
+                      placeholder="5"
+                      disabled={!canEdit || isSavingKosContract}
+                      className="w-24 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50 font-medium transition"
+                    />
+                    <span className="text-xs text-slate-500">% dari sewa pokok</span>
+                  </div>
                 </div>
               )}
             </div>

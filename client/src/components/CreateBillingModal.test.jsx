@@ -351,6 +351,10 @@ describe('KOS-2.4: CreateBillingModal (Form Kontrak Sewa Kos)', () => {
     );
 
     await screen.findByText('Buat Kontrak Sewa');
+    await waitFor(() => {
+      const nameInput = screen.getByLabelText(/Nama Penyewa Terdaftar/i);
+      expect(nameInput.value).toBe('Dhani Mahasiswa');
+    });
 
     const startDateInput = screen.getByLabelText(/Tanggal Masuk/i);
     fireEvent.change(startDateInput, { target: { value: '2026-10-19' } });
@@ -381,6 +385,98 @@ describe('KOS-2.4: CreateBillingModal (Form Kontrak Sewa Kos)', () => {
           additionalFees: [
             { name: 'Parkir Mobil', amount: 100000 },
           ],
+        })
+      );
+    });
+  });
+
+  it('KOS-5.2a: prefill aturan denda dari settings.late_fee_rule dan tampil di panel', async () => {
+    tenantOperationalService.fetchTenantDetails.mockResolvedValueOnce({
+      settings: {
+        late_fee_rule: {
+          type: 'daily',
+          amount: 15000,
+          max: 200000,
+          grace_days: 5,
+        },
+      },
+    });
+
+    render(
+      <CreateBillingModal
+        open={true}
+        onClose={vi.fn()}
+        tenantId={mockTenantId}
+        tenantType="kos"
+        initialUnitId="1"
+      />
+    );
+
+    await screen.findByText('Buat Kontrak Sewa');
+
+    const typeSelect = document.getElementById('modal-late-fee-type-select');
+    expect(typeSelect.value).toBe('daily');
+
+    const graceInput = document.getElementById('modal-late-fee-grace-days-input');
+    expect(graceInput.value).toBe('5');
+
+    const amountInput = document.getElementById('modal-late-fee-daily-amount-input');
+    expect(amountInput.value).toBe('15000');
+
+    const maxInput = document.getElementById('modal-late-fee-daily-max-input');
+    expect(maxInput.value).toBe('200000');
+  });
+
+  it('KOS-5.2a: mengubah aturan denda per kontrak dan mengirim lateFeeRule ke createKosContract', async () => {
+    tenantOperationalService.fetchTenantDetails.mockResolvedValueOnce({
+      settings: {
+        default_rent_price: 1500000,
+        rent_grace_days: 10,
+        late_fee_rule: { type: 'none', grace_days: 0 },
+      },
+    });
+
+    render(
+      <CreateBillingModal
+        open={true}
+        onClose={vi.fn()}
+        tenantId={mockTenantId}
+        tenantType="kos"
+        initialUnitId="2"
+      />
+    );
+
+    await screen.findByText('Buat Kontrak Sewa');
+
+    const memberSelect = screen.getByTestId('kos-member-select');
+    fireEvent.change(memberSelect, { target: { value: 'mem-calon-2' } });
+
+    const startDateInput = screen.getByLabelText(/Tanggal Masuk/i);
+    fireEvent.change(startDateInput, { target: { value: '2026-10-20' } });
+
+    // Ubah aturan denda jadi once (sekali)
+    const typeSelect = document.getElementById('modal-late-fee-type-select');
+    fireEvent.change(typeSelect, { target: { value: 'once' } });
+
+    const graceInput = document.getElementById('modal-late-fee-grace-days-input');
+    fireEvent.change(graceInput, { target: { value: '2' } });
+
+    const onceAmountInput = await screen.findByLabelText(/Nominal Denda Sekali/i);
+    fireEvent.change(onceAmountInput, { target: { value: '50000' } });
+
+    const submitBtn = screen.getByRole('button', { name: /Simpan Kontrak/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(tenantOperationalService.createKosContract).toHaveBeenCalledWith(
+        mockTenantId,
+        expect.objectContaining({
+          unitId: 2,
+          lateFeeRule: {
+            type: 'once',
+            amount: 50000,
+            grace_days: 2,
+          },
         })
       );
     });

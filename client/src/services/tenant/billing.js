@@ -7,6 +7,7 @@ import { supabase, IS_DEMO } from './shared';
 import { fetchTenantDetails } from './settings';
 import { fetchTenantUnits } from './members';
 import { calculateKosProrata } from '../../utils/prorata';
+import { mockIPLBills } from '../mockData';
 
 /**
  * Pure calculation helper untuk menyusun preview tagihan bulanan
@@ -634,6 +635,7 @@ async function createDemoKosContract(tenantId, {
   notes = null,
   billingCycle = 'start_date',
   additionalFees = [],
+  lateFeeRule = null,
 }) {
   const contracts = getInitialDemoContracts(tenantId);
   const numericUnitId = Number(unitId);
@@ -692,6 +694,7 @@ async function createDemoKosContract(tenantId, {
   }
 
   const contractId = `demo-contract-${Date.now()}`;
+  const resolvedLateFeeRule = lateFeeRule || { type: 'none', grace_days: 0 };
   const newContract = {
     id: contractId,
     tenant_id: tenantId,
@@ -706,6 +709,7 @@ async function createDemoKosContract(tenantId, {
     status: 'active',
     notes: notes || null,
     additional_fees: normalizedFees,
+    late_fee_rule: resolvedLateFeeRule,
     created_at: new Date().toISOString(),
     unit: { id: numericUnitId, label: `Kamar ${numericUnitId}`, status: 'occupied' },
     member: memberId ? { id: memberId, full_name: tenantName || 'Penyewa Kamar', status: 'approved' } : null,
@@ -758,6 +762,7 @@ async function createDemoKosContract(tenantId, {
     grace_days: newContract.grace_days,
     billing_cycle: finalBillingCycle,
     additional_fees: normalizedFees,
+    late_fee_rule: resolvedLateFeeRule,
     contract: newContract,
     bill,
   };
@@ -767,7 +772,7 @@ async function createDemoKosContract(tenantId, {
  * Membuat kontrak sewa kos master dan menerbitkan tagihan periode pertama (KOS-2)
  *
  * @param {string} tenantId - UUID tenant kos
- * @param {object} params - { unitId, memberId, tenantName, rentPrice, startDate, months, graceDays, notes, billingCycle, additionalFees }
+ * @param {object} params - { unitId, memberId, tenantName, rentPrice, startDate, months, graceDays, notes, billingCycle, additionalFees, lateFeeRule }
  */
 export async function createKosContract(tenantId, {
   unitId,
@@ -780,6 +785,7 @@ export async function createKosContract(tenantId, {
   notes = null,
   billingCycle = 'start_date',
   additionalFees = [],
+  lateFeeRule = null,
 } = {}) {
   if (!tenantId) throw new Error('Tenant ID wajib disertakan.');
   if (!unitId) throw new Error('Kamar (unitId) wajib dipilih.');
@@ -801,6 +807,7 @@ export async function createKosContract(tenantId, {
       notes,
       billingCycle,
       additionalFees,
+      lateFeeRule,
     });
   }
 
@@ -816,12 +823,73 @@ export async function createKosContract(tenantId, {
     p_notes: notes || null,
     p_billing_cycle: billingCycle || 'start_date',
     p_additional_fees: Array.isArray(additionalFees) ? additionalFees : [],
+    p_late_fee_rule: lateFeeRule || null,
   });
 
   if (error) {
     // eslint-disable-next-line no-console
     console.error('[createKosContract] RPC error:', error);
     throw new Error(error.message || 'Gagal membuat kontrak sewa kos.');
+  }
+
+  return data;
+}
+
+/**
+ * Menghapus denda keterlambatan tagihan sewa kos (KOS-5.2a)
+ *
+ * @param {string} billId - UUID billing_item
+ * @param {string} reason - Alasan penghapusan denda (wajib)
+ * @returns {Promise<object>} { success: true, bill_id, late_fee: 0 }
+ */
+export async function waiveLateFee(billId, reason) {
+  if (!billId) throw new Error('ID tagihan wajib disertakan.');
+  const trimmedReason = String(reason || '').trim();
+  if (!trimmedReason) throw new Error('Alasan penghapusan denda wajib diisi.');
+
+  const isDemoOrMock = IS_DEMO || String(billId).startsWith('demo-') || String(billId).startsWith('mock-');
+  if (isDemoOrMock) {
+    for (const [, bills] of demoBillingItemsMap.entries()) {
+      const b = bills.find((item) => String(item.id) === String(billId));
+      if (b) {
+        b.late_fee = 0;
+        b.metadata = {
+          ...(b.metadata || {}),
+          late_fee_waived: true,
+          waived_at: new Date().toISOString(),
+          waive_reason: trimmedReason,
+        };
+        break;
+      }
+    }
+    if (Array.isArray(mockIPLBills)) {
+      const mb = mockIPLBills.find((item) => String(item.id) === String(billId));
+      if (mb) {
+        mb.late_fee = 0;
+        mb.metadata = {
+          ...(mb.metadata || {}),
+          late_fee_waived: true,
+          waived_at: new Date().toISOString(),
+          waive_reason: trimmedReason,
+        };
+      }
+    }
+    return {
+      success: true,
+      bill_id: billId,
+      late_fee: 0,
+    };
+  }
+
+  const { data, error } = await supabase.rpc('waive_late_fee', {
+    p_bill_id: billId,
+    p_reason: trimmedReason,
+  });
+
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error('[waiveLateFee] RPC error:', error);
+    throw new Error(error.message || 'Gagal menghapus denda keterlambatan.');
   }
 
   return data;

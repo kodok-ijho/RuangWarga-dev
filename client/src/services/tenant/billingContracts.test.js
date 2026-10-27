@@ -5,6 +5,7 @@ import {
   fetchActiveContractByUnit,
   createKosContract,
   resetDemoKosContractsStore,
+  waiveLateFee,
 } from './billing';
 import { supabase } from './shared';
 
@@ -332,6 +333,106 @@ describe('KOS-2.3: computeRentPeriods & Kos Contract Service', () => {
         );
       } else {
         expect(true).toBe(true);
+      }
+      rpcSpy.mockRestore();
+    });
+
+    it('KOS-5.2a: createKosContract mode demo menyimpan late_fee_rule pada kontrak', async () => {
+      const lateFeeRule = { type: 'daily', amount: 10000, max: 150000, grace_days: 3 };
+
+      const result = await createKosContract(TENANT_ID, {
+        unitId: 12,
+        tenantName: 'Eko Late Fee',
+        rentPrice: 1200000,
+        startDate: '2026-10-20',
+        lateFeeRule,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.late_fee_rule).toEqual(lateFeeRule);
+      expect(result.contract.late_fee_rule).toEqual(lateFeeRule);
+    });
+
+    it('KOS-5.2a: createKosContract mode Supabase RPC mengirim p_late_fee_rule', async () => {
+      const rpcSpy = vi.spyOn(supabase, 'rpc').mockResolvedValue({
+        data: {
+          success: true,
+          contract_id: 'c-supabase-late-fee-1',
+          late_fee_rule: { type: 'once', amount: 50000, grace_days: 2 },
+        },
+        error: null,
+      });
+
+      const realTenantId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+      if (!import.meta.env?.VITE_DEMO_MODE || import.meta.env.VITE_DEMO_MODE === 'false') {
+        const result = await createKosContract(realTenantId, {
+          unitId: 14,
+          tenantName: 'Supabase Late Fee',
+          rentPrice: 2000000,
+          startDate: '2026-10-20',
+          lateFeeRule: { type: 'once', amount: 50000, grace_days: 2 },
+        });
+
+        expect(result.success).toBe(true);
+        expect(rpcSpy).toHaveBeenCalledWith(
+          'create_kos_contract',
+          expect.objectContaining({
+            p_tenant_id: realTenantId,
+            p_unit_id: 14,
+            p_late_fee_rule: { type: 'once', amount: 50000, grace_days: 2 },
+          })
+        );
+      }
+      rpcSpy.mockRestore();
+    });
+
+    it('KOS-5.2a: waiveLateFee memvalidasi ID tagihan dan alasan wajib', async () => {
+      await expect(waiveLateFee('', 'Alasan valid')).rejects.toThrow('ID tagihan wajib disertakan.');
+      await expect(waiveLateFee('bill-1', '')).rejects.toThrow('Alasan penghapusan denda wajib diisi.');
+      await expect(waiveLateFee('bill-1', '   ')).rejects.toThrow('Alasan penghapusan denda wajib diisi.');
+    });
+
+    it('KOS-5.2a: waiveLateFee mode demo mengosongkan late_fee dan mengisi metadata', async () => {
+      // Buat kontrak baru di mode demo yang menghasilkan tagihan periode pertama
+      const contractRes = await createKosContract(TENANT_ID, {
+        unitId: 15,
+        tenantName: 'Farhan Denda',
+        rentPrice: 1500000,
+        startDate: '2026-10-01',
+      });
+
+      // Simulasikan tagihan memiliki denda 50000
+      contractRes.bill.late_fee = 50000;
+
+      const waiveRes = await waiveLateFee(contractRes.bill.id, 'Penyewa sakit opname di RS');
+      expect(waiveRes.success).toBe(true);
+      expect(waiveRes.late_fee).toBe(0);
+      expect(contractRes.bill.late_fee).toBe(0);
+      expect(contractRes.bill.metadata.late_fee_waived).toBe(true);
+      expect(contractRes.bill.metadata.waive_reason).toBe('Penyewa sakit opname di RS');
+    });
+
+    it('KOS-5.2a: waiveLateFee mode Supabase memanggil RPC waive_late_fee', async () => {
+      const rpcSpy = vi.spyOn(supabase, 'rpc').mockResolvedValue({
+        data: {
+          success: true,
+          bill_id: 'b1111111-2222-3333-4444-555555555555',
+          late_fee: 0,
+        },
+        error: null,
+      });
+
+      if (!import.meta.env?.VITE_DEMO_MODE || import.meta.env.VITE_DEMO_MODE === 'false') {
+        const res = await waiveLateFee(
+          'b1111111-2222-3333-4444-555555555555',
+          'Toleransi keterlambatan hari pertama'
+        );
+
+        expect(res.success).toBe(true);
+        expect(rpcSpy).toHaveBeenCalledWith('waive_late_fee', {
+          p_bill_id: 'b1111111-2222-3333-4444-555555555555',
+          p_reason: 'Toleransi keterlambatan hari pertama',
+        });
       }
       rpcSpy.mockRestore();
     });
