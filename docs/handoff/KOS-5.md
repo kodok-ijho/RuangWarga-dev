@@ -78,9 +78,15 @@ Menyentuh tagihan, schema, Edge Function, dan secret. Pembayaran sewa tetap manu
 - Dry-run dev: kedua migration + `kos_collections.sql` + `push_notifications.sql` + semua test kos/listing → `DRYRUN_OK`.
 - Vitest 107 file 1466/1466 (`TZ=UTC` dan `TZ=Asia/Jakarta`), lint dan build bersih; `dist/sw.js` memuat `importScripts("push-sw.js")`.
 - Terpasang di dev: `20261027163431 kos_collections`, `20261027163435 push_notifications`; jadwal `ruangwarga-rent-push` 23:00 UTC (06:00 WIB). Uji `run_kos_collections` hari ini: 0 denda, 0 pengingat (belum ada tagihan pada tahapnya).
-- **Menunggu izin user:**
-  - kunci VAPID;
-  - secret Edge Function (`VAPID_*`, `RENT_PUSH_CRON_SECRET`);
-  - secret Vault (`rent_push_cron_secret`, `rent_push_function_url`);
-  - deploy `send-rent-push` (`--no-verify-jwt`; diamankan secret cron);
-  - env Vercel dev `VITE_VAPID_PUBLIC_KEY` (disetel user lewat dashboard).
+- 2026-10-28, disetujui user:
+  - kunci VAPID dibuat di server;
+  - secret Edge Function `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `RENT_PUSH_CRON_SECRET` disetel;
+  - secret Vault `rent_push_cron_secret` dan `rent_push_function_url` dibuat;
+  - `send-rent-push` di-deploy (`--no-verify-jwt`).
+- Uji:
+  - tanpa secret → 401;
+  - lewat jalur cron (pg_net + Vault) → 200 `{sent:0, failed:0, removed:0, summaries:1}`. Belum ada langganan perangkat. Pengingat H-3 Toro (jatuh tempo 31 Okt) sudah terbentuk otomatis malam itu.
+- Sisa:
+  - user menyetel `VITE_VAPID_PUBLIC_KEY` di Vercel dev;
+  - push ke `main`;
+  - uji langganan di HP user.
