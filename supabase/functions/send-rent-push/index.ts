@@ -38,26 +38,61 @@ function formatPeriod(periodStr?: string): string {
 }
 
 function formatRupiah(amount: number): string {
-  return `Rp${Math.round(amount).toLocaleString("id-ID")}`;
+  return `Rp ${Math.round(amount).toLocaleString("id-ID")}`;
 }
 
-function buildReminderBody(
-  stage: string,
-  periodText: string,
-  totalFormatted: string
-): string {
-  switch (stage) {
-    case "h-3":
-      return `Tagihan ${periodText} ${totalFormatted} jatuh tempo 3 hari lagi`;
-    case "h0":
-      return `Tagihan ${periodText} ${totalFormatted} jatuh tempo hari ini`;
-    case "h+3":
-      return `Tagihan ${periodText} ${totalFormatted} terlambat 3 hari`;
-    case "h+7":
-      return `Tagihan ${periodText} ${totalFormatted} terlambat 7 hari`;
-    default:
-      return `Tagihan ${periodText} ${totalFormatted} perlu diselesaikan`;
+async function getRecipientsForPermissions(
+  supabase: any,
+  tenantId: string,
+  ownerId: string | null | undefined,
+  permissionKeys: string[]
+): Promise<string[]> {
+  const recipientUserIds = new Set<string>();
+  if (ownerId) {
+    recipientUserIds.add(ownerId);
   }
+
+  try {
+    // 1. Ambil seluruh role milik tenant ini
+    const { data: roles } = await supabase
+      .from("tenant_roles")
+      .select("id")
+      .eq("tenant_id", tenantId);
+
+    const roleIds = (roles || []).map((r: any) => r.id);
+    if (roleIds.length > 0) {
+      // 2. Ambil role_id yang memiliki izin yang diminta
+      const { data: rolePerms } = await supabase
+        .from("tenant_role_permissions")
+        .select("tenant_role_id")
+        .in("tenant_role_id", roleIds)
+        .in("permission_key", permissionKeys);
+
+      const matchedRoleIds = Array.from(
+        new Set((rolePerms || []).map((rp: any) => rp.tenant_role_id))
+      );
+
+      if (matchedRoleIds.length > 0) {
+        // 3. Ambil user_id anggota aktif (status 'approved') yang memiliki peran tersebut
+        const { data: members } = await supabase
+          .from("tenant_members")
+          .select("user_id")
+          .eq("tenant_id", tenantId)
+          .eq("status", "approved")
+          .in("tenant_role_id", matchedRoleIds);
+
+        for (const m of members || []) {
+          if (m.user_id) {
+            recipientUserIds.add(m.user_id);
+          }
+        }
+      }
+    }
+  } catch (err: any) {
+    console.error("Gagal mengambil daftar anggota berizin:", err?.message || err);
+  }
+
+  return Array.from(recipientUserIds);
 }
 
 serve(async (req: Request) => {
@@ -183,7 +218,8 @@ serve(async (req: Request) => {
             .update({ last_success_at: new Date().toISOString() })
             .eq("id", sub.id);
         } catch (err: any) {
-          const statusCode = err?.statusCode || err?.status || (err?.response && err.response?.status);
+          const statusCode =
+            err?.statusCode || err?.status || (err?.response && err.response?.status);
           if (statusCode === 404 || statusCode === 410) {
             console.log(`Menghapus langganan tidak valid ${sub.id} (HTTP ${statusCode})`);
             await supabase
@@ -199,7 +235,145 @@ serve(async (req: Request) => {
       }
     };
 
-    // 6. Tanggal hari ini dalam Waktu Indonesia Barat (WIB, UTC+7)
+    // 6. Baca body JSON (boleh kosong)
+    let payloadBody: any = {};
+    try {
+      const text = await req.text();
+      if (text && text.trim() !== "") {
+        payloadBody = JSON.parse(text);
+      }
+    } catch (_) {
+      payloadBody = {};
+    }
+
+    const eventType = payloadBody?.event;
+
+    // --------------------------------------------------------------------------
+    // CABANG A: Event 'payment_submitted'
+    // Dipicu segera saat bukti bayar baru diunggah / diajukan
+    // --------------------------------------------------------------------------
+    if (eventType === "payment_submitted") {
+      const paymentId = payloadBody?.payment_id;
+      if (!paymentId) {
+        return new Response(
+          JSON.stringify({ error: "payment_id wajib disertakan untuk event payment_submitted" }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      // Ambil data pembayaran beserta tenant, unit, dan member
+      const { data: payment, error: pErr } = await supabase
+        .from("payments")
+        .select(`
+          id,
+          amount,
+          status,
+          tenant_id,
+          member_id,
+          billing_item_id,
+          tenant:tenants (
+            id,
+            name,
+            type,
+            owner_id
+          ),
+          member:tenant_members (
+            id,
+            full_name,
+            unit:tenant_units (
+              id,
+              label
+            )
+          ),
+          billing_item:billing_items (
+            id,
+            period,
+            unit:tenant_units (
+              id,
+              label
+            )
+          )
+        `)
+        .eq("id", paymentId)
+        .maybeSingle();
+
+      if (pErr || !payment) {
+        console.error("Payment tidak ditemukan:", pErr?.message || paymentId);
+        return new Response(
+          JSON.stringify({ error: "Payment tidak ditemukan" }),
+          {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      const tenant = single(payment.tenant);
+
+      // Hanya bila tenant bertipe 'kos' dan status pembayaran masih 'pending_verification'
+      if (tenant?.type !== "kos" || payment.status !== "pending_verification") {
+        return new Response(
+          JSON.stringify({
+            event: "payment_submitted",
+            message: "Dilewati: bukan tenant kos atau status pembayaran bukan pending_verification",
+            sent: 0,
+            failed: 0,
+            removed: 0,
+            recipients: 0,
+          }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      const member = single(payment.member);
+      const billingItem = single(payment.billing_item);
+      const tenantName = tenant.name || "Kos";
+      const memberName = member?.full_name || "Penyewa";
+      const roomLabel = single(member?.unit)?.label || single(billingItem?.unit)?.label || "Kamar";
+      const periodText = formatPeriod(billingItem?.period);
+      const amountText = formatRupiah(payment.amount);
+
+      const title = `Bukti bayar baru – ${tenantName}`;
+      const body = `${memberName} (${roomLabel}) mengunggah bukti bayar ${periodText} ${amountText}, perlu diverifikasi`;
+      const url = `/t/${payment.tenant_id}/payment-verification`;
+
+      // Penerima = tenants.owner_id + anggota approved tenant yang memiliki izin manage_billing_cash atau manage_billing_transfer
+      const recipientUserIds = await getRecipientsForPermissions(
+        supabase,
+        payment.tenant_id,
+        tenant.owner_id,
+        ["manage_billing_cash", "manage_billing_transfer"]
+      );
+
+      for (const userId of recipientUserIds) {
+        await sendPushToUser(userId, { title, body, url });
+      }
+
+      return new Response(
+        JSON.stringify({
+          event: "payment_submitted",
+          sent: stats.sent,
+          failed: stats.failed,
+          removed: stats.removed,
+          recipients: recipientUserIds.length,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // --------------------------------------------------------------------------
+    // CABANG B: Ringkasan Pagi (body kosong atau event 'daily_summary')
+    // HANYA ringkasan pagi untuk pemilik dan staf, TIDAK mengirim ke penyewa
+    // --------------------------------------------------------------------------
     const todayStr = new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Jakarta",
       year: "numeric",
@@ -207,50 +381,17 @@ serve(async (req: Request) => {
       day: "2-digit",
     }).format(new Date());
 
-    // 7. Ambil antrean pengingat pending hari ini yang belum dikirim push
-    const { data: reminders, error: remindersErr } = await supabase
+    // Ambil daftar tenant_id dari rent_reminders berstatus pending hari ini (WIB)
+    const { data: reminderRows, error: remErr } = await supabase
       .from("rent_reminders")
-      .select(`
-        id,
-        tenant_id,
-        bill_id,
-        member_id,
-        stage,
-        remind_date,
-        status,
-        push_sent_at,
-        tenant:tenants (
-          id,
-          name,
-          owner_id
-        ),
-        bill:billing_items (
-          id,
-          amount,
-          late_fee,
-          period,
-          due_date,
-          unit_id,
-          member_id,
-          unit:tenant_units (
-            id,
-            label
-          )
-        ),
-        member:tenant_members (
-          id,
-          user_id,
-          full_name
-        )
-      `)
+      .select("tenant_id")
       .eq("remind_date", todayStr)
-      .eq("status", "pending")
-      .is("push_sent_at", null);
+      .eq("status", "pending");
 
-    if (remindersErr) {
-      console.error("Gagal mengambil rent_reminders:", remindersErr.message);
+    if (remErr) {
+      console.error("Gagal mengambil rent_reminders:", remErr.message);
       return new Response(
-        JSON.stringify({ error: remindersErr.message }),
+        JSON.stringify({ error: remErr.message }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -258,74 +399,31 @@ serve(async (req: Request) => {
       );
     }
 
-    // 8. Kirim Web Push ke masing-masing penyewa
-    for (const rem of reminders || []) {
-      try {
-        const tenant = single(rem.tenant);
-        const bill = single(rem.bill);
-        const member = single(rem.member);
+    const candidateTenantIds = Array.from(
+      new Set((reminderRows || []).map((r: any) => r.tenant_id))
+    );
 
-        const tenantName = tenant?.name || "Kos";
-        const amount = Number(bill?.amount || 0);
-        const lateFee = Number(bill?.late_fee || 0);
-        const totalAmount = amount + lateFee;
-        const totalFormatted = formatRupiah(totalAmount);
-        const periodText = formatPeriod(bill?.period);
+    let totalRecipientsCount = 0;
 
-        const title = `Pengingat sewa ${tenantName}`;
-        const body = buildReminderBody(rem.stage, periodText, totalFormatted);
-        const url = `/t/${rem.tenant_id}/payment-matrix`;
+    if (candidateTenantIds.length > 0) {
+      // Filter hanya tenant yang bertipe 'kos'
+      const { data: kosTenants, error: ktErr } = await supabase
+        .from("tenants")
+        .select("id, name, type, owner_id")
+        .in("id", candidateTenantIds)
+        .eq("type", "kos");
 
-        // Cari user_id penyewa
-        let targetUserId = member?.user_id;
-        if (!targetUserId && bill?.member_id) {
-          const { data: mData } = await supabase
-            .from("tenant_members")
-            .select("user_id")
-            .eq("id", bill.member_id)
-            .maybeSingle();
-          targetUserId = mData?.user_id;
-        }
-
-        if (targetUserId) {
-          await sendPushToUser(targetUserId, { title, body, url });
-        }
-
-        // Tandai push_sent_at = now() (meski penyewa tidak punya langganan, agar tidak diulang)
-        await supabase
-          .from("rent_reminders")
-          .update({ push_sent_at: new Date().toISOString() })
-          .eq("id", rem.id);
-      } catch (itemErr: any) {
-        console.error(`Error memproses pengingat ${rem.id}:`, itemErr?.message || itemErr);
-        // Tandai push_sent_at agar tidak menyebabkan pengulangan tanpa akhir
-        try {
-          await supabase
-            .from("rent_reminders")
-            .update({ push_sent_at: new Date().toISOString() })
-            .eq("id", rem.id);
-        } catch (_) {}
+      if (ktErr) {
+        console.error("Gagal mengambil data tenants:", ktErr.message);
       }
-    }
 
-    // 9. Ringkasan Pemilik:
-    // Per tenant yang memiliki pengingat pending hari ini dan belum ada di push_daily_summaries untuk hari ini
-    const { data: pendingReminderRows, error: prErr } = await supabase
-      .from("rent_reminders")
-      .select("tenant_id")
-      .eq("remind_date", todayStr)
-      .eq("status", "pending");
-
-    if (!prErr && pendingReminderRows) {
-      const tenantIds = Array.from(new Set(pendingReminderRows.map((r: any) => r.tenant_id)));
-
-      for (const tenantId of tenantIds) {
+      for (const tenant of kosTenants || []) {
         try {
           // Periksa apakah ringkasan untuk tenant ini sudah tercatat hari ini
           const { data: existingSummary } = await supabase
             .from("push_daily_summaries")
             .select("tenant_id")
-            .eq("tenant_id", tenantId)
+            .eq("tenant_id", tenant.id)
             .eq("summary_date", todayStr)
             .maybeSingle();
 
@@ -333,57 +431,85 @@ serve(async (req: Request) => {
             continue;
           }
 
-          // Hitung total pengingat pending hari ini untuk tenant ini
+          // Hitung total pengingat sewa pending hari ini untuk tenant ini
           const { count: pendingCount } = await supabase
             .from("rent_reminders")
             .select("id", { count: "exact", head: true })
-            .eq("tenant_id", tenantId)
+            .eq("tenant_id", tenant.id)
             .eq("remind_date", todayStr)
             .eq("status", "pending");
 
           const reminderCount = pendingCount ?? 0;
-          if (reminderCount > 0) {
-            // Ambil data tenant untuk mendapatkan owner_id dan nama
-            const { data: tenantData } = await supabase
-              .from("tenants")
-              .select("id, name, owner_id")
-              .eq("id", tenantId)
-              .maybeSingle();
-
-            if (tenantData?.owner_id) {
-              const ownerPayload = {
-                title: `Pengingat sewa ${tenantData.name || "Kos"}`,
-                body: `${reminderCount} pengingat sewa perlu dikirim hari ini`,
-                url: `/t/${tenantId}/reminders`,
-              };
-              await sendPushToUser(tenantData.owner_id, ownerPayload);
-            }
-
-            // Catat pengiriman ringkasan ke push_daily_summaries
-            const { error: insErr } = await supabase
-              .from("push_daily_summaries")
-              .insert({
-                tenant_id: tenantId,
-                summary_date: todayStr,
-                sent_at: new Date().toISOString(),
-              });
-
-            if (!insErr) {
-              stats.summaries++;
-            }
+          if (reminderCount === 0) {
+            continue;
           }
-        } catch (ownerErr: any) {
-          console.error(`Error memproses ringkasan pemilik untuk tenant ${tenantId}:`, ownerErr?.message || ownerErr);
+
+          // Hitung total tunggakan:
+          // jumlah amount + late_fee tagihan kos unpaid yang due_date < hari ini untuk tenant itu
+          const { data: overdueBills, error: billErr } = await supabase
+            .from("billing_items")
+            .select("amount, late_fee")
+            .eq("tenant_id", tenant.id)
+            .eq("status", "unpaid")
+            .lt("due_date", todayStr);
+
+          if (billErr) {
+            console.error(`Gagal mengambil overdue bills tenant ${tenant.id}:`, billErr.message);
+          }
+
+          let totalTunggakan = 0;
+          for (const b of overdueBills || []) {
+            totalTunggakan += Number(b.amount || 0) + Number(b.late_fee || 0);
+          }
+
+          const tenantName = tenant.name || "Kos";
+          const totalFormatted = formatRupiah(totalTunggakan);
+
+          const title = `Pengingat sewa ${tenantName}`;
+          const body = `${reminderCount} pengingat sewa perlu dikirim hari ini, total tunggakan ${totalFormatted}`;
+          const url = `/t/${tenant.id}/reminders`;
+
+          // Penerima = owner + anggota approved dengan izin generate_billing
+          const recipients = await getRecipientsForPermissions(
+            supabase,
+            tenant.id,
+            tenant.owner_id,
+            ["generate_billing"]
+          );
+
+          totalRecipientsCount += recipients.length;
+
+          for (const userId of recipients) {
+            await sendPushToUser(userId, { title, body, url });
+          }
+
+          // Catat ringkasan hari ini ke tabel push_daily_summaries
+          const { error: insErr } = await supabase
+            .from("push_daily_summaries")
+            .insert({
+              tenant_id: tenant.id,
+              summary_date: todayStr,
+              sent_at: new Date().toISOString(),
+            });
+
+          if (!insErr) {
+            stats.summaries++;
+          } else {
+            console.error(`Gagal insert push_daily_summaries tenant ${tenant.id}:`, insErr.message);
+          }
+        } catch (tErr: any) {
+          console.error(`Error memproses ringkasan pemilik untuk tenant ${tenant.id}:`, tErr?.message || tErr);
         }
       }
     }
 
-    // 10. Kembalikan JSON ringkasan hasil pemrosesan
     return new Response(
       JSON.stringify({
+        event: payloadBody?.event || "daily_summary",
         sent: stats.sent,
         failed: stats.failed,
         removed: stats.removed,
+        recipients: totalRecipientsCount,
         summaries: stats.summaries,
       }),
       {
