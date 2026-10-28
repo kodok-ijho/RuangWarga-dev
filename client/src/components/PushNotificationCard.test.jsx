@@ -126,4 +126,14 @@ describe('PushNotificationCard Component (KOS-5.3b)', () => {
       expect(container.firstChild).toBeNull();
     });
   });
+
+  it('8. Menampilkan teks informasi khusus pemilik dan staf pengelola kos (KOS-5F.2)', async () => {
+    render(<PushNotificationCard />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Notifikasi pemilik: ringkasan pengingat sewa setiap pagi dan pemberitahuan saat penyewa mengunggah bukti bayar/i)
+      ).toBeTruthy();
+    });
+  });
 });

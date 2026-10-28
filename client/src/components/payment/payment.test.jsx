@@ -489,7 +489,7 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
       expect(html).toContain('Tagihan Oktober terlambat 5 hari, denda Rp50.000');
     });
 
-    it('19c. KOS-5.3b (Requirement 10): ResidentIplOverview menyertakan kartu notifikasi push di dekat banner tagihan', () => {
+    it('19c. KOS-5F.2 (Requirement 1): ResidentIplOverview TIDAK menyertakan kartu notifikasi push untuk penyewa', () => {
       const html = cleanHtml(
         renderToString(
           <MemoryRouter>
@@ -510,8 +510,8 @@ describe('Phase 6 — Billing & Payment Experience Test Matrix', () => {
         )
       );
 
-      expect(html).toContain('Notifikasi di perangkat ini');
-      expect(html).toContain('push-notification-compact-card');
+      expect(html).not.toContain('Notifikasi di perangkat ini');
+      expect(html).not.toContain('push-notification-compact-card');
     });
 
     it('20. payment flow modal error — menampilkan pesan validasi jika bukti transfer belum dipilih', () => {

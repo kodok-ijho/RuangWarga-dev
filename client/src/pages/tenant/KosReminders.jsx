@@ -20,6 +20,7 @@ import { fetchTodayReminders, markRentReminder } from '../../services/tenant/col
 import { formatRupiah, formatPeriod } from '../../services/dataHelpers';
 import { getTenantBankAccount } from '../../services/tenant/settings';
 import { buildBillReminderMessage, buildWaLink } from '../../utils/waReminder';
+import PushNotificationCard from '../../components/PushNotificationCard';
 
 /**
  * Pemetaan label dan warna tahap pengingat (KOS-5.2b).
@@ -194,6 +195,9 @@ export default function KosReminders() {
           </button>
         </div>
       </div>
+
+      {/* Kartu Notifikasi Push Ringkas (KOS-5F.2 Requirement 3) */}
+      <PushNotificationCard compact />
 
       {/* State Loading */}
       {isLoading && (

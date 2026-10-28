@@ -8,6 +8,7 @@ import KosReminders from './KosReminders';
 import * as collectionsService from '../../services/tenant/collections';
 import * as useTenantHook from '../../hooks/useTenant';
 import * as useTenantAccessHook from '../../hooks/useTenantAccess';
+import * as pushService from '../../services/pushNotifications';
 import { ToastProvider } from '../../context/ToastContext';
 
 describe('KosReminders Page (KOS-5.2b)', () => {
@@ -245,5 +246,33 @@ describe('KosReminders Page (KOS-5.2b)', () => {
 
     expect(await screen.findByText('Akses Terbatas')).toBeTruthy();
     expect(screen.getByText(/hanya dapat diakses oleh Pemilik Kos atau pengurus/i)).toBeTruthy();
+  });
+
+  it('7. KOS-5F.2 (Requirement 3): Menampilkan kartu notifikasi push ringkas bila notifikasi belum aktif di perangkat ini', async () => {
+    vi.spyOn(pushService, 'isPushSupported').mockReturnValue(true);
+    vi.spyOn(pushService, 'getCurrentSubscription').mockResolvedValue(null);
+
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('push-notification-compact-card')).toBeTruthy();
+      expect(screen.getByTestId('push-compact-toggle-btn')).toBeTruthy();
+      expect(
+        screen.getByText(/Notifikasi pemilik: ringkasan pengingat sewa setiap pagi/i)
+      ).toBeTruthy();
+    });
+  });
+
+  it('8. KOS-5F.2 (Requirement 3): Menyembunyikan kartu notifikasi push ringkas bila notifikasi sudah aktif di perangkat ini', async () => {
+    vi.spyOn(pushService, 'isPushSupported').mockReturnValue(true);
+    vi.spyOn(pushService, 'getCurrentSubscription').mockResolvedValue({
+      endpoint: 'https://test.endpoint',
+    });
+
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('push-notification-compact-card')).toBeNull();
+    });
   });
 });

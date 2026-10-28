@@ -69,16 +69,25 @@ describe('MyTenants Component — KOS-1.4b Join Requests Display', () => {
     ).toBeTruthy();
   });
 
-  it('menampilkan kartu notifikasi di perangkat ini pada halaman akun (KOS-5.3b)', () => {
+  it('KOS-5F.2: menampilkan kartu notifikasi push pemilik jika pengguna adalah owner tenant kos', () => {
     useAuth.mockReturnValue({
-      user: { id: 'u-1', email: 'user@example.com' },
-      profile: { id: 'u-1', full_name: 'Pemilik Akun' },
+      user: { id: 'u-1', email: 'owner@example.com' },
+      profile: { id: 'u-1', full_name: 'Pemilik Kos' },
     });
 
     useTenant.mockReturnValue({
-      userTenants: [],
+      userTenants: [
+        {
+          id: 't-kos-1',
+          name: 'Kos Dahlia',
+          type: 'kos',
+          is_owner: true,
+          owner_id: 'u-1',
+          permissions: [],
+        },
+      ],
       joinRequests: [],
-      activeTenantId: null,
+      activeTenantId: 't-kos-1',
       switchTenant: vi.fn(),
       loading: false,
     });
@@ -91,5 +100,121 @@ describe('MyTenants Component — KOS-1.4b Join Requests Display', () => {
 
     expect(screen.getByTestId('push-notification-card')).toBeTruthy();
     expect(screen.getByText('Notifikasi di perangkat ini')).toBeTruthy();
+    expect(
+      screen.getByText(/Notifikasi pemilik: ringkasan pengingat sewa setiap pagi/i)
+    ).toBeTruthy();
+  });
+
+  it('KOS-5F.2: menampilkan kartu notifikasi push jika staf kos memiliki salah satu izin penagihan/verifikasi', () => {
+    useAuth.mockReturnValue({
+      user: { id: 'u-2', email: 'staff@example.com' },
+      profile: { id: 'u-2', full_name: 'Staf Kos' },
+    });
+
+    useTenant.mockReturnValue({
+      userTenants: [
+        {
+          id: 't-kos-2',
+          name: 'Kos Bunga Melati',
+          type: 'kos',
+          is_owner: false,
+          owner_id: 'u-99',
+          permissions: ['generate_billing'],
+        },
+      ],
+      joinRequests: [],
+      activeTenantId: 't-kos-2',
+      switchTenant: vi.fn(),
+      loading: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <MyTenants />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId('push-notification-card')).toBeTruthy();
+  });
+
+  it('KOS-5F.2: TIDAK menampilkan kartu notifikasi push untuk penyewa biasa kos (tanpa izin penagihan)', () => {
+    useAuth.mockReturnValue({
+      user: { id: 'u-3', email: 'penyewa@example.com' },
+      profile: { id: 'u-3', full_name: 'Penyewa Biasa' },
+    });
+
+    useTenant.mockReturnValue({
+      userTenants: [
+        {
+          id: 't-kos-3',
+          name: 'Kos Harmoni',
+          type: 'kos',
+          is_owner: false,
+          owner_id: 'u-99',
+          permissions: [],
+        },
+      ],
+      joinRequests: [],
+      activeTenantId: 't-kos-3',
+      switchTenant: vi.fn(),
+      loading: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <MyTenants />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByTestId('push-notification-card')).toBeNull();
+  });
+
+  it('KOS-5F.2: TIDAK menampilkan kartu notifikasi push bila hanya memiliki tenant non-kos atau daftar tenant kosong', () => {
+    useAuth.mockReturnValue({
+      user: { id: 'u-4', email: 'rtrw@example.com' },
+      profile: { id: 'u-4', full_name: 'Ketua RT' },
+    });
+
+    useTenant.mockReturnValue({
+      userTenants: [
+        {
+          id: 't-rtrw-1',
+          name: 'RT 05 RW 02',
+          type: 'rt_rw',
+          is_owner: true,
+          owner_id: 'u-4',
+          permissions: ['generate_billing'],
+        },
+      ],
+      joinRequests: [],
+      activeTenantId: 't-rtrw-1',
+      switchTenant: vi.fn(),
+      loading: false,
+    });
+
+    const { rerender } = render(
+      <MemoryRouter>
+        <MyTenants />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByTestId('push-notification-card')).toBeNull();
+
+    // Tenant kosong juga tidak menampilkan kartu push
+    useTenant.mockReturnValue({
+      userTenants: [],
+      joinRequests: [],
+      activeTenantId: null,
+      switchTenant: vi.fn(),
+      loading: false,
+    });
+
+    rerender(
+      <MemoryRouter>
+        <MyTenants />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByTestId('push-notification-card')).toBeNull();
   });
 });

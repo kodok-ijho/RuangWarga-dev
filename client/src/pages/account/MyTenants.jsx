@@ -29,17 +29,60 @@ const STATUS_BADGES = {
   },
 };
 
+const KOS_PUSH_PERMISSIONS = [
+  'generate_billing',
+  'manage_billing_cash',
+  'manage_billing_transfer',
+];
+
 export default function MyTenants() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const {
-    userTenants,
+    userTenants = [],
     joinRequests = [],
     activeTenantId,
+    activeTenant,
+    isOwner: isCurrentOwner,
+    hasPermission,
     switchTenant,
     loading,
     refreshTenant,
   } = useTenant();
+
+  const currentUserId = user?.id || profile?.id;
+
+  // KOS-5F.2 (Requirement 1): Kartu notifikasi push hanya tampil bila pengguna
+  // di salah satu tenant bertipe kos adalah owner atau punya izin penagihan/verifikasi bayar.
+  const isEligibleForKosPush = React.useMemo(() => {
+    const hasInUserTenants = (userTenants || []).some((t) => {
+      if (t?.type !== 'kos') return false;
+      const isTenantOwner = Boolean(
+        t.is_owner ||
+        (t.owner_id && currentUserId && t.owner_id === currentUserId)
+      );
+      if (isTenantOwner) return true;
+      const perms = Array.isArray(t.permissions) ? t.permissions : [];
+      return perms.some((p) => KOS_PUSH_PERMISSIONS.includes(p));
+    });
+
+    if (hasInUserTenants) return true;
+
+    // Fallback: periksa activeTenant bila context aktif bernilai kos
+    if (activeTenant?.type === 'kos') {
+      const isOwnerActive = Boolean(
+        isCurrentOwner ||
+        activeTenant.is_owner ||
+        (activeTenant.owner_id && currentUserId && activeTenant.owner_id === currentUserId)
+      );
+      if (isOwnerActive) return true;
+      if (typeof hasPermission === 'function') {
+        return KOS_PUSH_PERMISSIONS.some((p) => hasPermission(p));
+      }
+    }
+
+    return false;
+  }, [userTenants, currentUserId, activeTenant, isCurrentOwner, hasPermission]);
 
   const handleSelectTenant = (tenantId) => {
     switchTenant(tenantId);
@@ -299,10 +342,14 @@ export default function MyTenants() {
         </div>
       )}
 
-      {/* ── Pengaturan Notifikasi Perangkat (KOS-5.3b) ──────────────────── */}
-      <div className="pt-2">
-        <PushNotificationCard />
-      </div>
+      {/* ── Pengaturan Notifikasi Perangkat Pemilik/Staf Kos (KOS-5F.2) ─── */}
+      {!loading && isEligibleForKosPush && (
+        <div className="pt-2">
+          <PushNotificationCard
+            description="Notifikasi pemilik: ringkasan pengingat sewa setiap pagi dan pemberitahuan saat penyewa mengunggah bukti bayar."
+          />
+        </div>
+      )}
     </div>
   );
 }

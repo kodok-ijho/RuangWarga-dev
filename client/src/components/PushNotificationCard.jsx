@@ -16,19 +16,23 @@ import {
 } from '../services/pushNotifications';
 
 /**
- * PushNotificationCard (KOS-5.3b)
+ * PushNotificationCard (KOS-5.3b & KOS-5F.2)
  *
  * Komponen kartu 'Notifikasi di perangkat ini' dengan tombol Aktifkan/Matikan dan status.
- * Mendukung mode standar (untuk halaman akun / profil) dan compact (untuk portal penyewa kos dekat banner tagihan).
+ * Mendukung mode standar (untuk halaman akun / profil) dan compact (untuk halaman operasional KosReminders).
  *
  * @param {boolean} compact - Bila true, tampil sebagai kartu ringkas dan otomatis sembunyi bila sudah aktif.
  * @param {string} className - Styling class tambahan.
+ * @param {string} [title] - Judul kartu notifikasi.
+ * @param {string} [description] - Deskripsi tujuan notifikasi pemilik/staf.
  * @param {Function} onSubscribed - Callback saat langganan berhasil diaktifkan.
  * @param {Function} onUnsubscribed - Callback saat langganan berhasil dinonaktifkan.
  */
 export function PushNotificationCard({
   compact = false,
   className = '',
+  title = 'Notifikasi di perangkat ini',
+  description = 'Notifikasi pemilik: ringkasan pengingat sewa setiap pagi dan pemberitahuan saat penyewa mengunggah bukti bayar.',
   onSubscribed,
   onUnsubscribed,
 }) {
@@ -149,7 +153,7 @@ export function PushNotificationCard({
     return null;
   }
 
-  // --- TAMPILAN COMPACT (PORTAL PENYEWA KOS) ---
+  // --- TAMPILAN COMPACT (HALAMAN OPERASIONAL KOS / PENGINGAT) ---
   if (compact) {
     return (
       <div
@@ -163,7 +167,7 @@ export function PushNotificationCard({
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold text-slate-900">
-                Notifikasi di perangkat ini
+                {title}
               </span>
               {permission === 'denied' && (
                 <Badge variant="rose" size="sm">Ditolak Browser</Badge>
@@ -182,7 +186,7 @@ export function PushNotificationCard({
                   ? 'Browser atau perangkat ini tidak mendukung notifikasi push.'
                   : isIosGuide
                     ? 'Di iPhone/iPad: Tambahkan ke Layar Utama (Safari > Bagikan) untuk aktifkan.'
-                    : 'Aktifkan notifikasi agar Anda tidak melewatkan pengingat sewa & tagihan.'}
+                    : description}
             </p>
             {feedback && (
               <p
@@ -267,10 +271,10 @@ export function PushNotificationCard({
           </div>
           <div>
             <h3 className="text-sm font-bold text-slate-900">
-              Notifikasi di perangkat ini
+              {title}
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Pengingat tagihan sewa, tanggal jatuh tempo, dan rincian denda
+              {description}
             </p>
           </div>
         </div>
@@ -289,7 +293,7 @@ export function PushNotificationCard({
           <div className="flex items-start gap-2 text-xs text-slate-600 bg-emerald-50/40 border border-emerald-200/60 p-3 rounded-lg">
             <AiOutlineCheckCircle className="text-emerald-600 text-base shrink-0 mt-0.5" />
             <p>
-              Notifikasi aktif di browser ini. Perangkat Anda akan menerima pengingat otomatis saat tagihan sewa mendekati jatuh tempo (H-3, H0) atau bila ada denda keterlambatan.
+              Notifikasi aktif di browser ini. Perangkat Anda akan menerima ringkasan pengingat sewa setiap pagi dan pemberitahuan saat penyewa mengunggah bukti bayar.
             </p>
           </div>
         ) : isDenied ? (
@@ -310,7 +314,7 @@ export function PushNotificationCard({
           </div>
         ) : (
           <p className="text-xs text-slate-600 leading-relaxed">
-            Aktifkan notifikasi di perangkat ini agar Anda menerima pemberitahuan otomatis saat tagihan baru terbit, jatuh tempo hari ini, atau pengingat tunggakan sewa langsung di layar perangkat Anda tanpa harus membuka WhatsApp.
+            Aktifkan notifikasi di perangkat ini agar Anda menerima ringkasan otomatis setiap pagi dan pemberitahuan langsung saat ada pembayaran baru dari penyewa yang perlu diverifikasi.
           </p>
         )}
 
