@@ -225,9 +225,7 @@ export async function fetchTodayReminders(tenantId) {
         unit_id,
         tenant_units:unit_id (
           id,
-          label,
-          block,
-          unit_number
+          label
         )
       ),
       tenant_members:member_id (
@@ -257,7 +255,7 @@ export async function fetchTodayReminders(tenantId) {
 
     const residentName = member.full_name || bill.metadata?.member_name || 'Penyewa';
     const phone = member.phone || bill.metadata?.phone || null;
-    const unitLabel = unit.label || (unit.block ? `Blok ${unit.block}/${unit.unit_number}` : 'Kamar');
+    const unitLabel = unit.label || 'Kamar';
 
     return {
       id: row.id,
