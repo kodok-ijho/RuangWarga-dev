@@ -35,3 +35,9 @@ Push dipakai untuk **pemilik dan staf**, yang perlu diingatkan untuk bertindak.
 - deploy ulang `send-rent-push`;
 - push ke `main` atas izin user;
 - uji di HP user.
+
+## Hasil (Claude, 2026-10-28)
+- 5F.1 server `4a9914b` (+ perbaikan fixture test oleh Claude); 5F.2 klien `a0b8862`.
+- Dry-run dev: migration + `owner_push_events.sql` + `push_notifications.sql` + `kos_collections.sql` → `DRYRUN_OK`.
+- Vitest 107 file 1472/1472 (`TZ=UTC` dan `TZ=Asia/Jakarta`), lint bersih.
+- Terpasang di dev `20261028044035 owner_push_events`; `send-rent-push` di-deploy ulang; tanpa secret → 401.
