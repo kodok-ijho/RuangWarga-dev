@@ -62,8 +62,8 @@ BEGIN
   VALUES (v_tenant_kos, 'Kamar 101')
   RETURNING id INTO v_unit_kos;
 
-  INSERT INTO public.tenant_members (id, tenant_id, user_id, unit_id, full_name, role, status)
-  VALUES (v_member_kos_id, v_tenant_kos, v_member_kos, v_unit_kos, 'Penyewa Uji Kos', 'anggota', 'approved');
+  INSERT INTO public.tenant_members (id, tenant_id, user_id, unit_id, full_name, status)
+  VALUES (v_member_kos_id, v_tenant_kos, v_member_kos, v_unit_kos, 'Penyewa Uji Kos', 'approved');
 
   INSERT INTO public.billing_items (id, tenant_id, unit_id, member_id, period, amount, status)
   VALUES (v_bill_kos, v_tenant_kos, v_unit_kos, v_member_kos_id, '2026-10', 1500000, 'unpaid');
@@ -80,8 +80,8 @@ BEGIN
   VALUES (v_tenant_rtrw, 'Rumah B-12')
   RETURNING id INTO v_unit_rtrw;
 
-  INSERT INTO public.tenant_members (id, tenant_id, user_id, unit_id, full_name, role, status)
-  VALUES (v_member_rtrw_id, v_tenant_rtrw, v_member_rtrw, v_unit_rtrw, 'Warga Uji RTRW', 'anggota', 'approved');
+  INSERT INTO public.tenant_members (id, tenant_id, user_id, unit_id, full_name, status)
+  VALUES (v_member_rtrw_id, v_tenant_rtrw, v_member_rtrw, v_unit_rtrw, 'Warga Uji RTRW', 'approved');
 
   INSERT INTO public.billing_items (id, tenant_id, unit_id, member_id, period, amount, status)
   VALUES (v_bill_rtrw, v_tenant_rtrw, v_unit_rtrw, v_member_rtrw_id, '2026-10', 100000, 'unpaid');
